@@ -236,15 +236,26 @@ def test_make_jail_needs_bwrap_and_ignores_the_watcher_opt_out(tmp_path, monkeyp
 def test_the_jail_wraps_with_bwrap_an_empty_home_and_the_tree_even_with_the_opt_out_set(tmp_path, monkeypatch):
     monkeypatch.setattr(sandbox, "engine", lambda *a, **k: "bwrap")
     monkeypatch.setenv(sandbox.OPT_OUT, "1")
-    home = tmp_path / "home"
+    home, state = tmp_path / "home", tmp_path / "state"  # the state dir is beside HOME: one that holds HOME is refused (#1680)
     home.mkdir()
-    jail = isolation.make_jail(tmp_path, sys.executable, home=home)
+    state.mkdir()
+    jail = isolation.make_jail(state, sys.executable, home=home)
     argv = jail.wrap_for(tmp_path / "head")(["python", "-c", "pass"])
     assert argv[0] == "bwrap" and argv[-3:] == ["python", "-c", "pass"]
     assert any(argv[i:i + 2] == ["--tmpfs", str(home)] for i in range(len(argv)))  # HOME is an empty tmpfs
     assert "--unshare-pid" in argv and "--die-with-parent" in argv
     assert argv[argv.index("--chdir") + 1] == str(tmp_path / "head")
     assert jail.home == home
+
+
+def test_the_jail_refuses_a_state_dir_that_holds_the_home(tmp_path, monkeypatch):
+    """A state dir that is HOME, or holds it, would give HOME back (#1680): the gate reports a sandbox error and runs nothing."""
+    monkeypatch.setattr(sandbox, "engine", lambda *a, **k: "bwrap")
+    home = tmp_path / "home"
+    home.mkdir()
+    for state in (tmp_path, home):
+        with pytest.raises(sandbox.SandboxUnavailable, match="state dir"):
+            isolation.make_jail(state, sys.executable, home=home)
 
 
 def test_the_interpreter_of_a_venv_under_home_stays_visible_read_only_and_nothing_else_of_home_does(tmp_path):

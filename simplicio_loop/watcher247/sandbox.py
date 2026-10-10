@@ -117,15 +117,36 @@ def _home_entry(home: Path, name: str) -> Path:
     return home / name
 
 
+def _absolute_link_in(path: Path) -> Path | None:
+    """The first symbolic link on the way to `path` whose target is absolute, else None. Followed one component at a time, so a
+    relative link that leads to an absolute one counts. bwrap mounts a tmpfs fine behind a RELATIVE link (`/home -> var/home` on
+    ostree hosts, measured) and fails with `Can't mkdir` / `Can't mount tmpfs` behind an absolute one."""
+    pending, resolved, hops = list(path.parts[1:]), Path(path.anchor), 0
+    while pending:
+        part = pending.pop(0)
+        candidate = resolved / part
+        if not candidate.is_symlink():
+            resolved = candidate
+            continue
+        hops += 1
+        target = os.readlink(candidate)
+        if os.path.isabs(target) or hops > 40:  # more than 40 hops: a loop, refused like an absolute link
+            return candidate
+        pending = list(PurePosixPath(target).parts) + pending
+    return None
+
+
 def _home_args(view: HomeView) -> list[str]:
     """bwrap args for a planner's HOME: an empty tmpfs, then the family's folders and binary. Fails closed (SandboxUnavailable)
-    when HOME is not an absolute directory other than `/`: without the tmpfs the whole HOME would stay readable. A HOME that
-    is a symbolic link, or has one in its path, is refused with its own reason: bwrap cannot mount a tmpfs over it."""
+    when HOME is not an absolute directory other than `/`: without the tmpfs the whole HOME would stay readable. A HOME with a
+    `..` in its text, or one that sits behind a symbolic link with an absolute target, is refused with its own reason."""
     home = view.home
     if not home.is_absolute() or home == Path("/"):
         raise SandboxUnavailable(f"cannot mount an empty HOME over {home}: not an absolute directory")
-    if home.resolve() != home:
-        raise SandboxUnavailable(f"cannot mount an empty HOME over {home}: it is, or sits under, a symbolic link ({home.resolve()})")
+    if ".." in home.parts:
+        raise SandboxUnavailable(f"cannot mount an empty HOME over {home}: the path holds a '..'")
+    if (link := _absolute_link_in(home)) is not None:
+        raise SandboxUnavailable(f"cannot mount an empty HOME over {home}: {link} is a symbolic link with an absolute target")
     if not home.is_dir():
         raise SandboxUnavailable(f"cannot mount an empty HOME over {home}: not an absolute directory")
     entries = {name: _home_entry(home, name) for name in (*view.rw, *view.ro, *view.hide)}  # every name checked before any arg is built

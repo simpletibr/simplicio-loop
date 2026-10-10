@@ -8,6 +8,7 @@ with `SandboxUnavailable` before any bwrap starts.
 from __future__ import annotations
 
 import os
+import signal
 from pathlib import Path
 
 import pytest
@@ -77,6 +78,70 @@ def test_a_home_with_a_link_in_the_middle_of_its_path_is_refused(tmp_path):
     (tmp_path / "alias").symlink_to(real)
     with pytest.raises(sandbox.SandboxUnavailable, match="symbolic link"):
         wrap(tmp_path, sandbox.HomeView(tmp_path / "alias" / "user"), tmp_path / "state")
+
+
+def test_a_home_behind_a_relative_link_is_accepted(tmp_path):
+    """`/home -> var/home` on ostree hosts: bwrap mounts the empty HOME fine behind a RELATIVE link (measured in the real bwrap test)."""
+    (tmp_path / "real" / "user" / ".claude").mkdir(parents=True)
+    (tmp_path / "link").symlink_to("real")  # relative target
+    home = tmp_path / "link" / "user"
+    argv = wrap(tmp_path, sandbox.HomeView(home, rw=(".claude",)), tmp_path / "state")
+    assert ["--tmpfs", str(home)] in [argv[i:i + 2] for i in range(len(argv) - 1)]
+    final = tmp_path / "final"
+    final.symlink_to("real/user")  # the HOME itself is a relative link
+    argv = wrap(tmp_path, sandbox.HomeView(final), tmp_path / "state")
+    assert ["--tmpfs", str(final)] in [argv[i:i + 2] for i in range(len(argv) - 1)]
+
+
+def test_a_relative_link_that_leads_to_an_absolute_one_is_refused(tmp_path):
+    real = tmp_path / "real"
+    real.mkdir()
+    (tmp_path / "hop").symlink_to(real)  # absolute target
+    (tmp_path / "entry").symlink_to("hop")  # relative target, but it ends in the absolute link
+    with pytest.raises(sandbox.SandboxUnavailable, match="absolute target"):
+        wrap(tmp_path, sandbox.HomeView(tmp_path / "entry"), tmp_path / "state")
+
+
+def test_a_loop_of_links_in_the_home_path_is_refused(tmp_path):
+    (tmp_path / "a").symlink_to("b")
+    (tmp_path / "b").symlink_to("a")
+
+    def stuck(signum, frame):
+        raise AssertionError("the guard followed a loop of links without a limit")
+
+    previous = signal.signal(signal.SIGALRM, stuck)  # a guard without a hop limit would hang here: fail fast instead
+    signal.alarm(10)
+    try:
+        with pytest.raises(sandbox.SandboxUnavailable):
+            wrap(tmp_path, sandbox.HomeView(tmp_path / "a" / "user"), tmp_path / "state")
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, previous)
+
+
+def test_a_home_with_a_dot_dot_in_its_text_is_refused_with_its_own_reason(tmp_path):
+    (tmp_path / "home").mkdir()
+    with pytest.raises(sandbox.SandboxUnavailable, match=r"'\.\.'"):
+        wrap(tmp_path, sandbox.HomeView(tmp_path / "x" / ".." / "home"), tmp_path / "state")
+
+
+@needs_bwrap
+def test_a_home_behind_a_relative_link_runs_in_a_real_bwrap_with_the_secret_hidden(monkeypatch):
+    with scratch("sbx-rel-") as root:
+        (root / "real" / "user" / ".claude").mkdir(parents=True)
+        (root / "real" / "user" / ".ssh").mkdir()
+        (root / "real" / "user" / ".claude" / "login").write_text("FAKE-login")
+        (root / "real" / "user" / ".ssh" / "id").write_text("FAKE-secret")
+        (root / "link").symlink_to("real")
+        home, clone, state = root / "link" / "user", root / "clone", root / "state"
+        clone.mkdir()
+        state.mkdir()
+        monkeypatch.undo()
+        argv = sandbox.wrap(["/bin/sh", "-c", f'cat "{home}/.claude/login"; echo; cat "{home}/.ssh/id" 2>/dev/null || echo HIDDEN'],
+                            clone=clone, state_dir=state, platform="linux", environ={}, home=sandbox.HomeView(home, rw=(".claude",)))
+        done = run(argv, {})
+        assert done.returncode == 0, done.stderr
+        assert done.stdout.split() == ["FAKE-login", "HIDDEN"]
 
 
 @pytest.mark.parametrize("field", ["rw", "ro", "hide"])
