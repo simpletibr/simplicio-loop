@@ -2780,6 +2780,9 @@ def main(argv=None) -> int:
     if argv_list[:1] == ["handoff"]:
         from .handoff_cli import main as handoff_main
         return handoff_main(argv_list[1:])
+    if argv_list[:1] == ["author"]:
+        from .author_cli import main as author_main
+        return author_main(argv_list[1:])
     if argv_list[:1] == ["run"]:
         return _redirect_run_to_wave(argv_list[1:])
     if argv_list[:1] == ["daemon"]:  # never a task: the frozen binary and Windows reach this parser with it (#1633)
