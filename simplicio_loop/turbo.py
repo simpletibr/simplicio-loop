@@ -296,11 +296,13 @@ async def _apply_operations(root: Path, operations: list[dict], binary: str, lab
     ops_path = state / f"turbo-ops-{label}.json"
     plan_path = state / f"turbo-plan-{label}.json"
     ops_path.write_text(json.dumps({"operations": operations}, ensure_ascii=False), encoding="utf-8")
-    compile_cmd = [binary, "edit", "--root", str(root), "--plan", str(ops_path), "--compile", str(plan_path), "--json", "--no-runtime"]
+    # One spawn: compile and apply together. A dev-cli that predates ``--compile --apply`` only compiles; it
+    # announces that with the compile schema and no receipt, and then the separate apply step runs.
+    one_cmd = [binary, "edit", "--root", str(root), "--plan", str(ops_path), "--compile", str(plan_path), "--apply", "--json", "--no-runtime"]
     apply_cmd = [binary, "edit", "--root", str(root), "--plan", str(plan_path), "--apply", "--json", "--no-runtime"]
     commands = []
     async with apply_lock:
-        for cmd in (compile_cmd, apply_cmd):
+        for cmd in (one_cmd, apply_cmd):
             try:
                 returncode, stdout_str, stderr_str = await operator_exec.run(cmd, timeout=120)
             except subprocess.TimeoutExpired:
@@ -309,10 +311,9 @@ async def _apply_operations(root: Path, operations: list[dict], binary: str, lab
                 break
             detail = (stdout_str + stderr_str)[-800:]
             entry = {"command": " ".join(cmd), "returncode": returncode, "stdout": detail, "label": label}
-            if cmd is apply_cmd:
-                entry["receipt"] = parse_apply_receipt(stdout_str) if returncode == 0 else None
+            entry["receipt"] = parse_apply_receipt(stdout_str) if returncode == 0 else None
             commands.append(entry)
-            if returncode != 0:
+            if returncode != 0 or entry["receipt"] is not None or "simplicio.dev-cli.edit-compile/v1" not in stdout_str:
                 break
     return commands
 

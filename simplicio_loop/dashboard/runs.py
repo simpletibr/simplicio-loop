@@ -20,7 +20,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, TypedDict
 
-from simplicio_loop.dashboard import receipt_check
 from simplicio_loop.evidence import redact_sensitive_text
 from simplicio_loop.progress import build_progress
 
@@ -515,6 +514,7 @@ def _index_receipts(run_dir: Path) -> list[dict[str, Any]]:
     index: list[dict[str, Any]] = []
     for path in candidates:
         if path.is_file() and not path.is_symlink():
+            from simplicio_loop.dashboard import receipt_check  # jsonschema: only when a receipt is checked
             index.append({'name': path.relative_to(run_dir).as_posix(), 'size': path.stat().st_size,
                           'validation': redact_json(receipt_check.check_receipt(path))})
     return index
