@@ -266,3 +266,61 @@ def test_the_interpreter_of_a_venv_under_home_stays_visible_read_only_and_nothin
     (home / ".ssh").mkdir()
     assert isolation._python_ro(str(home / "proj" / ".venv" / "bin" / "python"), home) == ("proj/.venv",)
     assert isolation._python_ro("/usr/bin/python3", home) == ()
+
+
+# --- B1 security tests: #1649 ------------------------------------------------------------------------------------------------
+
+def test_the_jail_includes_unshare_net_in_the_bwrap_argv(tmp_path, monkeypatch):
+    """Network isolation is mandatory for review gate (#1649, B1)."""
+    monkeypatch.setattr(sandbox, "engine", lambda *a, **k: "bwrap")
+    home, state = tmp_path / "home", tmp_path / "state"
+    home.mkdir()
+    state.mkdir()
+    jail = isolation.make_jail(state, sys.executable, home=home)
+    argv = jail.wrap_for(tmp_path / "head")(["python", "-c", "pass"])
+    assert argv[0] == "bwrap"
+    assert "--unshare-net" in argv, f"--unshare-net not found in: {argv}"
+    # --unshare-net should be right after bwrap
+    assert argv[1] == "--unshare-net", f"--unshare-net not found right after bwrap: {argv[:5]}"
+
+
+def test_child_env_removes_gh_token_from_the_watcher_env(secrets, tmp_path):
+    """Unit test: child_env must remove GH_TOKEN even when the parent has it."""
+    import os
+    os.environ["GH_TOKEN"] = "ghp_secret_token_12345"
+    env = isolation.child_env({})
+    assert "GH_TOKEN" not in env, f"GH_TOKEN leaked: {env}"
+    assert "GITHUB_TOKEN" not in env
+    assert "ANTHROPIC_API_KEY" not in env
+    assert "SIMPLICIO_SECRET" not in env
+
+
+def test_child_env_removes_gh_token_from_extra_env(tmp_path):
+    """Unit test: child_env must remove GH_TOKEN from extra dict passed to it."""
+    extra = {"GH_TOKEN": "ghp_should_be_removed", "PYTHONPATH": ".", "PATH": "/usr/bin"}
+    env = isolation.child_env(extra)
+    # GH_TOKEN is in extra but should NOT pass through scrubbed_env
+    assert "GH_TOKEN" not in env, f"GH_TOKEN leaked from extra: {env}"
+    # PYTHONPATH should be kept because it's in SAFE_EXTRA
+    assert env.get("PYTHONPATH") == ".", f"PYTHONPATH should be kept: {env}"
+
+
+def test_child_env_keeps_only_safe_extra_variables(tmp_path):
+    """Unit test: child_env only keeps safe PATH-like variables from extra."""
+    extra = {
+        "PYTHONPATH": "/a/b",
+        "NODE_PATH": "/node",
+        "PERL5LIB": "/perl",
+        "RUBYLIB": "/ruby",
+        "SECRET_TOKEN": "should_be_removed",
+        "HOME": "should_be_overridden",
+        "GH_TOKEN": "ghp_x",
+    }
+    env = isolation.child_env(extra, home=tmp_path / "jail-home")
+    assert env["PYTHONPATH"] == "/a/b"
+    assert env["NODE_PATH"] == "/node"
+    assert env["PERL5LIB"] == "/perl"
+    assert env["RUBYLIB"] == "/ruby"
+    assert "SECRET_TOKEN" not in env
+    assert env["HOME"] == str(tmp_path / "jail-home"), "HOME must be overridden"
+    assert "GH_TOKEN" not in env

@@ -22,9 +22,19 @@ WrapFor = Callable[[Path], Callable[[list[str]], list[str]]]
 
 
 def child_env(extra: Mapping[str, str] | None, home: Path | None = None) -> dict[str, str]:
-    """The environment of one test run: allowlisted host variables, `extra` (PYTHONPATH...) and an empty HOME."""
+    """The environment of one test run: allowlisted host variables, `extra` (PYTHONPATH...) and an empty HOME.
+    
+    The `extra` dict is filtered: only safe variables (PYTHONPATH...) are passed through, never tokens (#1649, B1).
+    """
     home = NO_HOME if home is None else home
-    env = {**sandbox.scrubbed_env(os.environ, home=home), **(extra or {})}
+    # Start with the scrubbed environment from os.environ (no tokens, allowlist only)
+    env = sandbox.scrubbed_env(os.environ, home=home)
+    # Add only safe extra variables; filter out tokens and dangerous keys
+    SAFE_EXTRA = {"PYTHONPATH", "NODE_PATH", "PERL5LIB", "RUBYLIB"}  # paths only, never credentials
+    if extra:
+        for key, value in extra.items():
+            if key in SAFE_EXTRA:
+                env[key] = value
     env["HOME"] = str(home)
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     return env
@@ -64,7 +74,13 @@ def make_jail(state_dir: Path, python: str, *, home: Path | None = None) -> Jail
 
     def wrap_for(root: Path) -> Callable[[list[str]], list[str]]:
         # environ={}: the opt-out of the watcher cannot turn the sandbox off here
-        return lambda argv: sandbox.wrap(argv, clone=root, state_dir=state_dir, home=view, environ={})
+        def wrap_with_network_isolation(argv):
+            bwrap_argv = sandbox.wrap(argv, clone=root, state_dir=state_dir, home=view, environ={})
+            # Insert --unshare-net right after "bwrap" to isolate the network (#1649, B1)
+            if bwrap_argv and bwrap_argv[0] == "bwrap":
+                return ["bwrap", "--unshare-net"] + bwrap_argv[1:]
+            return bwrap_argv
+        return wrap_with_network_isolation
 
     wrap_for(state_dir)(["true"])  # fails now (SandboxUnavailable), not in the middle of a run, when HOME cannot be hidden
     return Jail(home, wrap_for)
