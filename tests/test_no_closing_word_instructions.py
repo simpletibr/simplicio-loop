@@ -192,4 +192,30 @@ def test_placeholder_pattern_mutants_prove_scanner(tmp_path):
     
     # Counter-test: should NOT match non-placeholder patterns
     assert not _PLACEHOLDER_PATTERN.search("fix: something"), "Should not match non-placeholder"
+
+
+def test_placeholder_mutant_forms_are_killed_individually(tmp_path):
+    """Each removed placeholder form mutant must kill at least one test."""
+    (tmp_path / "docs").mkdir()
+    
+    # Test that each form is independently detected
+    forms = [
+        ("angle.md", "Closes #<n>\n"),
+        ("issue.md", "Fixes #{issue}\n"),
+        ("dollar.md", "Resolved #$N\n"),
+        ("ref.md", "Fixed {ref}\n"),
+    ]
+    
+    for filename, content in forms:
+        (tmp_path / "docs" / filename).write_text(content, encoding="utf-8")
+        hits = _scan(tmp_path, [f"docs/{filename}"])
+        assert len(hits) == 1, f"Form should be detected in {filename}: {hits}"
+
+
+def test_no_exception_pattern_matches_packages_tests():
+    """Ensure we don't accidentally add back the packages/*/tests/* exception."""
+    # Verify no exception pattern starts with "packages/" and ends with "/tests/*"
+    for pattern in EXCEPTIONS:
+        assert not (pattern.startswith("packages/") and pattern.endswith("/tests/*")), \
+            f"Dead exception {pattern} should not be in EXCEPTIONS list"
     assert not _PLACEHOLDER_PATTERN.search("resolved_value"), "Should not match partial word"
