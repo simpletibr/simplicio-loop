@@ -158,8 +158,20 @@ def own_environment_first() -> dict[str, str]:
     script of the loop's own environment (docs/DAEMON.md, "Operator shortcut"), never one found elsewhere on PATH
     (an old /usr/local/bin/simplicio-mapper ahead of the venv made this test depend on who ran it)."""
     scripts = os.path.dirname(sys.executable)
-    assert (Path(scripts) / "simplicio-mapper").exists(), f"no simplicio-mapper console script next to {sys.executable}"
+    if not (Path(scripts) / "simplicio-mapper").exists():
+        pytest.skip(f"UNVERIFIED|mapper_old: no simplicio-mapper console script next to {sys.executable}; "
+                    "the daemon forks only the mapper of the loop's own environment")
     return {"PATH": scripts + os.pathsep + os.environ.get("PATH", "")}
+
+
+def test_own_environment_first_uses_the_script_next_to_the_interpreter_or_skips(tmp_path, monkeypatch):
+    fake_python = tmp_path / "bin" / "python"
+    fake_python.parent.mkdir()
+    monkeypatch.setattr(sys, "executable", str(fake_python))
+    with pytest.raises(pytest.skip.Exception, match=r"UNVERIFIED\|mapper_old"):
+        own_environment_first()
+    (fake_python.parent / "simplicio-mapper").write_text("#!/bin/sh\n")
+    assert own_environment_first()["PATH"].startswith(str(fake_python.parent) + os.pathsep)
 
 
 def test_the_orient_step_runs_the_mapper_through_the_daemon_too(daemon_dir, tmp_path):
