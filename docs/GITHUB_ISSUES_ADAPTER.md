@@ -122,7 +122,7 @@ adapter.close("12", run_id="run-1", attempt_id="12-1")
 
 ## 8. Runner wiring
 
-`simplicio_loop/runner.py::_record_event` calls `_sync_github_lifecycle` on every phase event,
+`simplicio_loop/runner_lifecycle.py::_record_event` calls `_sync_github_lifecycle` on every phase event,
 projecting mapped phases (`intake→DISCOVERED`, `worker_claimed→CLAIMED`, `planning/mapping→
 PLANNED`, `executing→IN_PROGRESS`, `validating/watching/watcher_challenge→VERIFYING`,
 `blocked→BLOCKED`, `awaiting_decision→AWAITING_DECISION`, `delivering→PR_OPEN`) onto the canonical
@@ -137,7 +137,7 @@ is a separate, explicit call — never automatic from this per-event hook.
 
 Every successful lifecycle publish now persists its receipt into the run directory
 (`github_lifecycle.persist_lifecycle_receipt`, file `github-lifecycle-receipt.json`) —
-`runner.py::_sync_github_lifecycle` does this automatically, and
+`runner_lifecycle.py::_sync_github_lifecycle` does this automatically, and
 `scripts/github_lifecycle.py publish/close --run-dir <dir>` does it from the CLI.
 `simplicio_loop.oracle.evaluate_completion` reads it via a new gate, `source_lifecycle`
 (`_source_lifecycle_gate`): if the persisted receipt reports `outcome ==

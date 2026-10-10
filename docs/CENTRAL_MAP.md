@@ -172,9 +172,13 @@ simplicio-mapper canonical build|status|verify|gc <path>               # same su
   * `ask callers|callees|reaches|impact` build the unserved artifacts in memory when the query needs
     them, and the answer declares the cost in `on_demand_cost` (`seconds`, `built`, `persisted: false`).
     `scan`, `inspect` and `handoff` never build them.
-  * UNVERIFIED: time and disk of `scan` + `inspect` + `handoff` in a second worktree of the real
-    repository. The tests count full indexes (0) on a synthetic repository; the real measurement
-    (the full index cost 114.7 s and 89 MB there) is still to be taken.
+  * MEASURED on 2026-10-10 in this repository (main `c92d399b`). Each step ran once. Three other jobs ran
+    on the same machine. The cache was in a scratch folder. The base took 113.3 s and 35.7 MiB, once.
+    In a second worktree `canonical overlay` took 12.3 s, `scan` 1.5 s, `inspect` 0.9 s and
+    `handoff` 14.3 s. `scan` kept `overlay.json` and answered `skipped_reason = served_by_overlay`.
+    `inspect` answered `artifacts_present = true` and `fresh = true`. The `.simplicio-loop` folder of
+    the worktree holds 30.0 MiB (`du -k`). The full index there cost 114.7 s and 89 MB, measured before #1673.
+    The tests count full indexes (0) on a synthetic repository.
 * **The assembly in `central_overlay._project_map` mirrors `emit._build_artifacts_sync`.** The oracle
   test fails if they drift. Folding the sync, async and overlay copies into one is a follow-up.
 * **A file stays unchanged only when git reports no delta, git does not hide it, and its size matches
