@@ -97,7 +97,7 @@ def baseline_outsider(flow_env, flow_base):
 
 
 def _approvals(run) -> list[dict]:
-    return [c for c in run["calls"] if c.get("method") == "POST" and "APROVADO PELO SQUAD" in c.get("body", "")]
+    return [c for c in run["calls"] if c.get("method") == "POST" and "REVISÃO AUTOMÁTICA: APROVADA (nível 1)" in c.get("body", "")]
 
 
 def _merges(run) -> list[int]:

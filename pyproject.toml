@@ -120,6 +120,7 @@ markers = [
   "external_integration: installed or network-backed lane excluded from the hermetic core gate",
   "satellite: opt-in satellite functionality excluded from the mandatory core gate",
   "no_survey: apply tests that must run without the seeded Mapper survey",
+  "real_squad_review: the module tests the real squad_review.evaluate (the autouse fake of tests/conftest.py is off)",
 ]
 # The bundle/plugin trees mirror source files and are validated by mirror-parity.
 # Collect the canonical tests once instead of executing mirrored probes repeatedly.

@@ -20,11 +20,14 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import os
 import re
 import sys
 import tempfile
+import tokenize
+from bisect import bisect_right
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
@@ -127,7 +130,9 @@ SPRING_ROUTE_RE = re.compile(
     re.I,
 )
 ASPNET_ROUTE_RE = re.compile(r"\[Http(Get|Post|Put|Patch|Delete)(?:\s*\(\s*\"([^\"]*)\")?\]", re.I)
-DJANGO_PATH_RE = re.compile(r"\b(?:path|re_path)\s*\(\s*[\"'`]([^\"'`]+)[\"'`]", re.I)
+# Case-sensitive and not preceded by a word char or a dot: `Path("x")` (pathlib), `os.path("x")`,
+# `self.path("x")` and `mypath("x")` are not Django routes.
+DJANGO_PATH_RE = re.compile(r"(?<![\w.])(?:path|re_path)\s*\(\s*[\"'`]([^\"'`]+)[\"'`]")
 GO_HANDLE_RE = re.compile(r"\bhttp\.HandleFunc\s*\(\s*[\"'`]([^\"'`]+)[\"'`]", re.I)
 
 FETCH_RE = re.compile(r"\bfetch\s*\(\s*([\"'`])([^\"'`]+)\1", re.I)
@@ -308,24 +313,86 @@ def add_ref(refs: list[Ref], method: str, raw_path: str, file: str, line: int, s
     refs.append(Ref(method=method.upper(), path=path, file=file, line=line, source=source, raw=raw_path))
 
 
-def extract_endpoints(text: str, rel: str) -> list[Ref]:
+def python_string_spans(text: str) -> tuple[list[tuple[int, int]], tuple[int, str] | None]:
+    """Offsets `[start, end)` of every string literal of Python source `text` (f-strings whole), in order.
+
+    Uses `tokenize`, so it is tolerant: when the source stops tokenizing, the spans found before the failure are
+    returned together with the failure as `(line, message)`; the rest of the file has no detectable string.
+    """
+    lines = io.StringIO(text).readlines()  # split on "\n" only, the same lines the tokenizer is fed
+    starts = [0]
+    for line in lines:
+        starts.append(starts[-1] + len(line))
+
+    def offset(pos: tuple[int, int]) -> int:
+        return starts[min(pos[0] - 1, len(lines))] + pos[1]
+
+    fstring_start = getattr(tokenize, "FSTRING_START", None)  # Python 3.12+; before it an f-string is a STRING
+    fstring_end = getattr(tokenize, "FSTRING_END", None)
+    spans: list[tuple[int, int]] = []
+    depth = 0
+    begin = 0
+    feed = iter(lines)
+    try:
+        for tok in tokenize.generate_tokens(lambda: next(feed, "")):
+            if tok.type == fstring_start:
+                if depth == 0:
+                    begin = offset(tok.start)
+                depth += 1
+            elif tok.type == fstring_end:
+                depth -= 1
+                if depth == 0:
+                    spans.append((begin, offset(tok.end)))
+            elif tok.type == tokenize.STRING and depth == 0:
+                spans.append((offset(tok.start), offset(tok.end)))
+    except (tokenize.TokenError, SyntaxError, ValueError) as exc:
+        line = getattr(exc, "lineno", None)
+        if not isinstance(line, int) and len(exc.args) > 1 and isinstance(exc.args[1], tuple):
+            line = exc.args[1][0]
+        return spans, (line if isinstance(line, int) else 1, str(exc.args[0] if exc.args else exc))
+    return spans, None
+
+
+def scan_endpoints(text: str, rel: str) -> tuple[list[Ref], tuple[int, str] | None]:
+    """Endpoints of one file plus the tokenizer failure `(line, message)` of a .py file that does not tokenize.
+
+    In a .py file a match that starts inside a string literal (a docstring or a message quoting `path("a/")`)
+    is text, not a route, and is ignored. A file that stops tokenizing keeps the string filter for what was
+    tokenized and the plain pattern match for the rest; the failure is returned so the caller reports it.
+    """
+    spans: list[tuple[int, int]] = []
+    error: tuple[int, str] | None = None
+    if rel.lower().endswith(".py"):
+        spans, error = python_string_spans(text)
+    span_starts = [start for start, _ in spans]
+
+    def live(matches: Iterable[re.Match]) -> Iterable[re.Match]:
+        for m in matches:
+            i = bisect_right(span_starts, m.start()) - 1
+            if i < 0 or m.start() >= spans[i][1]:
+                yield m
+
     refs: list[Ref] = []
     for rx in ENDPOINT_PATTERNS:
-        for m in rx.finditer(text):
+        for m in live(rx.finditer(text)):
             add_ref(refs, m.group(1), m.group(2), rel, line_for(text, m.start()), "endpoint")
-    for m in FLASK_ROUTE_RE.finditer(text):
+    for m in live(FLASK_ROUTE_RE.finditer(text)):
         for method in route_methods_from_flask_tail(m.group("tail")):
             add_ref(refs, method, m.group(1), rel, line_for(text, m.start()), "endpoint")
-    for m in SPRING_ROUTE_RE.finditer(text):
+    for m in live(SPRING_ROUTE_RE.finditer(text)):
         method = "ANY" if m.group(1).lower() == "request" else m.group(1).replace("Mapping", "").upper()
         add_ref(refs, method, m.group(2) or "/", rel, line_for(text, m.start()), "endpoint")
-    for m in ASPNET_ROUTE_RE.finditer(text):
+    for m in live(ASPNET_ROUTE_RE.finditer(text)):
         add_ref(refs, m.group(1), "/" + (m.group(2) or ""), rel, line_for(text, m.start()), "endpoint")
-    for m in DJANGO_PATH_RE.finditer(text):
+    for m in live(DJANGO_PATH_RE.finditer(text)):
         add_ref(refs, "ANY", "/" + m.group(1), rel, line_for(text, m.start()), "endpoint")
-    for m in GO_HANDLE_RE.finditer(text):
+    for m in live(GO_HANDLE_RE.finditer(text)):
         add_ref(refs, "ANY", m.group(1), rel, line_for(text, m.start()), "endpoint")
-    return refs
+    return refs, error
+
+
+def extract_endpoints(text: str, rel: str) -> list[Ref]:
+    return scan_endpoints(text, rel)[0]
 
 
 def extract_http_calls(text: str, rel: str, source: str) -> list[Ref]:
@@ -390,12 +457,22 @@ def audit(root: Path) -> dict:
     ui_actions: list[UiAction] = []
     file_kinds: dict[str, str] = {}
     texts: dict[str, str] = {}
+    scan_issues: list[Issue] = []
 
     for path in iter_files(root):
         rel = relpath(path, root)
         text = read_text(path)
         texts[rel] = text
-        file_endpoints = extract_endpoints(text, rel)
+        file_endpoints, scan_error = scan_endpoints(text, rel)
+        if scan_error:
+            scan_issues.append(Issue(
+                severity="medium",
+                code="python_string_scan_incomplete",
+                message="Python file stopped tokenizing (%s); endpoints after that point were matched "
+                        "without the string-literal filter." % scan_error[1],
+                file=rel,
+                line=scan_error[0],
+            ))
         kind = classify_file(rel, text, bool(file_endpoints))
         file_kinds[rel] = kind
         endpoints.extend(file_endpoints)
@@ -406,7 +483,7 @@ def audit(root: Path) -> dict:
         elif kind == "backend":
             backend_calls.extend(calls)
 
-    issues: list[Issue] = []
+    issues: list[Issue] = list(scan_issues)
     for call in frontend_calls:
         if not has_matching_endpoint(call, endpoints):
             issues.append(Issue(

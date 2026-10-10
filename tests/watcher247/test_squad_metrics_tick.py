@@ -32,7 +32,7 @@ def _worker_metrics(number: int) -> dict:
 def _view(number: int) -> dict:
     return {"files": [{"path": f"src/m{number}/app.py"}], "headRefOid": f"oid{number}",
             "commits": [{"oid": f"oid{number}", "committedDate": "2026-10-01T00:00:00Z", "messageHeadline": "loop: x"}],
-            "comments": [{"id": number, "createdAt": "2026-10-02T00:00:00Z", "body": "APROVADO PELO SQUAD\n",
+            "comments": [{"id": number, "createdAt": "2026-10-02T00:00:00Z", "body": "REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n",
                           "author": {"login": "squad-bot"}, "authorAssociation": "MEMBER"}]}
 
 

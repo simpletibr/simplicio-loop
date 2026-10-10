@@ -133,7 +133,7 @@ def _view(number):
     return {
         "files": [{"path": f"src/m{number}/app.py"}], "headRefOid": f"oid{number}",
         "commits": [{"oid": f"oid{number}", "committedDate": commit, "messageHeadline": "loop: x"}],
-        "comments": [{"id": number, "createdAt": approval, "body": "APROVADO PELO SQUAD\n",
+        "comments": [{"id": number, "createdAt": approval, "body": "REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n",
                       "author": {"login": "squad-bot"}, "authorAssociation": "MEMBER"}],
     }
 

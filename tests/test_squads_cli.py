@@ -48,7 +48,7 @@ def test_plan_blocks_on_cycle_and_bad_input(capsys):
 def _fake_gh(commit_date, approval_date):
     payload = {
         "commits": [{"oid": "a", "messageHeadline": "feat: x", "messageBody": "", "committedDate": commit_date}],
-        "comments": [{"id": "c1", "body": "APROVADO PELO SQUAD", "createdAt": approval_date,
+        "comments": [{"id": "c1", "body": "REVISÃO AUTOMÁTICA: APROVADA (nível 1)", "createdAt": approval_date,
                       "author": {"login": "coord"}, "authorAssociation": "MEMBER"}],
     }
     calls = []

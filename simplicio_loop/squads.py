@@ -5,7 +5,7 @@ roles come from `model_roles.resolve` (planning / coordination / execution); the
 
   * `plan_squads()`   groups issues into squads, assigns file ownership and a topological merge order, and emits
                       one interface contract (`squad_contracts.contracts_for`) per dependency edge between squads.
-  * `squad_gate()`    approves a merge only when an `APROVADO PELO SQUAD` comment by an authorized approver (#1534) is
+  * `squad_gate()`    approves a merge only when a `REVISÃO AUTOMÁTICA: APROVADA (nível N)` comment by an authorized approver (#1534) is
                       newer than the latest commit that is not a clean merge of the base branch. Pure over
                       `gh pr view --json commits,comments`.
   * `squad_gate_for_pr()` async wrapper that fetches that JSON through `gh`.
@@ -29,6 +29,7 @@ from typing import Any, Callable, Dict, Iterable, List, Mapping, NamedTuple, Opt
 
 from . import model_roles, squad_capacity, squad_metrics
 from .escalation import ESCALATION_LADDER
+from .review_gate import comment as review_comment, identity
 from .squad_contracts import Contract, contracts_for
 
 PLAN_SCHEMA = "simplicio.squad-plan/v1"
@@ -36,7 +37,7 @@ DEFAULT_GROUP = "geral"
 DEFAULT_MAX_WORKERS = 4
 # A worker that fails this many times moves up one role of the escalation ladder.
 ESCALATE_AFTER_FAILURES = 2
-APPROVAL_PHRASE = "APROVADO PELO SQUAD"
+APPROVAL_PHRASE = "REVISÃO AUTOMÁTICA: APROVADA"  # followed by "(nível N)": the level of the review (review_gate)
 # Only the general coordinator edits these (mirrors, pins, conftest, version, changelog, the shared CLI file).
 SHARED_FILE_PATTERNS = (
     ".claude/skills/**/SKILL.md",
@@ -61,7 +62,7 @@ _CLEAN_BASE_MERGE = re.compile(r"^Merge (?:(?:remote-tracking )?branch '(?:origi
 _CONFLICTS = re.compile(r"^#?\s*Conflicts:", re.MULTILINE)
 # GitHub `authorAssociation` values a caller may trust to approve; anything else (CONTRIBUTOR, NONE, ...) never does.
 TRUSTABLE_ASSOCIATIONS = ("OWNER", "MEMBER", "COLLABORATOR")
-_APPROVAL_LINE = re.compile(r"^[ \t*_#]*" + re.escape(APPROVAL_PHRASE) + r"\b", re.MULTILINE)
+_APPROVAL_LINE = re.compile(r"^[ \t*_#]*" + re.escape(APPROVAL_PHRASE) + r"\s*\(n[íi]vel ([0-2])\)", re.MULTILINE)
 
 
 class SquadPlanError(ValueError):
@@ -412,6 +413,17 @@ def _authorized(comment: Mapping[str, Any], approvers: frozenset, associations: 
     return _fold(login) in approvers or comment.get("authorAssociation") in associations
 
 
+def _has_independent_review(approval: Mapping[str, Any], comments: Sequence[Mapping[str, Any]], head: Any, approvers: frozenset,
+                            associations: frozenset) -> bool:
+    """T2 (security): an authorized comment carries the marker of a reviewer other than the PR author and the automatic gate."""
+    if not isinstance(head, str) or not head:
+        return False
+    author = review_comment.parse_author_id(str(approval.get("body") or ""))
+    independent = identity.parse_independent_marker([c for c in comments if _authorized(c, approvers, associations)], head)
+    return (independent is not None and independent.agent_id != author and independent.role != identity.AUTO_REVIEWER.role
+            and independent.agent_id != identity.AUTO_REVIEWER.agent_id)
+
+
 def squad_gate(
     pr_view_json: Any,
     approvers: Optional[Iterable[str]] = None,
@@ -456,7 +468,10 @@ def squad_gate(
     if not approvals:
         return _verdict(False, "unauthorized_approval" if seen else "no_approval")
     approved_at, approval = max(approvals, key=lambda pair: pair[0])
-    common = {"approval_comment_id": approval.get("id"), "approval_at": approval.get("createdAt")}
+    level = int(_APPROVAL_LINE.search(str(approval.get("body") or "")).group(1))
+    common = {"approval_comment_id": approval.get("id"), "approval_at": approval.get("createdAt"), "level": level}
+    if level == 2 and not _has_independent_review(approval, comments, commits[-1].get("oid"), allowed, associations):
+        return _verdict(False, "independent_review_missing", **common)
 
     last_at, last = None, None
     for commit in commits:

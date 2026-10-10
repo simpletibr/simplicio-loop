@@ -269,7 +269,7 @@ def test_plan_contracts_are_what_write_contracts_consumes(tmp_path):
 
 # ---------------------------------------------------------------- gate
 
-APPROVAL = "APROVADO PELO SQUAD\n\nEvidencia: 12 passed. squash: feat(x): y (#1)"
+APPROVAL = "REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n\nEvidencia: 12 passed. squash: feat(x): y (#1)"
 
 
 def _commit(oid, headline, date, body=""):
@@ -396,7 +396,7 @@ def test_no_approval_comment():
     pr = {
         "commits": [_commit("a", "feat: x", "2026-10-09T01:00:00Z")],
         "comments": [_comment("LGTM", "2026-10-09T01:05:00Z"),
-                     _comment("> APROVADO PELO SQUAD (citado)", "2026-10-09T01:06:00Z")],
+                     _comment("> REVISÃO AUTOMÁTICA: APROVADA (nível 1) (citado)", "2026-10-09T01:06:00Z")],
     }
     result = _gate(pr)
     assert result["approved"] is False and result["reason"] == "no_approval"
@@ -530,7 +530,7 @@ def test_a_forged_approval_does_not_revive_an_authorized_one_made_stale_by_a_com
 
 
 def test_marker_forged_inside_a_quoted_reply_by_another_user_is_rejected():
-    quoted = "> APROVADO PELO SQUAD\n\nconcordo"
+    quoted = "> REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n\nconcordo"
     pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", "real", login="outsider"),
              _comment(quoted, "2026-10-09T01:10:00Z", "quote", login="coord"))
     result = _gate(pr)
