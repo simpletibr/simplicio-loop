@@ -3,7 +3,8 @@
 `check_all` only looks. `ensure` installs, and only in these ways:
 
 * python: `uv python install` into the user's folder; uv, if missing, comes from its official release;
-* gh and uv: the official release archive goes to ~/.local/bin after its SHA256 matched (`release_fetch`);
+* gh and uv: the release pinned in `setup_pins.json` goes to ~/.local/bin after its SHA256 matched the pin and the release
+  checksums (`release_fetch`); a tool or platform without a pin is not downloaded;
 * git and bwrap (system packages): only with `yes`, and only as root or when `sudo -n` works. Otherwise the exact
   command of the package manager is returned and nothing runs. There is no `curl | sh` and no sudo prompt.
 
@@ -23,7 +24,7 @@ import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from . import setup_hardening
 from .release_fetch import FetchError, default_get, install_binary
@@ -34,14 +35,16 @@ PY_TARGET = f"{MIN_PYTHON[0]}.{MIN_PYTHON[1]}"
 NEEDS_ROOT = ("apt", "dnf", "pacman")  # brew and winget run as the user
 TIMEOUT_S = 10.0
 INSTALL_TIMEOUT_S = 900.0
-GH_FIX = "run `simplicio-loop setup` (it downloads the GitHub CLI and checks its SHA256), or install it from https://cli.github.com"
+GH_FIX = ("run `simplicio-loop setup` (it installs the GitHub CLI pinned in this release, with its SHA256 checked), "
+          "or install it from https://cli.github.com")
 
 Run = Callable[[Sequence[str], float], tuple[Optional[int], str]]
 Which = Callable[[str], Optional[str]]
 _UNSET = object()
 _VERSION = re.compile(r"(\d+)\.(\d+)(?:\.(\d+))?")
 _PYTHON = re.compile(r"Python (\d+)\.(\d+)\.(\d+)")
-_TAG = re.compile(r"v\d+\.\d+\.\d+")
+_TAG = re.compile(r"v?\d+\.\d+\.\d+")  # gh tags start with v, uv tags do not
+_SHA256 = re.compile(r"[0-9a-f]{64}")
 _PACKAGES = {
     "apt": {"git": "git", "bwrap": "bubblewrap", "pip": "python3-pip", "venv": "python3-venv"},
     "dnf": {"git": "git", "bwrap": "bubblewrap", "pip": "python3-pip"},
@@ -83,17 +86,28 @@ class Action:
 # --- looking --------------------------------------------------------------------------------------------------------
 
 
-def _run(argv: Sequence[str], timeout: float = TIMEOUT_S) -> tuple[Optional[int], str]:
+def _execute(argv: Sequence[str], timeout: float, env: dict[str, str]) -> tuple[Optional[int], str]:
     """(exit code, stdout + stderr cut at 4 KiB); the code is None when the command timed out or could not start."""
     try:
         done = subprocess.run(list(argv), capture_output=True, text=True, errors="replace", stdin=subprocess.DEVNULL,
-                              timeout=timeout, shell=False, env=setup_hardening.probe_env())
+                              timeout=timeout, shell=False, env=env)
     except (OSError, subprocess.TimeoutExpired):
         return None, ""
     return done.returncode, (done.stdout + done.stderr)[:4096]
 
 
+def _run(argv: Sequence[str], timeout: float = TIMEOUT_S) -> tuple[Optional[int], str]:
+    """A probe: `--version` and the like, with no proxy or certificate setting."""
+    return _execute(argv, timeout, setup_hardening.probe_env())
+
+
+def _run_install(argv: Sequence[str], timeout: float = TIMEOUT_S) -> tuple[Optional[int], str]:
+    """An install step: it downloads, so it keeps the proxy and certificate settings."""
+    return _execute(argv, timeout, setup_hardening.install_env())
+
+
 run_command = _run  # what `setup_cli` wraps to check a file again right before it runs
+install_command = _run_install  # what `setup_cli` wraps for the installs
 
 
 def _is_root() -> bool:
@@ -199,7 +213,8 @@ def check_all(environ: Optional[Mapping[str, str]] = None, *, which: Optional[Wh
     if platform.startswith("linux"):  # the 24/7 watcher refuses to run a subprocess without it
         checks.append(_tool("bwrap", which, run, auto="system", fix=_system_fix(manager, ["bwrap"])))
     checks.append(_tool("uv", which, run, required=python.status != "ok", auto="user",
-                        fix="run `simplicio-loop setup` (it downloads uv and checks its SHA256), or see https://docs.astral.sh/uv/"))
+                        fix="run `simplicio-loop setup` (it installs the uv pinned in this release, with its SHA256 checked), "
+                            "or see https://docs.astral.sh/uv/"))
     if node_for:
         fix = f"install Node.js {MIN_NODE} or newer from https://nodejs.org (needed by: {', '.join(node_for)})"
         node = _tool("node", which, run, fix=fix)
@@ -224,10 +239,11 @@ def _release_files(tool: str, tag: str, system: str, arch: str) -> tuple[str, st
     """(archive name, checksums url, archive url, member) of the official release of gh or uv."""
     exe = ".exe" if system == "windows" else ""
     if tool == "gh":
-        stem = f"gh_{tag[1:]}_{'macOS' if system == 'macos' else system}_{arch}"
+        version = tag.removeprefix("v")
+        stem = f"gh_{version}_{'macOS' if system == 'macos' else system}_{arch}"
         archive = f"{stem}.{'tar.gz' if system == 'linux' else 'zip'}"
         base = f"https://github.com/cli/cli/releases/download/{tag}/"
-        return archive, f"{base}gh_{tag[1:]}_checksums.txt", base + archive, f"{stem}/bin/gh{exe}"
+        return archive, f"{base}gh_{version}_checksums.txt", base + archive, f"{stem}/bin/gh{exe}"
     stem = f"uv-{_UV_TRIPLE[(system, arch)]}"
     archive = f"{stem}.{'zip' if system == 'windows' else 'tar.gz'}"
     base = f"https://github.com/astral-sh/uv/releases/download/{tag}/"
@@ -236,15 +252,32 @@ def _release_files(tool: str, tag: str, system: str, arch: str) -> tuple[str, st
 
 @dataclass(frozen=True)
 class _Where:
-    """Where an installer puts files, on which system, and how it downloads."""
+    """Where an installer puts files, on which system, how it downloads, and which releases it may install (None: any latest)."""
 
     bin_dir: Path
     platform: str
     machine: str
     get: Callable[[str], bytes]
+    pins: Optional[Mapping[str, Any]] = None
 
     def exe(self, tool: str) -> Path:
         return self.bin_dir / (tool + (".exe" if self.platform.startswith("win") else ""))
+
+
+def _pin(tool: str, pins: Mapping[str, Any], system: str, arch: str) -> Optional[tuple[str, str, str]]:
+    """(tag, archive, SHA256) that `pins` approves for this tool and platform; None when there is no usable pin."""
+    entry = pins.get(tool)
+    if not isinstance(entry, Mapping) or not isinstance(entry.get("assets"), Mapping):
+        return None
+    asset = entry["assets"].get(f"{system}-{arch}")
+    if not isinstance(asset, Mapping):
+        return None
+    tag, archive, sha = entry.get("tag"), asset.get("archive"), asset.get("sha256")
+    if not (isinstance(tag, str) and _TAG.fullmatch(tag) and isinstance(sha, str) and _SHA256.fullmatch(sha)):
+        return None
+    if archive != _release_files(tool, tag, system, arch)[0]:
+        return None
+    return tag, archive, sha
 
 
 def _install_release(tool: str, where: _Where, dry_run: bool) -> Action:
@@ -255,22 +288,35 @@ def _install_release(tool: str, where: _Where, dry_run: bool) -> Action:
     if os.path.lexists(dest):
         return Action(tool, "unchanged", f"{dest} exists but is not verified (this setup did not install it), so it is not used; "
                                          f"remove it to let setup install {tool}")
+    pin = None
+    if where.pins is not None:
+        pin = _pin(tool, where.pins, *target)
+        if pin is None:
+            return Action(tool, "skipped", f"no pinned {tool} release for {target[0]}-{target[1]} in this version of simplicio-loop; "
+                                           f"install {tool} yourself")
     if dry_run:
         return Action(tool, "would-install", f"{dest} from the official {tool} release (SHA256 checked)")
-    repo = "cli/cli" if tool == "gh" else "astral-sh/uv"
     written: list[str] = []
     try:
-        tag = json.loads(where.get(f"https://api.github.com/repos/{repo}/releases/latest")).get("tag_name")
-        if not isinstance(tag, str) or not _TAG.fullmatch(tag):
-            raise FetchError("bad_response", f"the latest {tool} release has no usable tag")
-        archive, sums_url, archive_url, member = _release_files(tool, tag, *target)
-        result = install_binary(archive_url=archive_url, archive_name=archive, checksums_url=sums_url, member=member,
-                                dest=dest, get=where.get, on_installed=written.append)
+        if pin is None:
+            repo = "cli/cli" if tool == "gh" else "astral-sh/uv"
+            tag = json.loads(where.get(f"https://api.github.com/repos/{repo}/releases/latest")).get("tag_name")
+            if not isinstance(tag, str) or not _TAG.fullmatch(tag):
+                raise FetchError("bad_response", f"the latest {tool} release has no usable tag")
+            archive, sums_url, archive_url, member = _release_files(tool, tag, *target)
+            result = install_binary(archive_url=archive_url, archive_name=archive, checksums_url=sums_url, member=member,
+                                    dest=dest, get=where.get, on_installed=written.append)
+        else:
+            tag, archive, sha = pin
+            _, sums_url, archive_url, member = _release_files(tool, tag, *target)
+            result = install_binary(archive_url=archive_url, archive_name=archive, checksums_url=sums_url, member=member,
+                                    dest=dest, get=where.get, on_installed=written.append, expected_sha256=sha)
     except FetchError as exc:
         return Action(tool, "failed", f"{exc.reason_code}: {exc}")
     except (ValueError, AttributeError):
         return Action(tool, "failed", "bad_response: the release answer is not JSON")
-    return Action(tool, result, f"{tag} {dest} (SHA256 checked)", written[0] if result == "installed" and written else None)
+    proof = "SHA256 pinned" if pin else "SHA256 checked"
+    return Action(tool, result, f"{tag} {dest} ({proof})", written[0] if result == "installed" and written else None)
 
 
 def _expect(path: str, sha256: str, inner: Run) -> Run:
@@ -336,13 +382,16 @@ def _install_system(names: Sequence[str], *, yes: bool, dry_run: bool, which: Wh
 
 def ensure(checks: Sequence[Check], *, yes: bool = False, dry_run: bool = False, environ: Optional[Mapping[str, str]] = None,
            which: Optional[Which] = None, run: Optional[Run] = None, get: Callable[[str], bytes] = default_get,
-           bin_dir: Optional[Path] = None, platform: Optional[str] = None, machine: Optional[str] = None) -> list[Action]:
-    """One Action per required check that is not ok. `dry_run` runs and downloads nothing."""
+           bin_dir: Optional[Path] = None, platform: Optional[str] = None, machine: Optional[str] = None,
+           pins: Optional[Mapping[str, Any]] = None) -> list[Action]:
+    """One Action per required check that is not ok. `dry_run` runs and downloads nothing.
+
+    `pins` (`setup_pins.load()`) limits gh and uv to the pinned releases; None installs the latest one, checked against its checksums."""
     env = os.environ if environ is None else environ
     which = which or setup_hardening.safe_which(env)
-    run, platform = run or _run, platform or sys.platform
+    run, platform = run or _run_install, platform or sys.platform
     home = Path(env.get("HOME") or env.get("USERPROFILE") or Path.home())
-    where = _Where(bin_dir or home / ".local" / "bin", platform, machine or platform_module.machine(), get)
+    where = _Where(bin_dir or home / ".local" / "bin", platform, machine or platform_module.machine(), get, pins)
     todo = [check for check in checks if check.status != "ok" and check.required]
     uv = next((check for check in checks if check.name == "uv"), None)
     actions: list[Action] = []

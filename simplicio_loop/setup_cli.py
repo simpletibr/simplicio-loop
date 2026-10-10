@@ -259,11 +259,11 @@ def _prereq_step(options: Options, environ: Mapping[str, str], seams: Seams, nod
     PATH hygiene keeps ~/.local/bin out of the search, so a tool installed in this run is vouched for by its exact path.
     Its SHA256 is the one `ensure` took when it wrote the file. The file must still match it now, and a tool installed
     without such a hash is not vouched for. A hash taken here, after the rest of `ensure`, would approve a swapped file."""
-    from . import prereqs
+    from . import prereqs, setup_pins
     checks = seams.check_all(environ, node_for=node_for, trusted=_paths(environ, vouched),
                              run=_pinned(environ, vouched, prereqs.run_command))
     actions = seams.ensure(checks, yes=options.yes, dry_run=options.check or options.dry_run, environ=environ,
-                           run=_pinned(environ, vouched, prereqs.run_command))  # `uv python install` and `find` run the approved uv
+                           run=_pinned(environ, vouched, prereqs.install_command), pins=setup_pins.load())  # `uv python install` runs the approved uv
     bin_dir = _bin_dir(environ)
     fresh = {a.name: a.sha256 for a in actions if a.result == "installed" and a.name in INSTALLED_TOOLS and a.sha256
              and _private_dir(bin_dir) and _digest(bin_dir / _exe(a.name)) == a.sha256}
