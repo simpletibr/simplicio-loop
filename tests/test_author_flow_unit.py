@@ -8,6 +8,7 @@ import json
 import os
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import threading
@@ -289,6 +290,19 @@ def test_output_that_is_not_a_json_envelope_is_a_bad_envelope_not_ok(repo, fake,
     assert result.changed == ["done.txt"] and not (repo / "ran.marker").exists() and len(calls()) == 1
 
 
+@pytest.mark.parametrize("error", [TimeoutError("late"), FileNotFoundError(2, "gone"), OSError(7, "Argument list too long")])
+def test_a_cli_that_edits_and_then_fails_to_finish_still_reports_what_changed(repo, fake, error):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+
+    async def edits_then_fails(argv, **kwargs):
+        await runner(argv, **kwargs)
+        raise error
+
+    result = go(repo, edits_then_fails, verify="touch ran.marker", rounds=3)
+    assert (result.status, result.rounds, result.changed) == ("failed", 1, ["done.txt"]) and not (repo / "ran.marker").exists()
+
+
 @pytest.mark.parametrize("step", [{"exit": 1, "raw": "boom"}, {"envelope": {"is_error": True, "result": "Not logged in"}}])
 def test_a_cli_error_stops_before_verify_and_still_reports_what_changed(repo, fake, step):
     scenario, calls, runner = fake
@@ -296,7 +310,7 @@ def test_a_cli_error_stops_before_verify_and_still_reports_what_changed(repo, fa
     result = go(repo, runner, verify="touch ran.marker", rounds=3)
     assert (result.status, result.reason_code, result.rounds) == ("failed", "cli_error", 1)
     assert not (repo / "ran.marker").exists() and len(calls()) == 1
-    assert result.changed == ["done.txt"]
+    assert result.changed == ["done.txt"]  # doc rule 6: also after a CLI error
 
 
 def test_no_sandbox_refuses_unless_the_caller_allows_it(repo, fake, monkeypatch):
@@ -484,11 +498,68 @@ def test_a_file_the_author_creates_and_deletes_in_the_same_round_is_no_change(re
     assert go(repo, runner, verify="true", rounds=1).reason_code == "empty_diff"
 
 
-def test_the_caches_python_leaves_are_not_changes_unless_they_shadow_a_protected_module(repo, fake):
+def test_the_pytest_cache_folder_is_noise_at_any_depth(repo, fake):
     scenario, _calls, runner = fake
-    scenario({"write": {"done.txt": "ok\n"}, "run": [["sh", "-c", "mkdir -p __pycache__ .pytest_cache pkg/__pycache__ && echo x > __pycache__/a.pyc "
-                                                                   "&& echo y > .pytest_cache/b && echo z > pkg/__pycache__/m.cpython-314.pyc"]]})
+    scenario({"write": {"done.txt": "ok\n"}, "run": [["sh", "-c", "mkdir -p .pytest_cache/v/cache sub/.pytest_cache && echo y > .pytest_cache/v/cache/lastfailed "
+                                                                   "&& echo z > sub/.pytest_cache/CACHEDIR.TAG"]]})
     assert go(repo, runner, verify="true").changed == ["done.txt"]
+
+
+@pytest.mark.parametrize("pyc", ["pkg/__pycache__/guard.cpython-314.pyc", "simplicio_loop/__pycache__/runner.cpython-314.pyc",
+                                 "pkg/__pycache__/guard.cpython-314.opt-1.pyo", "__pycache__/a.pyc", "legacy/old.pyc", "legacy/old.pyo",
+                                 "pkg/deep/er/__pycache__/m.cpython-314.pyc", "pkg/GUARD.PYC"])
+def test_any_bytecode_file_the_author_makes_fails_the_round_even_beside_an_unprotected_module(repo, fake, pyc):
+    """The CLI and verify run without bytecode, so a .pyc that changes is the author's, and python imports it in place of the .py."""
+    scenario, _calls, runner = fake
+    scenario({"write": {pyc: "hostile\n", "done.txt": "ok\n"}})
+    result = go(repo, runner, verify="touch ran.marker", rounds=1)
+    assert (result.status, result.reason_code, pyc in result.changed) == ("failed", "protected_path", True)
+    assert pyc in result.failures[0]["detail"] and not (repo / "ran.marker").exists()
+
+
+def test_a_bytecode_file_that_verify_makes_fails_the_round_too(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    result = go(repo, runner, verify="mkdir -p pkg/__pycache__ && echo x > pkg/__pycache__/guard.cpython-314.pyc", rounds=1)
+    assert (result.reason_code, "pkg/__pycache__/guard.cpython-314.pyc" in result.changed) == ("protected_path", True)
+
+
+def test_deleting_a_bytecode_file_that_existed_before_fails_the_round(repo, fake):
+    (repo / "pkg" / "__pycache__").mkdir(parents=True)
+    (repo / "pkg" / "__pycache__" / "guard.cpython-314.pyc").write_text("old")
+    scenario, _calls, runner = fake
+    scenario({"delete": ["pkg/__pycache__/guard.cpython-314.pyc"], "write": {"done.txt": "ok\n"}})
+    result = go(repo, runner, verify="true", rounds=1)
+    assert (result.reason_code, result.changed) == ("protected_path", ["done.txt", "pkg/__pycache__/guard.cpython-314.pyc"])
+
+
+def test_a_bytecode_file_that_does_not_change_is_not_a_change(repo, fake):
+    (repo / "pkg" / "__pycache__").mkdir(parents=True)
+    (repo / "pkg" / "__pycache__" / "guard.cpython-314.pyc").write_text("old")
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    assert go(repo, runner, verify="true").changed == ["done.txt"]
+
+
+def test_another_file_in_a_pycache_folder_is_an_ordinary_change(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {"src/__pycache__/payload.sh": "echo hostile\n", "done.txt": "ok\n"}})
+    result = go(repo, runner, verify="true")
+    assert (result.status, result.changed) == ("ok", ["done.txt", "src/__pycache__/payload.sh"])
+
+
+def test_the_correction_for_bytecode_says_to_delete_it_and_not_to_make_more():
+    text = author_flow.correction_prompt([{"kind": "protected_path", "detail": "pkg/__pycache__/m.pyc"}])
+    assert ".pyc" in text and ".pyo" in text and "delete" in text.lower() and "PYTHONDONTWRITEBYTECODE" in text
+
+
+def test_a_real_pytest_run_as_verify_leaves_no_false_positive(repo, fake):
+    """pytest writes .pytest_cache; with bytecode off it writes no .pyc. The round must stay ok."""
+    scenario, _calls, runner = fake
+    scenario({"write": {"test_ok.py": "def test_a():\n    assert 1 + 1 == 2\n"}})
+    result = go(repo, runner, verify="python3 -m pytest -q -p no:cacheprovider test_ok.py && python3 -m pytest -q test_ok.py")
+    assert (result.status, result.reason_code, result.changed) == ("ok", "ok", ["test_ok.py"])
+    assert (repo / ".pytest_cache").is_dir()  # it was written, and it was not a change
 
 
 @pytest.mark.parametrize("pyc", ["simplicio_loop/__pycache__/plan_paths.cpython-314.pyc", "hooks/__pycache__/guard.cpython-314.pyc",
@@ -609,6 +680,19 @@ def test_the_threshold_is_the_size_above_which_a_file_is_not_hashed(tmp_path, mo
     (tmp_path / "over.txt").write_text("0123456789a")
     snap = author_isolation.snapshot(tmp_path)
     assert not snap["edge.txt"].startswith("big:") and snap["over.txt"].startswith("big:")
+
+
+def test_a_big_file_swapped_for_one_of_the_same_size_and_mtime_is_seen_by_its_inode(tmp_path, monkeypatch):
+    monkeypatch.setattr(author_isolation, "BIG_FILE", 10)
+    target = tmp_path / "big.bin"
+    target.write_text("0123456789a")
+    first = author_isolation.snapshot(tmp_path)
+    stamp = target.stat().st_mtime_ns
+    spare = tmp_path.parent / "spare.bin"
+    spare.write_text("0123456789b")
+    os.utime(spare, ns=(stamp, stamp))
+    os.replace(spare, target)  # same name, size, mode and mtime; a new inode
+    assert author_isolation.diff(first, author_isolation.snapshot(tmp_path)) == ["big.bin"]
 
 
 def test_a_snapshot_over_its_time_budget_raises_instead_of_hanging_between_files(tmp_path):
@@ -767,6 +851,12 @@ def test_dropping_a_home_never_removes_the_folder_other_runs_share(real_home):
     author_isolation.drop_home(second)
     assert first.parent.is_dir()  # a run that is about to mkdir inside it would otherwise fail
     author_isolation.make_home(real_home, "three")  # and the next run finds it, or makes it again
+
+
+def test_the_folder_of_the_private_homes_and_each_home_are_private_to_the_user(real_home):
+    home = author_isolation.make_home(real_home, "one")
+    modes = [stat.S_IMODE(path.stat().st_mode) for path in (real_home / author_isolation.HOMES, home, home / ".claude", home / author_isolation.LOGIN)]
+    assert modes == [0o700, 0o700, 0o700, 0o600]
 
 
 def test_the_shared_folder_is_made_again_when_it_is_gone(real_home):

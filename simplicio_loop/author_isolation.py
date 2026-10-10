@@ -6,10 +6,10 @@ symlinks (a link is its target text), and it records the mode. Of ``.git`` it sk
 ``commit`` and keeps ``config`` and ``hooks/``, the two places that run a program on the host. A ``.git`` FILE (a linked worktree)
 is an ordinary entry: pointing it elsewhere is a change.
 
-``__pycache__`` and ``.pytest_cache`` are in the snapshot, but ``diff`` leaves their entries out of ``changed`` unless they match
-``plan_paths.protected_refusal``: python imports an UNCHECKED_HASH ``.pyc`` without reading its ``.py``, so a ``.pyc`` beside a protected
-module is a protected change. The CLI and the verify command run with ``PYTHONDONTWRITEBYTECODE=1``, so the ``.pyc`` files they leave
-are none.
+``__pycache__`` is in the snapshot and everything in it counts: python imports an UNCHECKED_HASH ``.pyc`` in place of its ``.py``
+without reading the source, and the owner's pytest imports it outside the sandbox. The CLI and the verify command run with
+``PYTHONDONTWRITEBYTECODE=1``, so any ``.pyc`` or ``.pyo`` that appears, changes or goes away is the author's (``bytecode_refusal``).
+Only the ``.pytest_cache`` folder, which pytest writes on every run and nothing imports, is left out of ``changed``.
 
 A file over ``BIG_FILE`` is not hashed (the author can make a sparse file of any size with the pytest it may run): it is recorded as
 ``big:<mode>:<size>:<mtime_ns>:<inode>``. A same-size rewrite of a big file that keeps its mtime and inode is not seen; no protected
@@ -34,9 +34,8 @@ import time
 from collections.abc import Iterator
 from pathlib import Path
 
-from . import plan_paths
-
-CACHE_DIRS = frozenset({"__pycache__", ".pytest_cache"})
+NOISE_DIR = ".pytest_cache"
+BYTECODE = (".pyc", ".pyo")
 GIT_KEPT = (".git/config", ".git/hooks")
 BIG_FILE = 64 << 20  # bytes; above this a file is recorded by size, mtime and inode
 SNAPSHOT_BUDGET_S = 120.0
@@ -111,14 +110,26 @@ def snapshot(root: str | os.PathLike[str], budget_s: float | None = None) -> dic
     return out
 
 
-def _cache_noise(path: str) -> bool:
-    """A cache entry that does not shadow a protected module."""
-    return not CACHE_DIRS.isdisjoint(path.split("/")[:-1]) and plan_paths.protected_refusal(path) is None
+def _noise(path: str) -> bool:
+    """A file in a ``.pytest_cache`` folder: pytest writes it on every run and nothing imports it. ``__pycache__`` is NOT noise."""
+    return NOISE_DIR in path.split("/")[:-1]
+
+
+def bytecode_refusal(path: str) -> str | None:
+    """The reason a changed path is refused when it is a ``.pyc`` or ``.pyo`` file, anywhere, else None.
+
+    The CLI and the verify command run with ``PYTHONDONTWRITEBYTECODE=1``, so a bytecode file that appears, changes or goes away is the
+    author's. Python imports an UNCHECKED_HASH ``.pyc`` in place of its ``.py`` without reading the source.
+    """
+    if path.lower().endswith(BYTECODE):
+        return (f"protected_path: {path!r} is a Python bytecode file: python imports it in place of the source. "
+                "Delete every .pyc and .pyo you made and do not make bytecode")
+    return None
 
 
 def diff(before: dict[str, str], after: dict[str, str]) -> list[str]:
-    """Paths created, changed or deleted between two snapshots (python's own cache files left out unless they are protected)."""
-    return sorted(path for path in before.keys() | after.keys() if before.get(path) != after.get(path) and not _cache_noise(path))
+    """Paths created, changed or deleted between two snapshots (the ``.pytest_cache`` folder left out)."""
+    return sorted(path for path in before.keys() | after.keys() if before.get(path) != after.get(path) and not _noise(path))
 
 
 def _owner_alive(home: Path) -> bool:

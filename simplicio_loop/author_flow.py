@@ -61,7 +61,8 @@ AUTHOR_PREAMBLE = (
 )
 ADVICE = {
     "verify_failed": "The verify command failed. Fix the code. Output (tail):\n{detail}",
-    "protected_path": "You changed protected paths. Undo every change to them (`git diff` shows the original):\n{detail}",
+    "protected_path": ("You changed protected paths or Python bytecode. Undo every change to a protected path (`git diff` shows the original). "
+                       "Delete every .pyc and .pyo you made. Do not make bytecode: PYTHONDONTWRITEBYTECODE=1 is set.\n{detail}"),
     "empty_diff": "You made no change to any file. Edit the files that the task needs.",
 }
 
@@ -131,7 +132,8 @@ def _usage(envelope: dict[str, Any]) -> dict[str, int]:
 
 
 def _protected(changed: list[str], worktree: Path) -> list[str]:
-    reasons = (plan_paths.refusal(path, worktree) or plan_paths.protected_refusal(path, worktree) for path in changed)
+    reasons = (plan_paths.refusal(path, worktree) or plan_paths.protected_refusal(path, worktree) or author_isolation.bytecode_refusal(path)
+               for path in changed)
     return [reason for reason in reasons if reason]
 
 
