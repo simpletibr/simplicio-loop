@@ -184,6 +184,18 @@ def test_dry_run_reads_but_writes_nothing(env, tmp_path):
     assert sorted(p.name for p in tmp_path.iterdir()) == before
 
 
+def test_a_real_tick_runs_the_map_gc_once_and_a_dry_run_never_does(env, monkeypatch):
+    """#1671: the automatic `map gc` is wired into the real tick and is housekeeping that a dry run must not do."""
+    calls = []
+    monkeypatch.setattr(tick, "_map_gc_bases", lambda: calls.append("gc"))
+    env(FakeRun({"simplicio-a": [issue(1)]}))
+    baseline("simplicio-a#1")
+    run_tick(dry_run=True)
+    assert calls == []
+    run_tick()
+    assert calls == ["gc"]
+
+
 # --- a claim that cannot be taken never takes a slot of the batch ---------------------------------------------------
 
 def _claim(status, **extra):

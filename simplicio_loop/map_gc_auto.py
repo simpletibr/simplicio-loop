@@ -9,13 +9,16 @@ Never raises: housekeeping must not break a tick.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
-from .map_service_gc import DEFAULT_KEEP, apply_gc, plan_gc
+from .map_service_gc import DEFAULT_KEEP, apply_gc, plan_gc, refused_root
 from .map_service_git import git_common_dir
+
+log = logging.getLogger(__name__)
 
 INTERVAL_SECONDS = 3600.0
 STAMP_NAME = "map-gc-auto.json"
@@ -23,8 +26,12 @@ LOCK_NAME = "map-gc-auto.lock"  # single-flight per repository: one collection a
 
 
 def _default_gc(repo: str) -> Dict[str, Any]:
-    result = apply_gc(plan_gc(repo, keep=DEFAULT_KEEP))
-    return {"removed": len(result.removed), "removed_bytes": result.removed_bytes, "errors": len(result.errors)}
+    plan = plan_gc(repo, keep=DEFAULT_KEEP)
+    for error in plan.errors:  # a refused root or an aborted bases pass: say why it was not collected
+        log.warning("map gc auto: %s", error)
+    result = apply_gc(plan)
+    return {"removed": len(result.removed), "removed_bytes": result.removed_bytes,
+            "errors": len(result.errors) + len(plan.errors)}
 
 
 def _last_run(stamp: Path) -> Optional[float]:
@@ -40,7 +47,7 @@ def maybe_gc(repo: str, *, clock: Callable[[], float] = time.time, interval: flo
     lock = None
     try:
         store = git_common_dir(str(repo)) / "simplicio"
-        if not store.is_dir() or store.is_symlink() or (store / "map").is_symlink():
+        if not store.is_dir() or refused_root(store, store) or refused_root(store / "map", store):
             return None  # nothing was ever mapped here, or the store points out of the repository: never delete through a link
         from simplicio_mapper.mapper.file_lock import acquire_lock_at
 

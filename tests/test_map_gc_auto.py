@@ -299,3 +299,144 @@ def test_the_tick_helper_survives_a_broken_repository(tmp_path, monkeypatch):
     tick._map_gc_bases()
     monkeypatch.setattr(config, "WORK", tmp_path / "missing")
     tick._map_gc_bases()
+
+
+# --- review 2: roots that are links, bases pass with unresolved references, keep, future stamp ------------------------------
+
+
+def _outside_with_old_file(tmp_path: Path, *parts: str) -> Path:
+    outside = tmp_path / "outside"
+    target = outside.joinpath(*parts)
+    target.parent.mkdir(parents=True)
+    target.write_text("precious", encoding="utf-8")
+    _age(outside, 3 * HOUR)
+    return target
+
+
+def _assert_plan_and_gc_leave_outside_alone(root: Path, target: Path, outside: Path, reason: str) -> None:
+    from simplicio_loop import map_service_gc as gc
+
+    plan = gc.plan_gc(str(root))
+    assert not [item.path for item in plan.items if str(outside) in item.path]
+    assert reason in plan.errors
+    map_gc_auto.maybe_gc(str(root))
+    assert target.read_text(encoding="utf-8") == "precious"
+
+
+def test_a_scratch_folder_that_is_a_symlink_is_never_listed_or_deleted(repo, tmp_path):
+    root, map_dir = repo
+    target = _outside_with_old_file(tmp_path, "precious", "f.txt")
+    (map_dir.parent / "scratch").symlink_to(tmp_path / "outside", target_is_directory=True)
+    _assert_plan_and_gc_leave_outside_alone(root, target, tmp_path / "outside", "refused scratch: symlink")
+
+
+def test_a_canonical_folder_that_is_a_symlink_is_never_listed_or_deleted(repo, tmp_path):
+    root, map_dir = repo
+    target = _outside_with_old_file(tmp_path, "a" * 64, "manifest.json")
+    (map_dir.parent / "canonical").symlink_to(tmp_path / "outside", target_is_directory=True)
+    _assert_plan_and_gc_leave_outside_alone(root, target, tmp_path / "outside", "refused canonical: symlink")
+
+
+def test_a_cache_root_that_is_a_symlink_is_never_listed_or_deleted(repo, tmp_path, monkeypatch):
+    root, _ = repo
+    target = _outside_with_old_file(tmp_path, "scratch", "precious", "f.txt")
+    manifest = tmp_path / "outside" / "canonical" / ("b" * 64) / "manifest.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text("m", encoding="utf-8")
+    _age(tmp_path / "outside", 3 * HOUR)
+    cache = tmp_path / "cache-link"
+    cache.symlink_to(tmp_path / "outside", target_is_directory=True)
+    monkeypatch.setenv("SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR", str(cache))
+    _assert_plan_and_gc_leave_outside_alone(root, target, tmp_path / "outside", "refused cache: symlink")
+    assert manifest.exists()
+
+
+def test_a_cache_root_outside_the_store_is_refused_even_when_it_is_not_a_link(repo, tmp_path, monkeypatch):
+    root, _ = repo
+    target = _outside_with_old_file(tmp_path, "scratch", "precious", "f.txt")
+    monkeypatch.setenv("SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR", str(tmp_path / "outside"))
+    _assert_plan_and_gc_leave_outside_alone(root, target, tmp_path / "outside", "refused cache: outside_store")
+
+
+def test_the_root_guard_is_one_function_for_every_root(repo, tmp_path):
+    from simplicio_loop import map_service_gc as gc
+
+    _, map_dir = repo
+    store = map_dir.parent
+    (tmp_path / "elsewhere").mkdir()
+    assert gc.refused_root(store, store) is None and gc.refused_root(map_dir, store) is None
+    assert gc.refused_root(store / "missing", store) is None
+    (store / "scratch").symlink_to(tmp_path / "elsewhere", target_is_directory=True)
+    assert gc.refused_root(store / "scratch", store) == "symlink"
+    assert gc.refused_root(tmp_path / "elsewhere", store) == "outside_store"
+    assert gc.refused_root(store / "scratch" / "x", store) == "outside_store"  # a child reached through a link
+
+
+def _baselines(map_dir: Path, count: int, first_age: float = 10 * HOUR) -> list:
+    paths = []
+    for index in range(count):
+        path = map_dir / ("baseline-%040x.json" % (index + 1))
+        path.write_bytes(b"{}" * 50)
+        _age(path, first_age + index * HOUR)
+        paths.append(path)
+    return paths
+
+
+def test_maybe_gc_keeps_the_three_newest_unreferenced_bases(repo):
+    root, map_dir = repo
+    bases = _baselines(map_dir, 5)
+    map_gc_auto.maybe_gc(str(root))
+    assert [path.exists() for path in bases] == [True, True, True, False, False]
+
+
+def test_a_stamp_in_the_future_does_not_block_the_gc_forever(repo):
+    import json
+
+    root, map_dir = repo
+    stamp = map_dir.parent / map_gc_auto.STAMP_NAME
+    clock = Clock(1_000_000.0)
+    stamp.write_text(json.dumps({"last_run_at": clock.now + 10 * HOUR}), encoding="utf-8")  # the clock moved back
+    calls = []
+    gc = lambda path: calls.append(path) or "ran"
+    assert map_gc_auto.maybe_gc(str(root), clock=clock, gc=gc) == "ran"
+    assert json.loads(stamp.read_text(encoding="utf-8"))["last_run_at"] == clock.now  # re-stamped with the real time
+    clock.now += 30 * 60
+    assert map_gc_auto.maybe_gc(str(root), clock=clock, gc=gc) is None
+    clock.now += 31 * 60
+    assert map_gc_auto.maybe_gc(str(root), clock=clock, gc=gc) == "ran"
+    assert len(calls) == 2
+
+
+def test_bases_are_not_touched_when_a_worktree_reference_cannot_be_resolved(repo, tmp_path, monkeypatch, caplog):
+    from simplicio_loop import map_service_gc as gc
+
+    root, map_dir = repo
+    _git(root, "worktree", "add", "-q", "-b", "other", str(tmp_path / "other-wt"))
+    bases = _baselines(map_dir, 5)
+    stale = _scratch(map_dir, "baseline-build-old")
+    _age(stale, 3 * HOUR)
+    real = gc.merge_base_tree
+    monkeypatch.setattr(gc, "merge_base_tree", lambda path, ref: None if "other-wt" in path else real(path, ref))
+    plan = gc.plan_gc(str(root), keep=0)
+    assert not [item for item in plan.items if item.kind == "baseline"]
+    assert any(error.startswith("bases pass aborted") and "other-wt" in error for error in plan.errors)
+    with caplog.at_level("WARNING"):
+        result = map_gc_auto.maybe_gc(str(root))
+    assert result["errors"] == 1
+    assert any("bases pass aborted" in record.getMessage() for record in caplog.records)
+    assert all(path.exists() for path in bases)
+    assert not stale.exists()  # the scratch pass is independent of the bases
+    monkeypatch.setattr(gc, "merge_base_tree", real)  # once every reference resolves the bases pass runs again
+    assert [item for item in gc.plan_gc(str(root), keep=0).items if item.kind == "baseline"]
+
+
+def test_a_base_is_not_removed_if_the_references_cannot_be_resolved_at_apply_time(repo, monkeypatch):
+    from simplicio_loop import map_service_gc as gc
+
+    root, map_dir = repo
+    bases = _baselines(map_dir, 2, first_age=100 * HOUR)
+    plan = gc.plan_gc(str(root), keep=0)
+    assert [item.action for item in plan.items if item.kind == "baseline"] == ["remove", "remove"]
+    monkeypatch.setattr(gc, "merge_base_tree", lambda path, ref: None)
+    gc.apply_gc(plan)
+    assert all(path.exists() for path in bases)
