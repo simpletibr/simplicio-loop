@@ -108,6 +108,28 @@ def test_release_finalizes_claim():
     asyncio.run(run())
 
 
+def test_acquirable_mirrors_acquire_without_writing():
+    """acquirable() answers what acquire() would do, and leaves the file and the folder untouched."""
+    async def run():
+        folder = Path(tempfile.mkdtemp())
+        path = folder / "claims.json"
+        path.write_text(json.dumps({
+            "live": {"status": "running", "lease_expires_at": 2000},
+            "stale": {"status": "running", "lease_expires_at": 900},
+            "later": {"status": "retry", "next_try_at": "1970-01-01T00:20:00Z"},
+            "due": {"status": "retry", "next_try_at": "1970-01-01T00:10:00Z"},
+            "done": {"status": "done"},
+        }))
+        store = ClaimStore(path)
+        before, files = path.read_text(), sorted(p.name for p in folder.iterdir())
+        got = {k: await store.acquirable(k, now=1000) for k in ("new", "live", "stale", "later", "due", "done")}
+        assert got == {"new": True, "live": False, "stale": True, "later": False, "due": True, "done": False}
+        assert await store.acquirable("done", now=1000, reopen=True) is True
+        assert path.read_text() == before and sorted(p.name for p in folder.iterdir()) == files
+
+    asyncio.run(run())
+
+
 def test_reap_expired_moves_to_retry():
     """Test that expired running leases move to retry."""
     async def run():
