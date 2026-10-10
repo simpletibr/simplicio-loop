@@ -43,13 +43,15 @@ async def _git(dest: Path, *args: str) -> str:
     return done.stdout.strip()
 
 
-async def evaluate(repo: str, number: int, issue: int, head: str, author: identity.Agent, lock) -> tuple[GateReport, identity.Agent | None]:
+async def evaluate(repo: str, number: int, issue: int, head: str, author: identity.Agent, lock,
+                   branch: str | None = None) -> tuple[GateReport, identity.Agent | None]:
+    """`branch` is the PR's own head branch (loop/issue-7-r2 for a reattempt); without it the PR itself says which one it is."""
     if not FULL_SHA.fullmatch(head):  # the approval is tied to one commit: a prefix (or any other spelling) is not that commit
         raise ReviewError(f"the reviewed head must be the full 40-character sha, got {head!r}")
     full, dest = f"{config.ORG}/{repo}", config.WORK / repo
-    branch = f"loop/issue-{issue}"
+    view = await _gh(["pr", "view", str(number), "--repo", full, "--json", "body,comments,headRefName"])
+    branch = branch or view.get("headRefName") or f"loop/issue-{issue}"
     pr_ref = f"refs/remotes/origin/{branch}"
-    view = await _gh(["pr", "view", str(number), "--repo", full, "--json", "body,comments"])
     issue_view = await _gh(["issue", "view", str(issue), "--repo", full, "--json", "body"])
     independent = identity.parse_independent_marker(view.get("comments") or [], head)
     async with lock:  # the gate adds and removes git worktrees of the clone: writes are serialized

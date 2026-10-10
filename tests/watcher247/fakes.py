@@ -251,6 +251,8 @@ class FakeRun:
         if sub == "rev-parse":
             # Hermetic: return the SHA of a fetched ref, or from pr_views
             # argv is like: ["git", "rev-parse", "--verify", "refs/remotes/origin/loop/issue-1^{commit}"]
+            if argv[-1].startswith("refs/heads/"):
+                return proc.Result(1)  # the item's local branch does not exist yet (worktrees._acquire: created_branch)
             ref_query = argv[3] if len(argv) > 3 else ""
             # Strip ^{commit} suffix for lookup
             ref_name = ref_query.rstrip("}").rpartition("^{")[0] if "^{" in ref_query else ref_query
@@ -269,6 +271,8 @@ class FakeRun:
                         return proc.Result(0, sha + "\n")
             # Fallback: return a synthetic full SHA
             return proc.Result(0, "0" * 40 + "\n")
+        if sub == "ls-remote":
+            return proc.Result(2)  # `--exit-code`: no such branch on origin, so every attempt keeps the plain loop/issue-<N>
         if sub == "worktree" and argv[2] == "add":
             path = Path(argv[argv.index("-B") + 2])
             path.mkdir(parents=True)

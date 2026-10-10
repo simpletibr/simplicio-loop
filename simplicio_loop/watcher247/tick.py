@@ -28,6 +28,7 @@ class Work:
     issue: dict
     fix: str = ""
     pr: int = 0
+    head: str = ""  # the open PR's branch for a fix (loop/issue-7-r2 for a reattempt); "" is the default name
     role: str = ""  # the role a squad worker starts at (squad_routing.route); "" keeps the host-mode default
     verify: str = ""  # the repo's `verify` command from loop.toml of its default branch; the tick makes no Work without one
 
@@ -268,7 +269,7 @@ async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, c
         beat = asyncio.ensure_future(_heartbeat(store, ident, token))
         run_id = None  # run_id: the kanban run opened at intake; turbo continues it, close_run ends it
         try:
-            async with worktrees.checkout(gate, name, work.branch, number, fix=bool(work.fix)) as item:  # the lock is held only inside
+            async with worktrees.checkout(gate, name, work.branch, number, fix=bool(work.fix), head=work.head or None) as item:  # the lock is held only inside
                 dest, head = item.path, item.head
                 try:
                     ctx = points.PointContext(
@@ -375,7 +376,7 @@ async def _enqueue_fixes(runner, name: str, fixes: dict) -> None:
         state.log(f"patrol failed {name}: {exc}")
         return
     for task in found:
-        match = re.fullmatch(r"loop/issue-(\d+)", task.head)
+        match = re.fullmatch(r"loop/issue-(\d+)(?:-r\d+)?", task.head)
         if not match:
             continue
         ident = state.key_of(name, int(match.group(1)))
@@ -383,7 +384,7 @@ async def _enqueue_fixes(runner, name: str, fixes: dict) -> None:
         if fingerprint in fixes["seen"]:
             continue
         fixes["seen"].append(fingerprint)
-        entry = fixes["queued"].setdefault(ident, {"pr": task.pr, "texts": []})
+        entry = fixes["queued"].setdefault(ident, {"pr": task.pr, "texts": [], "head": task.head})
         entry["texts"].append(task.text)
 
 
@@ -517,7 +518,7 @@ async def tick(dry_run: bool = False) -> None:
                 if await _not_due(store, ident, clock, True, skipped_issues):  # stays queued for a later tick
                     continue
                 entry = fixes["queued"].pop(ident)
-                batch.append(Work(name, repo["branch"], issue, fix="\n".join(entry["texts"]), pr=entry["pr"], verify=cmd))
+                batch.append(Work(name, repo["branch"], issue, fix="\n".join(entry["texts"]), pr=entry["pr"], head=entry.get("head", ""), verify=cmd))
             elif ident in baselined:
                 continue
             elif github.skipped(issue):
