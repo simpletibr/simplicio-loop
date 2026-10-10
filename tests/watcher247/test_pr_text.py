@@ -3,6 +3,7 @@ import random
 
 import pytest
 
+from simplicio_loop.watcher247.closing_words import has_closing
 from simplicio_loop.watcher247.pr_text import LIMIT, fit, pr_title
 
 LONG = "Ajustar o calculo de tarifa quando o cliente muda de plano durante o ciclo de cobranca mensal"
@@ -46,6 +47,17 @@ def test_whitespace_is_collapsed_so_the_commit_subject_is_one_clean_line():
 def test_closing_words_in_the_issue_title_are_rewritten_before_the_cut():
     out = pr_title(9, "Fixes #99 " + LONG)
     assert out.startswith("loop: #9 Parte de #99 Ajustar") and len(out) <= LIMIT
+
+
+@pytest.mark.parametrize("title, expected", [
+    ("Fixes#12" + "y" * 100, "loop: #7 Parte de…"),
+    ("x" * 55 + "-Fixes#12" + "y" * 30, "loop: #7 " + "x" * 55 + "-Part…"),
+    ("Fixes#12 " + LONG, "loop: #7 Parte de #12 Ajustar o calculo de tarifa quando o cliente…"),
+])
+def test_the_cut_never_leaves_a_closing_word_behind(title, expected):
+    out = pr_title(7, title)
+    assert out == expected
+    assert not has_closing(out) and len(out) <= LIMIT
 
 
 def test_property_number_whole_limit_word_boundary_and_idempotent():
