@@ -125,7 +125,7 @@ def test_code_without_any_test_fails_mutation_and_never_runs_the_suite(tmp_path,
     redgreen = _check(run, "redgreen")
     assert redgreen.status == FAIL and "sem teste novo" in redgreen.reasons[0] and "app.py" in redgreen.reasons[0]
     assert any(c[0] == "git" for c in calls)  # the spy sees the gate's own commands...
-    assert not any("pytest" in c for c in calls)  # ...and not one `-m pytest` run, so no suite
+    assert not any("pytest" in c for c in calls)  # ...and not one pytest run, so no suite
     assert not run.report.approved
 
 
@@ -169,7 +169,7 @@ def _wrapped_runs(tmp_path, name, **overrides):
 def test_the_sandbox_wrapper_is_built_for_the_head_tree_and_wraps_every_pytest_run(tmp_path):
     run, seen = _wrapped_runs(tmp_path, "dead", n_mutants=2)
     assert seen and all(root.name == "head" and root.parent.name == f"pr-11-{run.head[:7]}" for root, _ in seen)
-    assert all(argv[1:3] == ["-m", "pytest"] for _, argv in seen)
+    assert all(argv[1] == "-c" and "pytest.main" in argv[2] for _, argv in seen)
     assert len(seen) == 2 + 1 + 2  # redgreen on head and on main, the unmutated tree, two mutants
 
 

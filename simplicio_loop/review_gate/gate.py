@@ -15,7 +15,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Callable, Mapping
 
-from . import coverage, diffs, docs, identity, mutation, redgreen, usage
+from . import coverage, diffs, docs, identity, mutation, pytest_cmd, redgreen, usage
 from .diffs import FileChange
 from .identity import Agent
 from .model import ERROR, CheckResult, GateReport
@@ -126,7 +126,7 @@ def run_gate(inp: GateInput) -> GateReport:
         added = _added_text(head_root, changes)
         test_files = [c.path for c in changes if c.kind == "test" and c.status in ("A", "M") and not c.path.endswith("conftest.py")]
         tests = [*test_files, *neighbors(head_root, changes)]
-        argv = [inp.python, "-m", "pytest", "-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", *tests] if tests else []
+        argv = pytest_cmd.command(inp.python, "-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", *tests) if tests else []
         checks = [
             _timed("redgreen", lambda: redgreen.check_redgreen(base_root, head_root, changes, python=inp.python,
                                                                timeout=inp.test_timeout_s, wrap=inp.wrap_for(head_root), env=env)),
