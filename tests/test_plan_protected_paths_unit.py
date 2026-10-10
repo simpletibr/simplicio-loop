@@ -40,6 +40,18 @@ PROTECTED = [
     pytest.param("hooks/hooks.json", "hooks", id="hooks-json"),
     pytest.param("plugin/hooks/action_gate.py", "plugin/hooks", id="plugin-hook"),
     pytest.param("simplicio_loop/_bundle/hooks/action_gate.py", "simplicio_loop/_bundle/hooks", id="bundle-hook"),
+    pytest.param(".codex/hooks.json", ".codex/hooks.json", id="codex-hooks"),
+    pytest.param(".codex/config.toml", ".codex/config.toml", id="codex-config"),
+    pytest.param(".claude/settings.json", ".claude/settings.json", id="claude-settings"),
+    pytest.param(".claude/settings.local.json", ".claude/settings.local.json", id="claude-settings-local"),
+    pytest.param(".claude/hooks/pre.sh", ".claude/hooks", id="claude-hook"),
+    pytest.param(".cursor/hooks.json", ".cursor/hooks.json", id="cursor-hooks"),
+    pytest.param(".kiro/hooks/x.json", ".kiro/hooks", id="kiro-hook"),
+    pytest.param(".githooks/pre-commit", ".githooks", id="githooks"),
+    pytest.param(".husky/pre-commit", ".husky", id="husky"),
+    pytest.param(".pre-commit-config.yaml", ".pre-commit-config.yaml", id="pre-commit-config"),
+    pytest.param(".vscode/tasks.json", ".vscode/tasks.json", id="vscode-tasks"),
+    pytest.param("simplicio_loop/watcher247/verify.py", "simplicio_loop/watcher247/verify.py", id="verify"),
     pytest.param("simplicio_loop/plan_paths.py", "simplicio_loop/plan_paths.py", id="this-gate"),
     pytest.param("simplicio_loop/intake_gate.py", "simplicio_loop/intake_gate.py", id="intake-gate"),
     pytest.param("simplicio_loop/watcher247/sandbox.py", "simplicio_loop/watcher247/sandbox.py", id="sandbox"),
@@ -104,7 +116,6 @@ ORDINARY = [
     "tests/test_plan_paths.py",
     "scripts/check_other.py",
     "scripts/checks.py",
-    "scripts/check.py.bak",
     "scripts/sub/check.py",
     "hooks_extra/x.py",
     "hook/x.py",
@@ -116,6 +127,12 @@ ORDINARY = [
     "simplicio_loop/plan_paths_extra.py",
     "simplicio_loop/intake_gate_x.py",
     "simplicio_loop/watcher247/tick.py",
+    "simplicio_loop/watcher247/host_mode.py",
+    ".claude/skills/simplicio-loop/SKILL.md",
+    "AGENTS.md",
+    ".claude/commands/x.md",
+    ".vscode/settings.json",
+    ".codex/other.json",
     "simplicio_loop/watcher247/sandbox_x.py",
     "simplicio_loop/watcher247/points/judge_x.py",
     "simplicio_loop/watcher247/points/recall.py",
@@ -264,7 +281,7 @@ def test_a_dotdot_cannot_climb_above_the_first_component():
     assert plan_paths.protected_refusal("a/b/../../src/x") is None
 
 
-@pytest.mark.parametrize("path", ["", ".", "./", "/", "a/..", "sub/../.", " "])
+@pytest.mark.parametrize("path", ["", ".", "./", "/", "a/..", "sub/../.", " ", ".//", ".\\", "./."])
 def test_a_path_with_no_component_is_no_protected_path(path):
     """The root holds everything, but `refusal` turns such a path away as unsafe_path; this check does not guess."""
     assert plan_paths.protected_refusal(path) is None
@@ -274,10 +291,18 @@ def test_the_config_path_the_gate_reads_is_protected():
     assert plan_paths.protected_refusal(intake_gate.CONFIG_PATH).startswith("protected_path:")
 
 
+# Protected before anyone creates them: surfaces of the host (or of the repos the watcher serves) that this repo does not have.
+NOT_IN_THIS_REPO = {
+    "CODEOWNERS", "docs/CODEOWNERS", ".claude/settings.json", ".claude/settings.local.json", ".claude/hooks", ".cursor/hooks.json",
+    ".kiro/hooks", ".githooks", ".husky", ".pre-commit-config.yaml", ".vscode/tasks.json",
+}
+
+
 def test_every_protected_entry_names_a_file_the_repository_has():
-    """CODEOWNERS is protected before anyone creates it; every other entry must exist, or a rename silently drops its guard."""
-    gone = [entry for entry in plan_paths.PROTECTED_PATHS if "CODEOWNERS" not in entry and not (ROOT / entry).exists()]
+    """Every other entry must exist, or a rename silently drops its guard."""
+    gone = [entry for entry in plan_paths.PROTECTED_PATHS if entry not in NOT_IN_THIS_REPO and not (ROOT / entry).exists()]
     assert gone == [], f"{gone} is gone or renamed: update PROTECTED_PATHS"
+    assert NOT_IN_THIS_REPO <= set(plan_paths.PROTECTED_PATHS)
 
 
 def test_reading_an_excerpt_of_a_protected_file_stays_allowed(repo):
@@ -333,3 +358,162 @@ def test_apply_names_the_protected_path_reason_code_and_calls_nothing(repo, tmp_
     assert result["steps"][0]["error"].startswith("protected_path:")
     task["operations"] = [{"path": "/etc/passwd", "find": "a", "replace": "b"}]
     assert loop_apply._apply_task_devcli(repo, task, tmp_path)["reason_code"] == "unsafe_path"
+
+
+# --- a sibling with the gate's name shadows the gate (review of #1684, MAJOR-2) -------------------------------------
+# python imports the package `intake_gate/` before `intake_gate.py`, and an extension or a byte-code file of the same stem
+# beside it as well, so a new file with the gate's name replaces the gate without touching it.
+PY_GATES = [
+    "scripts/check.py",
+    "simplicio_loop/plan_paths.py",
+    "simplicio_loop/intake_gate.py",
+    "simplicio_loop/watcher247/verify.py",
+    "simplicio_loop/watcher247/sandbox.py",
+    "simplicio_loop/watcher247/secret_scan.py",
+    "simplicio_loop/watcher247/prompt_guard.py",
+    "simplicio_loop/watcher247/env_guard.py",
+    "simplicio_loop/watcher247/squad_flow.py",
+    "simplicio_loop/watcher247/points/judge.py",
+    "simplicio_loop/watcher247/points/delivery_gate.py",
+]
+
+
+def _siblings(gate: str) -> list[str]:
+    folder, _, name = gate.rpartition("/")
+    stem = name.removesuffix(".py")
+    return [
+        f"{folder}/{stem}",
+        f"{folder}/{stem}/__init__.py",
+        f"{folder}/{stem}/deeper/x.py",
+        f"{folder}/{stem}.so",
+        f"{folder}/{stem}.cpython-314-x86_64-linux-gnu.so",
+        f"{folder}/{stem}.pyc",
+        f"{folder}/{stem}.pyd",
+        f"{folder}/__pycache__/{stem}.cpython-314.pyc",
+        f"{folder.upper()}/{stem.upper()}/__init__.py",
+        f"{folder}/{stem}./__init__.py",
+    ]
+
+
+def _lookalikes(gate: str) -> list[str]:
+    folder, _, name = gate.rpartition("/")
+    stem = name.removesuffix(".py")
+    return [
+        f"{folder}/{stem}_x.py",
+        f"{folder}/x{stem}.py",
+        f"{folder}/{stem}x/__init__.py",
+        f"{folder}/x{stem}/__init__.py",
+        f"{folder}/__pycache__/{stem}_x.cpython-314.pyc",
+        f"{folder}/__pycache__/other.cpython-314.pyc",
+        f"{folder}/other/{stem}.py",
+    ]
+
+
+def test_the_python_entries_of_the_list_are_the_ones_tested_for_shadows():
+    assert sorted(entry for entry in plan_paths.PROTECTED_PATHS if entry.endswith(".py")) == sorted(PY_GATES)
+
+
+@pytest.mark.parametrize("gate", PY_GATES)
+def test_a_file_that_shadows_a_gate_is_refused_like_the_gate(repo, gate):
+    for path in _siblings(gate):
+        reason = plan_paths.operations_refusal([{"path": path, "find": "", "replace": "x\n"}], repo)
+        assert reason is not None and reason.startswith("protected_path:") and repr(gate) in reason, path
+        assert plan_paths.protected_refusal(path) == reason, path
+
+
+@pytest.mark.parametrize("gate", PY_GATES)
+def test_a_name_that_only_looks_like_the_gate_is_left_alone(repo, gate):
+    for path in _lookalikes(gate):
+        assert plan_paths.protected_refusal(path) is None, path
+
+
+@pytest.mark.parametrize("path", ["simplicio_loop/intake_gate/__init__.py", "simplicio_loop/watcher247/sandbox/__init__.py"])
+def test_apply_plan_does_not_write_a_package_that_shadows_a_gate(repo, fake_dev_cli, path):
+    binary, calls = fake_dev_cli
+    result = asyncio.run(turbo.apply_plan(repo, [{"path": path, "find": "", "replace": "def repo_enabled(cfg):\n    return True\n"}],
+                                          "t", binary))
+    assert result["applied"] is False and result["reason"].startswith("protected_path:")
+    assert not calls.exists()
+
+
+# --- a path with no component is the root, and the root holds everything (review of #1684, m2) ----------------------
+@pytest.mark.parametrize("path", ["./", ".//", ".\\", "./.", "a/..", "sub/../.", ".///"])
+def test_the_root_spelled_with_dots_is_refused_as_text(repo, path):
+    assert plan_paths.refusal(path).startswith("unsafe_path")
+    assert plan_paths.refusal(path, repo).startswith("unsafe_path")
+    assert plan_paths.operations_refusal([{"op": "delete_file", "path": path}], repo).startswith("unsafe_path")
+    assert plan_paths.operations_refusal([{"op": "move_file", "path": "app.py", "dest": path}], repo).startswith("unsafe_path")
+
+
+# --- dest is followed through symlinks too (review of #1684, m3) ---------------------------------------------------
+@pytest.mark.parametrize("dest", ["ghlink/workflows/x.yml", "cfg", "hop3/workflows/x.yml", "docslink/CODEOWNERS", "loopdir/loop.toml"])
+def test_a_move_whose_dest_lands_in_a_protected_path_through_a_symlink_is_refused(repo, dest):
+    move = [{"op": "move_file", "path": "app.py", "dest": dest}]
+    reason = plan_paths.operations_refusal(move, repo)
+    assert reason is not None and reason.startswith("protected_path:")
+    assert plan_paths.plan_refusal({"operations": move}, repo) == reason
+
+
+@pytest.mark.parametrize("source", ["ghlink/workflows/ci.yml", "cfg", "loopdir/loop.toml"])
+def test_a_move_whose_source_lands_in_a_protected_path_through_a_symlink_is_refused(repo, source):
+    move = [{"op": "move_file", "path": source, "dest": "elsewhere.txt"}]
+    assert plan_paths.operations_refusal(move, repo).startswith("protected_path:")
+
+
+# --- validation commands run after the apply and write anywhere (review of #1684, MAJOR-1) ---------------------------
+VALIDATION = [{"cmd": ["sh", "-c", "echo PWNED >> .github/workflows/ci.yml; echo 'enabled = false' > .simplicio-loop/loop.toml"]}]
+VALIDATION_REASON = "protected_path: validation commands are not allowed in a plan: dev-cli runs them after the apply, anywhere"
+
+
+@pytest.mark.parametrize("schema", ["simplicio.mechanical-edit/v1", "simplicio.dev-cli.edit-plan/v1", None])
+@pytest.mark.parametrize("validation", [VALIDATION, [{"cmd": ["true"]}], [{}], "rm -rf /", {"cmd": ["true"]}, [None]])
+def test_a_plan_that_carries_validation_commands_is_refused(repo, schema, validation):
+    plan = {"operations": [{"op": "create_file", "path": "src/n.py", "text": "ok = 1\n"}], "validation": validation}
+    if schema:
+        plan["schema"] = schema
+    assert plan_paths.plan_refusal(plan, repo) == VALIDATION_REASON
+
+
+@pytest.mark.parametrize("key", plan_paths.PLAN_KEYS)
+def test_validation_is_refused_whichever_key_holds_the_operations(repo, key):
+    assert plan_paths.plan_refusal({key: _edit("src/a.txt"), "validation": VALIDATION}, repo) == VALIDATION_REASON
+
+
+@pytest.mark.parametrize("plan", [
+    {"operations": [{"op": "create_file", "path": "src/n.py", "text": "x"}], "validation": []},
+    {"operations": [{"op": "create_file", "path": "src/n.py", "text": "x"}]},
+    {"operations": [{"op": "create_file", "path": "src/n.py", "text": "x"}], "validation": None},
+])
+def test_an_empty_or_absent_validation_stays_allowed(repo, plan):
+    assert plan_paths.plan_refusal(plan, repo) is None
+
+
+# --- apply refuses the whole ops.json before it writes anything (review of #1684, m1) ------------------------------
+def _ops(*paths: str) -> dict:
+    return {"tasks": [{"id": f"t{n}", "operations": [{"path": path, "find": "old" if path == "app.py" else "a", "replace": "new"}]}
+                      for n, path in enumerate(paths, start=1)]}
+
+
+def test_normalize_blocks_a_protected_path_naming_the_task(repo):
+    with pytest.raises(loop_apply.ApplyValidationError, match=r"t2.*protected_path"):
+        loop_apply._normalize_tasks(_ops("app.py", ".github/workflows/ci.yml", "src/a.txt"))
+
+
+def test_validate_ops_blocks_a_symlink_into_a_protected_path_and_reads_nothing(repo, monkeypatch):
+    def no_read(self, *args, **kwargs):
+        raise AssertionError(f"validate_ops read {self}")
+
+    monkeypatch.setattr(Path, "read_text", no_read)
+    tasks = [{"id": "T1", "operations": _edit("ghlink/workflows/ci.yml"), "depends_on": [], "check": None}]
+    assert loop_apply.validate_ops(repo, tasks, [["T1"]]) == [
+        {"task": "T1", "path": "ghlink/workflows/ci.yml", "op_index": 0, "reason": "protected_path"}]
+
+
+@pytest.mark.parametrize("protected", [".github/workflows/ci.yml", "ghlink/workflows/ci.yml", "cfg"])
+def test_apply_run_writes_nothing_when_a_later_task_is_protected(repo, monkeypatch, protected):
+    monkeypatch.setattr(loop_apply, "survey_provenance", lambda root, generations: {"ok": True})
+    before = {name: (repo / name).read_text(encoding="utf-8") for name in ("app.py", "src/a.txt", ".github/workflows/ci.yml")}
+    result = loop_apply.run(_ops("app.py", protected, "src/a.txt"), repo=repo)
+    assert result["status"] == "BLOCKED"
+    assert result["reason_code"] in {"ops_invalid", "validation_failed"}
+    assert {name: (repo / name).read_text(encoding="utf-8") for name in before} == before
