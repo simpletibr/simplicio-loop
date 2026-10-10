@@ -128,7 +128,12 @@ def _absolute_link_in(path: Path) -> tuple[Path, str] | None:
     while pending:
         part = pending.pop(0)
         candidate = resolved / part
-        if not candidate.is_symlink():
+        try:
+            is_link = candidate.is_symlink()
+        except OSError as e:
+            # PermissionError on is_symlink (Python 3.11-3.13) or other OSErrors: fail closed
+            raise SandboxUnavailable(f"cannot traverse {path}: {str(e)[:100]}") from e
+        if not is_link:
             resolved = candidate
             continue
         hops += 1
@@ -136,7 +141,7 @@ def _absolute_link_in(path: Path) -> tuple[Path, str] | None:
             target = os.readlink(candidate)
         except OSError as e:
             # OSError (FileNotFoundError, PermissionError, etc.) during symlink traversal: fail closed
-            raise SandboxUnavailable(f"cannot traverse {path}: {str(e)[:100]}")
+            raise SandboxUnavailable(f"cannot traverse {path}: {str(e)[:100]}") from e
         if os.path.isabs(target):
             return (candidate, "absolute target")
         if hops > 40:  # more than 40 hops: a loop, refused with distinct reason

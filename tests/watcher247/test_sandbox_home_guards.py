@@ -245,3 +245,22 @@ def test_task3_absolute_link_has_correct_error_message(tmp_path):
     (tmp_path / "hop").symlink_to("/tmp")
     with pytest.raises(sandbox.SandboxUnavailable, match="absolute target"):
         wrap(tmp_path, sandbox.HomeView(tmp_path / "hop" / "user"), tmp_path / "state")
+
+
+def test_task1_permission_error_on_is_symlink_is_converted_to_sandbox_unavailable(tmp_path, monkeypatch):
+    """#1680 task 1: PermissionError on is_symlink (Python 3.11-3.13) is caught and converted to SandboxUnavailable."""
+    (tmp_path / "real").mkdir()
+    (tmp_path / "link").symlink_to("real")
+
+    original_is_symlink = sandbox.Path.is_symlink
+    calls = [0]
+
+    def broken_is_symlink(self):
+        calls[0] += 1
+        if calls[0] == 1:  # First call to is_symlink raises PermissionError
+            raise PermissionError(f"access denied: {self}")
+        return original_is_symlink(self)
+
+    monkeypatch.setattr(sandbox.Path, "is_symlink", broken_is_symlink)
+    with pytest.raises(sandbox.SandboxUnavailable, match="access denied"):
+        sandbox._absolute_link_in(tmp_path / "link")
