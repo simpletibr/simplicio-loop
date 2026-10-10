@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import escalation, exec_auth, exec_planner, execution_report, executor_select, plan_scope, turbo_cli, turbo_run, turbo_window
+from ..error_truncation import truncate_error_with_cause
 from . import budget, config, proc, raw_log, sandbox, verify
 from . import convergence  # the failed-verify path asks it: retry, escalate or stop (a module, not a point)
 
@@ -215,8 +216,10 @@ async def _request(dest: Path, task: str, run_id: str | None = None, windows: li
     document = verify.parse_turbo(result.stdout or "")
     run_id = document.get("run_id")
     if document.get("status") != "needs_plan" or not isinstance(run_id, str):
-        reason = document.get("detail") or document.get("reason_code") or (result.stderr or "")[-300:] or "no request"
-        raise RuntimeError(f"turbo request {document.get('status') or 'failed'}: {reason}"[:500])
+        stderr = truncate_error_with_cause((result.stderr or "").strip(), head_chars=150, tail_chars=150, total_limit=300)
+        reason = document.get("detail") or document.get("reason_code") or stderr or "no request"
+        message = f"turbo request {document.get('status') or 'failed'}: {reason}"
+        raise RuntimeError(truncate_error_with_cause(message, head_chars=200, tail_chars=200, total_limit=500))
     return json.dumps(document, ensure_ascii=False, separators=(",", ":")), run_id
 
 
