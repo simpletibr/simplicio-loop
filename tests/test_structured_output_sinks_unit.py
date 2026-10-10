@@ -66,7 +66,7 @@ def _provider(repo, tmp_path, monkeypatch, capsys, answers: list[str]):
     asked: list[list[dict]] = []
 
     async def fake_complete(arm, messages, *, session_id, **kwargs):
-        asked.append(messages)
+        asked.append(list(messages))  # a snapshot: the lane appends the final answer to its own list after the call
         return {"ok": True, "content": answers[min(len(asked), len(answers)) - 1], "hedged": False, "latency_s": 0.01,
                 "provider": "test", "session_id": session_id, "cost": None, "usage_reported": True,
                 "prompt_tokens": 10, "completion_tokens": 4, "cached_tokens": 0, "reasoning_tokens": 0}
@@ -113,7 +113,12 @@ def test_provider_run_retries_once_then_applies_and_reports_it(repo, tmp_path, m
     rc, doc, asked = _provider(repo, tmp_path, monkeypatch, capsys, [json.dumps(OUT), json.dumps(GOOD)])
 
     assert rc == 0 and doc["status"] == "ok" and len(asked) == 2
-    assert "out_of_scope:evil.py" in asked[1][-1]["content"]  # the planner gets the violations, nothing else
+    feedback = asked[1][-1]
+    assert feedback["role"] == "user" and "out_of_scope:evil.py" in feedback["content"]
+    # the planner gets the violations, nothing else: no plan text, no other prose
+    assert feedback["content"] == plan_scope.retry_message(["out_of_scope:evil.py"])
+    assert "operations" not in feedback["content"] and "hello.txt" not in feedback["content"]
+    assert asked[1][-2] == {"role": "assistant", "content": json.dumps(OUT)}  # the refused answer comes before it
     retries = [e for e in _events(repo, doc["run_id"]) if e["kind"] == "retry_scheduled"]
     assert len(retries) == 1
     assert retries[0]["payload"]["reason"] == "out_of_scope" and "evil.py" in retries[0]["payload"]["blocker"]
