@@ -5,6 +5,7 @@ import argparse
 import asyncio
 
 from ..claim_lease import ClaimStore
+from ..error_truncation import truncate_error_with_cause
 from . import author_executor, config, env_guard, state, tick, worktrees
 
 
@@ -37,7 +38,7 @@ async def _serve(once: bool, dry_run: bool) -> int:
         except Exception as exc:
             state.log(f"tick error: {exc}")
             if not dry_run:
-                await state.write_status(phase="error", error=str(exc)[:500])
+                await state.write_status(phase="error", error=truncate_error_with_cause(str(exc)))
         if once:
             return 0
         await asyncio.sleep(config.INTERVAL_S)  # STOP keeps the process alive and idle
