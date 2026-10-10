@@ -272,6 +272,39 @@ def test_t2_needs_an_independent_reviewer_of_another_role():
     assert ok.status == PASS and ok.measured["independent"] == "rev-9"
 
 
+@pytest.mark.parametrize("path", [
+    # Non-Python production files (JS, shell, YAML, TOML, etc.) need human review
+    "src/app.js", "src/ui.jsx", "src/utils.ts", "src/config.tsx",
+    "scripts/deploy.sh", "scripts/setup.bash", "build/Makefile",
+    "config.yaml", "docker-compose.yml",
+    "setup.toml", "src/data.json", "src/styles.css", "Dockerfile"])
+def test_non_python_production_files_are_t2(path):
+    """Non-Python production files (M2, #1649) need human review since the automatic gate cannot check them."""
+    # A non-Python production file alone
+    assert identity.classify_level([_c(path)]) is Level.T2
+    # A non-Python production file with Python code
+    assert identity.classify_level([_c("src/app.py"), _c(path, "A")]) is Level.T2
+    # Deleting a non-Python file is not sensitive (no behavior change), but modifying is
+    assert identity.classify_level([_c(path, "D")]) is not Level.T2  # no production code, delete only
+
+
+@pytest.mark.parametrize("path", [".github/workflows/ci.yml"])
+def test_non_python_production_files_protected_path_always_t2(path):
+    """Protected paths are T2 even when deleted (M1, #1649)."""
+    assert identity.classify_level([_c(path, "D")]) is Level.T2  # protected even when deleted
+
+
+@pytest.mark.parametrize("path", [
+    # Non-Python files that are NOT production code do not trigger T2
+    "docs/README.md", "docs/setup.md", "README.md", "CHANGELOG.md",  # docs
+    "tests/test_app.js", "tests/unit.sh", "tests/e2e.yaml",  # test files
+])
+def test_non_python_test_and_doc_files_are_not_t2(path):
+    """Non-Python test and doc files do not trigger T2 since they are not production code."""
+    assert identity.classify_level([_c(path, "A")]) is not Level.T2
+    assert identity.classify_level([_c("src/app.py"), _c(path, "A")]) is not Level.T2
+
+
 FULL = "abcdef1234" + "5" * 30
 MARK = "REVISÃO INDEPENDENTE: APROVADA\nrevisor: rev-9\npapel: independent-reviewer\nmodelo: opus-5.5\nhost: local\nhead: " + FULL
 
