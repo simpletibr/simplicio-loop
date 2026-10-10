@@ -20,14 +20,22 @@ ENVELOPE = {"type": "result", "is_error": False, "result": "done", "session_id":
             "usage": {"input_tokens": 10, "output_tokens": 5, "cache_read_input_tokens": 3}}
 
 FAKE = """\
-import json, os, pathlib, sys
+import json, os, pathlib, subprocess, sys
 here = pathlib.Path(__file__).parent
 steps = json.loads((here / "scenario.json").read_text())
 log = here / "calls.jsonl"
 n = len(log.read_text().splitlines()) if log.exists() else 0
 step = steps[min(n, len(steps) - 1)]
+home = pathlib.Path(os.environ["HOME"])
+home_files = sorted(str(p.relative_to(home)) for p in home.rglob("*") if p.is_file())
 with log.open("a") as handle:
-    handle.write(json.dumps({"argv": sys.argv[1:], "env": sorted(os.environ), "cwd": os.getcwd()}) + "\\n")
+    handle.write(json.dumps({"argv": sys.argv[1:], "env": sorted(os.environ), "cwd": os.getcwd(), "home": str(home),
+                             "home_files": home_files}) + "\\n")
+for command in step.get("run", []):
+    subprocess.run(command, check=True)
+for name, text in step.get("home_write", {}).items():
+    (home / name).parent.mkdir(parents=True, exist_ok=True)
+    (home / name).write_text(text)
 for name, text in step.get("write", {}).items():
     path = pathlib.Path(name)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -46,13 +54,37 @@ def repo(tmp_path):
     for args in (["init", "-q"], ["config", "user.email", "t@t"], ["config", "user.name", "t"]):
         subprocess.run(["git", *args], cwd=root, check=True)
     (root / "a.txt").write_text("a\n")
+    (root / ".gitignore").write_text(".simplicio-loop/\n")  # as in this repo: the loop's own folder is ignored
+    (root / "hooks").mkdir()
+    (root / "hooks" / "guard.py").write_text("print('guard')\n")  # a tracked protected file
     subprocess.run(["git", "add", "."], cwd=root, check=True)
     subprocess.run(["git", "commit", "-qm", "base"], cwd=root, check=True)
     return root
 
 
 @pytest.fixture
-def fake(tmp_path, monkeypatch):
+def linked(repo, tmp_path):
+    """A linked worktree of `repo`, whose `.git` is a file that points at an admin dir."""
+    path = tmp_path / "linked"
+    subprocess.run(["git", "worktree", "add", "-q", str(path), "-b", "linked"], cwd=repo, check=True)
+    return path
+
+
+@pytest.fixture
+def real_home(tmp_path, monkeypatch):
+    """The service user's HOME, with a login and things that must never reach the CLI or the verify command."""
+    home = tmp_path / "home"
+    (home / ".claude").mkdir(parents=True)
+    (home / ".claude" / ".credentials.json").write_text('{"token": "login-secret"}')
+    (home / ".claude" / "settings.json").write_text('{"hooks": "real"}')
+    (home / ".ssh").mkdir()
+    (home / ".ssh" / "id_rsa").write_text("ssh-secret")
+    monkeypatch.setenv("HOME", str(home))
+    return home
+
+
+@pytest.fixture
+def fake(tmp_path, monkeypatch, real_home):
     """(scenario setter, calls reader, runner) around a fake claude; the fake's own directory holds the scenario and the call log."""
     folder = tmp_path / "fake"
     folder.mkdir()
@@ -104,7 +136,7 @@ def test_first_round_argv_creates_the_session_with_every_verified_flag():
     assert flag_values(argv, "--model") == ["opus"] and flag_values(argv, "--effort") == ["high"]
     assert flag_values(argv, "--permission-mode") == ["acceptEdits"]
     assert flag_values(argv, "--output-format") == ["json"]
-    assert flag_values(argv, "--setting-sources") == ["project"]
+    assert flag_values(argv, "--setting-sources") == ["user"]  # never `project`: the author writes .claude/settings.json there
     assert "--disable-slash-commands" in argv and "--strict-mcp-config" in argv
     assert flag_values(argv, "--disallowedTools") == ["WebFetch,WebSearch"]
     assert flag_values(argv, "--allowedTools") == [
@@ -263,8 +295,8 @@ def test_no_sandbox_refuses_unless_the_caller_allows_it(repo, fake, monkeypatch)
     assert runner.seen == [] and calls() == []
 
 
-def test_the_cli_and_verify_run_inside_the_sandbox(repo, fake, monkeypatch):
-    scenario, _calls, runner = fake
+def test_the_cli_sees_only_its_private_home_and_verify_sees_an_empty_one(repo, fake, real_home, monkeypatch):
+    scenario, calls, runner = fake
     scenario({"write": {"done.txt": "ok\n"}})
     wrapped = []
     monkeypatch.setattr(sandbox, "engine", lambda *a, **k: "bwrap")
@@ -272,10 +304,79 @@ def test_the_cli_and_verify_run_inside_the_sandbox(repo, fake, monkeypatch):
     result = go(repo, runner, verify="test -f done.txt", allow_unsandboxed=False)
     assert result.status == "ok"
     assert [argv[0] for argv, _ in wrapped] == ["claude", "sh"]
-    assert all(kwargs["clone"] == repo for _, kwargs in wrapped) and wrapped[0][1]["home"] is not None
+    assert all(kwargs["clone"] == repo for _, kwargs in wrapped)
+    (_, cli), (_, check) = wrapped
+    private = Path(calls()[0]["home"])
+    assert cli["home"].home == real_home and cli["home"].rw == (str(private.relative_to(real_home)),)  # the private home, nothing else
+    assert cli["home"].hide == () and cli["home"].ro == (".local/share/claude", ".local/bin/claude")  # the binary only
+    assert check["home"] == sandbox.HomeView(real_home)  # an empty tmpfs: no private home, no ~/.ssh, no ~/.config/gh
 
 
-def test_a_cli_that_does_not_answer_in_time_fails_the_run(repo, monkeypatch):
+def test_the_cli_home_is_private_with_only_a_copy_of_the_login_and_is_deleted_after(repo, fake, real_home):
+    scenario, calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    assert go(repo, runner, verify="true").status == "ok"
+    (call,) = calls()
+    private = Path(call["home"])
+    assert private != real_home and private.is_relative_to(real_home)
+    assert call["home_files"] == [".claude/.credentials.json"]  # not settings.json, hooks or ~/.ssh
+    assert not private.exists()
+
+
+def test_the_private_home_is_deleted_when_the_run_raises_or_times_out(repo, fake, real_home):
+    scenario, calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    homes = []
+
+    async def boom(argv, **kwargs):
+        homes.append(kwargs["env"]["HOME"])
+        raise RuntimeError("boom")
+
+    async def stuck(argv, **kwargs):
+        homes.append(kwargs["env"]["HOME"])
+        raise TimeoutError("stuck")
+
+    with pytest.raises(RuntimeError):
+        go(repo, boom)
+    assert go(repo, stuck).reason_code == "timeout"
+    assert len(homes) == 2 and not any(Path(h).exists() for h in homes)
+    assert list((real_home / ".cache").glob("*/*")) == []
+
+
+def test_a_missing_login_fails_closed_before_any_process(repo, fake, real_home):
+    scenario, calls, runner = fake
+    (real_home / ".claude" / ".credentials.json").unlink()
+    result = go(repo, runner, verify="true")
+    assert (result.status, result.reason_code, result.rounds) == ("failed", "claude_login_missing", 0)
+    assert runner.seen == []
+
+
+def test_the_login_copy_is_private_to_the_user(repo, fake, real_home):
+    scenario, calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}, "run": [["sh", "-c", "stat -c %a $HOME $HOME/.claude $HOME/.claude/.credentials.json > $HOME/modes"]]})
+    modes = []
+
+    async def spy(argv, **kwargs):
+        out = await runner(argv, **kwargs)
+        home = Path(kwargs["env"]["HOME"])
+        if argv[0] == "claude":
+            modes.extend((home / "modes").read_text().split())
+        return out
+
+    go(repo, spy, verify="true")
+    assert modes == ["700", "700", "600"]
+
+
+def test_settings_the_author_writes_in_its_home_do_not_survive_to_the_next_round(repo, fake):
+    scenario, calls, runner = fake
+    scenario({"write": {"wrong.txt": "x\n"}, "home_write": {".claude/settings.json": '{"hooks": 1}', ".claude/hooks/h.sh": "x"}},
+             {"write": {"done.txt": "ok\n"}})
+    result = go(repo, runner, verify="test -f done.txt")
+    assert result.rounds == 2
+    assert calls()[1]["home_files"] == [".claude/.credentials.json"]
+
+
+def test_a_cli_that_does_not_answer_in_time_fails_the_run(repo, real_home, monkeypatch):
     async def stuck(argv, **kwargs):
         if argv[0] == "claude":
             raise TimeoutError("claude timed out")
@@ -283,6 +384,163 @@ def test_a_cli_that_does_not_answer_in_time_fails_the_run(repo, monkeypatch):
 
     result = go(repo, stuck, verify="true")
     assert (result.status, result.reason_code) == ("failed", "timeout")
+
+
+# --- the author cannot hide a change from the loop (it trusts the file system, never git) ---------------------------------------
+
+def test_a_gitignore_the_author_writes_does_not_hide_a_protected_file(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {".gitignore": "hooks/evil.py\n", "hooks/evil.py": "x\n", "done.txt": "ok\n"}})
+    result = go(repo, runner, verify="test -f done.txt", rounds=1)
+    assert (result.status, result.reason_code) == ("failed", "protected_path")
+    assert "hooks/evil.py" in result.failures[0]["detail"] and "hooks/evil.py" in result.changed
+
+
+def test_the_loop_folder_is_seen_even_when_the_repo_ignores_it(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {".simplicio-loop/loop.toml": "x\n", "done.txt": "ok\n"}})
+    assert go(repo, runner, verify="true", rounds=1).reason_code == "protected_path"
+
+
+def test_assume_unchanged_does_not_hide_an_edit_of_a_tracked_protected_file(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"run": [["git", "update-index", "--assume-unchanged", "hooks/guard.py"]],
+              "write": {"hooks/guard.py": "tampered\n", "done.txt": "ok\n"}})
+    result = go(repo, runner, verify="test -f done.txt", rounds=1)
+    assert (result.status, result.reason_code) == ("failed", "protected_path")
+
+
+def test_skip_worktree_does_not_hide_the_edit_either(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"run": [["git", "update-index", "--skip-worktree", "hooks/guard.py"]],
+              "write": {"hooks/guard.py": "tampered\n", "done.txt": "ok\n"}})
+    assert go(repo, runner, verify="true", rounds=1).reason_code == "protected_path"
+
+
+def test_repointing_the_git_file_of_a_linked_worktree_is_a_protected_change(linked, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {".git": "gitdir: /nowhere/attacker\n", "done.txt": "ok\n"}})
+    result = go(linked, runner, verify="test -f done.txt", rounds=1)
+    assert (result.status, result.reason_code) == ("failed", "protected_path")
+
+
+@pytest.mark.parametrize("path", [".git/hooks/pre-commit", ".git/config"])
+def test_a_hook_or_config_planted_in_the_git_dir_is_a_protected_change(repo, fake, path):
+    scenario, _calls, runner = fake
+    scenario({"write": {path: "[core]\n", "done.txt": "ok\n"}})
+    assert go(repo, runner, verify="true", rounds=1).reason_code == "protected_path"
+
+
+def test_git_state_churn_of_the_cli_is_not_a_change(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"run": [["sh", "-c", "echo ok > done.txt && git add done.txt && git commit -qm wip"]]})
+    result = go(repo, runner, verify="test -f done.txt")
+    assert (result.status, result.changed) == ("ok", ["done.txt"])
+
+
+def test_a_change_that_keeps_the_size_and_the_mtime_is_still_seen(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"run": [["sh", "-c", "touch -r a.txt keep && printf 'b\\n' > a.txt && touch -r keep a.txt"]]})
+    assert go(repo, runner, verify="true", rounds=1).changed == ["a.txt", "keep"]
+
+
+def test_a_new_symlink_is_a_change(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"run": [["ln", "-s", "a.txt", "link"]]})
+    assert go(repo, runner, verify="true").changed == ["link"]
+
+
+def test_a_symlink_that_points_into_git_is_refused(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"run": [["ln", "-s", ".git", "link"]]})
+    assert go(repo, runner, verify="true", rounds=1).reason_code == "protected_path"
+
+
+def test_a_mode_change_alone_of_a_protected_file_is_a_change(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"run": [["chmod", "+x", "hooks/guard.py"]]})
+    result = go(repo, runner, verify="true", rounds=1)
+    assert (result.reason_code, result.changed) == ("protected_path", ["hooks/guard.py"])
+
+
+def test_a_file_the_author_creates_and_deletes_in_the_same_round_is_no_change(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"run": [["sh", "-c", "echo x > tmp.txt && rm tmp.txt"]]})
+    assert go(repo, runner, verify="true", rounds=1).reason_code == "empty_diff"
+
+
+def test_the_caches_python_leaves_are_not_changes(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}, "run": [["sh", "-c", "mkdir -p __pycache__ .pytest_cache && echo x > __pycache__/a.pyc && echo y > .pytest_cache/b"]]})
+    assert go(repo, runner, verify="true").changed == ["done.txt"]
+
+
+def test_a_deleted_protected_file_is_a_change(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"delete": ["hooks/guard.py"], "write": {"done.txt": "ok\n"}})
+    assert go(repo, runner, verify="true", rounds=1).reason_code == "protected_path"
+
+
+def test_nothing_in_the_flow_asks_git_for_a_security_decision(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {"wrong.txt": "x\n"}}, {"write": {"done.txt": "ok\n"}})
+    go(repo, runner, verify="test -f done.txt")
+    assert [argv for argv in runner.seen if argv[0] == "git"] == []
+
+
+def test_the_verify_command_cannot_plant_a_protected_file_after_the_check(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    result = go(repo, runner, verify="mkdir -p .github/workflows && echo x > .github/workflows/x.yml && test -f done.txt", rounds=1)
+    assert (result.status, result.reason_code) == ("failed", "protected_path")
+    assert ".github/workflows/x.yml" in result.failures[0]["detail"]
+
+
+def test_verify_can_fail_and_plant_a_file_and_both_are_reported(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    result = go(repo, runner, verify="echo x > hooks/new.py; exit 1", rounds=1)
+    assert [f["kind"] for f in result.failures] == ["verify_failed", "protected_path"]
+
+
+def test_a_file_the_verify_command_makes_in_an_ordinary_path_is_not_a_failure(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    result = go(repo, runner, verify="echo x > report.txt")
+    assert (result.status, result.changed) == ("ok", ["done.txt"])
+
+
+# --- inputs the flow must survive -----------------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("rounds", [0, -1])
+def test_rounds_below_one_is_a_failed_result_not_an_exception(repo, fake, rounds):
+    _scenario, _calls, runner = fake
+    result = go(repo, runner, rounds=rounds)
+    assert (result.status, result.reason_code, result.rounds) == ("failed", "bad_rounds", 0) and runner.seen == []
+
+
+@pytest.mark.parametrize("error, reason", [(FileNotFoundError(2, "claude"), "cli_unavailable"),
+                                           (OSError(7, "Argument list too long"), "argv_too_long"),
+                                           (PermissionError(13, "denied"), "cli_unavailable")])
+def test_an_os_error_while_launching_the_cli_is_a_failed_result(repo, fake, error, reason):
+    async def broken(argv, **kwargs):
+        raise error
+
+    result = go(repo, broken)
+    assert (result.status, result.reason_code, result.rounds) == ("failed", reason, 1)
+
+
+def test_a_verify_command_that_cannot_start_is_a_failed_verify(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+
+    async def no_shell(argv, **kwargs):
+        if argv[0] == "sh":
+            raise FileNotFoundError(2, "sh")
+        return await runner(argv, **kwargs)
+
+    result = go(repo, no_shell, verify="true", rounds=1)
+    assert (result.reason_code, result.failures[0]["kind"]) == ("verify_failed", "verify_failed")
 
 
 # --- the CLI --------------------------------------------------------------------------------------------------------------
@@ -316,6 +574,8 @@ def test_cli_routes_to_the_flow_and_maps_the_exit_code(monkeypatch, tmp_path, st
 def test_cli_usage_errors_exit_2(monkeypatch, tmp_path, capsys):
     result = author_flow.AuthorResult(status="ok", rounds=1, session_id=SESSION, changed=[], failures=[], usage=None, reason_code="ok")
     assert run_cli(monkeypatch, tmp_path, result, "--rounds", "0")[0] == 2
+    assert run_cli(monkeypatch, tmp_path, result, "--rounds", "11")[0] == 2
+    assert run_cli(monkeypatch, tmp_path, result, "--rounds", "10")[0] == 0
     assert cli_impl.main(["author", "--repo", str(tmp_path), "--task-file", str(tmp_path / "missing.md")]) == 2
     assert cli_impl.main(["author", "--repo", str(tmp_path)]) == 2
     capsys.readouterr()
