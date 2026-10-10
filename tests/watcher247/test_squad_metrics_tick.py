@@ -30,9 +30,12 @@ def _worker_metrics(number: int) -> dict:
 
 
 def _view(number: int) -> dict:
-    return {"files": [{"path": f"src/m{number}/app.py"}], "headRefOid": f"oid{number}",
-            "commits": [{"oid": f"oid{number}", "committedDate": "2026-10-01T00:00:00Z", "messageHeadline": "loop: x"}],
-            "comments": [{"id": number, "createdAt": "2026-10-02T00:00:00Z", "body": "REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n",
+    # Hermetic: use proper 40-character SHAs for squad_gate and include OID marker in approval comment
+    oid = f"abc123def456789012345678901234567890{number:04d}"[:40]
+    approval_body = f"REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n<!-- simplicio-loop:squad-approval:{oid} -->"
+    return {"files": [{"path": f"src/m{number}/app.py"}], "headRefOid": oid,
+            "commits": [{"oid": oid, "committedDate": "2026-10-01T00:00:00Z", "messageHeadline": "loop: x"}],
+            "comments": [{"id": number, "createdAt": "2026-10-02T00:00:00Z", "body": approval_body,
                           "author": {"login": "squad-bot"}, "authorAssociation": "MEMBER"}]}
 
 

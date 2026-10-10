@@ -289,6 +289,14 @@ class FakeRun:
         if sub == "status":
             return proc.Result(0, " M app.py\n?? .simplicio-loop/x\n" if self.diff else "")
         if sub == "diff":
+            # Hermetic: return files that match pr_views (all issues and PRs)
+            files = set()
+            for pr_num, view in self.pr_views.items():
+                for f in view.get("files", []):
+                    files.add(f["path"])
+            if files:
+                return proc.Result(0, "".join(p + "\n" for p in sorted(files)))
+            # Fallback: return app.py for compatibility
             return proc.Result(0, "app.py\n")
         return proc.Result(0)  # config, fetch, add, reset, commit, push
 
