@@ -48,12 +48,23 @@ O coordenador do squad não aprova mais por "o verify do worker passou". Antes d
 | `mutation` | amostra determinística (semente = head) de 12 mutantes das linhas de produção adicionadas, feitos pela AST: troca de comparação, `and`/`or`, `True`/`False`, constante inteira, `+`/`-`, `return` vira `None`, condição negada, chamada removida. Nunca muta string, comentário nem docstring, e o mutante precisa compilar | menos de 60% dos mutantes morrem sob os testes do PR (mais os testes existentes que importam o módulo alterado), ou os testes já falham sem mutante (erro, não aprovação), ou não há teste para rodar |
 | `usage` | todo símbolo público novo (nível de módulo ou de classe) e todo módulo novo tem um chamador fora dos testes | símbolo ou módulo sem chamador |
 | `coverage` | cada critério `- [ ]` da issue casa com um teste novo ou com um arquivo de produção alterado | critério sem cobertura: o PR é parcial, precisa de `Parte de #N` e da lista do que falta |
-| `docs` | `ste-lint` das linhas novas não piora; afirmação nova em doc precisa de teste ou do rótulo `UNVERIFIED` | doc pior ou afirmação sem prova |
+| `docs` | `ste-lint` das linhas novas não piora. Afirmação nova em doc precisa de teste ou do rótulo `UNVERIFIED` | doc pior ou afirmação sem prova |
 | `identity` | o comentário registra autor, revisor automático e revisor independente (papel, modelo, host) | o autor aprova o próprio PR, ou o revisor tem o mesmo papel do autor |
 
 Níveis: **T0** só docs e testes, até 200 linhas adicionadas, **T1** código comum, **T2** segurança (o caminho de código tem `sandbox`, `daemon`, `token`, `uninstall`, `mapper`, `login`, `secret` e similares). O comentário é `REVISÃO AUTOMÁTICA: APROVADA (nível N)` ou `REVISÃO AUTOMÁTICA: REPROVADA` com a causa de cada checagem. Em T2 o portão sozinho nunca aprova: `squads.squad_gate` exige também um comentário `REVISAO INDEPENDENTE: APROVADA` com as linhas `revisor:`, `papel:`, `modelo:`, `host:` e `head:` (prefixo do head atual), de um autor autorizado, de um agente que não seja o autor nem o portão. O loop, o revisor e o dono comentam com a mesma conta do GitHub: o marcador registra a declaração do revisor, não prova independência (UNVERIFIED).
 
-Uso à mão: `python -m simplicio_loop.review_gate --repo <clone> --pr N --issue M --base <sha> --head <sha> --author ID [--json]` (saída 0 aprovado, 1 reprovado; o relatório JSON fica em `<clone>/.simplicio-loop/review-gate/`). No watcher, `watcher247/squad_review.evaluate` roda o portão no clone dentro do sandbox, e `squad_flow._review` posta o veredito. Um passo que não consegue rodar (por exemplo, o interpretador fora dos binds do sandbox) aparece no PR com a causa e nunca vira aprovação.
+Uso à mão: `python -m simplicio_loop.review_gate --repo <clone> --pr N --issue M --base <sha> --head <sha> --author ID [--json]` (saída 0 aprovado, 1 reprovado. O relatório JSON fica em `<clone>/.simplicio-loop/review-gate/`). No watcher, `watcher247/squad_review.evaluate` roda o portão no clone dentro do sandbox, e `squad_flow._review` posta o veredito. Um passo que não consegue rodar (por exemplo, o interpretador fora dos binds do sandbox) aparece no PR com a causa e nunca vira aprovação.
+
+Provas medidas nesta máquina (`python -m simplicio_loop.review_gate` sobre os commits de `main`, cada um contra o pai dele):
+
+| Commit | Veredito | Causas medidas | Tempo |
+|---|---|---|---|
+| `31ff4ce6` (#1640, testes vácuos) | REPROVADA (nível 2) | 3 dos 4 testes novos passam em `main`. `ste-lint` do `INSTALL.md` subiu de 3 para 4. Nível 2 sem revisor independente. 0 de 3 critérios cobertos | 152,6 s |
+| `1fb7ce48` (#1641, módulo sem chamador) | REPROVADA (nível 1) | `redirect_target` e `read_private_text` sem chamador fora dos testes. 7 de 12 mutantes mortos. 0 de 2 critérios cobertos | 29,3 s |
+| `f42e9e49` (docs de #1647), corpo `Parte de #1601` e lista `Falta` de 6 itens | APROVADA (nível 0) | nenhuma | 3,1 s |
+| `cda7e73e` (#1642), corpo `Parte de #1550` e lista `Falta` de 2 itens | APROVADA (nível 1) | nenhuma | 2,8 s |
+
+Limites conhecidos (UNVERIFIED): o nível sai das palavras do caminho dos arquivos, não do assunto do PR. A independência do revisor é a declaração do marcador, não uma prova. A lista `Falta` é conferida só pela contagem de itens `- [ ]`. O tempo da mutação cresce com os testes vizinhos que importam o módulo (139,5 s no #1640). Só Python é mutado.
 
 ## 5. Taxa de escalação e espera por dependência (`simplicio_loop/squad_metrics.py`, #1549)
 
