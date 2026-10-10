@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 
 from simplicio_loop import runner as runner_mod
+from tests.runner_patch import patch_runner
 
 RECEIPT = Path(__file__).with_name("wave_vs_serial_receipt.json")
 FILES_BY_INDEX = {1: "a.txt", 2: "b.txt", 3: "c.txt"}
@@ -109,8 +110,7 @@ def test_parallel_wave_versus_serial_records_the_faster_path(tmp_path, monkeypat
     run_id = "wave-vs-serial"
     run_dir = _seed_run_dir(parallel_repo, run_id)
     parallel_timeline: list = []
-    monkeypatch.setattr(
-        runner_mod, "_run_operator_item_process", _fake(SLEEP_S, parallel_timeline),
+    patch_runner(monkeypatch, "_run_operator_item_process", _fake(SLEEP_S, parallel_timeline),
     )
     parallel_started = time.monotonic()
     result = runner_mod._wave_worktree_dispatch(

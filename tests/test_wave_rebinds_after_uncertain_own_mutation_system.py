@@ -41,6 +41,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from tests.runner_patch import patch_runner
 
 from tests.flow.conftest import write_shim
 
@@ -238,7 +239,7 @@ def test_dependent_task_survives_a_prior_uncertain_own_mutation(tmp_path, monkey
             }
         return real_unchecked(**kwargs)
 
-    monkeypatch.setattr(runner, "_execute_operator_effect_unchecked", fake_unchecked)
+    patch_runner(monkeypatch, "_execute_operator_effect_unchecked", fake_unchecked)
 
     batch = runner.execute_operator_batch(str(repo), run_id, task_indices=[1, 2], retry_budget=1)
     workers = {int(w["task_index"]): w for w in batch["workers"]}

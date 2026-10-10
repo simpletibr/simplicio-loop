@@ -17,8 +17,6 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Sequence
 
-from jsonschema import Draft202012Validator
-
 from . import plan_paths
 
 MAX_FILE_LINES = 9000
@@ -34,7 +32,7 @@ RESPONSE_SCHEMAS: dict[str, dict[str, Any]] = {
     name: json.loads((CONTRACT_DIR / f"{name}.schema.json").read_text(encoding="utf-8"))
     for name in ("plan", "verdict")
 }
-_VALIDATORS = {name: Draft202012Validator(schema) for name, schema in RESPONSE_SCHEMAS.items()}
+_VALIDATORS: dict[str, Any] = {}  # built on first use: importing jsonschema costs ~100 ms
 _FENCE = re.compile(r"\A```(?:json)?[ \t]*\n(.*)\n```\Z", re.S)
 _TEST_NAME = re.compile(r"^(?:test_(?P<a>.+)|(?P<b>.+)_test|(?P<c>.+)\.(?:test|spec))$")
 
@@ -116,6 +114,9 @@ def validate_response(text: str, kind: str) -> list[str]:
         payload = json.loads(body)
     except ValueError:
         return [*violations, "not_json:the answer is not one JSON object"]
+    if kind not in _VALIDATORS:
+        from jsonschema import Draft202012Validator
+        _VALIDATORS[kind] = Draft202012Validator(RESPONSE_SCHEMAS[kind])
     errors = sorted(_VALIDATORS[kind].iter_errors(payload), key=lambda e: ([str(p) for p in e.absolute_path], e.message))
     for error in errors:
         violations.extend(_describe(error).split(","))

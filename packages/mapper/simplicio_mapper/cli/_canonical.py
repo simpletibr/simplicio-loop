@@ -616,6 +616,10 @@ def _run_overlay(opts: dict) -> int:
     payload = dict(outcome.receipt)
     payload["mode"] = "overlay"
     if outcome.artifacts is not None:
+        # `inspect` and `scan` read this to call the overlay fresh without a full index (#1673).
+        from ._index_engine import _record_overlay_freshness
+
+        _record_overlay_freshness(root, ".simplicio-loop", outcome.receipt)
         payload["paths"] = {
             name: os.path.join(root, ".simplicio-loop", file_name)
             for name, file_name in OVERLAY_ARTIFACT_FILES.items()

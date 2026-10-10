@@ -788,7 +788,7 @@ def compile_host_plan(root: str, plan: Any) -> tuple[dict[str, Any] | None, list
     return compiled, []
 
 
-def _run_compile(a: argparse.Namespace, plan: Any) -> int:
+def _run_compile(a: argparse.Namespace, plan: Any, announce: bool = True) -> int:
     compiled, errors = compile_host_plan(a.root, plan)
     if compiled is None:
         result = {
@@ -803,6 +803,8 @@ def _run_compile(a: argparse.Namespace, plan: Any) -> int:
         }
         return _print_edit_result(result, a)
     Path(a.compile).write_text(json.dumps(compiled, indent=2) + "\n", encoding="utf-8")
+    if not announce:
+        return 0
     print(
         json.dumps(
             {
@@ -861,7 +863,12 @@ def run_edit(a: argparse.Namespace) -> int:
         )
         return _print_edit_result(result, a)
     if getattr(a, "compile", None):
-        return _run_compile(a, plan)
+        # ``--compile OUT --apply`` is one process: freeze the plan, then fall through and apply the frozen plan.
+        code = _run_compile(a, plan, announce=not a.apply)
+        if code != 0 or not a.apply:
+            return code
+        a.plan = a.compile
+        plan = json.loads(Path(a.compile).read_text(encoding="utf-8"))
     validation_errors = _invalid_delegated_plan(plan)
     if validation_errors:
         result = {

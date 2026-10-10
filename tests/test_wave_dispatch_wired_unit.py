@@ -17,6 +17,7 @@ import pytest
 
 from simplicio_loop import local_capacity
 from simplicio_loop import runner as runner_mod
+from tests.runner_patch import patch_runner
 
 # A lane that never meets the other lanes waits at most this long, then the barrier breaks and the test fails.
 # It is a failure bound only: a run that overlaps never waits, so no time limit decides a pass.
@@ -118,7 +119,7 @@ def test_three_disjoint_tasks_form_three_lanes_and_run_concurrently(tmp_path, mo
     ]
     timeline: list = []
     rendezvous = threading.Barrier(3, timeout=RENDEZVOUS_FAIL_AFTER_S)
-    monkeypatch.setattr(runner_mod, "_run_operator_item_process", _make_fake_dispatch(timeline, rendezvous))
+    patch_runner(monkeypatch, "_run_operator_item_process", _make_fake_dispatch(timeline, rendezvous))
 
     result = runner_mod._wave_worktree_dispatch(
         repo_path=repo, run_id=run_id, run_dir=run_dir,
@@ -189,7 +190,7 @@ def test_lane_conflict_at_integration_reapplies_serially_on_main_repo(tmp_path, 
         _git(repo, "commit", "-m", "advance base under lane 1")
         return results
 
-    monkeypatch.setattr(runner_mod, "_run_operator_item_process", fake)
+    patch_runner(monkeypatch, "_run_operator_item_process", fake)
     monkeypatch.setattr(runner_mod.wave_worktree, "run_worktree_wave", sabotaging_run_worktree_wave)
 
     result = runner_mod._wave_worktree_dispatch(

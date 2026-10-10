@@ -119,7 +119,9 @@ def plan_prompt(request: str, failure: str = "") -> str:
     """The planner prompt: turbo's request (it already holds the task, map slice, files and format) plus the failure."""
     text = (f"{request}\n\nReply with the plan only: one JSON object in the `format` above, nothing else. "
             "If a file is shown in windows and the lines you must change are in `omitted`, reply "
-            '`{"operations": [], "need": [{"path": "<file>", "start": N, "end": M}]}` instead of guessing. '
+            '`{"operations": [], "need": [{"path": "<file>", "start": N, "end": M}]}` instead of guessing, e.g. '
+            '`{"operations": [], "need": [{"path": "tests/test_x.py", "start": 147, "end": 190}]}`; '
+            "the watcher then shows those lines (the same as `--window tests/test_x.py:147-190`) and asks again. "
             "The watcher applies it with dev-cli; do not run the `apply` command.")
     if failure:
         text += ("\n\nThe previous plan was applied and failed. Write a corrected plan for the original task. "

@@ -4,6 +4,9 @@ import json
 from pathlib import Path
 
 from simplicio_loop import runner as runner_mod
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 
 def test_conduct_run_uses_adaptive_dispatch_and_stops_before_watcher_on_blocked_worker(
@@ -41,8 +44,8 @@ def test_conduct_run_uses_adaptive_dispatch_and_stops_before_watcher_on_blocked_
             "dead_letter_task_indices": [],
         }
 
-    monkeypatch.setattr(runner_mod, "execute_operator_batch", fake_batch)
-    monkeypatch.setattr(runner_mod, "read_status", lambda *args: status)
+    patch_runner(monkeypatch, "execute_operator_batch", fake_batch)
+    patch_runner(monkeypatch, "read_status", lambda *args: status)
 
     def fail_if_verified(*args, **kwargs):
         watcher_calls.append((args, kwargs))
@@ -73,14 +76,10 @@ def test_mapper_store_bootstraps_on_normal_mapper_route(monkeypatch, tmp_path):
             return {"status": "ready"}
 
     monkeypatch.setattr(mapper_operations, "MapperOperationsAdapter", FakeAdapter)
-    monkeypatch.setattr(
-        runner_mod,
-        "_mapper_operations_database",
+    patch_runner(monkeypatch, "_mapper_operations_database",
         lambda repo: str(tmp_path / "operations.sqlite"),
     )
-    monkeypatch.setattr(
-        runner_mod,
-        "_storage_route_requested",
+    patch_runner(monkeypatch, "_storage_route_requested",
         lambda: "mapper",
     )
 
@@ -102,13 +101,11 @@ def test_mapper_journal_uses_task_repo_root(monkeypatch, tmp_path):
             seen.append((database, auto_create))
 
     monkeypatch.chdir(process_root)
-    monkeypatch.setattr(runner_mod, "_mapper_journal_enabled", lambda: True)
-    monkeypatch.setattr(
-        runner_mod,
-        "_mapper_operations_database",
+    patch_runner(monkeypatch, "_mapper_journal_enabled", lambda: True)
+    patch_runner(monkeypatch, "_mapper_operations_database",
         lambda repo: str(Path(repo) / ".simplicio-loop" / "operations.sqlite"),
     )
-    monkeypatch.setattr(runner_mod, "MapperRunJournal", FakeJournal)
+    patch_runner(monkeypatch, "MapperRunJournal", FakeJournal)
 
     runner_mod._dispatch_journal_backend(
         task_repo / ".simplicio-loop" / "loop-runs" / "run" / "run-journal.sqlite",
