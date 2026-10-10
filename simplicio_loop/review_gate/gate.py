@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Callable, Mapping
 
 from ..watcher247 import sandbox
-from . import coverage, diffs, docs, identity, isolation, mutation, pytest_cmd, redgreen, usage
+from . import coverage, diffs, docs, identity, isolation, line_coverage, mutation, pytest_cmd, redgreen, usage
 from .diffs import FileChange
 from .identity import Agent
 from .model import ERROR, FAIL, CheckResult, GateReport
@@ -192,6 +192,9 @@ def run_gate(inp: GateInput) -> GateReport:
                                                                  neighbours=near))
         checks = [
             red,
+            _timed("line_coverage", lambda: line_coverage.check_line_coverage(head_root, changes, python=inp.python,
+                                                                              timeout=inp.test_timeout_s, wrap=wrap_for(head_root),
+                                                                              env=env, home=home)),
             _timed("mutation", lambda: mutation.check_mutation(head_root, changes, argv, n=inp.n_mutants, min_kill=inp.min_kill,
                                                                timeout_each=inp.mutant_timeout_s, seed=inp.head,
                                                                wrap=wrap_for(head_root), env=env, home=home,
