@@ -1,3 +1,9 @@
+<!-- simplicio-contract:begin -->
+contract: structured-output/v1
+schema: simplicio.contract-doc/v1
+purpose: Closed response contracts for every model answer that the loop parses, so a plan or a verdict outside the task scope is refused.
+rules: The JSON schemas next to this file are authoritative; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
 # structured-output/v1
 
 Closed response contracts for every model answer the loop parses (issue #1612).

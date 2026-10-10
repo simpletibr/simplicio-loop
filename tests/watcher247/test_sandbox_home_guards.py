@@ -263,3 +263,65 @@ def test_task1_permission_error_on_is_symlink_is_converted_to_sandbox_unavailabl
     monkeypatch.setattr(sandbox.Path, "is_symlink", broken_is_symlink)
     with pytest.raises(sandbox.SandboxUnavailable, match="access denied"):
         sandbox._absolute_link_in(tmp_path / "link")
+
+
+# --- #1680 findings 2 and 3 with the REAL bwrap: the guards refuse before any bwrap starts --------------------------------------------
+
+@needs_bwrap
+def test_a_home_reached_through_an_absolute_link_is_refused_where_the_real_bwrap_cannot_mount_it(monkeypatch):
+    """Finding 2: the failure the guard exists for, measured with the real bwrap, and the refusal `wrap` gives instead."""
+    monkeypatch.undo()  # the autouse fixture fakes bwrap's presence; these tests run the real one
+    with scratch("sbx-abs-") as root:
+        (root / "real" / "user").mkdir(parents=True)
+        (root / "link").symlink_to(root / "real")  # ABSOLUTE target
+        home, clone, state = root / "link" / "user", root / "clone", root / "state"
+        clone.mkdir()
+        state.mkdir()
+        raw = ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp", "--tmpfs", str(home), "--", "true"]
+        control = run(raw, {})
+        assert control.returncode != 0 and "Can't" in control.stderr, control.stderr  # bwrap alone fails on the absolute link
+        with pytest.raises(sandbox.SandboxUnavailable, match="absolute target"):
+            sandbox.wrap(["true"], clone=clone, state_dir=state, platform="linux", environ={}, home=sandbox.HomeView(home, rw=(".claude",)))
+
+
+@needs_bwrap
+def test_an_entry_that_is_an_absolute_link_out_of_the_home_does_not_expose_the_home_secret(monkeypatch):
+    """Finding 2, the entry side: an `ro` entry that links out of HOME is recreated as a symlink inside the empty HOME, and the
+    HOME's own secret stays hidden behind that tmpfs."""
+    monkeypatch.undo()
+    with scratch("sbx-entry-") as root:
+        home, outside = root / "home", root / "outside"
+        (home / ".ssh").mkdir(parents=True)
+        (home / ".ssh" / "id").write_text("FAKE-secret")
+        outside.mkdir()
+        (outside / "note").write_text("FAKE-outside")
+        (home / ".claude").symlink_to(outside)  # ABSOLUTE target, outside HOME
+        clone, state = root / "clone", root / "state"
+        clone.mkdir()
+        state.mkdir()
+        probe = f'cat "{home}/.claude/note" 2>/dev/null || echo NO-LINK; cat "{home}/.ssh/id" 2>/dev/null || echo HIDDEN'
+        argv = sandbox.wrap(["/bin/sh", "-c", probe], clone=clone, state_dir=state, platform="linux", environ={}, home=sandbox.HomeView(home, ro=(".claude",)))
+        done = run(argv, {})
+        assert done.returncode == 0, done.stderr
+        assert "FAKE-secret" not in done.stdout and "HIDDEN" in done.stdout, done.stdout
+
+
+@needs_bwrap
+@pytest.mark.parametrize(("field", "flag"), [("rw", "--bind-try"), ("ro", "--ro-bind-try")])
+def test_a_dot_dot_entry_that_points_back_into_the_home_would_expose_its_secret_and_is_refused(monkeypatch, field, flag):
+    """Finding 3: `../home/.ssh` is the HOME's own `.ssh`, spelt with a `..`. Bound after the empty HOME it hands the secret back:
+    the control below reads it with the real bwrap, and `wrap` refuses that entry before any bwrap starts."""
+    monkeypatch.undo()
+    with scratch("sbx-dotdot-") as root:
+        home, clone, state = root / "home", root / "clone", root / "state"
+        (home / ".ssh").mkdir(parents=True)
+        (home / ".ssh" / "id").write_text("FAKE-secret")
+        clone.mkdir()
+        state.mkdir()
+        probe = ["/bin/sh", "-c", f'cat "{home}/.ssh/id" 2>/dev/null || echo HIDDEN']
+        base = ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp", "--tmpfs", str(home)]
+        entry = f"{home}/../home/.ssh"
+        assert run([*base, "--", *probe], {}).stdout.strip() == "HIDDEN"  # the empty HOME alone hides it
+        assert run([*base, flag, entry, entry, "--", *probe], {}).stdout.strip() == "FAKE-secret"  # the `..` entry gives it back
+        with pytest.raises(sandbox.SandboxUnavailable, match="HomeView"):
+            sandbox.wrap(["true"], clone=clone, state_dir=state, platform="linux", environ={}, home=sandbox.HomeView(home, **{field: ("../home/.ssh",)}))

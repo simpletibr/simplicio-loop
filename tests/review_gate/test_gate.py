@@ -184,15 +184,29 @@ def test_the_mutants_run_the_changed_tests_then_the_neighbors_and_never_a_confte
 
 
 def test_the_limits_of_the_input_reach_the_checks(tmp_path):
-    strict = _run(tmp_path / "a", "dead", n_mutants=2, min_kill=1.5)
+    strict = _run(tmp_path / "a", "dead", n_mutants=6, min_kill=1.5)  # 6 live mutants: the ratio judges, so min_kill is reached
     mutation = _check(strict, "mutation")
     assert mutation.status == FAIL and "<150%" in mutation.reasons[0]
-    assert mutation.measured["n"] == 2 and mutation.measured["total"] == 2 and mutation.measured["seed"] == strict.head
+    assert mutation.measured["n"] == 6 and mutation.measured["total"] == 6 and mutation.measured["judged"] is True and mutation.measured["seed"] == strict.head
     default = _check(_run(tmp_path / "b", "dead"), "mutation")
     assert default.measured["n"] == 12 and default.measured["seed"] != ""
     slow = _run(tmp_path / "c", "dead", test_timeout_s=0.001, mutant_timeout_s=0.001)
     assert _check(slow, "redgreen").status == ERROR and "timeout of 0.001s" in _check(slow, "redgreen").reasons[0]
     assert _check(slow, "mutation").status == ERROR and "saida None" in _check(slow, "mutation").reasons[0]
+
+
+def test_the_mutation_check_gets_the_new_red_tests_for_the_attribution_rule(tmp_path, monkeypatch):
+    """The attribution rule (test_kills_no_mutant) reads the new red tests of the red/green check: a gate that drops them skips the rule."""
+    got = {}
+    real = gate.mutation.check_mutation
+
+    def wrapper(*args, **kw):
+        got["red"] = kw.get("red", "not passed")
+        return real(*args, **kw)
+
+    monkeypatch.setattr(gate.mutation, "check_mutation", wrapper)
+    _run(tmp_path, "dead")
+    assert got["red"] == ["tests/test_dead.py::test_double"]
 
 
 def test_each_check_gets_the_inputs_it_needs(tmp_path, monkeypatch):

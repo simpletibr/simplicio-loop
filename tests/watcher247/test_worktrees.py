@@ -979,6 +979,24 @@ def test_ensure_state_dir_in_the_items_sandbox_fails_with_erofs_before_the_seed_
     assert exclude_file(r).read_text().splitlines().count(EXCLUDE_LINE) == 1
 
 
+TURBO_WRITE = ("; (Path({clone!r}) / '.simplicio-loop' / 'turbo-request.json').write_text('{{}}')")
+
+
+@needs_bwrap
+def test_a_turbo_like_run_in_the_items_sandbox_writes_its_state_dir_without_errno_30_once_the_base_is_seeded(two_live_items):
+    """#1680 item 7, end to end: after the host seeds the line, ensure_state_dir and a write into the item's state dir both succeed
+    inside the item's real sandbox. The state dir is the item's clone's `.simplicio-loop/`, which the item may write."""
+    r, a, _b = two_live_items
+    code = ENSURE.format(root=str(Path(__file__).resolve().parents[2]), clone=str(a.path)) + TURBO_WRITE.format(clone=str(a.path))
+    script = f"{shlex.quote(sys.executable)} -c {shlex.quote(code)}"
+    exclude_file(r).write_text("*.log\n")  # a base the host has not seeded yet: the first attempt is the EROFS of the ticket
+    assert "Errno 30" in in_sandbox(a.path, script).stderr
+    asyncio.run(worktrees._update_base(REPO, "main", 31, False))  # the host seeds the line
+    done = in_sandbox(a.path, script)
+    assert done.returncode == 0 and "Errno 30" not in done.stderr, done.stderr
+    assert (a.path / ".simplicio-loop" / "turbo-request.json").read_text() == "{}"
+
+
 def test_drop_never_follows_a_symlink_planted_at_the_items_path(real_repo, tmp_path):
     r, gate = real_repo, worktrees.Gate(2)
 

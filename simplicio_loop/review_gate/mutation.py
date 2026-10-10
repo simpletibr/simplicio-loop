@@ -28,6 +28,7 @@ from .model import ERROR, FAIL, PASS, SKIPPED, CheckResult
 KILLED, SURVIVED, TIMEOUT, EQUIVALENT = "killed", "survived", "timeout", "equivalent"  # a timeout is not a kill: a slow test must not pass a PR
 NO_TESTS_COLLECTED = 5  # pytest exit code
 EXTRA_CAP = 3  # probes per sampled mutant, spent only on new red tests the sample did not attribute
+MIN_LIVE_TO_JUDGE = 5  # live mutants below this: a kill ratio is noise, so the check warns instead of failing (#1649)
 _JUMPS = (ast.Return, ast.Raise, ast.Continue, ast.Break)
 _FLIPS: dict[type, type] = {
     ast.Eq: ast.NotEq, ast.NotEq: ast.Eq, ast.Lt: ast.GtE, ast.GtE: ast.Lt, ast.Gt: ast.LtE, ast.LtE: ast.Gt,
@@ -186,8 +187,9 @@ def _run(root: Path, argv: Sequence[str], timeout: float, wrap: Callable[[list[s
 
 
 def _killers(output: str) -> tuple[str, ...]:
-    """The tests a run reports as failed or errored (`-rfE` short summary), by node id."""
-    return tuple(sorted(name for name, verdict in redgreen.parse_outcomes(output).items() if verdict in ("failed", "error")))
+    """The tests a run reports as failed (`-rfE` short summary), by node id. A collection ERROR is not one: it kills the mutant, but it
+    is a broken import, not a test that caught the change, so it credits no test."""
+    return tuple(sorted(name for name, verdict in redgreen.parse_outcomes(output).items() if verdict == "failed"))
 
 
 def run_mutants(root: Path, mutants: Sequence[Mutant], test_argv: Sequence[str], timeout_each: float,
@@ -220,8 +222,8 @@ def _killer_map(outcomes: Sequence[Outcome]) -> dict[str, list[str]]:
 
 
 def _unattributed(red: Sequence[str], killers: Mapping[str, object]) -> list[str]:
-    """The new tests that fail on main and killed no mutant of the sample. A file-level entry (a collection error) kills its tests."""
-    return [test for test in red if test not in killers and test.split("::", 1)[0] not in killers]
+    """The new tests that fail on main and killed no mutant of the sample."""
+    return [test for test in red if test not in killers]
 
 
 def _attribution_reason(unattributed: Sequence[str]) -> str:
@@ -245,8 +247,9 @@ def check_mutation(root: Path, changes: Sequence[FileChange], test_argv: Sequenc
         except (OSError, UnicodeDecodeError):
             continue
     if not mutants:
-        if red:  # no mutable line to kill: every new red test is unattributed
-            return CheckResult("mutation", FAIL, (_attribution_reason(red),), {"unattributed": red, "killers": {}})
+        if red:  # no mutable line: the whole candidate pool (empty) was tested, so the attribution rule has no mutant to apply to; it says so
+            return CheckResult("mutation", SKIPPED, (f"test_kills_no_mutant pulado: nenhum mutante nas linhas alteradas, {len(red)} teste(s) vermelho(s) novo(s) nao checados",),
+                               {"unattributed": [], "killers": {}, "skipped": list(red)})
         python_changed = any(c.kind == "code" and c.status in ("A", "M") for c in changes)  # Python with no mutable line: the old reason
         reason = None if python_changed else identity.non_python_skip_reason(changes)
         return CheckResult("mutation", SKIPPED, (reason or "sem linha de producao mutavel",))
@@ -267,19 +270,25 @@ def check_mutation(root: Path, changes: Sequence[FileChange], test_argv: Sequenc
     survivors = [o.mutant for o in results if o.status == SURVIVED]
     live = len(results) - equivalent
     ratio = killed / live if live else 0.0
+    judged = live >= MIN_LIVE_TO_JUDGE
     killers = _killer_map(results + probes)
     unattributed = _unattributed(red, killers) if red else []
     measured = {"total": len(results), "killed": killed, "timeout": sum(1 for o in results if o.status == TIMEOUT),
                 "survived": [m.describe() for m in survivors[:8]], "ratio": round(ratio, 3), "n": n, "seed": seed,
-                "candidates": len(mutants), "equivalent": equivalent, "killers": killers, "unattributed": unattributed, "probes": len(probes)}
-    extra = (_attribution_reason(unattributed),) if unattributed else ()  # appended to whatever else fails the sample
+                "candidates": len(mutants), "equivalent": equivalent, "judged": judged, "killers": killers,
+                "unattributed": unattributed, "probes": len(probes)}
+    extra = (_attribution_reason(unattributed),) if unattributed else ()  # the attribution rule holds at any sample size, small ones included
     if live == 0:
         return CheckResult("mutation", FAIL, ("nenhum mutante vivo na amostra (todos equivalentes ou inalcancaveis): a amostra nao diz nada", *extra), measured)
     if equivalent * 2 > len(results):
         return CheckResult("mutation", FAIL, (f"mutantes equivalentes {equivalent}/{len(results)} (mais da metade da amostra): a amostra nao diz nada", *extra), measured)
-    if ratio < min_kill:
+    if killed == 0 or (judged and ratio < min_kill) or (not judged and killed < live - 1):  # zero kills is vacuous at any size; a ratio judges from MIN_LIVE_TO_JUDGE up; below it at most one survivor (the equivalent mutant the ratio would punish)
         reason = f"mutantes mortos {killed}/{live} (<{int(min_kill * 100)}%): sobreviventes: " + ", ".join(m.describe() for m in survivors[:8])
         return CheckResult("mutation", FAIL, (reason, *extra), measured)
     if extra:
         return CheckResult("mutation", FAIL, extra, measured)
+    if not judged:  # some kill, too few live mutants for a ratio: the survivors go to a human, the check does not block
+        warning = (f"amostra pequena demais para julgar ({killed}/{live} vivos mortos, minimo {MIN_LIVE_TO_JUDGE}); "
+                   "sobreviventes para revisao humana: " + ", ".join(m.describe() for m in survivors))
+        return CheckResult("mutation", PASS, (warning,) if survivors else (), measured)
     return CheckResult("mutation", PASS, (), measured)

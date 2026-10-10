@@ -58,6 +58,7 @@
   ".claude/skills/simplicio-tasks/references/web-evidence.md": "e0b2b7c3730ea9d642e4addc8b6e26e30547ded0138914e4fbceaf8ae86becd1",
   "AGENTS.md": "0e4a3da86146d4431d463aba7b627b944d82d2f19c880b257dabb49d1e1d7d4a",
   "bench/llm_ab/STANDARD.md": "95639f9e08388a3581ec72beb5ad2d88e1fdc4110ec2c5c7eafd4ef70d02c808",
+  "contracts/agent-handoff/v1/SCHEMA.md": "ba17f291e768ccb5b7dcf68ef7542ecce35bdf726079ee94a66390a5441e9105",
   "contracts/dashboard-event/v1/SCHEMA.md": "511db5f0329cfacae7a1f6af747c2d38885752c2fbc5808529841558fc279a26",
   "contracts/ecosystem-doctor/v1/SCHEMA.md": "309fb981360b8fb98cc6b00136a2e6ca1e84f65c77c0a748d6b4c064fb84710c",
   "contracts/event-metadata/v1/SCHEMA.md": "ba8d5e2f571587dc28dddaf5893e1d1e46949ce5a0defbcb4d9589312f91e2e2",
@@ -70,5 +71,6 @@
   "contracts/quality-matrix/v2/SCHEMA.md": "3c8e813251561175df106f51fc3a667f6a475fc55a244457e237b8726b534b06",
   "contracts/registry/v1/README.md": "7a29ed0ba89bd274b6ba1b442f8137494f0003735a97790e4ce77b84db4b632e",
   "contracts/run-state/v1/SCHEMA.md": "1a1a723651ae152825105cef3ffb72f87ab18c9d882f5a3e5080d1432f761ae5",
+  "contracts/structured-output/v1/SCHEMA.md": "b290529f278bd5a18e7196bcf6d11dde2de7dbba91640455494f6220b4f0bf10",
   "contracts/task-contract/v1/SCHEMA.md": "6bb1c5df7e88516ad63dd3cd66061d1821923dc54ce9456bf761357d7cd70674"
 }

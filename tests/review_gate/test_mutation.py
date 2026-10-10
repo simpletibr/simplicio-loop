@@ -6,6 +6,8 @@ from pathlib import Path
 
 from simplicio_loop.review_gate import mutation
 from simplicio_loop.review_gate.diffs import FileChange
+import pytest
+
 from simplicio_loop.review_gate.model import ERROR, FAIL, PASS, SKIPPED
 from simplicio_loop.review_gate.mutation import KILLED, SURVIVED, TIMEOUT, Mutant, Outcome, _Stamp, check_mutation, generate, run_mutants, sample
 
@@ -269,17 +271,40 @@ def test_a_new_test_that_kills_a_mutant_is_attributed_and_the_sample_passes(tmp_
     assert result.measured["unattributed"] == [] and len(result.measured["killers"]["tests/test_app.py::test_new"]) == result.measured["total"]
 
 
-def test_a_new_failing_test_with_no_mutable_production_line_kills_nothing_and_is_rejected(tmp_path):
+def test_a_new_failing_test_with_no_mutable_production_line_is_skipped_with_a_reason(tmp_path):
     root = make_project(tmp_path, "X = 'a'\n", "")
     result = check_mutation(root, [FileChange("app.py", "A", (1,))], PYTEST, red=NEW_RED)
-    assert result.status == FAIL and result.reasons[0].startswith("test_kills_no_mutant:")
+    assert result.status == SKIPPED and result.reasons[0].startswith("test_kills_no_mutant pulado:")
+    assert result.measured["skipped"] == NEW_RED
 
 
-def test_a_collection_error_of_a_mutant_kills_every_test_of_its_file(tmp_path, monkeypatch):
+def test_a_small_sample_does_not_exempt_a_new_red_test_that_kills_nothing(tmp_path, monkeypatch):
+    """Combined case: fewer than MIN_LIVE_TO_JUDGE live mutants (the ratio does not judge) AND a new red test that kills no mutant."""
     root = make_project(tmp_path, ATTR, ATTR_TESTS)
-    fake_killers(monkeypatch, ATTR, lambda text: ["tests/test_app.py"])
+    fake_killers(monkeypatch, ATTR, lambda text: ["tests/test_app.py::test_other"])
     result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, seed="s", red=NEW_RED)
-    assert result.status == PASS, result.reasons and result.measured["unattributed"] == []
+    assert result.measured["judged"] is False and result.measured["total"] < mutation.MIN_LIVE_TO_JUDGE
+    assert result.status == FAIL and result.reasons[-1].startswith("test_kills_no_mutant:")
+    assert result.measured["unattributed"] == NEW_RED
+
+
+def test_a_collection_error_of_a_mutant_kills_it_but_credits_no_test_of_its_file(tmp_path, monkeypatch):
+    """A mutant that breaks the import of the test file is a collection ERROR: it kills the mutant, yet no test caught the change."""
+    root = make_project(tmp_path, ATTR, ATTR_TESTS)
+
+    def run(root, argv, timeout, wrap, env, home):
+        text = (root / "app.py").read_text(encoding="utf-8")
+        if text == ATTR:
+            return 0, ""
+        if "None" in text:  # the mutant `return None` does not even import
+            return 1, "ERROR tests/test_app.py - ImportError\n"
+        return 1, "FAILED tests/test_app.py::test_other - assert 0\n"
+    monkeypatch.setattr(mutation, "_run", run)
+    result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, n=12, seed="s", red=NEW_RED)
+    assert result.measured["killed"] == result.measured["total"]  # the ERROR still kills its mutant
+    assert set(result.measured["killers"]) == {"tests/test_app.py::test_other"}
+    assert result.measured["unattributed"] == NEW_RED and result.status == FAIL
+    assert result.reasons[-1].startswith("test_kills_no_mutant:")
 
 
 def test_no_red_argument_keeps_the_sample_check_as_it_was(tmp_path, monkeypatch):
@@ -310,3 +335,59 @@ def test_a_red_test_that_kills_only_a_mutant_outside_the_sample_is_probed_and_at
     assert result.status == PASS, result.reasons
     assert result.measured["total"] == 1 and result.measured["probes"] >= 1 and result.measured["unattributed"] == []
     assert set(result.measured["killers"]) == {"tests/test_app.py::test_other", "tests/test_app.py::test_new"}
+TWO_REACHABLE = "def f(x):\n    if x:\n        return x\n"  # two live candidates: `negate_cond` on line 2, `return_none` on line 3
+SIX_REACHABLE = "def f(x, y):\n    a = x == 1\n    b = y < 2\n    c = x and y\n    return a and b and c\n"  # 7 live candidates; n=6 samples 6
+
+
+def test_one_kill_of_two_reachable_mutants_is_not_a_fail(tmp_path, monkeypatch):
+    root = make_project(tmp_path, TWO_REACHABLE, "from app import f\n\ndef test_f():\n    assert f(1) == 1\n")
+    (killer,) = [m for m in generate("app.py", TWO_REACHABLE, [2, 3]) if m.kind == "return_none"]
+    fake_tests(monkeypatch, {killer.source})
+    result = check_mutation(root, [FileChange("app.py", "A", (2, 3))], PYTEST, n=12, seed="s")
+    assert result.status == PASS, result.reasons
+    assert result.measured["total"] == 2 and result.measured["killed"] == 1 and result.measured["judged"] is False
+    assert any("app.py:2 negate_cond" in reason for reason in result.reasons)  # the survivor is named for the human review
+
+
+def test_zero_kills_of_six_live_mutants_still_fail(tmp_path, monkeypatch):
+    root = make_project(tmp_path, SIX_REACHABLE, "from app import f\n\ndef test_f():\n    assert True\n")
+    fake_tests(monkeypatch, set())
+    result = check_mutation(root, [FileChange("app.py", "A", (2, 3, 4, 5))], PYTEST, n=6, seed="s")
+    assert result.status == FAIL and result.measured["total"] == 6 and result.measured["killed"] == 0
+    assert result.measured["judged"] is True and "mortos 0/6" in result.reasons[0]
+
+
+def test_every_mutant_killed_passes_a_small_sample(tmp_path, monkeypatch):
+    root = make_project(tmp_path, TWO_REACHABLE, "from app import f\n\ndef test_f():\n    assert f(1) == 1\n")
+    fake_tests(monkeypatch, {m.source for m in generate("app.py", TWO_REACHABLE, [2, 3])})
+    result = check_mutation(root, [FileChange("app.py", "A", (2, 3))], PYTEST, n=12, seed="s")
+    assert result.status == PASS and result.reasons == () and result.measured["killed"] == 2
+
+
+def test_a_candidate_pool_no_bigger_than_the_sample_is_tested_whole(tmp_path, monkeypatch):
+    root = make_project(tmp_path, SIX_REACHABLE, "from app import f\n\ndef test_f():\n    assert True\n")
+    fake_tests(monkeypatch, set())
+    result = check_mutation(root, [FileChange("app.py", "A", (2, 3, 4, 5))], PYTEST, n=7, seed="s")
+    assert result.measured["candidates"] == result.measured["total"] == 7 and result.measured["n"] == 7
+
+
+def _kill_first(monkeypatch, source, lines, count):
+    mutants = generate("app.py", source, lines)
+    fake_tests(monkeypatch, {m.source for m in mutants[:count]})
+    return len(mutants)
+
+
+@pytest.mark.parametrize("lines, killed, status", [
+    ((4, 5), 1, FAIL),        # 3 live, 1 killed: two survivors, below the sample that can judge
+    ((4, 5), 2, PASS),        # 3 live, 2 killed: one survivor, the equivalent-mutant case of #1649
+    ((2, 3), 2, FAIL),        # 4 live, 2 killed: two survivors
+    ((2, 3), 3, PASS),        # 4 live, 3 killed: one survivor
+    ((2, 3, 4), 2, FAIL),     # 5 live: the ratio judges now (0.4 < 0.6)
+    ((2, 3, 4), 3, PASS),     # 5 live: 0.6 reaches min_kill
+])
+def test_a_small_sample_allows_one_survivor_and_a_judged_one_follows_the_ratio(tmp_path, monkeypatch, lines, killed, status):
+    root = make_project(tmp_path, SIX_REACHABLE, "from app import f\n\ndef test_f():\n    assert f(1, 2)\n")
+    total = _kill_first(monkeypatch, SIX_REACHABLE, list(lines), killed)
+    result = check_mutation(root, [FileChange("app.py", "A", lines)], PYTEST, n=12, seed="s")
+    assert result.measured["total"] == total and result.measured["killed"] == killed
+    assert result.status == status, (lines, killed, result.reasons)

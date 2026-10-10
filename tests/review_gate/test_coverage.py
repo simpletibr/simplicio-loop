@@ -59,6 +59,19 @@ class TestCloses:
     def test_closes_with_repo(self):
         assert closes("fixes owner/repo#999", 999)
 
+    def test_closes_with_issue_url(self):
+        assert closes("Fixes https://github.com/o/r/issues/12", 12)
+        assert not closes("Fixes https://github.com/o/r/issues/12", 1)
+
+    def test_closes_with_pull_url(self):
+        assert closes("Closes https://github.com/o/r/pull/12", 12)
+        assert not closes("Closes https://github.com/o/r/pull/12", 1)
+
+    def test_closes_with_gh_prefix(self):
+        assert closes("Closes GH-12", 12)
+        assert closes("fixes gh-12", 12)
+        assert not closes("Closes GH-12", 1)
+
     def test_closes_pt_br(self):
         assert closes("fecha #555", 555)
         assert closes("resolvido #666", 666)
