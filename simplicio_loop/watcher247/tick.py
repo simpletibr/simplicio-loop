@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .. import escalation, intake_gate, squad_capacity, watcher_github
 from ..claim_lease import ClaimStore
-from . import budget, config, events, github, host_mode, onboarding, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify, worktrees
+from . import author_executor, budget, config, events, github, host_mode, onboarding, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify, worktrees
 from .closing_words import sanitize
 from .pr_text import pr_title
 
@@ -131,9 +131,12 @@ async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str
     """Run the item with the selected executor; return the claim fields, raise when it did not finish ok.
 
     exec (the default): an exec CLI plans, turbo --apply - applies (host_mode) inside the run ``run_id`` that the caller
-    opened at intake. openrouter: the opt-in headless turbo, which has its own run.
+    opened at intake. With ``SIMPLICIO_247_EXECUTOR=author`` an LLM CLI with tools edits the worktree instead (author_executor).
+    openrouter: the opt-in headless turbo, which has its own run.
     """
     task = task or task_text(repo, issue, fix)
+    if executor.mode == "exec" and author_executor.selected() == "author":
+        return await author_executor.run(dest, repo, issue, task, test_cmd, executor, fix=bool(fix), run_id=run_id)
     if executor.mode == "exec":
         return await host_mode.run_exec(dest, repo, issue, task, test_cmd, executor,
                                         attempts, fix=bool(fix), role=role, run_id=run_id)
@@ -279,7 +282,7 @@ async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, c
                     await points.run("verify", ctx)
                     points.raise_if_blocked("pr", await points.run("pr", ctx))  # a blocked result stops the PR
                     url = await commit_and_pr(gate, dest, name, work.branch, head, work.issue, pr=work.pr,
-                                              label=turbo["verify"], executor=executor.mode)
+                                              label=turbo["verify"], executor=turbo.get("executor", executor.mode))
                     item.published = bool(url)
                     if url:
                         await budget.record("prs")
@@ -338,7 +341,8 @@ async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, c
         detail = (f"parou depois de {config.MAX_ATTEMPTS} tentativas; fica na fila morta ate reabrir"
                   if final == "dead" else f"tentativa {attempts} falhou: {error}")
         await _phase(runner, name, number, "BLOCKED", detail=detail)
-        await store.release(ident, token, final, now=clock, reason_code="turbo_failed", error=error, blocked_by="",
+        reason = exc.reason_code if isinstance(exc, author_executor.AuthorFailed) else "turbo_failed"  # the author flow names why it failed
+        await store.release(ident, token, final, now=clock, reason_code=reason, error=error, blocked_by="",
                             next_try_at=state.iso(state.now() + config.RETRY_AFTER))
         state.log(f"fail {ident} {final}: {error}")
         return _without_pr(steps, run_failed)
@@ -399,7 +403,16 @@ async def tick(dry_run: bool = False) -> None:
                      budget=await budget.snapshot())
         state.log(f"daily cap reached: {capped}")
         return
+    if invalid := author_executor.refusal():  # also checked at startup; an env changed under a running service stops here
+        await status(phase="blocked", reason_code=author_executor.INVALID, detail=invalid)
+        state.log(f"blocked: {invalid}")
+        return
     executor = await host_mode.choose()  # exec by default; preflight of the CLI logins, openrouter only if asked
+    if executor.mode != "exec" and not executor.blocked and author_executor.selected() == "author":
+        detail = f"{author_executor.EXECUTOR_ENV}=author needs the exec executor (SIMPLICIO_EXECUTOR unset or exec); got {executor.mode}"
+        await status(phase="blocked", reason_code=author_executor.NEEDS_EXEC, executor=executor.mode, detail=detail)
+        state.log(f"blocked: {detail}")
+        return
     if executor.blocked:
         await status(phase="blocked", reason_code=executor.blocked, executor=executor.mode, detail=executor.detail)
         state.log(f"blocked: {executor.blocked}")

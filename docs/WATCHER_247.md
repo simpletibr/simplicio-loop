@@ -135,6 +135,27 @@ sandbox"): o login de outro CLI, `~/.ssh`, `~/.config/gh`, `~/.aws` e `~/.simpli
 comando exato que corrige, por exemplo `sudo -u simplicio-loop -H codex login`. Exit 0 quando todos estao ok, 1 caso
 contrario. Nao le nem imprime token. O mesmo estado derruba o tick com `login_missing:<cli>`.
 
+## Executor autor (`SIMPLICIO_247_EXECUTOR=author`, issue #1669)
+
+O executor padrao e o fluxo de plano. Para tarefas que um plano JSON nao cobre, ligue o fluxo autor. Veja `docs/AUTHOR_FLOW.md`.
+
+| Variavel | Valores | Padrao |
+|---|---|---|
+| `SIMPLICIO_247_EXECUTOR` | `plan` ou `author` | sem a variavel: `plan` |
+| `SIMPLICIO_247_AUTHOR_ROUNDS` | numero inteiro de 1 a 10 | `3` |
+
+- Outro valor para o servico na partida. O log mostra a variavel e os valores aceitos. `status.json` mostra `reason_code=executor_env_invalid`.
+- O fluxo autor exige `SIMPLICIO_EXECUTOR` sem valor ou `exec`. Com `openrouter` o tick bloqueia com `author_needs_exec`.
+- O watcher usa a primeira familia com login que o fluxo autor aceita. Hoje so `claude`. Outra familia falha com `unsupported_family`.
+- A CLI do LLM edita o worktree do proprio item (`<repo>.wt/<n>`). Nunca edita o clone base. Outro caminho falha com `worktree_mismatch`.
+- O watcher roda o `verify` do `loop.toml`. Um verify vermelho volta para a mesma sessao da CLI, ate o numero de rounds.
+- O watcher nao faz commit nem push antes do resultado `ok`. Com `ok`, a entrega e a mesma do fluxo de plano: commit, push, PR com `Parte de #N`, revisao do squad, eventos, orcamento e claim.
+- Sem `ok`, o claim e liberado como em um run de plano que falhou. A regra de retry e de fila morta nao muda. O `reason_code` do claim e o do fluxo autor, por exemplo `verify_failed`.
+- O log e o `error` do claim trazem o `reason_code`, os rounds, os tipos de falha e o uso medido. Sem contador da CLI, o uso e `none`. O loop nao estima numero.
+- O orcamento `model_calls` soma um por round que rodou.
+- A CLI nao recebe `GH_TOKEN`, `GITHUB_TOKEN` nem chave de API. O watcher nao passa env nenhum ao fluxo autor.
+- Os caminhos protegidos valem para o fluxo autor. Um round que muda um deles falha com `protected_path`.
+
 ## Caminhos protegidos (`plan_paths.PROTECTED_PATHS`, issue #1567)
 
 Alguns arquivos controlam o próprio watcher, a esteira de entrega ou o que o host executa sozinho. Um plano que os edite deixa o

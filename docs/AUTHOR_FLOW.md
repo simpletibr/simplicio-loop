@@ -34,6 +34,18 @@ The command prints one JSON object: `status`, `rounds`, `session_id`, `changed`,
 | 69 | `unsupported` family |
 | 2 | usage error |
 
+## Use it in the 24/7 watcher
+
+Set `SIMPLICIO_247_EXECUTOR=author` in the env file of the service. The default is `plan`. Any other value stops the service at start.
+
+- The tick calls `run_author` in the worktree of the item (`<repo>.wt/<n>`) instead of `host_mode.run_exec`.
+- `SIMPLICIO_247_AUTHOR_ROUNDS` sets the rounds. The default is 3. The maximum is 10.
+- The watcher passes the `verify` command of `loop.toml`, the first family that the flow supports, and no env. The flow removes `GH_TOKEN`.
+- On `ok`, the watcher delivers as in the plan flow: commit, push, pull request with `Parte de #N`, squad review. Nothing is committed or pushed before `ok`.
+- On `failed` or `unsupported`, the watcher releases the claim. The retry rule does not change. The claim holds the `reason_code`.
+- The watcher logs the rounds, the kinds of failure and the measured `usage`. `usage` is `none` when the CLI reported no counter.
+- `SIMPLICIO_EXECUTOR` must be unset or `exec`. See `docs/WATCHER_247.md`.
+
 ## Rules for each round
 
 1. Round 1 starts the session with `--session-id`. Each correction uses `--resume` with the same id.
