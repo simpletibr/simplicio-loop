@@ -37,21 +37,33 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import shutil
 import sys
 from pathlib import Path
 
 import pytest
 
+from tests.flow.conftest import write_shim
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 pytestmark = [
-    pytest.mark.skipif(
-        shutil.which("simplicio-dev-cli") is None or shutil.which("simplicio-mapper") is None,
-        reason="simplicio-dev-cli/simplicio-mapper (bound operators) not installed",
-    ),
     pytest.mark.usefixtures("admitting_capacity"),  # host pressure must not decide these dispatch tests
 ]
+
+
+@pytest.fixture(autouse=True)
+def tree_operators(tmp_path, monkeypatch) -> Path:
+    """The Mapper and Dev CLI of THIS checkout lead PATH, as the flow tests do.
+
+    A standalone `simplicio-mapper` left on the host can share the version (0.26.35) and still lack the build identity, so
+    `prepare` blocks with `mapper_provenance_missing` (#1575, #1666). The environment must not decide these tests.
+    """
+    bin_dir = tmp_path / "operator-bin"
+    bin_dir.mkdir()
+    write_shim(bin_dir / "simplicio-mapper", [REPO_ROOT / "packages" / "mapper"], "simplicio_mapper.cli")
+    write_shim(bin_dir / "simplicio-dev-cli", [REPO_ROOT / "packages" / "dev-cli"], "simplicio.cli")
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}")
+    return bin_dir
 
 TASKS_MD = """System: calc
 Feature: add mul(a, b)
