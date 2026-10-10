@@ -15,7 +15,8 @@ def test_map_gc_not_called_when_stop_file_exists(env, monkeypatch):
     config.STOP.touch()
     run_tick()
     assert calls == [], f"_map_gc_bases was called but STOP file exists: {calls}"
-    assert read_json(config.STATUS)["phase"] == "stopped"
+    status = read_json(config.STATUS)
+    assert status["phase"] == "stopped", f"Expected phase stopped, got {status['phase']}"
 
 
 def test_map_gc_not_called_when_onboarding_pending(env, monkeypatch):
@@ -28,7 +29,8 @@ def test_map_gc_not_called_when_onboarding_pending(env, monkeypatch):
     run_tick()
     assert calls == [], f"_map_gc_bases was called but onboarding is pending: {calls}"
     status = read_json(config.STATUS)
-    assert status["phase"] == "setup_required" and "github_token_missing" in status.get("reason_code", "")
+    assert status["phase"] == "setup_required", f"Expected phase setup_required, got {status['phase']}"
+    assert "github_token_missing" in status.get("reason_code", ""), f"Expected github_token_missing in reason_code: {status.get('reason_code')}"
 
 
 def test_map_gc_not_called_when_sandbox_refuses(env, monkeypatch):
@@ -42,7 +44,8 @@ def test_map_gc_not_called_when_sandbox_refuses(env, monkeypatch):
     run_tick()
     assert calls == [], f"_map_gc_bases was called but sandbox refused: {calls}"
     status = read_json(config.STATUS)
-    assert status["phase"] == "blocked" and status["reason_code"] == "sandbox_unavailable"
+    assert status["phase"] == "blocked", f"Expected phase blocked, got {status['phase']}"
+    assert status["reason_code"] == "sandbox_unavailable", f"Expected reason_code sandbox_unavailable, got {status.get('reason_code')}"
 
 
 def test_map_gc_called_normally_when_all_checks_pass(env, monkeypatch):

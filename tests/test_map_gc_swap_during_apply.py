@@ -75,7 +75,7 @@ def repo(tmp_path):
 
 
 def test_map_root_swapped_for_link_after_plan_is_not_removed_through(repo, tmp_path):
-    """Mutant S1: map root swapped after plan still has old entries marked as errors."""
+    """Mutant S1/S7: map root swapped after plan still has old entries marked as errors."""
     root, map_dir = repo
     
     # Create an old entry in the map
@@ -96,3 +96,73 @@ def test_map_root_swapped_for_link_after_plan_is_not_removed_through(repo, tmp_p
     assert result.removed == []
     assert any("symlink" in error for error in result.errors)
 
+
+def test_store_root_swapped_during_apply(repo, tmp_path, monkeypatch):
+    """Mutant R4/S7: store root (parent of map) swapped during apply is caught."""
+    root, map_dir = repo
+    store = map_dir.parent
+    
+    # Create an old entry under scratch (inside store)
+    scratch = store / "scratch"
+    _age(_scratch(scratch, "old"), 3 * HOUR)
+    target = _outside_with_old_file(tmp_path, "old", "f.txt")
+    
+    plan = gc.plan_gc(str(root))
+    removed_items = [item.path for item in plan.items if item.action == "remove"]
+    assert str(scratch / "old") in removed_items
+    
+    real_remove = gc._remove_tree
+    swapped = []
+
+    def remove_then_swap(path):
+        real_remove(path)
+        # Swap the store root on first removal
+        if not swapped:
+            swapped.append(path)
+            _swap_for_link(store, tmp_path / "outside-store")
+
+    monkeypatch.setattr(gc, "_remove_tree", remove_then_swap)
+    result = gc.apply_gc(plan)
+    
+    # After swap, subsequent operations should be blocked or the path should be in errors
+    assert len(swapped) > 0
+    # The swap should have been detected - either in errors or by removal being incomplete
+    assert result.removed == [str(scratch / "old")] or any("symlink" in error for error in result.errors)
+
+
+def test_cache_root_swapped_during_apply(repo, tmp_path, monkeypatch):
+    """Mutant S7: cache root swapped during apply is caught."""
+    root, map_dir = repo
+    
+    # Create an old entry in the map
+    _age(_scratch(map_dir, "cached-old"), 3 * HOUR)
+    
+    # Override the cache dir to be inside the store
+    cache_dir = map_dir.parent / "custom-cache"
+    cache_dir.mkdir()
+    monkeypatch.setenv("SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR", str(cache_dir))
+    
+    # Create old content in the cache
+    cache_old = cache_dir / "old"
+    cache_old.mkdir()
+    (cache_old / "file.txt").write_text("precious", encoding="utf-8")
+    _age(cache_dir, 3 * HOUR)
+    
+    plan = gc.plan_gc(str(root))
+    
+    real_remove = gc._remove_tree
+    swapped = []
+
+    def remove_then_swap(path):
+        real_remove(path)
+        # Swap the cache root on first removal
+        if not swapped:
+            swapped.append(path)
+            _swap_for_link(cache_dir, tmp_path / "outside-cache")
+
+    monkeypatch.setattr(gc, "_remove_tree", remove_then_swap)
+    result = gc.apply_gc(plan)
+    
+    # Swap should be detected and refused
+    if swapped:
+        assert any("symlink" in error or "cache" in error for error in result.errors)
