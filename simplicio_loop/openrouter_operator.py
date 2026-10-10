@@ -23,6 +23,8 @@ import urllib.request
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Mapping
 
+from . import input_ceiling
+
 
 PLAN_SCHEMA = "simplicio.mechanical-edit/v1"
 RECEIPT_SCHEMA = "simplicio.openrouter-plan-receipt/v1"
@@ -394,6 +396,9 @@ def request_mechanical_plan(*, task: Mapping[str, Any], target: str, repo_path: 
             task=task, target=target, mapper_context=mapper_context, current=current,
             repair_feedback=repair_feedback,
         )
+        ceiling = input_ceiling.resolve_ceiling(repo_path)
+        projection = input_ceiling.Projection.estimated(prompt)
+        input_ceiling.enforce_budget(projection, ceiling)
         payload = {
             "model": model,
             "temperature": 0,
@@ -475,6 +480,8 @@ def request_mechanical_plan(*, task: Mapping[str, Any], target: str, repo_path: 
             "plan_schema": PLAN_SCHEMA,
         })
         return plan, receipt
+    except (input_ceiling.InputCeilingExceeded, input_ceiling.CeilingConfigError):
+        raise
     except OpenRouterPlanError:
         raise
     except Exception as exc:
