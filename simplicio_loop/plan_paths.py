@@ -24,6 +24,11 @@ checked for writes only (``operations_refusal``): a plan may still read an excer
 way a forgiving file system reads it (case, ``\\``, ``.``, trailing dots and spaces, zero-width and compatibility code
 points), after every symlink is followed, and a directory that holds a protected path counts as protected too, so a move
 or a delete of the parent cannot carry the file away. A plan names the reason ``protected_path`` and never decides it.
+
+Two more ways round the list are closed here. A gate written as ``name.py`` is shadowed by a new ``name/`` package, a
+``name.so`` or a ``name.pyc`` beside it (python imports those first), so each ``.py`` entry protects the siblings of its
+stem too, in ``__pycache__`` as well. And a full plan carries ``validation`` commands that dev-cli runs after the apply with
+the permissions of the loop, so ``plan_refusal`` turns away any plan that holds one.
 """
 from __future__ import annotations
 
@@ -36,7 +41,8 @@ from typing import Any
 PATH_KEYS = ("path", "dest")
 PLAN_KEYS = ("operations", "ops", "edits")
 
-# One list, relative to the repository root. A name stands for itself and for everything below it.
+# One list, relative to the repository root. A name stands for itself and for everything below it. A ``.py`` entry also
+# stands for the siblings that python imports in its place: ``name/``, ``name.*`` and ``__pycache__/name.*``.
 PROTECTED_PATHS = (
     ".github",  # workflows, templates, CODEOWNERS
     "CODEOWNERS",
@@ -47,12 +53,24 @@ PROTECTED_PATHS = (
     "hooks",  # the hooks the host runs: action gate, stop hook, pre-commit
     "plugin/hooks",
     "simplicio_loop/_bundle/hooks",
+    ".githooks",  # what a host or git runs on its own: hook directories and the files that name commands
+    ".husky",
+    ".pre-commit-config.yaml",
+    ".vscode/tasks.json",
+    ".codex/hooks.json",
+    ".codex/config.toml",
+    ".claude/settings.json",
+    ".claude/settings.local.json",
+    ".claude/hooks",
+    ".cursor/hooks.json",
+    ".kiro/hooks",
     "simplicio_loop/plan_paths.py",  # this gate
     "simplicio_loop/intake_gate.py",  # the repo and issue opt-in
     "simplicio_loop/watcher247/sandbox.py",
     "simplicio_loop/watcher247/secret_scan.py",
     "simplicio_loop/watcher247/prompt_guard.py",
     "simplicio_loop/watcher247/env_guard.py",
+    "simplicio_loop/watcher247/verify.py",  # runs the repo's verify command
     "simplicio_loop/watcher247/squad_flow.py",
     "simplicio_loop/watcher247/points/judge.py",
     "simplicio_loop/watcher247/points/delivery_gate.py",
@@ -82,7 +100,7 @@ def inside_git_dir(path: str) -> bool:
 def _unsafe_relative(path: str) -> bool:
     portable = PurePosixPath(path.replace("\\", "/"))
     return (
-        not path.strip() or "\0" in path or ":" in path or path in {".", ".."}
+        not path.strip() or "\0" in path or ":" in path or not _parts(path)  # no component at all is the root itself
         or portable.is_absolute() or PureWindowsPath(path).is_absolute() or ".." in portable.parts
     )
 
@@ -128,13 +146,26 @@ def _parts(path: str) -> tuple[str, ...]:
 
 
 _PROTECTED = tuple((entry, _parts(entry)) for entry in PROTECTED_PATHS)
+_PACKAGES = tuple((entry, (*_parts(entry)[:-1], _parts(entry)[-1].removesuffix(".py")))
+                  for entry in PROTECTED_PATHS if entry.endswith(".py"))  # `name/` shadows `name.py`
+
+
+def _shadows(parts: tuple[str, ...], folder: tuple[str, ...], stem: str) -> bool:
+    """True for ``folder/stem.*`` and ``folder/__pycache__/stem.*``: an extension or byte-code file python picks over the source."""
+    rest = parts[len(folder):] if parts[:len(folder)] == folder else ()
+    if rest[:1] == ("__pycache__",):
+        rest = rest[1:]
+    return bool(rest) and rest[0].startswith(stem + ".")
 
 
 def _protected_entry(parts: tuple[str, ...]) -> str | None:
     """The protected entry that ``parts`` is, lies below, or holds (a parent directory carries its children away)."""
-    for entry, protected in _PROTECTED:
+    for entry, protected in (*_PROTECTED, *_PACKAGES):
         shared = min(len(parts), len(protected))
         if shared and parts[:shared] == protected[:shared]:
+            return entry
+    for entry, package in _PACKAGES:
+        if _shadows(parts, package[:-1], package[-1]):
             return entry
     return None
 
@@ -163,10 +194,19 @@ def operations_refusal(operations: Iterable[Any], root: str | os.PathLike[str]) 
     return None
 
 
+VALIDATION_REFUSAL = "protected_path: validation commands are not allowed in a plan: dev-cli runs them after the apply, anywhere"
+
+
 def plan_refusal(plan: Any, root: str | os.PathLike[str]) -> str | None:
-    """``operations_refusal`` over every operation list a host plan may carry (``operations``, ``ops`` or ``edits``)."""
+    """``operations_refusal`` over every operation list a host plan may carry (``operations``, ``ops`` or ``edits``).
+
+    A plan with ``validation`` commands is refused whole: dev-cli runs them after the apply, from the root, and they can write
+    where no operation may. The loop runs its own checks (``--verify``) outside the plan.
+    """
     if not isinstance(plan, dict):
         return None
+    if plan.get("validation"):
+        return VALIDATION_REFUSAL
     for key in PLAN_KEYS:
         operations = plan.get(key)
         if isinstance(operations, list) and (reason := operations_refusal(operations, root)):

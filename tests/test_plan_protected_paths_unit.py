@@ -406,6 +406,8 @@ def _lookalikes(gate: str) -> list[str]:
         f"{folder}/__pycache__/{stem}_x.cpython-314.pyc",
         f"{folder}/__pycache__/other.cpython-314.pyc",
         f"{folder}/other/{stem}.py",
+        "/".join("zz" for _ in folder.split("/")) + f"/{stem}.so",
+        "/".join("zz" for _ in folder.split("/")) + f"/__pycache__/{stem}.cpython-314.pyc",
     ]
 
 

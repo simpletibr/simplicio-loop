@@ -81,7 +81,7 @@ def _normalize_tasks(ops: Mapping[str, Any]) -> list[dict[str, Any]]:
         for op in operations:
             if not isinstance(op, Mapping) or not all(k in op for k in ("path", "find", "replace")):
                 raise ApplyValidationError(f"task {task_id!r} has a malformed operation")
-            if reason := plan_paths.refusal(str(op["path"])):
+            if reason := plan_paths.refusal(str(op["path"])) or plan_paths.protected_refusal(str(op["path"])):  # before any task writes
                 raise ApplyValidationError(f"task {task_id!r}: {reason}")
             normalized_ops.append({"path": str(op["path"]), "find": str(op["find"]), "replace": str(op["replace"])})
         out.append({
@@ -196,6 +196,9 @@ def validate_ops(root: Path, tasks: Sequence[Mapping[str, Any]], chains: Sequenc
                 find_text = op["find"]
                 if plan_paths.refusal(path, root):  # nothing is read for it: no count, no existence
                     problems.append({"task": task_id, "path": path, "op_index": idx, "reason": "unsafe_path"})
+                    continue
+                if plan_paths.protected_refusal(path, root):  # also through a symlink; blocks the whole file before task one writes
+                    problems.append({"task": task_id, "path": path, "op_index": idx, "reason": "protected_path"})
                     continue
                 current = read(path)
                 if find_text == "":

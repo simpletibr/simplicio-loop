@@ -137,10 +137,11 @@ contrario. Nao le nem imprime token. O mesmo estado derruba o tick com `login_mi
 
 ## Caminhos protegidos (`plan_paths.PROTECTED_PATHS`, issue #1567)
 
-Alguns arquivos controlam o próprio watcher ou a esteira de entrega. Um plano que os edite deixa o passo seguinte aprovar a
-própria mudança. Por isso nenhum plano cria, edita, move ou apaga um deles. O portão fica em `plan_paths.operations_refusal`,
-que `turbo.apply_plan`, o `apply` e o runner chamam antes do dev-cli. A razão é sempre `protected_path: '<caminho>' touches
-protected '<entrada>'`.
+Alguns arquivos controlam o próprio watcher, a esteira de entrega ou o que o host executa sozinho. Um plano que os edite deixa o
+passo seguinte aprovar a própria mudança. Por isso nenhum plano cria, edita, move ou apaga um deles. O portão fica em
+`plan_paths.operations_refusal`, que `turbo.apply_plan`, o `apply` e o runner chamam antes do dev-cli. O `apply` também recusa o
+`ops.json` inteiro (`BLOCKED`) antes de gravar a primeira tarefa. A razão é sempre `protected_path: '<caminho>' touches protected
+'<entrada>'`.
 
 | entrada | por que |
 |---|---|
@@ -148,19 +149,34 @@ protected '<entrada>'`.
 | `.simplicio-loop` | `loop.toml` (opt-in, autores, `verify`) e o estado do loop |
 | `packaging/systemd`, `scripts/check.py` | a unidade do serviço e o CI local |
 | `hooks`, `plugin/hooks`, `simplicio_loop/_bundle/hooks` | os hooks que o host roda (portão de ação, parada, pre-commit) |
+| `.githooks`, `.husky`, `.pre-commit-config.yaml`, `.vscode/tasks.json` | o que o git, o pre-commit e o editor rodam sozinhos |
+| `.codex/hooks.json`, `.codex/config.toml`, `.claude/settings.json`, `.claude/settings.local.json`, `.claude/hooks`, `.cursor/hooks.json`, `.kiro/hooks` | hooks e comandos dos hosts |
 | `simplicio_loop/plan_paths.py`, `intake_gate.py` | este portão e o opt-in do repo |
-| `watcher247/sandbox.py`, `secret_scan.py`, `prompt_guard.py`, `env_guard.py`, `squad_flow.py` | isolamento, segredos, injeção e revisão do squad |
+| `watcher247/sandbox.py`, `secret_scan.py`, `prompt_guard.py`, `env_guard.py`, `squad_flow.py`, `verify.py` | isolamento, segredos, injeção, revisão do squad e o comando `verify` |
 | `watcher247/points/judge.py`, `points/delivery_gate.py` | o juiz e o portão de entrega |
 
 - Uma entrada vale para ela mesma e para tudo abaixo dela. Um diretório que contém uma entrada (`packaging`, `plugin`,
   `simplicio_loop`) também conta, porque mover ou apagar o pai levaria o arquivo junto.
+- Uma entrada `.py` vale também para os irmãos que o Python importa no lugar dela: o pacote `nome/`, `nome.so`, `nome.pyc` e
+  `__pycache__/nome.*`. Sem isso, criar `simplicio_loop/intake_gate/__init__.py` trocaria o portão sem tocar nele.
 - O caminho é comparado como o sistema de arquivos o lê: caixa, `\`, `.`, `..`, pontos e espaços no fim, caracteres de largura
-  zero e formas de compatibilidade (ponto de largura total). Os symlinks são seguidos antes: `ln -s .github x` não abre `x/workflows/ci.yml`.
+  zero e formas de compatibilidade (ponto de largura total). Os symlinks são seguidos antes: `ln -s .github x` não abre
+  `x/workflows/ci.yml`, nem como origem nem como `dest` de um `move_file`. Um caminho sem componente (`./`, `.//`, `.\`) é a
+  raiz e é recusado como `unsafe_path`.
+- Um plano completo (`simplicio.mechanical-edit/v1` ou `simplicio.dev-cli.edit-plan/v1`) com `validation` não vazio é recusado
+  inteiro. O dev-cli roda esses comandos depois do apply, a partir da raiz, e eles escrevem em qualquer lugar. O loop roda o
+  `--verify` por conta própria, fora do plano.
 - Só a escrita é recusada. Um plano ainda pode pedir um trecho (`need`) de um arquivo protegido.
-- Um humano muda esses arquivos com um commit e um PR dele, revisados como os demais. Não existe rótulo nem variável de
-  ambiente que libere um plano. Um link físico para um arquivo protegido não é visto (o dev-cli troca o arquivo em vez de
-  escrever através dele, medido).
-- Um teste falha se uma entrada deixar de existir no repo, para que um rename não tire a proteção em silêncio.
+- A lista vale a partir da raiz de **qualquer** repo que o watcher atende, sem rótulo de liberação. Um `hooks/use-x.ts` de um app
+  Next.js, um `scripts/check.py` ou um `docs/CODEOWNERS` seriam recusados. Hoje só o simplicio-loop tem `loop.toml`, e o
+  portão de plano corre para todo repo que o runner toca.
+- Neste repo, os planos do próprio watcher sobre os portões listados também são bloqueados. Um humano edita esses arquivos com
+  um commit e um PR dele, revisados como os demais. Não existe rótulo nem variável de ambiente que libere um plano.
+  `.claude/skills`, `AGENTS.md`, `tick.py` e `host_mode.py` ficam fora da lista de propósito, porque o loop se constrói por plano
+  neles.
+- Um link físico para um arquivo protegido não é visto (o dev-cli troca o arquivo em vez de escrever através dele, medido).
+- Um teste falha se uma entrada deixar de existir no repo, para que um rename não tire a proteção em silêncio. As entradas que
+  este repo ainda não tem estão listadas no teste.
 
 ## Isolamento do sandbox (`watcher247/sandbox.py`, issue #1563)
 
