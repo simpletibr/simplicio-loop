@@ -29,6 +29,22 @@ def test_prs_cap_reached_processes_nothing(env, monkeypatch):
     assert read_json(config.STATUS)["phase"] == "daily_cap_reached"
 
 
+def test_the_map_gc_still_runs_when_the_daily_cap_is_reached(env, monkeypatch):
+    """#1671: the cap limits the work on issues, not the housekeeping. A watcher that sits at its cap most of the day must
+    still collect the map store, so the gc is called before the cap returns. A dry run never does it."""
+    calls = []
+    monkeypatch.setattr(tick, "_map_gc_bases", lambda: calls.append("gc"))
+    monkeypatch.setenv("SIMPLICIO_247_MAX_ISSUES_PER_DAY", "2")
+    fake = env(FakeRun({"simplicio-a": [issue(1)]}))
+    baseline()
+    write_json(config.BUDGET, {"day": "2026-01-01", "issues": 2, "model_calls": 2, "prs": 0})
+    run_tick(dry_run=True)
+    assert calls == []
+    run_tick()
+    assert calls == ["gc"]
+    assert fake.turbo_argv == [] and read_json(config.STATUS)["phase"] == "daily_cap_reached"
+
+
 def test_batch_never_exceeds_remaining_issues(env, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_247_MAX_ISSUES_PER_DAY", "2")
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "3")
