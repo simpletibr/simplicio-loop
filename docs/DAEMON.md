@@ -46,6 +46,10 @@ Set `SIMPLICIO_LOOP_DAEMON=0` to run the command in-process. Platforms without f
 
 There is no silent fallback. If the daemon cannot start or the socket is unsafe, the client prints the reason and exits with code 69. The message names the opt-out. A refused request has a code: `stale`, `busy`, `peer_uid`, `protocol`, `socket_mode`, `dir_mode` and others.
 
+## Frozen binary and Windows
+
+The frozen binary and Windows have no daemon, so `daemon serve`, `daemon status` and `daemon stop` never start a task. Each prints one line that says the daemon is not used on this platform. `daemon status` exits with code 3 (not running), `daemon stop` exits with code 0 (nothing to stop), and `daemon serve` exits with code 69 (it cannot serve). Any other word after `daemon` prints the valid commands and exits with code 2.
+
 ## Known limits
 
 A command that opens `/dev/tty` itself, such as the hidden password prompt of the 24/7 watcher setup, has no controlling terminal in the daemon. Run it with `SIMPLICIO_LOOP_DAEMON=0`. The 24/7 watcher runs its commands in a sandbox with `SIMPLICIO_LOOP_DAEMON=0`, so a sandboxed command never starts or reaches a daemon.
