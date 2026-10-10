@@ -1,6 +1,6 @@
 """`simplicio-loop doctor` (no subcommand) and `doctor all|login`: the overview (#1575).
 
-Seven checks, each `ok`, `warn` or `fail` with the command that fixes it:
+Eight checks, each `ok`, `warn` or `fail` with the command that fixes it:
 
 * login          the shared login file: present, expired, entitlement, Runtime version, same file as the Runtime
 * update         offline by default (the cached answer of the last `update --check`, with its time); --online asks GitHub
@@ -8,6 +8,7 @@ Seven checks, each `ok`, `warn` or `fail` with the command that fixes it:
 * runtime        coexistence with the Simplicio Runtime (optional)
 * operators      a `simplicio-mapper` / `simplicio-dev-cli` on PATH that is not the bundled one (path_operators)
 * disk           free space of the state folders against the floor `squad_capacity` uses
+* map-store      size of `<git-common-dir>/simplicio`, `baseline-build-*` older than 1 h, bytes `map gc` frees (#1671)
 * setup          `simplicio-loop setup` ran, and its summary shows no open item (tools, GitHub login, default agent CLI)
 
 Exit 0 unless a check is `fail` (a login file that exists but cannot be used safely). Nothing here prints a token.
@@ -17,6 +18,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -26,9 +28,10 @@ from typing import Any, Callable, Optional
 from . import __version__, auth, distribution, path_operators, self_update, setup_cli, squad_capacity
 
 SCHEMA = "simplicio.doctor/v1"
-SECTIONS = ("login", "update", "distribution", "runtime", "operators", "disk", "setup")
+SECTIONS = ("login", "update", "distribution", "runtime", "operators", "disk", "map-store", "setup")
 _RANK = {"ok": 0, "warn": 1, "fail": 2}
 GIB = 1 << 30
+MAP_STORE_WARN_BYTES = GIB  # `<git-common-dir>/simplicio` above this is a warning (#1671)
 
 
 def _row(name: str, status: str, summary: str, fix: Optional[str] = None, detail: Optional[dict] = None) -> dict:
@@ -149,6 +152,42 @@ def _disk(dirs: list, usage: Callable[[Any], Any]) -> dict:
     return _row("disk", "ok", f"{shown} (floor {floor / GIB:.1f} GiB)", None, detail)
 
 
+def _mib(size: int) -> str:
+    return f"{size / (1 << 20):.1f} MiB" if size < GIB else f"{size / GIB:.2f} GiB"
+
+
+def _map_store(repo: Any, limit: int, now: float) -> dict:
+    """`<git-common-dir>/simplicio`: its size, the `baseline-build-*` older than an hour and the bytes `map gc` frees (#1671)."""
+    from . import map_service_gc as gc
+    from .map_service_git import GitDiscoveryError, git_common_dir
+
+    fix = "simplicio-loop map gc"
+    try:
+        store = git_common_dir(str(repo)) / "simplicio"
+    except (GitDiscoveryError, OSError, ValueError, subprocess.SubprocessError):
+        return _row("map-store", "ok", f"{repo} is not a git repository: no map store to measure", None, {"store": None})
+    if not store.is_dir():
+        return _row("map-store", "ok", f"{store}: not created yet (0 B)", None, {"store": str(store), "size_bytes": 0})
+    try:
+        size = gc.tree_size(store)
+        map_dir = store / "map"
+        builds = [entry for entry in sorted(map_dir.iterdir())
+                  if entry.name.startswith(gc.SCRATCH_PREFIX) and entry.is_dir() and not entry.is_symlink()] \
+            if map_dir.is_dir() else []
+        old_builds = [entry for entry in builds if now - gc.newest_mtime(entry) > gc.STALE_AFTER_SECONDS]
+        freeable = gc.plan_gc(str(repo), now=now).would_free_bytes
+    except (GitDiscoveryError, OSError, ValueError, subprocess.SubprocessError) as exc:
+        return _row("map-store", "warn", f"could not measure {store}: {exc}", fix)
+    detail = {"store": str(store), "size_bytes": size, "limit_bytes": limit,
+              "baseline_build_total": len(builds), "baseline_build_older_than_1h": len(old_builds),
+              "freeable_bytes": freeable}
+    summary = (f"{store}: {_mib(size)}; {len(old_builds)} baseline-build-* older than 1 h; "
+               f"{_mib(freeable)} freeable by `map gc` (limit {_mib(limit)})")
+    if size > limit:
+        return _row("map-store", "warn", summary, fix, detail)
+    return _row("map-store", "ok", summary, None, detail)
+
+
 def _state_dirs(repo: Path, state_dir: Path) -> list:
     from .watcher247 import config as watcher_config
 
@@ -162,7 +201,8 @@ def _state_dirs(repo: Path, state_dir: Path) -> list:
 def collect(*, online: bool = False, environ: Optional[dict] = None, now: Optional[float] = None,
             fetch: Optional[Callable[[], str]] = None, operators: Optional[Callable[..., list]] = None,
             usage: Optional[Callable[[Any], Any]] = None, installed: Optional[str] = None, kind: Optional[str] = None,
-            repo: Any = ".", state_dir: Optional[Path] = None, only: Optional[str] = None) -> dict:
+            repo: Any = ".", state_dir: Optional[Path] = None, only: Optional[str] = None,
+            map_store_limit: int = MAP_STORE_WARN_BYTES) -> dict:
     stamp = time.time() if now is None else now
     installed = installed or __version__
     state_dir = state_dir or self_update.default_state_dir()
@@ -175,6 +215,7 @@ def collect(*, online: bool = False, environ: Optional[dict] = None, now: Option
         "runtime": lambda: _runtime(environ),
         "operators": lambda: _operators(kind, operators or path_operators.check),
         "disk": lambda: _disk(_state_dirs(Path(repo), state_dir), usage or shutil.disk_usage),
+        "map-store": lambda: _map_store(repo, map_store_limit, stamp),
         "setup": lambda: setup_cli.doctor_row(state_dir),
     }
     checks = [makers[name]() for name in wanted]
