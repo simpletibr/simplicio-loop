@@ -35,8 +35,15 @@ def test_partial_pr_says_parte_de_and_t2_names_the_independent_reviewer():
     assert "(nível 2)" in text and "rev-9" in text and "PARCIAL" in text and "Parte de #3" in text
 
 
-def test_approval_pattern_matches_only_the_first_line_form():
-    assert comment.parse_level("REVISÃO AUTOMÁTICA: APROVADA (nível 2)\nresto") == 2
-    assert comment.parse_level("> REVISÃO AUTOMÁTICA: APROVADA (nível 2)") is None
-    assert comment.parse_level("REVISÃO AUTOMÁTICA: REPROVADA (nível 1)") is None
-    assert comment.parse_level("APROVADO PELO SQUAD") is None
+def test_squad_gate_reads_the_phrase_render_posts_and_nothing_else():
+    """The comment is the contract between this module (which posts it) and `squads.squad_gate` (which reads it)."""
+    from simplicio_loop import squads
+
+    def level(body):
+        found = squads._APPROVAL_LINE.search(body)
+        return int(found.group(1)) if found else None
+
+    approved = comment.render(_report(CheckResult("usage", PASS)), AUTHOR, identity.AUTO_REVIEWER, None, [])
+    rejected = comment.render(_report(CheckResult("usage", FAIL, ("x",))), AUTHOR, identity.AUTO_REVIEWER, None, [])
+    assert level(approved) == 1 and level(rejected) is None
+    assert level("> REVISÃO AUTOMÁTICA: APROVADA (nível 1)") is None and level("APROVADO PELO SQUAD") is None

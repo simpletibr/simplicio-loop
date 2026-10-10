@@ -20,7 +20,6 @@ T0_MAX_ADDED_LINES = 200
 SECURITY_WORDS = frozenset({"sandbox", "daemon", "token", "tokens", "uninstall", "mapper", "login", "secret", "secrets",
                             "credential", "credentials", "auth", "permission", "permissions"})
 INDEPENDENT_PHRASE = "REVISAO INDEPENDENTE: APROVADA"
-INDEPENDENT_ROLE = "independent-reviewer"
 _FIELDS = {"revisor": "agent_id", "papel": "role", "modelo": "model", "host": "host"}
 
 

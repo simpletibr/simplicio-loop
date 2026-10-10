@@ -9,18 +9,6 @@ from .model import GateReport
 
 APPROVED = "REVISÃO AUTOMÁTICA: APROVADA"
 REJECTED = "REVISÃO AUTOMÁTICA: REPROVADA"
-_APPROVAL_LINE = re.compile(r"^REVIS[ÃA]O AUTOM[ÁA]TICA: APROVADA \(n[íi]vel ([0-2])\)\s*$", re.IGNORECASE)
-
-
-def parse_level(body: str) -> int | None:
-    """The level of an approval comment (its first non-quoted line), None when it is not an approval."""
-    for line in body.splitlines():
-        if line.startswith(">"):
-            continue
-        found = _APPROVAL_LINE.match(line.strip())
-        return int(found.group(1)) if found else None
-    return None
-
 
 _AUTHOR_LINE = re.compile(r"^- autor: (\S+) \(", re.MULTILINE)
 
