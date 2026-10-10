@@ -172,6 +172,9 @@ def install(target: Path, globally: bool, host: str = "claude",
         print("\n".join(f"  {verb}: {rel}" for rel in payload["removed"] + [f"{rel}/" for rel in payload["removed_dirs"]]))
         if payload["kept"]:
             print(f"  kept (not empty, holds files Loop did not install): {', '.join(payload['kept'])}")
+        if globally:
+            print("  not removed (outside the ownership receipt): the simplicio-* skills and Loop rule files that "
+                  "install --global refreshes in other hosts; remove them by hand")
         return 0
     try:
         plan = plan_install(root, host=host, globally=globally)
