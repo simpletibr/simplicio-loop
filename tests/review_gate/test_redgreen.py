@@ -288,3 +288,21 @@ def test_only_exempt_tests_that_fail_on_head_give_the_head_reason_alone(tmp_path
     assert result.status == FAIL
     assert len(result.reasons) == 1 and result.reasons[0].startswith("testes novos que falham com a mudanca: ")
     assert result.measured["head_failed"] == ["tests/test_mod.py::test_char_sum"] and result.measured["red"] == []
+
+
+NOT_PYTHON = "production change is not Python: no behavior check ran"
+
+
+def test_a_skip_caused_by_non_python_production_says_so_and_a_real_tests_only_pr_keeps_its_text(tmp_path):
+    js = diffs.FileChange("web/app.js", "M", (1,))
+    conftest = diffs.FileChange("tests/conftest.py", "M", (1,))
+    base, head = tmp_path / "base", tmp_path / "head"
+    for changes in ([js], [js, conftest], [js, diffs.FileChange("tests/test_mod.py", "D", ())]):  # nothing runs: not a "tests only" PR
+        result = redgreen.check_redgreen(base, head, changes, python=sys.executable)
+        assert result.status == SKIPPED and result.reasons[0].startswith(NOT_PYTHON) and "web/app.js" in result.reasons[0], changes
+    tests_only = redgreen.check_redgreen(base, head, [conftest], python=sys.executable)
+    assert tests_only.status == SKIPPED and tests_only.reasons[0].startswith("PR so de testes sem teste novo")
+    docs = redgreen.check_redgreen(base, head, [diffs.FileChange("docs/a.md", "M", (1,))], python=sys.executable)
+    assert docs.status == SKIPPED and docs.reasons[0] == "sem codigo de producao nem teste alterado"
+    deleted = redgreen.check_redgreen(base, head, [diffs.FileChange("web/app.js", "D", ())], python=sys.executable)
+    assert deleted.reasons[0] == "sem codigo de producao nem teste alterado"  # a deleted file is not a production change that went unchecked

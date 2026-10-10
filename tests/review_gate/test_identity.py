@@ -322,3 +322,42 @@ def test_marker_needs_the_full_sha_compared_exactly_never_a_prefix_m2():
         body = MARK.replace(FULL, marked)
         assert identity.parse_independent_marker([{"body": body}], FULL) is None, marked
     assert identity.parse_independent_marker([{"body": MARK.replace(FULL, FULL[:7])}], FULL[:7]) is None  # nor a head that is itself short
+
+
+@pytest.mark.parametrize("path", [
+    "docs/run.sh", "docs/build.js", "docs/Build.JS", "requirements.txt", "docs/requirements.txt", "requirements-dev.txt",
+    "package.json", "package-lock.json", "uv.lock", "web/app.js", "scripts/deploy.sh", "pyproject-extra.toml", "ci/job.yml"])
+def test_non_python_production_is_t2_for_the_level_and_for_the_floor_of_the_gate(path):
+    """M2 follow-up: `classify_level` and `paths_level` share ONE rule, so the gate cannot recompute a lower floor."""
+    assert identity.is_non_python_production(path)
+    assert identity.classify_level([_c(path)]) is Level.T2
+    assert identity.paths_level(["src/app.py", path]) == 2
+
+
+@pytest.mark.parametrize("path", [
+    "docs/GUIDE.md", "docs/flow/diagram.svg", "docs/flow/simplicio-loop.flow.json", "docs/flow/simplicio-loop.mmd",
+    "docs/notes.txt", "tests/fixtures/x.js", "tests/fixtures/data.json", "packages/dev-cli/tests/fixtures/x.sh",
+    "README.md", "contracts/structured-output/v1/schema.json", "db/seeds/001_users.sql", "assets/logo.svg", ".gitignore", "LICENSE"])
+def test_documentation_data_and_test_files_are_not_non_python_production(path):
+    assert not identity.is_non_python_production(path)
+    assert identity.paths_level(["src/app.py", path]) == 0
+    assert identity.classify_level([_c("src/app.py"), _c(path, "A")]) is Level.T1
+
+
+@pytest.mark.parametrize("path, kind", [
+    ("docs/run.sh", "other"), ("docs/build.js", "other"), ("requirements.txt", "other"), ("docs/requirements.txt", "other"),
+    ("requirements-dev.txt", "other"), ("package.json", "other"),
+    ("docs/GUIDE.md", "docs"), ("docs/flow/diagram.svg", "docs"), ("docs/notes.txt", "docs"), ("notes.txt", "docs"),
+    ("tests/fixtures/x.js", "other"), ("src/app.py", "code"), ("tests/test_a.py", "test")])
+def test_kind_of_keeps_scripts_and_requirements_out_of_docs(path, kind):
+    assert diffs.kind_of(path) == kind
+
+
+def test_the_non_python_rule_does_not_crash_on_an_empty_path_and_ignores_deletions_in_the_level():
+    assert not identity.is_non_python_production("") and identity.paths_level([""]) == 0
+    assert identity.classify_level([_c("web/app.js", "D")]) is Level.T0  # nothing left to check (as the old rule)
+
+
+def test_non_python_production_helper_lists_the_added_or_modified_paths():
+    changes = [_c("web/app.js"), _c("web/old.js", "D"), _c("src/app.py"), _c("docs/GUIDE.md")]
+    assert identity.non_python_production(changes) == ["web/app.js"]

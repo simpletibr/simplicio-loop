@@ -13,7 +13,7 @@ from pathlib import PurePosixPath
 from typing import Callable, Iterator, Mapping, Sequence
 
 from .. import plan_paths
-from .diffs import FileChange, is_pytest_infra
+from .diffs import FileChange, is_pytest_infra, kind_of
 from .model import ERROR, FAIL, PASS, CheckResult, Level
 
 NAME = "identity"
@@ -112,10 +112,45 @@ def sets_pytest_plugins(text: str) -> bool:
     return False
 
 
+# What is not behavior even though it is not Python (M2, #1649): data, diagrams, images and repository bookkeeping. The cost of
+# T2 is a human reading the PR, so it is kept for what the automatic gate cannot run and that can change what the loop does.
+DATA_SUFFIXES = frozenset(".sql .csv .tsv .ndjson .svg .png .jpg .jpeg .gif .webp .ico .mmd".split())
+DATA_CONFIG_SUFFIXES = frozenset(".json .yml .yaml .toml .xml".split())
+DATA_DIRS = frozenset({"contracts", "_contracts", "fixtures", "seeds", "testdata"})  # JSON/YAML there is a schema or a sample
+INERT_NAMES = frozenset({"license", ".gitignore", ".gitattributes", ".editorconfig"})
+NOT_PYTHON_SKIP = "production change is not Python: no behavior check ran"
+
+
+def is_non_python_production(path: str) -> bool:
+    """True for a file that is production but not Python, which redgreen, mutation and usage cannot check: scripts, JS/TS,
+    configuration (`*.toml/*.yml/*.yaml/*.json`, lock files), `requirements*.txt`, `package.json`, Dockerfile, Makefile, CSS.
+    Never a test (a `tests/` folder at any depth), documentation (`docs/`, `*.md`...), data (`.sql`, `.csv`, images) or JSON/YAML
+    under `contracts/`, `fixtures/` or `seeds/`. This is the one rule of `classify_level` and `paths_level` (path only)."""
+    posix = path.replace("\\", "/")
+    parts = [p.lower() for p in PurePosixPath(posix).parts]
+    if not parts or kind_of(posix) != "other" or "tests" in parts[:-1]:
+        return False
+    name, suffix = parts[-1], PurePosixPath(parts[-1]).suffix
+    if name in INERT_NAMES or suffix in DATA_SUFFIXES or (suffix in DATA_CONFIG_SUFFIXES and DATA_DIRS.intersection(parts[:-1])):
+        return False
+    return True
+
+
+def non_python_production(changes: Sequence[FileChange]) -> list[str]:
+    """The paths the PR adds or changes that `is_non_python_production` names (a deleted file has nothing left to check)."""
+    return [c.path for c in changes if c.status != "D" and is_non_python_production(c.path)]
+
+
+def non_python_skip_reason(changes: Sequence[FileChange]) -> str | None:
+    """Why a check that only reads Python skipped, when the PR changes non-Python production: the honest reason, else None."""
+    paths = non_python_production(changes)
+    return f"{NOT_PYTHON_SKIP} ({', '.join(paths[:5])})" if paths else None
+
+
 def paths_level(paths: Sequence[str]) -> int:
-    """2 when any path is sensitive or names a security topic, else 0: the floor of the level the diff imposes."""
+    """2 when any path is sensitive, names a security topic or is non-Python production, else 0: the floor of the diff's level."""
     for path in paths:
-        if sensitive_path(path) or SECURITY_WORDS.intersection(re.split(r"[^a-z0-9]+", path.lower())):
+        if sensitive_path(path) or SECURITY_WORDS.intersection(re.split(r"[^a-z0-9]+", path.lower())) or is_non_python_production(path):
             return 2
     return 0
 
@@ -134,9 +169,8 @@ def classify_level(changes: Sequence[FileChange], read: Callable[[str], str | No
     if any(SECURITY_WORDS.intersection(re.split(r"[^a-z0-9]+", str(PurePosixPath(c.path)).lower())) for c in scanned):
         return Level.T2
     # Non-Python production files (M2, #1649) cannot be checked by the automatic gate (redgreen, mutation, usage):
-    # the gate runs Python tests, so non-Python behavior changes need human review. But test files are not production code.
-    non_python_production = [c for c in production if c.kind == "other" and PurePosixPath(c.path).parts[0] != "tests"]
-    if any(non_python_production):
+    # the gate runs Python tests, so non-Python behavior changes need human review (the same rule as `paths_level`).
+    if any(is_non_python_production(c.path) for c in production):
         return Level.T2
     if not production and sum(len(c.added) for c in changes) <= T0_MAX_ADDED_LINES:
         return Level.T0

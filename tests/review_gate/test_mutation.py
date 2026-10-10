@@ -160,6 +160,16 @@ def test_only_the_added_lines_are_mutated(tmp_path):
     assert result.status == PASS and all("app.py:2 " in line for line in result.measured["survived"]) and result.measured["candidates"] == 3
 
 
+def test_a_skip_caused_by_non_python_production_says_so_and_the_other_skips_keep_their_text(tmp_path):
+    root = make_project(tmp_path, "X = 'a'\n", "")
+    js = FileChange("web/app.js", "M", (1,))
+    result = check_mutation(root, [js, FileChange("tests/test_app.py", "A", (1,))], PYTEST)
+    assert result.status == SKIPPED and result.reasons[0].startswith("production change is not Python: no behavior check ran")
+    assert "web/app.js" in result.reasons[0]
+    assert check_mutation(root, [FileChange("tests/test_app.py", "A", (1,))], PYTEST).reasons == ("sem linha de producao mutavel",)
+    assert check_mutation(root, [js, FileChange("app.py", "A", (1,))], PYTEST).reasons == ("sem linha de producao mutavel",)  # Python without a mutable line
+
+
 def test_the_tests_see_the_path_of_the_host_even_when_the_gate_passes_only_pythonpath(tmp_path):
     """#1641: a test that runs `git` failed in the baseline, because the env of the run was only PYTHONPATH."""
     root = make_project(tmp_path, "def f(x, y):\n    return x == y\n",
