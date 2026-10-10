@@ -106,7 +106,7 @@ def mutation_argv(python: str, root: Path, tests: list[str]) -> list[str]:
     """The pytest command of the mutation run: pinned to the configuration of the tree like the red/green run (empty: no tests)."""
     if not tests:
         return []
-    return pytest_cmd.command(python, "-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", "--confcutdir", ".",
+    return pytest_cmd.command(python, "-q", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", "--confcutdir", ".",
                               *redgreen.pytest_config(root), *tests)
 
 
@@ -187,13 +187,15 @@ def run_gate(inp: GateInput) -> GateReport:
         test_files = [c.path for c in changes if c.kind == "test" and c.status in ("A", "M") and not diffs.is_pytest_infra(c.path)]
         near = neighbors(head_root, changes)
         argv = mutation_argv(inp.python, head_root, [*test_files, *near])
+        red = _timed("redgreen", lambda: redgreen.check_redgreen(base_root, head_root, changes, python=inp.python,
+                                                                 timeout=inp.test_timeout_s, wrap_for=wrap_for, env=env, home=home,
+                                                                 neighbours=near))
         checks = [
-            _timed("redgreen", lambda: redgreen.check_redgreen(base_root, head_root, changes, python=inp.python,
-                                                               timeout=inp.test_timeout_s, wrap_for=wrap_for, env=env, home=home,
-                                                               neighbours=near)),
+            red,
             _timed("mutation", lambda: mutation.check_mutation(head_root, changes, argv, n=inp.n_mutants, min_kill=inp.min_kill,
                                                                timeout_each=inp.mutant_timeout_s, seed=inp.head,
-                                                               wrap=wrap_for(head_root), env=env, home=home)),
+                                                               wrap=wrap_for(head_root), env=env, home=home,
+                                                               red=red.measured.get("red", ()))),
             _timed("usage", lambda: usage.check_usage(head_root, changes, _base_public(base_root, changes))),
             _timed("coverage", lambda: coverage.check_coverage(inp.issue, inp.issue_body, changes, added, inp.pr_body,
                                                                sources=_sources(head_root, changes))),
