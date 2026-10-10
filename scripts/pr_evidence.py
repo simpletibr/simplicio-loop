@@ -266,6 +266,7 @@ from simplicio_loop.pr_evidence import (  # noqa: E402
     PR_EVIDENCE_COMMENT_MARKER, PublishError, find_existing_comment, find_pr_template, fill_template,
     publish_comment,
 )
+from simplicio_loop.watcher247.closing_words import sanitize  # noqa: E402
 
 
 def _default_template():
@@ -508,11 +509,11 @@ def build_body(opts):
             with open(tpl_path, encoding="utf-8", errors="replace") as f:
                 tpl = f.read()
             body = "# %s\n\n" % title + fill_template(tpl, blocks)
-            return body, has_evidence
+            return sanitize(body, "PR body"), has_evidence
         except OSError:
             pass
     body = "# %s\n\n" % title + "\n".join(blocks).rstrip() + "\n"
-    return body, has_evidence
+    return sanitize(body, "PR body"), has_evidence  # a closing word in goal/summary/AC would close the issue on merge (#1644)
 
 
 def _local_report_active(opts):

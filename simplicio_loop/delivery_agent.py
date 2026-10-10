@@ -38,6 +38,8 @@ import time
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Mapping, MutableMapping, Optional, Protocol, Sequence
 
+from .watcher247.closing_words import sanitize
+
 DELIVERY_STAGE_RECEIPT_SCHEMA = "simplicio.delivery-stage-receipt/v1"
 DELIVERY_AGENT_ROLE_ID = "delivery_agent"
 PR_BODY_INTEGRITY_SCHEMA = "simplicio.pr-body-integrity/v1"
@@ -536,6 +538,8 @@ class GitHubDeliveryAdapter:
         return {**observed, "body_integrity": verification}
 
     def create_or_update_pr(self, *, branch: str, base: str, title: str, body: str) -> Dict[str, Any]:
+        title = sanitize(title, "PR title")  # both `pr create` and `pr edit` leave through here (#1644)
+        body = sanitize(body, "PR body")
         expected = build_pr_body_integrity(body)
         existing = self.find_existing_pr(branch=branch)
         if existing is not None and existing.get("state") == "OPEN":

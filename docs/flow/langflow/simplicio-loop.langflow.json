@@ -227,7 +227,7 @@
           "id": "pr",
           "node": {
             "description": "step \u00b7 scripts/pr_evidence.py \u00b7 next: merge",
-            "display_name": "PR with Closes #N + AC checklist + prints",
+            "display_name": "PR with Parte de #N + AC checklist + prints",
             "documentation": "",
             "template": {}
           },

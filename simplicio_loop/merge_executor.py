@@ -23,6 +23,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Mapping, Optional
 
+from .watcher247.closing_words import sanitize
+
 SCHEMA = "simplicio.merge-result/v1"
 
 Runner = Callable[..., "subprocess.CompletedProcess[str]"]
@@ -121,6 +123,8 @@ class MergeExecutor:
         existing = self.find_existing_pr(branch)
         if existing is not None and existing.get("state") == "OPEN":
             return existing
+        title = sanitize(title, "PR title")  # a closing word in a PR closes the issue on merge (#1644)
+        body = sanitize(body, "PR body")
         completed = self._gh([
             "pr", "create", "--repo", self.repo, "--head", branch, "--base", base,
             "--title", title, "--body", body,

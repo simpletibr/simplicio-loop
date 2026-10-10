@@ -3,15 +3,22 @@ import re
 
 KEYWORDS = ("close", "closes", "closed", "fix", "fixes", "fixed", "resolve", "resolves", "resolved")
 _REF = r"(?:[\w.-]+/[\w.-]+#\d+|#\d+|GH-\d+|https?://github\.com/[\w.-]+/[\w.-]+/(?:issues|pull)/\d+)"
-_CLOSING = re.compile(rf"\b(?:{'|'.join(KEYWORDS)})\b\s*[:=]?\s*(?P<ref>{_REF})", re.IGNORECASE)
+_CLOSING = re.compile(rf"\b(?:{'|'.join(KEYWORDS)})\b\s*(?:[:=]\s*)?(?P<ref>{_REF})", re.IGNORECASE)
+
+
+def _need_str(text: object) -> None:
+    if not isinstance(text, str):
+        raise TypeError(f"closing_words needs a str, got {type(text).__name__}")
 
 
 def rewrite(text: str) -> str:
     """`Closes #1`, `fixed: o/r#2`, `Resolves <issue url>` become `Parte de <ref>`; everything else is untouched."""
+    _need_str(text)
     return _CLOSING.sub(r"Parte de \g<ref>", text)
 
 
 def has_closing(text: str) -> bool:
+    _need_str(text)
     return _CLOSING.search(text) is not None
 
 

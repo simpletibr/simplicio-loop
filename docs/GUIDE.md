@@ -182,7 +182,7 @@ flowchart LR
 | Work source | The goal or backlog the person gives | Issues of opted-in repos: `.simplicio-loop/loop.toml`, label `loop:auto`, trusted author |
 | Planner | The host model | An exec CLI (claude, codex, grok, gemini) in plan-only mode; dev-cli is the only writer |
 | Gate | Evidence-gated promise | `turbo --verify` with the repo's `verify` from `.simplicio-loop/loop.toml`: the PR opens only with green tests; a repo without `verify` is not worked on (`verify_not_configured`) |
-| Merge | PR with `Closes #N`, merged after the evidence gate | **Off by default.** On `main` the watcher never merges; auto-merge turns on only with `SIMPLICIO_247_AUTO_MERGE=1`, after the squad approval and `squad_gate` (see `docs/WATCHER_247.md`, #1505) |
+| Merge | PR with `Parte de #N`, merged after the evidence gate; the issue is closed by hand, after a comment with the evidence (a closing word in a PR closes it on merge, even a quoted one) | **Off by default.** On `main` the watcher never merges; auto-merge turns on only with `SIMPLICIO_247_AUTO_MERGE=1`, after the squad approval and `squad_gate` (see `docs/WATCHER_247.md`, #1505) |
 | Safety | STRICT mode, `action_gate`, human gate for irreversible operations | Non-root user, bwrap sandbox with a scrubbed env, daily cap, secret scan, env file kept at mode 0600 |
 | Squads | In progress: #1502 | In progress: #1505 |
 
@@ -267,7 +267,7 @@ flowchart LR
     RC["Receipts"] --> VG["Verify gates"] --> MEM[("Journal and memory")]
   end
   subgraph DELIV["Delivery plane"]
-    PR["PR with Closes N"] --> SRC["Source of record in sync"]
+    PR["PR with Parte de N"] --> SRC["Source of record in sync"]
   end
   SCH --> WK
   OP --> RC
@@ -1324,7 +1324,7 @@ flowchart TD
     human{"Human gate: irreversible operation"}
     claim["Drain: claim issue (CLAIMED comment)"]
     journal["Run journal + stall detector"]
-    pr["PR with Closes #N + AC checklist + prints"]
+    pr["PR with Parte de #N + AC checklist + prints"]
     merge["Merge"]
     promise{"Evidence-gated promise (DoD)"}
     stop{"STOP / cancel / max_iterations"}

@@ -52,9 +52,10 @@ Installers copy this file into each host's always-on surface via
 
 6. **GitHub** = default coordination SoT for Issues/PRs when the remote is GitHub.
 
-7. **Drain:** claim → real ACs → PR to main with `Closes #N` → merge. Prefer Prism waves
+7. **Drain:** claim → real ACs → PR to main with `Parte de #N` → merge. Prefer Prism waves
    (`python3 scripts/arm_drain_prism.py --repo . --slots 0 --batch-size N --json`;
    `slots 0` = machine physical max; batch default/min 10, larger explicit OK).
+   A closing word in a PR closes the issue on merge, even a quoted one: the issue is closed by hand, after a comment with the evidence.
 
 8. **Evidence-gated exit:** MEASURED tags; no theater AC stubs; no false completion.
 
