@@ -286,8 +286,7 @@ def test_the_jail_includes_unshare_net_in_the_bwrap_argv(tmp_path, monkeypatch):
 
 def test_child_env_removes_gh_token_from_the_watcher_env(secrets, tmp_path):
     """Unit test: child_env must remove GH_TOKEN even when the parent has it."""
-    import os
-    os.environ["GH_TOKEN"] = "ghp_secret_token_12345"
+    assert os.environ["GH_TOKEN"]  # set by the `secrets` fixture
     env = isolation.child_env({})
     assert "GH_TOKEN" not in env, f"GH_TOKEN leaked: {env}"
     assert "GITHUB_TOKEN" not in env
