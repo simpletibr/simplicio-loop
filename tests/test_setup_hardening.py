@@ -49,7 +49,10 @@ def foreign_dir(tmp_path, monkeypatch):
     theirs.mkdir()
     theirs.chmod(0o755)
     if os.geteuid() == 0:
-        os.chown(theirs, 4242, 4242)
+        try:
+            os.chown(theirs, 4242, 4242)
+        except PermissionError:
+            pytest.skip("this system refuses chown to another user; the injected-owner tests cover the decision")
     else:
         monkeypatch.setattr(os, "geteuid", lambda: theirs.stat().st_uid + 1)
     return theirs
@@ -332,5 +335,59 @@ def test_isolated_git_cwd_gives_git_a_path_without_unsafe_entries(tmp_path):
 def test_a_folder_above_the_entry_that_belongs_to_a_foreign_user_makes_it_unsafe(tmp_path):
     parent = make_dir(tmp_path / "theirs", 0o755)
     child = make_dir(parent / "bin", 0o755)
-    os.chown(parent, 4242, 4242)  # the child stays root's, but its owner can rename it away and put another folder in its place
+    try:
+        os.chown(parent, 4242, 4242)  # the child stays root's, but its owner can rename it away and put another folder in its place
+    except PermissionError:
+        pytest.skip("this system refuses chown to another user; the injected-owner tests cover the decision")
     assert sh.path_warnings(str(child), home=str(tmp_path / "h")) == [(str(child), "foreign_owner")]
+
+
+def owned_by_another_user(monkeypatch, folder):
+    """Make `folder` count as owned by someone else, without chown: the ownership test sees its inode."""
+    monkeypatch.setattr(sh, "_foreign", lambda info: info.st_ino == folder.stat().st_ino)
+
+
+@posix_only
+def test_a_folder_of_another_owner_is_unsafe_on_any_system(tmp_path, monkeypatch):
+    theirs = make_dir(tmp_path / "theirs", 0o755)
+    owned_by_another_user(monkeypatch, theirs)
+    assert sh.path_warnings(str(theirs), home=str(tmp_path)) == [(str(theirs), "foreign_owner")]
+
+
+@posix_only
+def test_a_folder_above_an_entry_of_another_owner_is_unsafe_on_any_system(tmp_path, monkeypatch):
+    parent = make_dir(tmp_path / "theirs", 0o755)
+    child = make_dir(parent / "bin", 0o755)
+    owned_by_another_user(monkeypatch, parent)
+    assert sh.path_warnings(str(child), home=str(tmp_path / "h")) == [(str(child), "foreign_owner")]
+
+
+INSTALL_KEYS = (
+    "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "all_proxy", "no_proxy",
+    "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "UV_CA_CERT", "UV_NATIVE_TLS",
+    "UV_HTTP_TIMEOUT", "UV_PYTHON_INSTALL_MIRROR", "UV_PYTHON_INSTALL_DIR",
+)
+
+
+@pytest.mark.parametrize("key", INSTALL_KEYS)
+def test_install_env_keeps_each_proxy_and_certificate_setting(key):
+    assert sh.install_env({"PATH": "/usr/bin", "HOME": "/h", key: "value"})[key] == "value"
+
+
+@pytest.mark.parametrize("key", INSTALL_KEYS)
+def test_probe_env_never_carries_a_proxy_or_certificate_setting(key):
+    assert key not in sh.probe_env({"PATH": "/usr/bin", "HOME": "/h", key: "value"})
+
+
+@pytest.mark.parametrize(
+    "key", ["GH_TOKEN", "GITHUB_TOKEN", "UV_PUBLISH_TOKEN", "UV_INDEX_PRIVATE_PASSWORD", "UV_INDEX_PRIVATE_USERNAME", "ANTHROPIC_API_KEY"]
+)
+def test_install_env_never_carries_a_credential(key):
+    assert key not in sh.install_env({"PATH": "/usr/bin", "HOME": "/h", key: "FAKE"})
+
+
+def test_install_env_keeps_the_proxy_and_still_drops_unsafe_path_entries(tmp_path):
+    safe = tmp_path / "safe"
+    safe.mkdir()
+    env = sh.install_env({"PATH": os.pathsep.join(["rel", str(safe)]), "HOME": str(tmp_path), "HTTPS_PROXY": "http://proxy.example.invalid:3128"})
+    assert env == {"PATH": str(safe), "HOME": str(tmp_path), "HTTPS_PROXY": "http://proxy.example.invalid:3128"}
