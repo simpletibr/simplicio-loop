@@ -135,6 +135,32 @@ def test_evaluate_accepts_only_the_full_40_character_sha_of_the_tip(world, gh):
             _evaluate(short)
 
 
+def test_a_head_with_the_right_7_character_prefix_but_another_tail_is_not_the_tip(world, gh):
+    """A mutant compared `fetched.startswith(head[:7])`: a full sha that only starts like the tip passed as the tip."""
+    last = "0" if world.head[-1] != "1" else "2"
+    for other in (world.head[:7] + "0" * 33, world.head[:39] + last, world.head[:7] + world.head[7:][::-1]):
+        if other == world.head:  # a palindromic tail: not another head
+            continue
+        assert len(other) == 40 and other != world.head and other[:7] == world.head[:7]
+        with pytest.raises(ReviewError) as caught:
+            _evaluate(other)
+        assert str(caught.value) == f"branch loop/issue-7 is at {world.head}, not at the reviewed head {other}"  # alike at the start: shown whole
+
+
+def test_a_head_of_41_characters_or_with_a_newline_is_refused_before_anything_is_fetched(world, gh, monkeypatch):
+    calls = []
+
+    async def spy(argv, **kw):
+        calls.append(argv)
+        raise AssertionError("nothing may run for a malformed head")
+
+    monkeypatch.setattr(proc, "run", spy)
+    for bad in (world.head + "0", world.head + "\n", "\n" + world.head, world.head + world.head[:24]):
+        with pytest.raises(ReviewError, match="full 40-character"):
+            _evaluate(bad)
+    assert calls == [] and gh.calls == []
+
+
 def test_a_clone_without_the_remote_tracking_ref_of_the_pr_branch_is_reviewed_all_the_same(world, gh):
     """Found in the wild: `git rev-parse origin/loop/issue-N` failed with 'ambiguous argument' in a base clone that never fetched the branch."""
     _git(world.dest, "config", "remote.origin.fetch", "+refs/heads/main:refs/remotes/origin/main")

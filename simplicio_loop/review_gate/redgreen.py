@@ -5,6 +5,11 @@ Runs only the new or changed test functions on `head_root` (all must pass), and 
 nothing about the change and is rejected with its id. A test whose name or docstring says `characterization` is
 declared as already true on main: it is exempt, and still listed in `measured["exempt"]`.
 `base_root` and `head_root` are disposable trees the caller created; this module writes only test files into `base_root`.
+
+The pytest that judges the PR is main's: a `conftest.py` (any depth), pytest configuration or plugin module the PR adds or
+changes (`diffs.is_pytest_infra`) can force any outcome, so it is never copied into `base_root` and is replaced by main's
+version (or removed) in `head_root` before anything runs (`neutralize_pytest_infra`). A new test that needs the PR's own
+conftest therefore fails honestly, and the message says so.
 """
 from __future__ import annotations
 
@@ -19,7 +24,7 @@ from pathlib import Path
 from typing import Callable, Collection, Mapping, Sequence
 
 from . import isolation, pytest_cmd
-from .diffs import FileChange
+from .diffs import PYTEST_CONFIG_NAMES, FileChange, is_pytest_infra
 from .model import ERROR, FAIL, PASS, SKIPPED, CheckResult
 
 NAME = "redgreen"
@@ -81,10 +86,40 @@ def parse_outcomes(output: str) -> dict[str, str]:
     return result
 
 
+_CONFIG_SECTION = {"pyproject.toml": "[tool.pytest", "tox.ini": "[pytest]", "setup.cfg": "[tool:pytest]"}
+
+
+def _pytest_config(root: Path) -> list[str]:
+    """`-c <file>` when the tree has pytest configuration (the file pytest itself would pick), else `-c /dev/null`: a pytest.ini
+    above the tree is never searched. The file is relative to the tree, which is the cwd of the run; the rootdir is the tree."""
+    for name in PYTEST_CONFIG_NAMES:
+        try:
+            text = (root / name).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if name not in _CONFIG_SECTION or _CONFIG_SECTION[name] in text:
+            return ["-c", name, "--rootdir", "."]
+    return ["-c", os.devnull, "--rootdir", "."]
+
+
+def neutralize_pytest_infra(base_root: Path, head_root: Path, changes: Sequence[FileChange]) -> list[str]:
+    """Make `head_root` run under the pytest infrastructure of main: each conftest/config/plugin file the PR touches is replaced
+    by the one in `base_root`, or removed when main has none. Returns the paths the PR touched (empty: nothing to say)."""
+    touched = sorted({c.path for c in changes if is_pytest_infra(c.path)})
+    for path in touched:
+        target, original = head_root / path, base_root / path
+        if target.is_symlink() or target.is_file():
+            target.unlink()
+        if original.is_file() and not original.is_symlink():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(original, target)
+    return touched
+
+
 def _pytest(root: Path, ids: Sequence[str], python: str, timeout: float, wrap: Callable, env: Mapping[str, str] | None,
             where: str, home: Path | None = None) -> dict[str, str]:
     argv = wrap(pytest_cmd.command(python, "-q", "--tb=no", "-rA", "-p", "no:cacheprovider", "-o", "addopts=",
-                                    "--continue-on-collection-errors", *ids))
+                                    "--confcutdir", ".", *_pytest_config(root), "--continue-on-collection-errors", *ids))
     full_env = isolation.child_env(env, home)  # the PR's code never gets the watcher's environment
     if env and "PYTHONPATH" in env:
         full_env["PYTHONPATH"] = os.pathsep.join(str(root / p) if not os.path.isabs(p) else p
@@ -127,7 +162,7 @@ def check_redgreen(base_root: Path, head_root: Path, changes: Sequence[FileChang
         return CheckResult(NAME, SKIPPED, ("PR so de testes: nao ha mudanca de producao que deixe um teste vermelho em main",))
     refs: list[TestRef] = []
     for change in tests:
-        if change.path.endswith("conftest.py"):
+        if is_pytest_infra(change.path):
             continue
         try:
             refs += new_tests(change.path, (head_root / change.path).read_text(encoding="utf-8"), change.added)
@@ -138,9 +173,14 @@ def check_redgreen(base_root: Path, head_root: Path, changes: Sequence[FileChang
                                         ", ".join(c.path for c in code[:5]),))
     ids = sorted({r.node_id for r in refs})
     try:
+        infra = neutralize_pytest_infra(base_root, head_root, changes)  # first: the head run is judged by main's pytest too
         head = _pytest(head_root, ids, python, timeout, wrap_in(head_root), env, "head", home)
         for change in tests:  # the head's tests over the production of main
+            if is_pytest_infra(change.path):  # base keeps main's conftest, pytest configuration and plugins
+                continue
             target = base_root / change.path
+            if target.is_symlink():  # never write through a link of main's tree
+                target.unlink()
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(head_root / change.path, target)
         # By file, not by node id: a file that cannot be imported on main (it imports a module only the change adds) has no
@@ -152,10 +192,16 @@ def check_redgreen(base_root: Path, head_root: Path, changes: Sequence[FileChang
     red = [r.node_id for r in refs if _verdict(base, r) != "passed" and not r.exempt]
     exempt = [r.node_id for r in refs if r.exempt]
     vacuous = [r.node_id for r in refs if _verdict(base, r) == "passed" and not r.exempt]
-    measured = {"tests": len(ids), "red": red, "vacuous": vacuous, "exempt": exempt, "head_failed": head_failed}
+    measured: dict = {"tests": len(ids), "red": red, "vacuous": vacuous, "exempt": exempt, "head_failed": head_failed}
     reasons: list[str] = []
+    note = ""
+    if infra:
+        note = (" (o PR altera conftest/configuracao/plugin do pytest: " + ", ".join(infra[:5]) + "; o portao roda os testes novos "
+                "com os de main, entao um teste que depende deles falha de verdade; mova o que o teste precisa para o proprio "
+                "arquivo de teste. Nivel T2)")
+        measured.update(pytest_infra_ignored=infra, note=note.strip(" ()"))
     if head_failed:
-        reasons.append("testes novos que falham com a mudanca: " + ", ".join(head_failed[:8]))
+        reasons.append("testes novos que falham com a mudanca: " + ", ".join(head_failed[:8]) + note)
     if vacuous:
         reasons.append(f"{len(vacuous)} teste(s) novo(s) passam em main sem a mudanca (nao provam nada): " +
                        ", ".join(vacuous[:8]))

@@ -34,6 +34,59 @@ def test_the_protected_and_the_gate_paths_are_t2_whatever_the_kind(path):
     assert identity.paths_level(["src/app.py", path]) == 2
 
 
+@pytest.mark.parametrize("path", [
+    # a conftest.py at any depth, in any case and any spelling a forgiving file system reads the same
+    "conftest.py", "tests/conftest.py", "tests/sub/conftest.py", "tests/a/b/c/d/conftest.py", "pkg/conftest.py", "./tests//sub/./conftest.py",
+    "tests/Sub/CONFTEST.PY", "tests/sub/Conftest.py", "tests/sub/conftest.py.", "tests/sub/conftest.py ", "tests/sub/ｃonftest.py",
+    "tests\\sub\\conftest.py",
+    # the pytest configuration, wherever it is
+    "pytest.ini", "tests/pytest.ini", ".pytest.ini", "PYTEST.INI", "tox.ini", "Tox.ini", "sub/tox.ini", "setup.cfg", "pyproject.toml",
+    "packages/dev-cli/pyproject.toml", "PyProject.toml",
+    # plugin modules
+    "plugins.py", "tests/plugins.py", "tests/pytest_plugins.py", "tests/plugins/fake.py", "tests/Plugins/fake.py", "tests/pytest_plugins/x/y.py",
+    "tests/PLUGINS.PY"])
+def test_any_conftest_pytest_config_or_plugin_module_is_t2_wherever_it_is(path):
+    assert identity.sensitive_path(path)
+    for status in ("A", "M", "D"):
+        assert identity.classify_level([_c("src/app.py"), _c(path, status)]) is Level.T2
+    assert identity.classify_level([_c(path, "A")]) is Level.T2  # alone as well: not even a T0
+    assert identity.paths_level(["src/app.py", path]) == 2
+
+
+@pytest.mark.parametrize("path", ["tests/test_conftest.py", "tests/conftest_helpers.py", "tests/my_conftest.py", "tests/conftest/helper.py",
+                                  "tests/pytest.ini.md", "docs/tox.md", "src/plugins_list.py", "src/plugin.py", "tests/test_plugins.py"])
+def test_names_that_only_look_like_them_are_not_t2(path):
+    assert not identity.sensitive_path(path)
+    assert identity.classify_level([_c("src/app.py"), _c(path, "A")]) is Level.T1
+
+
+def test_a_symlinked_conftest_is_t2_as_the_diff_names_it(tmp_path):
+    """git records a symlink under its own path: `tests/sub/conftest.py -> ../elsewhere.py` is the path `tests/sub/conftest.py`."""
+    from tests.review_gate import scenario
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    scenario.git(repo, "init", "-q", "-b", "main")
+    (repo / "elsewhere.py").write_text("x = 1\n")
+    (repo / "mod.py").write_text("y = 1\n")
+    scenario.git(repo, "add", "-A")
+    scenario.git(repo, "commit", "-q", "-m", "base")
+    base = scenario.git(repo, "rev-parse", "HEAD")
+    (repo / "tests" / "sub").mkdir(parents=True)
+    (repo / "tests" / "sub" / "conftest.py").symlink_to("../../elsewhere.py")
+    (repo / "mod.py").write_text("y = 2\n")
+    scenario.git(repo, "add", "-A")
+    scenario.git(repo, "commit", "-q", "-m", "head")
+    changes = diffs.changed_files(repo, base, scenario.git(repo, "rev-parse", "HEAD"))
+    assert "tests/sub/conftest.py" in [c.path for c in changes]
+    assert identity.classify_level(changes) is Level.T2
+
+
+def test_the_pytest_infra_rule_is_one_function_shared_by_the_level_and_the_gate():
+    assert diffs.is_pytest_infra("tests/sub/conftest.py") and not diffs.is_pytest_infra("tests/sub/test_x.py")
+    assert not diffs.is_pytest_infra("") and not diffs.is_pytest_infra("src/mod.py")
+
+
 def test_an_ordinary_diff_is_not_t2_by_the_path_rules():
     assert identity.classify_level([_c("src/app.py"), _c("tests/test_app.py", "A")]) is Level.T1
     assert identity.paths_level(["src/app.py", "tests/test_app.py", "README.md"]) == 0

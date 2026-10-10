@@ -12,7 +12,7 @@ from pathlib import PurePosixPath
 from typing import Mapping, Sequence
 
 from .. import plan_paths
-from .diffs import FileChange
+from .diffs import FileChange, is_pytest_infra
 from .model import ERROR, FAIL, PASS, CheckResult, Level
 
 NAME = "identity"
@@ -43,17 +43,17 @@ def _fold(text: str) -> str:
 
 
 # Paths that decide what the loop trusts (#1649, M1): the gate itself, the squad flow and the host rules. Beside what
-# `plan_paths.protected_refusal` already names (the one source of the protected list).
+# `plan_paths.protected_refusal` already names (the one source of the protected list). Also what steers the pytest that
+# judges the PR: a `conftest.py` at any depth, the pytest configuration and the plugin modules (`diffs.is_pytest_infra`).
 GATE_DIRS = frozenset({"review_gate"})
 GATE_FILES = frozenset({"squads.py", "squad_review.py", "squad_flow.py", "SKILL.md"})
-GATE_PATHS = frozenset({"tests/conftest.py"})
 GATE_WORDS = frozenset({"host-rules", "host_rules"})
 
 
 def sensitive_path(path: str) -> bool:
     """True when a change to `path` is T2 whatever it contains: protected by the plan paths, or part of the gate/host rules."""
     posix = PurePosixPath(path)
-    return (plan_paths.protected_refusal(path) is not None or posix.name in GATE_FILES or str(posix) in GATE_PATHS
+    return (plan_paths.protected_refusal(path) is not None or posix.name in GATE_FILES or is_pytest_infra(path)
             or bool(GATE_DIRS.intersection(posix.parts[:-1])) or bool(GATE_WORDS.intersection(p.lower() for p in posix.parts)))
 
 

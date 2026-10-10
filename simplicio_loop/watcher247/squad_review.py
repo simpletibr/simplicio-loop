@@ -58,7 +58,8 @@ async def evaluate(repo: str, number: int, issue: int, head: str, author: identi
         await _git(dest, "fetch", "--depth", FETCH_DEPTH, "origin", f"+refs/heads/main:{MAIN_REF}", f"+refs/heads/{branch}:{pr_ref}")
         fetched = await _git(dest, "rev-parse", "--verify", f"{pr_ref}^{{commit}}")
         if fetched != head:
-            raise ReviewError(f"branch {branch} is at {fetched[:7]}, not at the reviewed head {head[:7]}")
+            short = 7 if fetched[:7] != head[:7] else len(head)  # two shas that start alike are shown whole, or the message reads "X, not X"
+            raise ReviewError(f"branch {branch} is at {fetched[:short]}, not at the reviewed head {head[:short]}")
         base = await _git(dest, "merge-base", MAIN_REF, head)
         inp = review_gate.GateInput(
             repo=dest, pr=number, issue=issue, issue_body=issue_view.get("body") or "", pr_body=view.get("body") or "",

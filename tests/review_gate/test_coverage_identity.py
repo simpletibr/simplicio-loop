@@ -37,6 +37,40 @@ class TestCoverageByIdentity:
         assert result.status == FAIL and any("send report by email" in r for r in result.reasons)
 
 
+class TestGenericWordsNameNoCriterion:
+    """Twelve items made only of the words every criterion shares name none of them: each criterion needs a word of its own."""
+
+    OWN = ["alpine", "brazen", "cobalt", "dormant", "eclipse", "fabric", "granite", "harbor", "ivory", "jasmine", "kestrel", "lantern"]
+    ISSUE = "".join(f"- [ ] gateway ledger {own}\n" for own in OWN)
+
+    def _run(self, items):
+        return check_coverage(123, self.ISSUE, CHANGES, ADDED, "Parte de #123\nFalta:\n" + "".join(f"- [ ] {item}\n" for item in items))
+
+    def test_twelve_items_of_only_shared_words_cannot_approve(self):
+        result = self._run(["gateway ledger"] * 12)
+        assert result.status == FAIL
+        assert len([r for r in result.reasons if "nao nomeia" in r]) == 12
+
+    def test_shared_words_in_any_order_and_form_still_name_nothing(self):
+        assert self._run([f"ledger gateway {n}" if n % 2 else f"gateways, ledgers ({n})" for n in range(12)]).status == FAIL
+
+    def test_items_with_the_word_of_their_own_criterion_approve(self):
+        result = self._run([f"gateway ledger {own}" for own in self.OWN])
+        assert result.status == PASS and result.measured["partial"] is True
+        assert self._run([f"{own} gateway" for own in reversed(self.OWN)]).status == PASS  # the order of the list is free
+
+    def test_one_item_without_the_own_word_is_the_one_reported(self):
+        items = [f"gateway ledger {own}" for own in self.OWN]
+        items[5] = "gateway ledger"
+        result = self._run(items)
+        assert result.status == FAIL and [r for r in result.reasons if "nao nomeia" in r] == ["lista 'Falta' nao nomeia o criterio: gateway ledger fabric"]
+
+    def test_a_criterion_with_no_word_of_its_own_still_falls_back_to_the_count_of_shared_words(self):
+        issue = "- [ ] send report by email\n- [ ] send report by email and sms\n"  # the first is a subset of the second
+        result = check_coverage(5, issue, CHANGES, ADDED, "Parte de #5\nFalta:\n- [ ] send report by email\n- [ ] send report by email and sms\n")
+        assert result.status == PASS
+
+
 class TestNonPythonProduction:
     """Red/green and mutation only read Python: js/sh/yml/toml cannot be approved by coverage alone."""
 

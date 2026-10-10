@@ -441,6 +441,16 @@ def test_no_commits_and_a_head_without_a_full_oid_fail_closed():
         assert result["approved"] is False and result["reason"] == "head_unknown"
 
 
+def test_a_head_longer_than_40_characters_is_head_unknown_even_when_its_first_40_are_a_full_oid():
+    """A mutant read `head[:41]` with `match`: a 41-character head (right 40, one more) then passed as a full oid."""
+    for oid in (OID_A + "a", OID_A + "\n", OID_A + "0" * 24, OID_A + " ", " " + OID_A):
+        pr = {"commits": [{"oid": oid, "committedDate": "2026-10-09T01:00:00Z"}], "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")]}
+        result = _gate(pr)
+        assert result["approved"] is False and result["reason"] == "head_unknown", repr(oid)
+    ok = {"commits": [{"oid": OID_A, "committedDate": "2026-10-09T01:00:00Z"}], "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")]}
+    assert _gate(ok)["approved"] is True  # the same PR with exactly 40 characters is the approved one
+
+
 def test_the_date_of_the_commit_does_not_matter_only_the_head_oid():
     pr = {"commits": [_commit("a", "feat: x", "garbage")], "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")]}
     assert _gate(pr)["approved"] is True

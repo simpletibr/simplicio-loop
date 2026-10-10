@@ -178,7 +178,7 @@ def test_the_sandbox_wrapper_is_built_for_the_head_tree_and_wraps_every_pytest_r
 def test_the_mutants_run_the_changed_tests_then_the_neighbors_and_never_a_conftest(tmp_path):
     run, seen = _wrapped_runs(tmp_path, "good", n_mutants=1)
     mutation_argv = seen[-1][1]  # the last run is a mutant
-    assert mutation_argv[3:] == ["-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", "tests/test_clamp.py", "tests/test_add.py"]
+    assert mutation_argv[3:] == ["-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", "--confcutdir", ".", "tests/test_clamp.py", "tests/test_add.py"]
     run, seen = _wrapped_runs(tmp_path / "conf", "withconf", n_mutants=1)
     assert seen[-1][1][-1:] == ["tests/test_dead.py"] and not any("conftest.py" in a for a in seen[-1][1])
 
@@ -333,3 +333,32 @@ def test_added_text_and_base_public_read_only_what_the_diff_says(tmp_path):
     changes.append(diffs.FileChange("bin.py", "M", (1,)))
     assert gate._added_text(tmp_path, changes) == {"a.py": "two\nthree", "b.py": "def pub():", "t.txt": "x", "new.py": "n1"}
     assert gate._base_public(tmp_path, changes[:5]) == {"a.py": frozenset(), "b.py": frozenset({"pub"})}  # only code that was modified and exists
+
+
+def test_the_forged_conftest_pr_is_rejected_by_the_real_gate_at_level_t2(tmp_path):
+    """Review round: a never-fixed bug + tests/sub/conftest.py rewriting the report + a genuine fix elsewhere gave `T1 approved`."""
+    run = _run(tmp_path, "forged")
+    redgreen = _check(run, "redgreen")
+    assert run.report.level is Level.T2 and not run.report.approved
+    assert redgreen.status == FAIL and redgreen.measured["head_failed"] == ["tests/sub/test_bug.py::test_add_is_fixed"]
+    assert redgreen.measured["pytest_infra_ignored"] == ["tests/sub/conftest.py"]
+    assert _check(run, "mutation").blocking  # no check runs under the forged conftest: the unmutated tree fails the honest test too
+    assert _check(run, "identity").status == FAIL  # and T2 wants an independent reviewer
+    marked = _run(tmp_path / "again", "forged", independent=INDEPENDENT)
+    assert _check(marked, "identity").status == PASS and not marked.report.approved  # a marker does not fix redgreen
+
+
+def test_no_check_sees_the_conftest_of_the_pr_even_when_redgreen_ends_early(tmp_path, monkeypatch):
+    """Defence in depth: the head tree is neutralized by the gate itself, not only by redgreen (which may skip or fail first)."""
+    seen = {}
+    real = gate.mutation.check_mutation
+
+    def spy(root, *args, **kw):
+        seen["conftest"] = (root / "tests" / "sub" / "conftest.py").exists()
+        return real(root, *args, **kw)
+
+    monkeypatch.setattr(gate.mutation, "check_mutation", spy)
+    monkeypatch.setattr(gate.redgreen, "check_redgreen", lambda *a, **kw: CheckResult("redgreen", PASS))
+    run = _run(tmp_path, "forged", n_mutants=1)
+    assert seen == {"conftest": False}
+    assert [c.name for c in run.report.checks] == ORDER

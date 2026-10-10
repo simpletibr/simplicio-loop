@@ -34,7 +34,7 @@ import math
 import re
 import unicodedata
 from pathlib import PurePosixPath
-from typing import Mapping, Sequence
+from typing import Collection, Mapping, Sequence
 
 from .diffs import FileChange
 from .model import CheckResult, PASS, FAIL, SKIPPED
@@ -184,21 +184,31 @@ def _squash(text: str) -> str:
     return " ".join(re.findall(r"[a-z0-9]+", _strip_accents(text).lower()))
 
 
-def _names(item: str, criterion: str) -> bool:
-    """Whether a Falta item is about this criterion: it holds its text, or enough of its content words together."""
+def _names(item: str, criterion: str, distinct: Collection[str] = ()) -> bool:
+    """Whether a Falta item is about this criterion: it holds its text, or enough of its content words together, and, when
+    the criterion has words no other uncovered criterion uses (`distinct`), at least one of those: the words every
+    criterion shares ("report", "gate", "check") name the topic of the issue, not this criterion."""
     if not _squash(item):
         return False
     if _squash(criterion) in _squash(item):
         return True
     words = sorted(set(_words(criterion)))
-    return bool(words) and _hits(words, set(_words(item))) >= _needed(len(words))
+    pool = set(_words(item))
+    return bool(words) and _hits(words, pool) >= _needed(len(words)) and (not distinct or _hits(sorted(distinct), pool) >= 1)
+
+
+def _distinctive(criterion: str, others: Sequence[str]) -> set[str]:
+    """Content words of `criterion` that none of the `others` has."""
+    rest = {w for other in others for w in _words(other)}
+    return {w for w in _words(criterion) if not any(_same(w, r) for r in rest)}
 
 
 def _unnamed(uncovered: Sequence[str], items: Sequence[str]) -> list[str]:
     """The uncovered criteria that no item of its own names (an item stands for one criterion at most)."""
     free, missing = list(items), []
-    for criterion in uncovered:
-        match = next((i for i, item in enumerate(free) if _names(item, criterion)), None)
+    for n, criterion in enumerate(uncovered):
+        distinct = _distinctive(criterion, [*uncovered[:n], *uncovered[n + 1:]])
+        match = next((i for i, item in enumerate(free) if _names(item, criterion, distinct)), None)
         if match is None:
             missing.append(criterion)
         else:
