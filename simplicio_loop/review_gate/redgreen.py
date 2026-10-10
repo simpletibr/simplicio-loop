@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Collection, Mapping, Sequence
 
-from . import pytest_cmd
+from . import isolation, pytest_cmd
 from .diffs import FileChange
 from .model import ERROR, FAIL, PASS, SKIPPED, CheckResult
 
@@ -82,10 +82,10 @@ def parse_outcomes(output: str) -> dict[str, str]:
 
 
 def _pytest(root: Path, ids: Sequence[str], python: str, timeout: float, wrap: Callable, env: Mapping[str, str] | None,
-            where: str) -> dict[str, str]:
+            where: str, home: Path | None = None) -> dict[str, str]:
     argv = wrap(pytest_cmd.command(python, "-q", "--tb=no", "-rA", "-p", "no:cacheprovider", "-o", "addopts=",
                                     "--continue-on-collection-errors", *ids))
-    full_env = {**os.environ, **(env or {}), "PYTHONDONTWRITEBYTECODE": "1"}
+    full_env = isolation.child_env(env, home)  # the PR's code never gets the watcher's environment
     if env and "PYTHONPATH" in env:
         full_env["PYTHONPATH"] = os.pathsep.join(str(root / p) if not os.path.isabs(p) else p
                                                  for p in env["PYTHONPATH"].split(os.pathsep))
@@ -114,7 +114,11 @@ def _verdict(outcomes: Mapping[str, str], ref: TestRef) -> str:
 
 def check_redgreen(base_root: Path, head_root: Path, changes: Sequence[FileChange], *, python: str = sys.executable,
                    timeout: float = 300.0, wrap: Callable = lambda argv: argv,
-                   env: Mapping[str, str] | None = None) -> CheckResult:
+                   env: Mapping[str, str] | None = None, wrap_for: Callable[[Path], Callable] | None = None,
+                   home: Path | None = None) -> CheckResult:
+    """`wrap_for(root)` builds the wrapper of the run in `root` (the sandbox does `--chdir <root>`, so one wrapper cannot serve
+    both trees); without it `wrap` is used for both. `home` is the HOME of the child (default: an empty, missing directory)."""
+    wrap_in = wrap_for or (lambda root: wrap)
     code = [c for c in changes if c.kind == "code" and c.status in ("A", "M")]
     tests = [c for c in changes if c.kind == "test" and c.status in ("A", "M")]
     if not code and not tests:
@@ -134,14 +138,14 @@ def check_redgreen(base_root: Path, head_root: Path, changes: Sequence[FileChang
                                         ", ".join(c.path for c in code[:5]),))
     ids = sorted({r.node_id for r in refs})
     try:
-        head = _pytest(head_root, ids, python, timeout, wrap, env, "head")
+        head = _pytest(head_root, ids, python, timeout, wrap_in(head_root), env, "head", home)
         for change in tests:  # the head's tests over the production of main
             target = base_root / change.path
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(head_root / change.path, target)
         # By file, not by node id: a file that cannot be imported on main (it imports a module only the change adds) has no
         # collectors, and pytest exits 4 on its node ids instead of reporting `ERROR <file>`, which is the red we want.
-        base = _pytest(base_root, sorted({r.path for r in refs}), python, timeout, wrap, env, "main")
+        base = _pytest(base_root, sorted({r.path for r in refs}), python, timeout, wrap_in(base_root), env, "main", home)
     except RuntimeError as exc:
         return CheckResult(NAME, ERROR, (str(exc),))
     head_failed = [r.node_id for r in refs if _verdict(head, r) != "passed"]

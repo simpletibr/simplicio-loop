@@ -62,6 +62,8 @@ _CLEAN_BASE_MERGE = re.compile(r"^Merge (?:(?:remote-tracking )?branch '(?:origi
 _CONFLICTS = re.compile(r"^#?\s*Conflicts:", re.MULTILINE)
 # GitHub `authorAssociation` values a caller may trust to approve; anything else (CONTRIBUTOR, NONE, ...) never does.
 TRUSTABLE_ASSOCIATIONS = ("OWNER", "MEMBER", "COLLABORATOR")
+FULL_OID = re.compile(r"[0-9a-f]{40}")
+_APPROVAL_OIDS = re.compile(r"<!-- simplicio-loop:squad-approval:([0-9a-f]{40}) -->")
 _APPROVAL_LINE = re.compile(r"^[ \t*_#]*" + re.escape(APPROVAL_PHRASE) + r"\s*\(n[íi]vel ([0-2])\)", re.MULTILINE)
 
 
@@ -458,36 +460,34 @@ def squad_gate(
     if not commits:
         return _verdict(False, "no_commits")
 
-    approvals, seen = [], 0
+    head = commits[-1].get("oid")
+    if not isinstance(head, str) or not FULL_OID.fullmatch(head):  # the approval is tied to one commit: no full oid, no head
+        return _verdict(False, "head_unknown")
+    approvals, seen, other_head = [], 0, 0
     for comment in comments:
-        when = _parse_time(comment.get("createdAt"))
-        if when is not None and _APPROVAL_LINE.search(str(comment.get("body") or "")):
-            seen += 1
-            if _authorized(comment, allowed, associations):
-                approvals.append((when, comment))
-    if not approvals:
-        return _verdict(False, "unauthorized_approval" if seen else "no_approval")
-    approved_at, approval = max(approvals, key=lambda pair: pair[0])
-    level = int(_APPROVAL_LINE.search(str(approval.get("body") or "")).group(1))
-    common = {"approval_comment_id": approval.get("id"), "approval_at": approval.get("createdAt"), "level": level}
-    if level == 2 and not _has_independent_review(approval, comments, commits[-1].get("oid"), allowed, associations):
-        return _verdict(False, "independent_review_missing", **common)
-
-    last_at, last = None, None
-    for commit in commits:
-        if _is_clean_base_merge(commit):
+        body = str(comment.get("body") or "")
+        if not _APPROVAL_LINE.search(body):
             continue
-        when = _parse_time(commit.get("committedDate") or commit.get("authoredDate"))
-        if when is None:
-            return _verdict(False, "unparseable_timestamp", **common)
-        if last_at is None or when >= last_at:
-            last_at, last = when, commit
-    if last is None:
-        return _verdict(True, "ok", **common)
-    common.update(last_commit_oid=last.get("oid"), last_commit_at=last.get("committedDate") or last.get("authoredDate"))
-    if approved_at > last_at:
-        return _verdict(True, "ok", **common)
-    return _verdict(False, "approval_older_than_commit", **common)
+        seen += 1
+        if not _authorized(comment, allowed, associations):
+            continue
+        if head not in _APPROVAL_OIDS.findall(body):  # compared exactly, never by prefix or by commit date
+            other_head += 1
+            continue
+        approvals.append((_parse_time(comment.get("createdAt")) or datetime.min.replace(tzinfo=timezone.utc), comment))
+    if not approvals:
+        return _verdict(False, "approval_not_for_head" if other_head else "unauthorized_approval" if seen else "no_approval")
+    _, approval = max(approvals, key=lambda pair: pair[0])
+    level = int(_APPROVAL_LINE.search(str(approval.get("body") or "")).group(1))
+    files = data.get("files")
+    floor = identity.paths_level([str(f.get("path") or "") for f in files if isinstance(f, Mapping)]) if isinstance(files, list) else 0
+    common = {"approval_comment_id": approval.get("id"), "approval_at": approval.get("createdAt"), "level": max(level, floor),
+              "last_commit_oid": head}
+    if level < floor:  # the level is recomputed from the diff, never taken from the text of the comment
+        return _verdict(False, "level_below_diff", **common)
+    if level == 2 and not _has_independent_review(approval, comments, head, allowed, associations):
+        return _verdict(False, "independent_review_missing", **common)
+    return _verdict(True, "ok", **common)
 
 
 async def squad_gate_for_pr(
@@ -500,7 +500,7 @@ async def squad_gate_for_pr(
     argv = ["gh", "pr", "view", str(pr)]
     if repo:
         argv += ["--repo", repo]
-    argv += ["--json", "commits,comments"]
+    argv += ["--json", "commits,comments,files"]
     run = runner or subprocess.run
     completed = await asyncio.to_thread(
         run, argv, capture_output=True, text=True, timeout=timeout, check=False, encoding="utf-8", errors="replace"

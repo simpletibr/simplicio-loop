@@ -23,7 +23,10 @@ match when equal, or when both have 5+ letters and share a prefix of at least ma
 against test files alone). A criterion with no content word and no test word cannot be verified: not covered.
 
 The PR may leave criteria uncovered only as "Parte de #N" (this issue) with a "Falta:" list that has one `- [ ]`
-item per uncovered criterion, and without a closing keyword for the issue (that would close it on merge).
+item per uncovered criterion, and without a closing keyword for the issue (that would close it on merge). The items
+are matched by identity: each uncovered criterion needs an item of its own that holds its text or enough of its words
+("item 1" or an empty item names nothing). Production that is not Python (js, sh, yml, toml: kind `other`) is never
+evidence, because red/green and mutation do not read it.
 """
 from __future__ import annotations
 
@@ -165,13 +168,42 @@ def check_coverage(
                             re.IGNORECASE | re.DOTALL)
     if not falta_match:
         return CheckResult("coverage", FAIL, ("PR parcial sem lista do que falta", *reasons), measured=measured)
-    falta_items = re.findall(r"^\s*[-*+]\s*\[\s*\]", falta_match.group(1), re.MULTILINE)
+    falta_items = re.findall(r"^\s*[-*+]\s*\[\s*\][ \t]*(.*)$", falta_match.group(1), re.MULTILINE)
     if len(falta_items) < len(uncovered):
         return CheckResult("coverage", FAIL, (
             f"lista 'Falta' tem {len(falta_items)} items mas ha {len(uncovered)} criterios descobertos",
             *reasons,
         ), measured=measured)
+    unnamed = _unnamed(uncovered, falta_items)
+    if unnamed:  # by identity, not by count: "item 1", "item 2" or empty items name nothing
+        return CheckResult("coverage", FAIL, tuple(f"lista 'Falta' nao nomeia o criterio: {text}" for text in unnamed), measured=measured)
     return CheckResult("coverage", PASS, measured={**measured, "partial": True})
+
+
+def _squash(text: str) -> str:
+    return " ".join(re.findall(r"[a-z0-9]+", _strip_accents(text).lower()))
+
+
+def _names(item: str, criterion: str) -> bool:
+    """Whether a Falta item is about this criterion: it holds its text, or enough of its content words together."""
+    if not _squash(item):
+        return False
+    if _squash(criterion) in _squash(item):
+        return True
+    words = sorted(set(_words(criterion)))
+    return bool(words) and _hits(words, set(_words(item))) >= _needed(len(words))
+
+
+def _unnamed(uncovered: Sequence[str], items: Sequence[str]) -> list[str]:
+    """The uncovered criteria that no item of its own names (an item stands for one criterion at most)."""
+    free, missing = list(items), []
+    for criterion in uncovered:
+        match = next((i for i, item in enumerate(free) if _names(item, criterion)), None)
+        if match is None:
+            missing.append(criterion)
+        else:
+            del free[match]
+    return missing
 
 
 # --- words ------------------------------------------------------------------------------------------------------
@@ -281,13 +313,14 @@ class _Evidence:
                 self.tests.extend((f"test:{label}", set(_words(body))) for label, body in _test_units(ch.path, text))
             elif ch.kind == "docs":
                 self.docs.append((f"docs:{ch.path}", path_words | set(_words(text))))
-            else:
+            elif ch.kind == "code":  # production that is not Python (js, sh, yml, toml) is no evidence: nothing here reads it
                 self.code.append((f"code:{ch.path}", path_words | set(_definition_words(text))))
 
     def for_criterion(self, criterion: str) -> list[str]:
         """Evidence labels for the criterion; empty when it is not covered."""
         needs_test = any(w in _TEST_WORDS for w in re.findall(r"[a-z]+", _strip_accents(criterion).lower()))
-        scope = [c for c in self.changes if c.kind == "test" and not _is_conftest(c.path)] if needs_test else self.changes
+        scope = [c for c in self.changes if c.kind == "test" and not _is_conftest(c.path)] if needs_test \
+            else [c for c in self.changes if c.kind != "other"]
         cited = _cited_tokens(criterion)
         if cited and all(self._in_diff(tok, scope) for tok in cited):
             return [f"{'path' if _is_path(tok) else 'symbol'}:{tok}" for tok in cited][:_EVIDENCE_CAP]

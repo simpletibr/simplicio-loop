@@ -15,7 +15,8 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Callable, Mapping
 
-from . import coverage, diffs, docs, identity, mutation, pytest_cmd, redgreen, usage
+from ..watcher247 import sandbox
+from . import coverage, diffs, docs, identity, isolation, mutation, pytest_cmd, redgreen, usage
 from .diffs import FileChange
 from .identity import Agent
 from .model import ERROR, CheckResult, GateReport
@@ -43,8 +44,19 @@ class GateInput:
     test_timeout_s: float = 300.0
     mutant_timeout_s: float = 120.0
     python: str = sys.executable
-    wrap_for: Callable[[Path], Callable[[list], list]] = lambda root: (lambda argv: argv)  # noqa: E731
+    # None (the only value production uses): the gate's own bwrap jail from `isolation.make_jail`, or a rejection with
+    # `sandbox_unavailable` when there is none. A callable is a seam for tests that exercise the checks, not the jail.
+    wrap_for: Callable[[Path], Callable[[list], list]] | None = None
+    state_dir: Path | None = None  # read-only inside the jail; default `<repo>/.simplicio-loop/review-gate` (the watcher passes its state dir)
     extra: tuple[CheckResult, ...] = field(default=())  # checks run elsewhere (endpoint_compare ...) with their cause
+
+
+class _Refused(Exception):
+    """The gate will not run the PR's code; `check` says why and is the whole report."""
+
+    def __init__(self, check: CheckResult) -> None:
+        super().__init__(check.name)
+        self.check = check
 
 
 def _git(repo: Path, *args: str, timeout: float = 120) -> str:
@@ -117,7 +129,18 @@ def run_gate(inp: GateInput) -> GateReport:
     work = inp.repo / REPORT_DIR / f"pr-{inp.pr}-{inp.head[:7]}"
     base_root, head_root = work / "base", work / "head"
     created: list[Path] = []
+    wrap_for, home, refusal = inp.wrap_for, None, None
+    if wrap_for is None:  # the PR's code runs in the gate's own jail, or it does not run
+        state = inp.state_dir or inp.repo / REPORT_DIR
+        try:
+            state.mkdir(parents=True, exist_ok=True)
+            jail = isolation.make_jail(state, inp.python)
+            wrap_for, home = jail.wrap_for, jail.home
+        except sandbox.SandboxUnavailable as exc:
+            refusal = CheckResult("sandbox", ERROR, (f"{exc.reason_code}: {exc}",), {"reason_code": exc.reason_code})
     try:
+        if refusal is not None:
+            raise _Refused(refusal)
         work.mkdir(parents=True, exist_ok=False)
         for root, rev in ((base_root, inp.base), (head_root, inp.head)):
             _git(inp.repo, "worktree", "add", "--detach", "--quiet", str(root), rev)
@@ -129,16 +152,18 @@ def run_gate(inp: GateInput) -> GateReport:
         argv = pytest_cmd.command(inp.python, "-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", *tests) if tests else []
         checks = [
             _timed("redgreen", lambda: redgreen.check_redgreen(base_root, head_root, changes, python=inp.python,
-                                                               timeout=inp.test_timeout_s, wrap=inp.wrap_for(head_root), env=env)),
+                                                               timeout=inp.test_timeout_s, wrap_for=wrap_for, env=env, home=home)),
             _timed("mutation", lambda: mutation.check_mutation(head_root, changes, argv, n=inp.n_mutants, min_kill=inp.min_kill,
                                                                timeout_each=inp.mutant_timeout_s, seed=inp.head,
-                                                               wrap=inp.wrap_for(head_root), env=env)),
+                                                               wrap=wrap_for(head_root), env=env, home=home)),
             _timed("usage", lambda: usage.check_usage(head_root, changes, _base_public(base_root, changes))),
             _timed("coverage", lambda: coverage.check_coverage(inp.issue, inp.issue_body, changes, added, inp.pr_body)),
             _timed("docs", lambda: docs.check_docs(base_root, head_root, changes)),
             _timed("identity", lambda: identity.check_identity(inp.author, inp.reviewer, level, inp.independent)),
             *inp.extra,
         ]
+    except _Refused as refused:
+        checks = [refused.check]
     except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
         checks = [CheckResult("setup", ERROR, (f"gate could not prepare its trees: {exc}",))]
     finally:

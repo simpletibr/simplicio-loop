@@ -2,17 +2,20 @@
 from simplicio_loop import squads
 
 ME = {"login": "bot"}
-APPROVE = "REVISÃO AUTOMÁTICA: APROVADA (nível {n})\n\nPapeis:\n- autor: worker-3 (worker, haiku-5.5, ccr)\n"
-MARK = "REVISÃO INDEPENDENTE: APROVADA\nrevisor: {who}\npapel: {role}\nmodelo: opus-5.5\nhost: local\nhead: abc1234"
+OID = "abc1234" + "5" * 33
+APPROVE = ("REVISÃO AUTOMÁTICA: APROVADA (nível {n})\n\nPapeis:\n- autor: worker-3 (worker, haiku-5.5, ccr)\n\n"
+           "<!-- simplicio-loop:squad-approval:" + OID + " -->")
+MARK = "REVISÃO INDEPENDENTE: APROVADA\nrevisor: {who}\npapel: {role}\nmodelo: opus-5.5\nhost: local\nhead: " + OID
 
 
-def _pr(level, *extra):
+def _pr(level, *extra, files=None):
     comments = [{"id": "a", "createdAt": "2026-10-09T02:00:00Z", "author": ME, "body": APPROVE.format(n=level)}, *extra]
-    return {"commits": [{"oid": "abc1234567890", "committedDate": "2026-10-09T01:00:00Z"}], "comments": comments}
+    pr = {"commits": [{"oid": OID, "committedDate": "2026-10-09T01:00:00Z"}], "comments": comments}
+    return pr if files is None else {**pr, "files": [{"path": p} for p in files]}
 
 
 def _mark(who="rev-9", role="independent-reviewer", author=ME, head=None):
-    body = MARK.format(who=who, role=role) if head is None else MARK.format(who=who, role=role).replace("abc1234", head)
+    body = MARK.format(who=who, role=role) if head is None else MARK.format(who=who, role=role).replace(OID, head)
     return {"id": "m", "createdAt": "2026-10-09T02:01:00Z", "author": author, "body": body}
 
 

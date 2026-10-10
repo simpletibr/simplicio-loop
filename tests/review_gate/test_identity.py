@@ -21,6 +21,24 @@ def test_security_paths_are_t2(path):
     assert identity.classify_level([_c(path)]) is Level.T2
 
 
+@pytest.mark.parametrize("path", [
+    # the audit's list (M1, #1649): what plan_paths.protected_refusal names ...
+    "simplicio_loop/watcher247/squad_flow.py", "hooks/action_gate.py", ".github/workflows/ci.yml", "CODEOWNERS", "scripts/check.py",
+    ".claude/settings.json", "simplicio_loop/plan_paths.py", "simplicio_loop/watcher247/points/judge.py",
+    # ... and the gate and the host rules themselves
+    "simplicio_loop/review_gate/gate.py", "simplicio_loop/review_gate/isolation.py", "simplicio_loop/squads.py",
+    "simplicio_loop/watcher247/squad_review.py", "tests/conftest.py", "skills/x/SKILL.md", "docs/host-rules/claude.md"])
+def test_the_protected_and_the_gate_paths_are_t2_whatever_the_kind(path):
+    assert identity.classify_level([_c(path)]) is Level.T2
+    assert identity.classify_level([_c("src/app.py"), _c(path, "D")]) is Level.T2  # deleting them is as sensitive
+    assert identity.paths_level(["src/app.py", path]) == 2
+
+
+def test_an_ordinary_diff_is_not_t2_by_the_path_rules():
+    assert identity.classify_level([_c("src/app.py"), _c("tests/test_app.py", "A")]) is Level.T1
+    assert identity.paths_level(["src/app.py", "tests/test_app.py", "README.md"]) == 0
+
+
 def test_a_security_test_beside_production_code_is_t2():
     """#1640: the uninstall hardening changed install/planner.py, and only the test file said `uninstall`."""
     changes = [_c("simplicio_loop/install/planner.py"), _c("tests/install/test_uninstall_receipt_hardening.py", "A")]
@@ -64,13 +82,20 @@ def test_t2_needs_an_independent_reviewer_of_another_role():
     assert ok.status == PASS and ok.measured["independent"] == "rev-9"
 
 
-MARK = "REVISÃO INDEPENDENTE: APROVADA\nrevisor: rev-9\npapel: independent-reviewer\nmodelo: opus-5.5\nhost: local\nhead: abcdef1234"
+FULL = "abcdef1234" + "5" * 30
+MARK = "REVISÃO INDEPENDENTE: APROVADA\nrevisor: rev-9\npapel: independent-reviewer\nmodelo: opus-5.5\nhost: local\nhead: " + FULL
 
 
 def test_marker_binds_to_the_head_and_ignores_quotes():
     comments = [{"body": "> " + MARK.replace("\n", "\n> ")}, {"body": "ok\n" + MARK}]
-    agent = identity.parse_independent_marker(comments, "abcdef1234567890")
-    assert agent == OTHER
-    assert identity.parse_independent_marker(comments, "0000000fffff") is None  # approval of another head
-    assert identity.parse_independent_marker([{"body": "> " + MARK}], "abcdef1234567890") is None
-    assert identity.parse_independent_marker([{"body": "revisao independente aprovada\nhead: abcdef1"}], "abcdef1") is None
+    assert identity.parse_independent_marker(comments, FULL) == OTHER
+    assert identity.parse_independent_marker(comments, "0" * 40) is None  # approval of another head
+    assert identity.parse_independent_marker([{"body": "> " + MARK}], FULL) is None
+
+
+def test_marker_needs_the_full_sha_compared_exactly_never_a_prefix_m2():
+    """The audit's mutant 5 (`len(marked) >= 1`) lived because any prefix of the head was accepted."""
+    for marked in ("a", "abcdef1", FULL[:12], FULL[:39], FULL.upper(), FULL + "0"):
+        body = MARK.replace(FULL, marked)
+        assert identity.parse_independent_marker([{"body": body}], FULL) is None, marked
+    assert identity.parse_independent_marker([{"body": MARK.replace(FULL, FULL[:7])}], FULL[:7]) is None  # nor a head that is itself short

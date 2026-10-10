@@ -50,6 +50,17 @@ HEADS = {
 }
 
 
+def UNSANDBOXED(root):  # noqa: N802
+    """The seam of the tests that exercise the gate's checks and not its jail: run argv as it is, in the tree it was built for."""
+    return lambda argv: argv
+
+
+def unsandboxed_jail(*_args, **_kwargs):
+    """Stands in for `isolation.make_jail` where the host may have no bwrap (or no right to nest one)."""
+    from simplicio_loop.review_gate import isolation
+    return isolation.Jail(isolation.NO_HOME, UNSANDBOXED)
+
+
 def git(repo: Path, *args: str) -> str:
     done = subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=repo, capture_output=True, text=True, check=True)
     return done.stdout.strip()

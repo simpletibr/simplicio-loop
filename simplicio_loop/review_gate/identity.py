@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Mapping, Sequence
 
+from .. import plan_paths
 from .diffs import FileChange
 from .model import ERROR, FAIL, PASS, CheckResult, Level
 
@@ -41,7 +42,32 @@ def _fold(text: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
 
 
+# Paths that decide what the loop trusts (#1649, M1): the gate itself, the squad flow and the host rules. Beside what
+# `plan_paths.protected_refusal` already names (the one source of the protected list).
+GATE_DIRS = frozenset({"review_gate"})
+GATE_FILES = frozenset({"squads.py", "squad_review.py", "squad_flow.py", "SKILL.md"})
+GATE_PATHS = frozenset({"tests/conftest.py"})
+GATE_WORDS = frozenset({"host-rules", "host_rules"})
+
+
+def sensitive_path(path: str) -> bool:
+    """True when a change to `path` is T2 whatever it contains: protected by the plan paths, or part of the gate/host rules."""
+    posix = PurePosixPath(path)
+    return (plan_paths.protected_refusal(path) is not None or posix.name in GATE_FILES or str(posix) in GATE_PATHS
+            or bool(GATE_DIRS.intersection(posix.parts[:-1])) or bool(GATE_WORDS.intersection(p.lower() for p in posix.parts)))
+
+
+def paths_level(paths: Sequence[str]) -> int:
+    """2 when any path is sensitive or names a security topic, else 0: the floor of the level the diff imposes."""
+    for path in paths:
+        if sensitive_path(path) or SECURITY_WORDS.intersection(re.split(r"[^a-z0-9]+", path.lower())):
+            return 2
+    return 0
+
+
 def classify_level(changes: Sequence[FileChange]) -> Level:
+    if any(sensitive_path(c.path) for c in changes):  # deleting or touching the gate is as sensitive as editing it
+        return Level.T2
     production = [c for c in changes if c.kind in ("code", "other") and c.status != "D"]
     scanned = [*production, *(c for c in changes if c.kind == "test" and c.status != "D")] if production else []  # a security test beside production code names the topic
     if any(SECURITY_WORDS.intersection(re.split(r"[^a-z0-9]+", str(PurePosixPath(c.path)).lower())) for c in scanned):
@@ -84,6 +110,6 @@ def parse_independent_marker(comments: Sequence[Mapping], head: str) -> Agent | 
             if sep and key.strip().lower() in (*_FIELDS, "head"):
                 found[key.strip().lower()] = value.strip()
         marked = found.get("head", "")
-        if len(marked) >= 7 and head.startswith(marked) and all(found.get(k) for k in _FIELDS):
+        if marked == head and len(head) == 40 and all(found.get(k) for k in _FIELDS):
             return Agent(**{attr: found[key] for key, attr in _FIELDS.items()})
     return None

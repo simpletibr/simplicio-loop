@@ -210,3 +210,11 @@ An override can start more workers than the machine allows. The plan then starts
 ### Merge rules
 
 Sizing decides only how many squads and workers run at the same time. It never decides what may merge. The squad gate, `SIMPLICIO_247_AUTO_MERGE` setting, merge train and repo lock remain unchanged.
+
+## Where the review gate runs a PR's code (#1649)
+
+The automatic review gate runs the tests and the mutants of the PR, which is the PR author's code. It runs them in bwrap (`sandbox.wrap`, through `review_gate/isolation.py`) with a scrubbed environment (`sandbox.scrubbed_env`, no `GH_TOKEN`, no `keep`) and an empty HOME: nothing of `~/.simplicio` or `~/.config/gh` is visible. Without bwrap the gate rejects the PR with `sandbox_unavailable`; it never runs the code unsandboxed, and `SIMPLICIO_247_ALLOW_UNSANDBOXED` is not honored there.
+
+Residual risk: `sandbox.wrap` does not `--unshare-net`, so the PR's code can still reach the network. It holds no secret of the watcher to send, but it can fetch or send anything it can see inside the jail (the checked-out trees and the read-only system).
+
+The approval of `squad_gate` is tied to the full 40-character oid of the head (`squad-approval:<oid>` in the comment), never to a date, and its level is raised to the level the files of the diff impose.

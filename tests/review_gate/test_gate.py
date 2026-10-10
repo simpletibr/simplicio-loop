@@ -30,7 +30,8 @@ class Run(NamedTuple):
 def _run(root: Path, name: str, **overrides) -> Run:
     root.mkdir(parents=True, exist_ok=True)
     repo, base, head = scenario.make_repo(root, name)
-    params = dict(repo=repo, pr=11, issue=7, issue_body=ISSUE_BODY, pr_body=PR_BODY, base=base, head=head, author=WORKER)
+    params = dict(repo=repo, pr=11, issue=7, issue_body=ISSUE_BODY, pr_body=PR_BODY, base=base, head=head, author=WORKER,
+                  wrap_for=scenario.UNSANDBOXED)  # these tests exercise the checks; the jail has its own tests (test_isolation.py)
     params.update(overrides)
     return Run(repo, base, head, gate.run_gate(gate.GateInput(**params)))
 
@@ -168,7 +169,8 @@ def _wrapped_runs(tmp_path, name, **overrides):
 
 def test_the_sandbox_wrapper_is_built_for_the_head_tree_and_wraps_every_pytest_run(tmp_path):
     run, seen = _wrapped_runs(tmp_path, "dead", n_mutants=2)
-    assert seen and all(root.name == "head" and root.parent.name == f"pr-11-{run.head[:7]}" for root, _ in seen)
+    assert [root.name for root, _ in seen] == ["head", "base", "head", "head", "head"]  # each run wrapped for the tree it runs in (the sandbox chdirs there)
+    assert all(root.parent.name == f"pr-11-{run.head[:7]}" for root, _ in seen)
     assert all(argv[1] == "-c" and "pytest.main" in argv[2] for _, argv in seen)
     assert len(seen) == 2 + 1 + 2  # redgreen on head and on main, the unmutated tree, two mutants
 
@@ -229,7 +231,8 @@ def test_each_check_gets_the_inputs_it_needs(tmp_path, monkeypatch):
 def test_a_gate_that_cannot_prepare_its_trees_reports_a_setup_error_and_still_writes_the_report(tmp_path):
     repo, base, head = scenario.make_repo(tmp_path, "notest")
     (repo / ".simplicio-loop" / "review-gate" / f"pr-11-{head[:7]}").mkdir(parents=True)  # a leftover of a crashed run
-    report = gate.run_gate(gate.GateInput(repo=repo, pr=11, issue=7, issue_body="", pr_body="", base=base, head=head, author=WORKER))
+    report = gate.run_gate(gate.GateInput(repo=repo, pr=11, issue=7, issue_body="", pr_body="", base=base, head=head, author=WORKER,
+                                          wrap_for=scenario.UNSANDBOXED))
     assert [c.name for c in report.checks] == ["setup"] and report.checks[0].status == ERROR
     assert "gate could not prepare its trees" in report.checks[0].reasons[0] and not report.approved
     assert json.loads((repo / ".simplicio-loop" / "review-gate" / f"pr-11-{head[:7]}.json").read_text())["approved"] is False
@@ -246,7 +249,8 @@ def test_a_git_failure_while_adding_the_trees_is_a_setup_error_and_the_tree_alre
         return real(where, *args, **kw)
 
     monkeypatch.setattr(gate, "_git", flaky)
-    report = gate.run_gate(gate.GateInput(repo=repo, pr=11, issue=7, issue_body="", pr_body="", base=base, head=head, author=WORKER))
+    report = gate.run_gate(gate.GateInput(repo=repo, pr=11, issue=7, issue_body="", pr_body="", base=base, head=head, author=WORKER,
+                                          wrap_for=scenario.UNSANDBOXED))
     assert [c.name for c in report.checks] == ["setup"] and not report.approved
     assert report.checks[0].reasons == ("gate could not prepare its trees: git worktree add failed: disk full",)
     assert [c[:2] for c in calls] == [("worktree", "add")] * 2
