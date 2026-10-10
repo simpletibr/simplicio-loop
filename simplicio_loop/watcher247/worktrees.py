@@ -75,7 +75,7 @@ _REPO_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
 def _repo_dir(repo: str) -> str:
     """The repo name as one directory under config.WORK: a GitHub name, never a path, never `<x>.wt` / `<x>.state` (those are ours)."""
-    if not _REPO_NAME.fullmatch(repo) or repo.endswith((".wt", ".state")):
+    if not _REPO_NAME.fullmatch(repo) or repo.lower().endswith((".wt", ".state")):  # any case: a case-insensitive disk folds `X.WT` onto `x.wt`
         raise ValueError(f"not a usable repo name: {repo!r}")
     return repo
 
@@ -131,9 +131,19 @@ async def _free_head(base: Path, number: int) -> str:
     raise RuntimeError(f"every branch name loop/issue-{number}..-r{MAX_ATTEMPT_NAMES} is already on origin")
 
 
+async def _base_is_readable(base: Path) -> bool:
+    """Whether the base's HEAD commit and its tree can be read from the object store (a missing pack index makes this fail)."""
+    return (await proc.run(["git", "cat-file", "-e", "HEAD^{tree}"], cwd=base, timeout=60)).returncode == 0
+
+
 async def _update_base(repo: str, branch: str, number: int, fix: bool, head: str | None = None) -> Path:
     """Clone the repo once, then fetch what this item starts from. The base holds no loop/* branch: it is detached at the base."""
     dest = base_path(repo)
+    if (dest / ".git").exists() and not await _base_is_readable(dest):
+        # The object store is shared with every item's sandbox (#1656 item 3): an item can delete a pack's .idx, and the base and every
+        # worktree of the repo then fail with `bad object HEAD` for good. The base is a throwaway clone; the origin has the truth.
+        state.log(f"{repo}: the base clone cannot read its own HEAD; cloning it again")
+        await asyncio.to_thread(shutil.rmtree, dest, ignore_errors=True)
     if not (dest / ".git").exists():
         dest.parent.mkdir(parents=True, exist_ok=True)
         result = await proc.run(

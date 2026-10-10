@@ -997,6 +997,31 @@ def test_a_turbo_like_run_in_the_items_sandbox_writes_its_state_dir_without_errn
     assert (a.path / ".simplicio-loop" / "turbo-request.json").read_text() == "{}"
 
 
+def test_a_base_whose_pack_index_was_deleted_is_cloned_again_and_a_healthy_base_is_not(real_repo, monkeypatch):
+    """#1656 item 3: an item can delete a pack .idx in the shared objects; the base (and every item) is then broken for good
+    unless the host notices and clones again."""
+    r = real_repo
+    git("repack", "-a", "-d", "-q", cwd=r.base)  # a small fetch is unpacked to loose objects: make sure there is a pack to break
+    indexes = list((r.common / "objects" / "pack").glob("*.idx"))
+    assert indexes
+    for index in indexes:
+        index.unlink()
+    assert git_rc("cat-file", "-e", "HEAD^{tree}", cwd=r.base) != 0  # the control: the damage is real
+    real_run, cloned = proc.run, []
+
+    async def run(argv, **kwargs):
+        if argv[:3] == ["gh", "repo", "clone"]:  # no network here: the same clone, from the local origin
+            cloned.append(argv)
+            return await real_run(["git", "clone", "-q", "--depth", "1", f"file://{r.origin}", argv[4]], **kwargs)
+        return await real_run(argv, **kwargs)
+
+    monkeypatch.setattr(proc, "run", run)
+    asyncio.run(worktrees._update_base(REPO, "main", 1, False))
+    assert len(cloned) == 1 and git_rc("cat-file", "-e", "HEAD^{tree}", cwd=r.base) == 0
+    asyncio.run(worktrees._update_base(REPO, "main", 2, False))
+    assert len(cloned) == 1  # healthy: fetched, not cloned again
+
+
 def test_drop_never_follows_a_symlink_planted_at_the_items_path(real_repo, tmp_path):
     r, gate = real_repo, worktrees.Gate(2)
 
@@ -1031,7 +1056,7 @@ def test_a_link_at_the_items_path_to_a_directory_outside_is_removed_and_the_outs
     assert (outside / "keep.txt").read_text() == "keep\n" and [p.name for p in outside.iterdir()] == ["keep.txt"]
 
 
-@pytest.mark.parametrize("repo", ["../x", "..", ".", "a/b", "/abs", "", "foo.wt", "foo.state", "-rf", ".hidden", "sp ace", "ünï", "a\nb"])
+@pytest.mark.parametrize("repo", ["../x", "..", ".", "a/b", "/abs", "", "foo.wt", "foo.state", "foo.WT", "x.Wt", "foo.State", "-rf", ".hidden", "sp ace", "ünï", "a\nb"])
 def test_a_repo_name_that_could_leave_work_or_collide_with_a_layout_dir_is_refused_everywhere(repo):
     for call in (worktrees.item_path, worktrees.state_home):
         with pytest.raises(ValueError):

@@ -2,8 +2,10 @@
 
 - Item 4 (satisfeito pelo codigo em proc.run): os dois testes abaixo passam porque o codigo esta certo. Cada um tem um mutante
   temporario que precisa fazê-lo falhar.
-- Item 3, item 5 e #1570 passo 2 (NAO satisfeitos): xfail(strict=True) com o teste exato que um humano precisa fazer passar.
-- Item 6 (teste flaky): sem teste novo; os limites fixos estao em tests/watcher247/test_sandbox_proc.py (timeout=60 e =120).
+- Item 5 (sufixo sem caixa): satisfeito, o teste abaixo e comum.
+- Item 3 (objects compartilhado): a base ilegivel e reclonada pelo host (test_worktrees); o bind em si segue aberto (xfail strict).
+- #1570 passo 2 (NAO satisfeito): xfail(strict=True) com o teste exato que um humano precisa fazer passar.
+- Item 6 (teste flaky): os limites de tests/watcher247/test_sandbox_proc.py agora crescem com a carga da maquina.
 """
 from __future__ import annotations
 
@@ -63,9 +65,9 @@ def test_git_env_is_added_to_the_service_env_and_never_replaces_it(tmp_path):
 
 
 @pytest.mark.xfail(strict=True, reason=(
-    "#1656 item 3 NAO satisfeito: sandbox.worktree_binds liga objects/ como leitura e escrita para todo item, entao um item "
-    "apaga um .idx de pack e a base e os outros itens do repo ficam quebrados (git cat-file: rc 128). Ajuste humano: objetos "
-    "por item com alternates somente leitura para a base, ou detectar base corrompida e reclonar."))
+    "#1656 item 3, parte do sandbox: sandbox.worktree_binds (arquivo protegido) liga objects/ como leitura e escrita para todo item, "
+    "entao um item ainda consegue apagar um .idx de pack. O dano agora e curado no host: worktrees._update_base detecta a base "
+    "ilegivel e clona de novo (test_worktrees). Ajuste humano: objetos por item com alternates somente leitura para a base."))
 @real_bwrap
 def test_an_item_cannot_delete_a_pack_index_of_the_shared_objects(tmp_path):
     with scratch("sbx-1656-i3-") as root:
@@ -81,9 +83,6 @@ def test_an_item_cannot_delete_a_pack_index_of_the_shared_objects(tmp_path):
         assert done.returncode != 0 and index.exists(), done.stderr
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "#1656 item 5 NAO satisfeito: worktrees._repo_dir testa o sufixo .wt/.state sem distinguir caixa, entao 'foo.WT', 'x.Wt' e "
-    "'foo.State' sao aceitos como nome de repo. Ajuste humano: comparar repo.lower()."))
 @pytest.mark.parametrize("name", ["foo.WT", "x.Wt", "foo.State"])
 def test_a_repo_name_with_the_wt_or_state_suffix_in_any_case_is_refused(name):
     with pytest.raises(ValueError):
