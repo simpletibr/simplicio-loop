@@ -236,7 +236,7 @@ def redirect_target(url: str, status: int, headers: Mapping[str, str]) -> str:
 
 
 def read_private_text(path: str | os.PathLike[str], max_bytes: int = 1 << 20) -> str:
-    """Read a regular file owned by the current user and not writable by others.
+    """Read a regular file owned by the current user (root reads any owner, as `auth` does) and not writable by others.
 
     Opens with O_NONBLOCK|O_NOFOLLOW so a FIFO or symlink is refused instead of
     blocking or being followed. A missing file raises FileNotFoundError.
@@ -252,7 +252,7 @@ def read_private_text(path: str | os.PathLike[str], max_bytes: int = 1 << 20) ->
         info = os.fstat(fd)
         if not stat.S_ISREG(info.st_mode):
             raise UnsafeFileError(f"{path}: not a regular file")
-        if hasattr(os, "geteuid") and info.st_uid != os.geteuid():
+        if hasattr(os, "geteuid") and os.geteuid() != 0 and info.st_uid != os.geteuid():
             raise UnsafeFileError(f"{path}: owned by uid {info.st_uid}, not the current user")
         if os.name != "nt" and info.st_mode & _SHARED_WRITE:
             raise UnsafeFileError(f"{path}: writable by group or others")

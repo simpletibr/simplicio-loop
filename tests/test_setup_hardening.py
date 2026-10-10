@@ -172,6 +172,23 @@ def test_read_private_text_refuses_shared_writable(tmp_path):
 
 
 @posix_only
+def test_read_private_text_accepts_another_users_file_for_root_as_auth_does(tmp_path, monkeypatch):
+    target = tmp_path / "setup.json"
+    target.write_text("{}", encoding="utf-8")
+    target.chmod(0o600)
+    real_fstat = os.fstat
+
+    def owned_by_another_user(fd):
+        values = list(real_fstat(fd)[:10])
+        values[4] = 4242  # st_uid
+        return os.stat_result(values)
+
+    monkeypatch.setattr(os, "fstat", owned_by_another_user)
+    monkeypatch.setattr(os, "geteuid", lambda: 0)
+    assert sh.read_private_text(target) == "{}"
+
+
+@posix_only
 def test_read_private_text_refuses_a_file_owned_by_someone_else(tmp_path, monkeypatch):
     target = tmp_path / "setup.json"
     target.write_text("{}", encoding="utf-8")
@@ -331,8 +348,7 @@ def test_isolated_git_cwd_gives_git_a_path_without_unsafe_entries(tmp_path):
 
 
 @posix_only
-@pytest.mark.skipif(not hasattr(os, "geteuid") or os.geteuid() != 0, reason="chown to another user needs root")
-def test_a_folder_above_the_entry_that_belongs_to_a_foreign_user_makes_it_unsafe(tmp_path):
+def test_a_folder_above_the_entry_that_belongs_to_a_foreign_user_makes_it_unsafe(tmp_path, monkeypatch):
     parent = make_dir(tmp_path / "theirs", 0o755)
     child = make_dir(parent / "bin", 0o755)
     try:

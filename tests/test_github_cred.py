@@ -340,6 +340,14 @@ def test_save_token_is_private_atomic_and_locked(tmp_path):
     assert [p.name for p in state.iterdir()] == ["github.json", "github.lock"]  # no temp file left
 
 
+def test_save_token_into_a_blocked_folder_is_a_cred_error_not_an_os_error(tmp_path):
+    (tmp_path / "blocked").write_text("a file where the folder should be", encoding="utf-8")
+    with pytest.raises(CredError) as raised:
+        github_cred.save_token(tmp_path / "blocked", GOOD, "octocat")
+    assert raised.value.reason_code == "store_invalid"
+    assert GOOD not in str(raised.value)  # the message never holds the token
+
+
 def test_save_token_waits_for_the_lock(tmp_path, monkeypatch):
     state = tmp_path / "s"
     calls = []

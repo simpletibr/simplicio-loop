@@ -502,6 +502,13 @@ def test_after_install_runs_the_setup_in_a_terminal_and_only_hints_without_one(h
     assert calls == [setup_cli.Options()]
 
 
+def test_after_install_never_raises_when_the_summary_folder_cannot_be_written(home, monkeypatch, capsys):
+    (home / ".simplicio-loop").write_text("a file where the folder should be", encoding="utf-8")
+    monkeypatch.setattr(setup_cli, "real_seams", Fakes().seams)
+    setup_cli.after_install(interactive=True, out=io.StringIO())
+    assert "setup refused" in capsys.readouterr().err
+
+
 def test_after_install_is_quiet_once_the_setup_has_run(home, monkeypatch):
     run(Fakes(), home)
     monkeypatch.setattr(setup_cli, "run", lambda *a, **k: pytest.fail("the setup must not start again"))
