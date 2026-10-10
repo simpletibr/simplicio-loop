@@ -143,6 +143,9 @@ O executor padrao e o fluxo de plano. Para tarefas que um plano JSON nao cobre, 
 |---|---|---|
 | `SIMPLICIO_247_EXECUTOR` | `plan` ou `author` | sem a variavel: `plan` |
 | `SIMPLICIO_247_AUTHOR_ROUNDS` | numero inteiro de 1 a 10 | `3` |
+| `SIMPLICIO_247_AUTHOR_RUN_TESTS` | `1` deixa a CLI rodar pytest | sem a variavel: a CLI so le e edita arquivos |
+| `SIMPLICIO_247_AUTHOR_HOME_BASE` | caminho absoluto dentro do HOME | `~/.cache/simplicio-loop-author` |
+| `SIMPLICIO_247_ALLOW_UNSANDBOXED` | `1` roda a CLI sem sandbox | sem a variavel: sem sandbox nao roda |
 
 - Outro valor para o servico na partida. O log mostra a variavel e os valores aceitos. `status.json` mostra `reason_code=executor_env_invalid`.
 - O fluxo autor exige `SIMPLICIO_EXECUTOR` sem valor ou `exec`. Com `openrouter` o tick bloqueia com `author_needs_exec`.
@@ -154,7 +157,13 @@ O executor padrao e o fluxo de plano. Para tarefas que um plano JSON nao cobre, 
 - O log e o `error` do claim trazem o `reason_code`, os rounds, os tipos de falha e o uso medido. Sem contador da CLI, o uso e `none`. O loop nao estima numero.
 - O orcamento `model_calls` soma um por round que rodou.
 - A CLI nao recebe `GH_TOKEN`, `GITHUB_TOKEN` nem chave de API. O watcher nao passa env nenhum ao fluxo autor.
-- Os caminhos protegidos valem para o fluxo autor. Um round que muda um deles falha com `protected_path`.
+- Os caminhos protegidos valem para o fluxo autor. Um round que muda um deles falha com `protected_path`. A unica excecao e `.simplicio-loop/orchestrator/runs/`: o host grava telemetria ali durante o run (o heartbeat do lease), e o snapshot a ignora. `.simplicio-loop/loop.toml` e os outros caminhos de `.simplicio-loop` continuam protegidos.
+- Por padrao a CLI nao recebe nenhuma ferramenta Bash: so le, busca e edita arquivos. O prompt avisa que ela nao roda testes. O host roda o `verify` e devolve as falhas. Com `SIMPLICIO_247_AUTHOR_RUN_TESTS=1` a CLI roda `pytest` no sandbox dela, onde o HOME privado (copia do login) esta montado e a rede esta aberta.
+- Com o HOME protegido (`ProtectHome=read-only`) a unit nao grava em `~/.cache`. Aponte `SIMPLICIO_247_AUTHOR_HOME_BASE` para uma pasta dentro do HOME e inclua essa pasta em `ReadWritePaths=` da unit, por exemplo `ReadWritePaths=/home/simplicio-loop/.simplicio /home/simplicio-loop/.simplicio/authors`. O operador edita a unit. Um caminho relativo, o proprio HOME ou um caminho fora do HOME falha com `home_unavailable`.
+- Antes do commit, o watcher confere com `git symbolic-ref HEAD` que o worktree ainda esta no branch do item. Outro HEAD falha com `head_moved` e nada e commitado.
+- Falha de configuracao do host nao gasta tentativa do item: `unsupported_family`, `sandbox_unavailable`, `claude_login_missing`, `cli_unavailable` e `home_unavailable`. O claim volta para `retry` e espera o backoff. O item nunca vira morto por isso.
+- `SIMPLICIO_247_EXECUTOR` vazio vale como sem a variavel (`plan`). A CLI sem sandbox so roda com `SIMPLICIO_247_ALLOW_UNSANDBOXED=1`.
+- O relatorio de execucao traz `cache_read_tokens` ao lado de `input_tokens` e `output_tokens`, quando a CLI os mede. Se o relatorio nao grava, o resultado do autor continua valendo.
 
 ## Caminhos protegidos (`plan_paths.PROTECTED_PATHS`, issue #1567)
 

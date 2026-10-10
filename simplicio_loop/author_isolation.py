@@ -24,6 +24,7 @@ nothing else; the real HOME is an empty tmpfs for both. A run that dies without 
 from __future__ import annotations
 
 import contextlib
+import errno
 import hashlib
 import os
 import shutil
@@ -35,11 +36,14 @@ from collections.abc import Iterator
 from pathlib import Path
 
 NOISE_DIR = ".pytest_cache"
+TELEMETRY_PARENT = (".simplicio-loop", "orchestrator")
+TELEMETRY_DIR = "runs"  # <TELEMETRY_PARENT>/runs: what the host writes during a run (events.jsonl, the lease heartbeat every 60 s)
 BYTECODE = (".pyc", ".pyo")
 GIT_KEPT = (".git/config", ".git/hooks")
 BIG_FILE = 64 << 20  # bytes; above this a file is recorded by size, mtime and inode
 SNAPSHOT_BUDGET_S = 120.0
 HOMES = Path(".cache") / "simplicio-loop-author"
+HOME_BASE_ENV = "SIMPLICIO_247_AUTHOR_HOME_BASE"
 LOGIN = Path(".claude") / ".credentials.json"
 OWNER = ".owner"
 UNOWNED_GRACE_S = 60  # a HOME with no readable owner file is stale only after this long (its owner may be writing the file)
@@ -80,6 +84,7 @@ def _digest(path: str, deadline: float) -> str:
 def _entries(root: str) -> Iterator[str]:
     """Absolute paths of the files and symlinks the snapshot covers."""
     unreadable: list[str] = []  # a folder the walk cannot list would hide what is in it: it is an entry of its own
+    telemetry = os.path.join(root, *TELEMETRY_PARENT)
     for folder, dirs, files in os.walk(root, followlinks=False, onerror=lambda exc: unreadable.append(exc.filename)):
         git = folder == root and ".git" in dirs
         for name in files:
@@ -87,6 +92,8 @@ def _entries(root: str) -> Iterator[str]:
         for name in dirs:
             if os.path.islink(os.path.join(folder, name)):  # walk lists a link to a folder as a folder and does not enter it
                 yield os.path.join(folder, name)
+        if folder == telemetry:  # the host writes its run telemetry here (the lease heartbeat): a real folder, and only it, is left out
+            dirs[:] = [name for name in dirs if name != TELEMETRY_DIR or os.path.islink(os.path.join(folder, name))]
         if git:
             dirs[:] = [name for name in dirs if name != ".git"]
             for kept in GIT_KEPT:
@@ -151,22 +158,46 @@ def _owner_alive(home: Path) -> bool:
     return True
 
 
+def homes_dir(real_home: Path) -> Path:
+    """The folder that holds the private HOMEs: ``$SIMPLICIO_247_AUTHOR_HOME_BASE``, else ``<real home>/.cache/simplicio-loop-author``.
+
+    The packaged unit has ProtectHome=read-only, so the operator points this at a folder in ReadWritePaths. It must be an absolute path
+    inside the real HOME (and not the HOME itself): the sandbox hides the real HOME and binds back only the run's own folder, so a
+    base elsewhere would leave every other run's login copy readable. ``OSError`` (EINVAL) otherwise. Empty means unset.
+    """
+    raw = os.environ.get(HOME_BASE_ENV)
+    if not raw:
+        return real_home / HOMES
+    base = Path(os.path.normpath(raw))
+    home = Path(os.path.normpath(real_home))
+    if not Path(raw).is_absolute() or base == home or home not in base.parents:
+        raise OSError(errno.EINVAL, f"{HOME_BASE_ENV}={raw} is not valid: use an absolute path inside the HOME {home}")
+    return base
+
+
 def sweep(real_home: Path) -> None:
     """Delete the private HOMES whose owner is gone (a killed run cannot clean its own)."""
     with contextlib.suppress(OSError):
-        for home in (real_home / HOMES).iterdir():
+        for home in homes_dir(real_home).iterdir():
             if not _owner_alive(home):
                 shutil.rmtree(home, ignore_errors=True)
 
 
 def make_home(real_home: Path, name: str) -> Path:
-    """A private HOME (0700) with a 0600 copy of the login and the pid of this process. ``LoginMissing`` when there is no login."""
+    """A private HOME (0700) with a 0600 copy of the login and the pid of this process.
+
+    ``LoginMissing`` when there is no login; ``OSError`` that names the folder and the OS error when it cannot be made.
+    """
     source = real_home / LOGIN
     if not source.is_file():
         raise LoginMissing(f"{source} not found: log in to claude first")
+    base = homes_dir(real_home)
     sweep(real_home)
-    (real_home / HOMES).mkdir(parents=True, exist_ok=True, mode=0o700)  # on every creation: a parallel run may have emptied it
-    home = real_home / HOMES / name
+    try:
+        base.mkdir(parents=True, exist_ok=True, mode=0o700)  # on every creation: a parallel run may have emptied it
+    except OSError as exc:
+        raise OSError(exc.errno, f"cannot create {base}: {exc.strerror or exc}") from exc
+    home = base / name
     try:
         home.mkdir(mode=0o700)
         (home / OWNER).write_text(str(os.getpid()))

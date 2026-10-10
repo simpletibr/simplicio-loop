@@ -91,6 +91,7 @@ def real_home(tmp_path, monkeypatch):
     (home / ".ssh").mkdir()
     (home / ".ssh" / "id_rsa").write_text("ssh-secret")
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.delenv(author_isolation.HOME_BASE_ENV, raising=False)
     return home
 
 
@@ -917,3 +918,187 @@ def test_cli_usage_errors_exit_2(monkeypatch, tmp_path, capsys):
     assert cli_impl.main(["author", "--repo", str(tmp_path), "--task-file", str(tmp_path / "missing.md")]) == 2
     assert cli_impl.main(["author", "--repo", str(tmp_path)]) == 2
     capsys.readouterr()
+
+
+# --- the host-owned run telemetry is not the author's (BLOCKER 1) -----------------------------------------------------------------
+
+RUNS = ".simplicio-loop/orchestrator/runs/run-1/events.jsonl"
+
+
+def test_the_snapshot_leaves_out_the_run_telemetry_and_nothing_else_of_the_loop_folder(tmp_path):
+    for name in (RUNS, ".simplicio-loop/loop.toml", ".simplicio-loop/orchestrator/other/x", ".simplicio-loop/orchestrator/runs.txt"):
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text("1")
+    first = author_isolation.snapshot(tmp_path)
+    assert RUNS not in first
+    assert {".simplicio-loop/loop.toml", ".simplicio-loop/orchestrator/other/x", ".simplicio-loop/orchestrator/runs.txt"} <= set(first)
+    (tmp_path / RUNS).write_text("2")
+    (tmp_path / ".simplicio-loop/orchestrator/runs/run-2").mkdir()
+    (tmp_path / ".simplicio-loop/orchestrator/runs/run-2/new.jsonl").write_text("3")
+    assert author_isolation.diff(first, author_isolation.snapshot(tmp_path)) == []
+
+
+def test_a_runs_folder_elsewhere_is_still_in_the_snapshot(tmp_path):
+    (tmp_path / "orchestrator/runs").mkdir(parents=True)
+    (tmp_path / "orchestrator/runs/x").write_text("1")
+    (tmp_path / ".simplicio-loop/runs").mkdir(parents=True)
+    (tmp_path / ".simplicio-loop/runs/y").write_text("1")
+    assert {"orchestrator/runs/x", ".simplicio-loop/runs/y"} <= set(author_isolation.snapshot(tmp_path))
+
+
+def test_a_runs_link_in_place_of_the_folder_is_a_change(tmp_path):
+    (tmp_path / ".simplicio-loop/orchestrator").mkdir(parents=True)
+    first = author_isolation.snapshot(tmp_path)
+    (tmp_path / ".simplicio-loop/orchestrator/runs").symlink_to("/etc")
+    assert author_isolation.diff(first, author_isolation.snapshot(tmp_path)) == [".simplicio-loop/orchestrator/runs"]
+
+
+def test_a_round_that_the_host_telemetry_grew_in_is_ok_with_the_authors_file(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n", RUNS: "{}\n"}})
+    result = go(repo, runner, verify="test -f done.txt")
+    assert (result.status, result.reason_code, result.changed) == ("ok", "ok", ["done.txt"])
+
+
+def test_telemetry_alone_is_not_a_change(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {RUNS: "{}\n"}})
+    result = go(repo, runner, rounds=1)
+    assert (result.reason_code, result.changed) == ("empty_diff", [])
+
+
+@pytest.mark.parametrize("path", [".simplicio-loop/loop.toml", ".simplicio-loop/orchestrator/other/x", ".simplicio-loop/orchestrator/runs.txt"])
+def test_an_author_file_in_the_loop_folder_outside_the_telemetry_is_still_protected(repo, fake, path):
+    scenario, _calls, runner = fake
+    scenario({"write": {path: "x\n", "done.txt": "ok\n"}})
+    result = go(repo, runner, rounds=1)
+    assert (result.status, result.reason_code) == ("failed", "protected_path") and path in result.changed
+
+
+def test_the_telemetry_the_host_writes_while_verify_runs_is_not_protected_path(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    result = go(repo, runner, verify=f"mkdir -p {Path(RUNS).parent} && echo x >> {RUNS}; test -f done.txt")
+    assert (result.status, result.reason_code) == ("ok", "ok")
+
+
+# --- run_tests: the CLI cannot run the author's code (MAJOR 3) ---------------------------------------------------------------------
+
+def test_run_tests_defaults_to_true_and_keeps_every_bash_entry():
+    argv = author_flow.author_argv("claude", "x", session=SESSION, resume=False, model="", effort="")
+    assert flag_values(argv, "--allowedTools") == list(author_flow.ALLOWED_TOOLS)
+    assert author_flow.author_argv("claude", "x", session=SESSION, resume=False, model="", effort="", run_tests=True) == argv
+
+
+def test_without_run_tests_the_cli_can_only_read_and_edit_files():
+    argv = author_flow.author_argv("claude", "x", session=SESSION, resume=False, model="", effort="", run_tests=False)
+    tools = flag_values(argv, "--allowedTools")
+    assert tools == ["Read", "Grep", "Glob", "Edit", "Write"]
+    assert not any("Bash" in tool or "pytest" in tool or "python" in tool or "git" in tool for tool in tools)  # git runs a configured program too
+
+
+def test_run_author_hands_run_tests_to_every_round(repo, fake):
+    scenario, calls, runner = fake
+    scenario({"write": {"wrong.txt": "x\n"}}, {"write": {"done.txt": "ok\n"}})
+    result = go(repo, runner, verify="test -f done.txt", run_tests=False)
+    assert result.status == "ok" and result.rounds == 2
+    assert [flag_values(call["argv"], "--allowedTools") for call in calls()] == [["Read", "Grep", "Glob", "Edit", "Write"]] * 2
+    assert "cannot run" in prompt_of(calls()[0]).lower()
+
+
+def test_run_author_keeps_the_bash_entries_by_default(repo, fake):
+    scenario, calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    go(repo, runner)
+    assert flag_values(calls()[0]["argv"], "--allowedTools") == list(author_flow.ALLOWED_TOOLS)
+    assert "cannot run" not in prompt_of(calls()[0]).lower()
+
+
+def test_verify_still_runs_with_the_real_home_view_when_the_cli_cannot_run_tests(repo, fake, real_home):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    checks = []
+
+    async def spy(argv, **kwargs):
+        if argv[0] == "sh":
+            checks.append(kwargs["env"]["HOME"])
+        return await runner(argv, **kwargs)
+
+    assert go(repo, spy, verify="true", run_tests=False).status == "ok"
+    assert checks == [str(real_home)]  # under the sandbox the real HOME is an empty tmpfs: the private one is not there
+
+
+# --- the base of the private HOMEs (MAJOR 2) ----------------------------------------------------------------------------------------
+
+def test_the_base_of_the_homes_comes_from_the_environment(real_home, monkeypatch):
+    assert author_isolation.homes_dir(real_home) == real_home / author_isolation.HOMES
+    monkeypatch.setenv(author_isolation.HOME_BASE_ENV, str(real_home / "state" / "authors"))
+    assert author_isolation.homes_dir(real_home) == real_home / "state" / "authors"
+    home = author_isolation.make_home(real_home, "one")
+    assert home == real_home / "state" / "authors" / "one" and (home / author_isolation.LOGIN).is_file()
+    assert not (real_home / author_isolation.HOMES).exists()
+
+
+def test_the_sweep_works_on_the_configured_base(real_home, monkeypatch):
+    monkeypatch.setenv(author_isolation.HOME_BASE_ENV, str(real_home / "base"))
+    gone = subprocess.Popen(["true"])
+    gone.wait()
+    stale = real_home / "base" / "dead"
+    stale.mkdir(parents=True)
+    (stale / ".owner").write_text(str(gone.pid))
+    other = real_home / author_isolation.HOMES / "dead"
+    other.mkdir(parents=True)
+    (other / ".owner").write_text(str(gone.pid))
+    author_isolation.make_home(real_home, "one")
+    assert not stale.exists() and other.exists()  # only the configured base is swept
+
+
+@pytest.mark.parametrize("value", ["relative/dir", "~/x", "../up", "/etc", "/tmp/elsewhere"])
+def test_a_base_that_is_not_an_absolute_path_inside_the_home_is_home_unavailable(repo, fake, real_home, monkeypatch, value):
+    _scenario, _calls, runner = fake
+    monkeypatch.setenv(author_isolation.HOME_BASE_ENV, value)
+    result = go(repo, runner, verify="true")
+    assert (result.status, result.reason_code, result.rounds) == ("failed", "home_unavailable", 0) and runner.seen == []
+    assert author_isolation.HOME_BASE_ENV in result.failures[0]["detail"] and value in result.failures[0]["detail"]
+
+
+def test_a_base_with_a_dotdot_that_leaves_the_home_is_refused(real_home, monkeypatch):
+    monkeypatch.setenv(author_isolation.HOME_BASE_ENV, str(real_home / ".." / "out"))
+    with pytest.raises(OSError):
+        author_isolation.make_home(real_home, "one")
+
+
+def test_the_empty_base_is_the_default(real_home, monkeypatch):
+    monkeypatch.setenv(author_isolation.HOME_BASE_ENV, "")
+    assert author_isolation.homes_dir(real_home) == real_home / author_isolation.HOMES
+
+
+def test_a_read_only_base_is_home_unavailable_with_the_path_and_the_os_error(repo, fake, real_home, monkeypatch):
+    _scenario, _calls, runner = fake
+    base = real_home / "ro"
+    base.mkdir()
+    monkeypatch.setenv(author_isolation.HOME_BASE_ENV, str(base / "inner"))
+    real_mkdir = Path.mkdir
+
+    def mkdir(self, *args, **kwargs):
+        if self == base / "inner":
+            raise OSError(30, "Read-only file system", str(self))
+        return real_mkdir(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", mkdir)
+    result = go(repo, runner, verify="true")
+    detail = result.failures[0]["detail"]
+    assert result.reason_code == "home_unavailable" and str(base / "inner") in detail and "Read-only file system" in detail
+
+
+def test_the_cli_view_binds_the_private_home_of_the_configured_base(repo, fake, real_home, monkeypatch):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    monkeypatch.setenv(author_isolation.HOME_BASE_ENV, str(real_home / "state" / "authors"))
+    views = []
+    monkeypatch.setattr(sandbox, "engine", lambda *a, **k: "bwrap")
+    monkeypatch.setattr(author_flow.shutil, "which", lambda name, path=None: "/bin/" + name)
+    monkeypatch.setattr(sandbox, "wrap", lambda argv, **kwargs: (views.append(kwargs["home"]), argv)[1])
+    result = go(repo, runner, verify="true", allow_unsandboxed=False)
+    assert result.status == "ok"
+    assert views[0].rw == (f"state/authors/{result.session_id}",)

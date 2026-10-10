@@ -57,11 +57,13 @@ Runner = Callable[..., Awaitable[proc.Result]]  # proc.run's shape: runner(argv,
 
 AUTHOR_PREAMBLE = (
     "You are the author. Edit the files in this worktree to do the task below. Never change these protected paths: {protected}. "
-    "Do not push and do not open a pull request. The host runs {verify} after you finish and sends you any failure to correct.\n\nTask:\n\n"
+    "Do not push and do not open a pull request. The host runs {verify} after you finish and sends you any failure to correct.\n\n{no_run}Task:\n\n"
 )
+NO_RUN_NOTE = ("You cannot run tests or any command here: you can only read, search and edit files. "
+               "The host runs the verify and sends you the failures; do not try to run them yourself.\n\n")
 ADVICE = {
     "verify_failed": "The verify command failed. Fix the code. Output (tail):\n{detail}",
-    "protected_path": ("You changed protected paths or Python bytecode. Undo every change to a protected path (`git diff` shows the original). "
+    "protected_path": ("You changed protected paths or Python bytecode. Undo every change to a protected path (restore its original content). "
                        "Delete every .pyc and .pyo you made. Do not make bytecode: PYTHONDONTWRITEBYTECODE=1 is set.\n{detail}"),
     "empty_diff": "You made no change to any file. Edit the files that the task needs.",
 }
@@ -88,16 +90,22 @@ class AuthorResult:
     reason_code: str
 
 
-def author_argv(family: str, prompt: str, *, session: str, resume: bool, model: str, effort: str) -> list[str]:
-    """The claude argv for one round. ``allowedTools`` and ``disallowedTools`` take lists, so a flag follows each list."""
+def author_argv(family: str, prompt: str, *, session: str, resume: bool, model: str, effort: str, run_tests: bool = True) -> list[str]:
+    """The claude argv for one round. ``allowedTools`` and ``disallowedTools`` take lists, so a flag follows each list.
+
+    ``run_tests=False`` leaves the CLI only the file tools: no ``Bash(...)`` entry at all. pytest runs the author's conftest in the
+    CLI's own sandbox, with the private HOME (the login) mounted and the network open, and ``git status`` / ``git diff`` run a program
+    that the HOME's ``.gitconfig`` names. The host still runs ``verify`` (empty HOME, no login) and sends its failures back.
+    """
     if family not in FAMILIES:
         raise AuthorUnsupported(family)
+    tools = ALLOWED_TOOLS if run_tests else tuple(tool for tool in ALLOWED_TOOLS if not tool.startswith("Bash("))
     argv = ["claude", "-p", prompt]
     if model and model not in ("default", "auto"):
         argv += ["--model", model]
     if effort:
         argv += ["--effort", effort]
-    argv += ["--permission-mode", "acceptEdits", "--allowedTools", *ALLOWED_TOOLS, "--disallowedTools", DISALLOWED_TOOLS,
+    argv += ["--permission-mode", "acceptEdits", "--allowedTools", *tools, "--disallowedTools", DISALLOWED_TOOLS,
              "--disable-slash-commands", "--strict-mcp-config", "--setting-sources", "user", "--output-format", "json"]
     return argv + (["--resume", session] if resume else ["--session-id", session])
 
@@ -140,8 +148,9 @@ def _protected(changed: list[str], worktree: Path) -> list[str]:
 class _Run:
     """One author run: the state a result reports, the sandboxed launches and the snapshots."""
 
-    def __init__(self, worktree: Path, verify: str | None, rounds: int, runner: Runner, allow_unsandboxed: bool):
+    def __init__(self, worktree: Path, verify: str | None, rounds: int, runner: Runner, allow_unsandboxed: bool, run_tests: bool = True):
         self.worktree, self.verify, self.rounds, self.runner, self.allow_unsandboxed = worktree, verify, rounds, runner, allow_unsandboxed
+        self.run_tests = run_tests
         self.session = str(uuid.uuid4())
         self.n = 0  # the round in progress; 0 before the first
         self.changed: list[str] = []
@@ -206,13 +215,14 @@ class _Run:
         cli_view = sandbox.HomeView(real_home, rw=(str(home.relative_to(real_home)),), ro=host_mode.FAMILY_HOME[family]["ro"])
         verify_env = {**sandbox.scrubbed_env(os.environ, home=real_home), **NO_BYTECODE}  # the sandbox shows an empty HOME
         verify_view = sandbox.HomeView(real_home)
-        prompt = (AUTHOR_PREAMBLE.format(protected=", ".join(plan_paths.PROTECTED_PATHS), verify=f"`{self.verify}`" if self.verify else "no command")
-                  + task_text)
+        prompt = (AUTHOR_PREAMBLE.format(protected=", ".join(plan_paths.PROTECTED_PATHS), verify=f"`{self.verify}`" if self.verify else "no command",
+                                                  no_run="" if self.run_tests else NO_RUN_NOTE) + task_text)
         self.before = await asyncio.to_thread(author_isolation.snapshot, self.worktree)
         failures: list[dict[str, str]] = []
         for self.n in range(1, self.rounds + 1):
             author_isolation.reset_config(home)
-            argv = author_argv(family, prompt, session=self.session, resume=self.n > 1, model=resolved["model"], effort=resolved["effort"])
+            argv = author_argv(family, prompt, session=self.session, resume=self.n > 1, model=resolved["model"], effort=resolved["effort"],
+                               run_tests=self.run_tests)
             run, error = await self.launch(argv, cli_view, cli_env, AUTHOR_TIMEOUT_S)
             if error:
                 await self.observe()
@@ -244,9 +254,12 @@ class _Run:
 
 
 async def run_author(task_text: str, worktree: str | os.PathLike[str], *, family: str = "claude", verify: str | None = None,
-                     rounds: int = 3, runner: Runner = proc.run, allow_unsandboxed: bool = False) -> AuthorResult:
-    """Author, verify and correct in ``worktree`` for at most ``rounds`` rounds. A failed round is a result, not an exception."""
-    run = _Run(Path(worktree), verify, rounds, runner, allow_unsandboxed)
+                     rounds: int = 3, runner: Runner = proc.run, allow_unsandboxed: bool = False, run_tests: bool = True) -> AuthorResult:
+    """Author, verify and correct in ``worktree`` for at most ``rounds`` rounds. A failed round is a result, not an exception.
+
+    ``run_tests=False``: the CLI gets only the file tools (see ``author_argv``); the verify command still runs on the host side.
+    """
+    run = _Run(Path(worktree), verify, rounds, runner, allow_unsandboxed, run_tests)
     if refused := run.refusal(family):
         return refused
     real_home = Path.home()
@@ -256,7 +269,7 @@ async def run_author(task_text: str, worktree: str | os.PathLike[str], *, family
         except author_isolation.LoginMissing as exc:
             return run.fail("claude_login_missing", str(exc))
         except OSError as exc:
-            return run.fail("home_unavailable", f"cannot make the private HOME: {exc}")
+            return run.fail("home_unavailable", f"cannot make the private HOME: {exc} (set {author_isolation.HOME_BASE_ENV} to a writable folder inside the HOME)")
         try:
             return await run.go(family, task_text, home, real_home)
         except author_isolation.SnapshotTimeout as exc:

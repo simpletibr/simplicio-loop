@@ -127,7 +127,7 @@ async def commit_and_pr(gate: worktrees.Gate, dest: Path, repo: str, branch: str
 
 async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str,
                      executor: host_mode.Executor, test_cmd: str, task: str | None = None, role: str = "",
-                     run_id: str | None = None) -> dict:
+                     run_id: str | None = None, head: str = "") -> dict:
     """Run the item with the selected executor; return the claim fields, raise when it did not finish ok.
 
     exec (the default): an exec CLI plans, turbo --apply - applies (host_mode) inside the run ``run_id`` that the caller
@@ -136,7 +136,7 @@ async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str
     """
     task = task or task_text(repo, issue, fix)
     if executor.mode == "exec" and author_executor.selected() == "author":
-        return await author_executor.run(dest, repo, issue, task, test_cmd, executor, fix=bool(fix), run_id=run_id)
+        return await author_executor.run(dest, repo, issue, task, test_cmd, executor, head, run_id=run_id)
     if executor.mode == "exec":
         return await host_mode.run_exec(dest, repo, issue, task, test_cmd, executor,
                                         attempts, fix=bool(fix), role=role, run_id=run_id)
@@ -155,6 +155,13 @@ async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str
     if decision.action != "pr":
         raise RuntimeError(decision.reason)
     return {"turbo_status": status, "exit_code": result.returncode, "verify": decision.label}
+
+
+def _family(executor: host_mode.Executor) -> str | None:
+    """The family the points see: the one that really runs. The author executor skips a family it cannot drive; the plan flow uses the first."""
+    if executor.mode == "exec" and author_executor.selected() == "author":
+        return author_executor.family_of(executor) or None
+    return (executor.families or (None,))[0]
 
 
 async def _heartbeat(store: ClaimStore, key: str, token: str) -> None:
@@ -265,7 +272,7 @@ async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, c
                 dest, head = item.path, item.head
                 try:
                     ctx = points.PointContext(
-                        repo=name, issue=work.issue, clone=dest, state_dir=config.ROOT, family=(executor.families or (None,))[0],
+                        repo=name, issue=work.issue, clone=dest, state_dir=config.ROOT, family=_family(executor),
                         capacity=probe, test_command=work.verify,
                         run_dir=dest / ".simplicio-loop" / "orchestrator" / "points" / f"{name}-{number}")
                     await points.run("intake", ctx)
@@ -274,7 +281,7 @@ async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, c
                     ctx = replace(ctx, task_text=task_text(name, work.issue, work.fix, retry))
                     task = ctx.task_text + plan_hints(await points.run("plan", ctx))  # one text: retry reasons + hints
                     turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor, work.verify, task=task,
-                                              role=work.role, run_id=run_id)
+                                              role=work.role, run_id=run_id, head=head)
                     steps = turbo.get("steps") or []
                     ctx = replace(ctx, turbo_json=turbo, verify=turbo["verify"])
                     await points.run("apply", ctx)
@@ -336,8 +343,16 @@ async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, c
         return _without_pr(steps, run_failed)
     except Exception as exc:
         attempts = (await store.get_claim(ident)).attempts
-        final = verify.retry_or_dead(attempts, config.MAX_ATTEMPTS)
         error = str(exc)[:500]
+        if isinstance(exc, author_executor.AuthorFailed) and exc.configuration:
+            # the host is set up wrong (login, sandbox, CLI, HOME), not the item: like a deferred point the attempt is given back, and the
+            # item waits out the retry backoff, so a missing login never makes it dead
+            await _phase(runner, name, number, "BLOCKED", detail=f"configuracao do host ({exc.reason_code}): {error}")
+            await store.release(ident, token, "retry", now=clock, attempts=max(attempts - 1, 0), reason_code=exc.reason_code, error=error,
+                                blocked_by="", next_try_at=state.iso(state.now() + config.RETRY_AFTER))
+            state.log(f"host configuration {ident} {exc.reason_code}: {error}")
+            return _without_pr(steps, run_failed)
+        final = verify.retry_or_dead(attempts, config.MAX_ATTEMPTS)
         detail = (f"parou depois de {config.MAX_ATTEMPTS} tentativas; fica na fila morta ate reabrir"
                   if final == "dead" else f"tentativa {attempts} falhou: {error}")
         await _phase(runner, name, number, "BLOCKED", detail=detail)

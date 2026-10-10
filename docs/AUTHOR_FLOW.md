@@ -40,8 +40,11 @@ Set `SIMPLICIO_247_EXECUTOR=author` in the env file of the service. The default 
 
 - The tick calls `run_author` in the worktree of the item (`<repo>.wt/<n>`) instead of `host_mode.run_exec`.
 - `SIMPLICIO_247_AUTHOR_ROUNDS` sets the rounds. The default is 3. The maximum is 10.
-- The watcher passes the `verify` command of `loop.toml`, the first family that the flow supports, and no env. The flow removes `GH_TOKEN`.
-- On `ok`, the watcher delivers as in the plan flow: commit, push, pull request with `Parte de #N`, squad review. Nothing is committed or pushed before `ok`.
+- `SIMPLICIO_247_AUTHOR_RUN_TESTS=1` lets the CLI run `pytest` itself. Without it the CLI has only the file tools and no `Bash(...)` entry. The prompt says it cannot run tests. The host runs the verify and sends the failures back.
+- `SIMPLICIO_247_AUTHOR_HOME_BASE` sets the folder of the private HOMEs. It must be an absolute path inside the real HOME. The default is `~/.cache/simplicio-loop-author`. With `ProtectHome=read-only`, add this folder to `ReadWritePaths=` in the unit (for example `ReadWritePaths=/home/simplicio-loop/.simplicio/authors`).
+- The snapshot skips `.simplicio-loop/orchestrator/runs/` (the host writes its telemetry there). Every other path in `.simplicio-loop` stays protected.
+- The watcher passes the `verify` command of `loop.toml`, the first family that the flow supports, and no env. The flow deletes `GH_TOKEN`.
+- On `ok`, the watcher delivers as in the plan flow: it commits, pushes, opens the pull request with `Parte de #N` and runs the squad review. The watcher makes no commit and no push before `ok`.
 - On `failed` or `unsupported`, the watcher releases the claim. The retry rule does not change. The claim holds the `reason_code`.
 - The watcher logs the rounds, the kinds of failure and the measured `usage`. `usage` is `none` when the CLI reported no counter.
 - `SIMPLICIO_EXECUTOR` must be unset or `exec`. See `docs/WATCHER_247.md`.

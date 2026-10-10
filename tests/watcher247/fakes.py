@@ -81,6 +81,7 @@ class FakeRun:
         self.turbo_spans = []  # (start, end) of every turbo run, time.monotonic()
         self.on_turbo = None  # async hook(cwd) awaited inside a turbo run, before its delay
         self.push_cwds = []
+        self.moved_head = None  # when set, `git symbolic-ref HEAD` answers this ref (the author rewrote the HEAD of the admin dir)
 
     def ran(self, *prefix):
         return [a for a in self.calls if a[: len(prefix)] == list(prefix)]
@@ -206,6 +207,11 @@ class FakeRun:
         sub = argv[1]
         if sub == "config" and argv[2:] == ["user.email"]:
             return proc.Result(1)
+        if sub == "symbolic-ref":
+            branch = self.worktrees.get(Path(cwd))
+            if branch is None:
+                return proc.Result(128, "", "fatal: not a worktree")
+            return proc.Result(0, (self.moved_head or f"refs/heads/{branch}") + "\n")
         if sub == "rev-parse":
             return proc.Result(1)  # the item's branch does not exist yet
         if sub == "worktree" and argv[2] == "add":
