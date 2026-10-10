@@ -5,14 +5,18 @@ No network and no real CLI: the injected runner swaps the `claude` argv for a fa
 import asyncio
 import io
 import json
+import os
+import signal
 import subprocess
 import sys
+import threading
+import time
 from contextlib import redirect_stdout
 from pathlib import Path
 
 import pytest
 
-from simplicio_loop import author_cli, author_flow, cli_impl
+from simplicio_loop import author_cli, author_flow, author_isolation, cli_impl
 from simplicio_loop.watcher247 import proc, sandbox
 
 SESSION = "11111111-2222-3333-4444-555555555555"
@@ -30,7 +34,8 @@ home = pathlib.Path(os.environ["HOME"])
 home_files = sorted(str(p.relative_to(home)) for p in home.rglob("*") if p.is_file())
 with log.open("a") as handle:
     handle.write(json.dumps({"argv": sys.argv[1:], "env": sorted(os.environ), "cwd": os.getcwd(), "home": str(home),
-                             "home_files": home_files}) + "\\n")
+                             "home_files": home_files, "bytecode": os.environ.get("PYTHONDONTWRITEBYTECODE"),
+                             "api_key": os.environ.get("ANTHROPIC_API_KEY")}) + "\\n")
 for command in step.get("run", []):
     subprocess.run(command, check=True)
 for name, text in step.get("home_write", {}).items():
@@ -47,9 +52,7 @@ sys.exit(step.get("exit", 0))
 """ % (ENVELOPE,)
 
 
-@pytest.fixture
-def repo(tmp_path):
-    root = tmp_path / "repo"
+def make_repo(root):
     root.mkdir()
     for args in (["init", "-q"], ["config", "user.email", "t@t"], ["config", "user.name", "t"]):
         subprocess.run(["git", *args], cwd=root, check=True)
@@ -60,6 +63,11 @@ def repo(tmp_path):
     subprocess.run(["git", "add", "."], cwd=root, check=True)
     subprocess.run(["git", "commit", "-qm", "base"], cwd=root, check=True)
     return root
+
+
+@pytest.fixture
+def repo(tmp_path):
+    return make_repo(tmp_path / "repo")
 
 
 @pytest.fixture
@@ -141,7 +149,7 @@ def test_first_round_argv_creates_the_session_with_every_verified_flag():
     assert flag_values(argv, "--disallowedTools") == ["WebFetch,WebSearch"]
     assert flag_values(argv, "--allowedTools") == [
         "Read", "Grep", "Glob", "Edit", "Write", "Bash(python -m pytest:*)", "Bash(python3 -m pytest:*)",
-        "Bash(git status:*)", "Bash(git diff:*)", "Bash(git add:*)", "Bash(git commit:*)"]
+        "Bash(git status:*)", "Bash(git diff:*)"]  # no add/commit: in the sandbox a commit never finishes (read-only .git)
 
 
 def test_correction_argv_resumes_the_same_session():
@@ -270,20 +278,23 @@ def test_usage_keeps_only_the_counters_the_cli_reports(repo, fake):
     assert go(repo, runner, verify="true").usage == {"input_tokens": 7, "measured_rounds": 1}
 
 
-def test_garbage_output_is_judged_by_the_diff_and_reports_no_usage(repo, fake):
-    scenario, _calls, runner = fake
-    scenario({"write": {"done.txt": "ok\n"}, "raw": "\x00not json{{{"})
-    result = go(repo, runner, verify="test -f done.txt")
-    assert (result.status, result.usage) == ("ok", None)
+@pytest.mark.parametrize("raw", ["\x00not json{{{", "", "[1, 2]", "null"])
+def test_output_that_is_not_a_json_envelope_is_a_bad_envelope_not_ok(repo, fake, raw):
+    scenario, calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}, "raw": raw})
+    result = go(repo, runner, verify="touch ran.marker", rounds=3)
+    assert (result.status, result.reason_code, result.rounds, result.usage) == ("failed", "bad_envelope", 1, None)
+    assert result.changed == ["done.txt"] and not (repo / "ran.marker").exists() and len(calls()) == 1
 
 
 @pytest.mark.parametrize("step", [{"exit": 1, "raw": "boom"}, {"envelope": {"is_error": True, "result": "Not logged in"}}])
-def test_a_cli_error_stops_before_verify(repo, fake, step):
+def test_a_cli_error_stops_before_verify_and_still_reports_what_changed(repo, fake, step):
     scenario, calls, runner = fake
     scenario({"write": {"done.txt": "ok\n"}, **step})
     result = go(repo, runner, verify="touch ran.marker", rounds=3)
     assert (result.status, result.reason_code, result.rounds) == ("failed", "cli_error", 1)
     assert not (repo / "ran.marker").exists() and len(calls()) == 1
+    assert result.changed == ["done.txt"]
 
 
 def test_no_sandbox_refuses_unless_the_caller_allows_it(repo, fake, monkeypatch):
@@ -300,6 +311,7 @@ def test_the_cli_sees_only_its_private_home_and_verify_sees_an_empty_one(repo, f
     scenario({"write": {"done.txt": "ok\n"}})
     wrapped = []
     monkeypatch.setattr(sandbox, "engine", lambda *a, **k: "bwrap")
+    monkeypatch.setattr(author_flow.shutil, "which", lambda name, path=None: "/bin/claude")
     monkeypatch.setattr(sandbox, "wrap", lambda argv, **kwargs: wrapped.append((list(argv), kwargs)) or list(argv))
     result = go(repo, runner, verify="test -f done.txt", allow_unsandboxed=False)
     assert result.status == "ok"
@@ -319,7 +331,8 @@ def test_the_cli_home_is_private_with_only_a_copy_of_the_login_and_is_deleted_af
     (call,) = calls()
     private = Path(call["home"])
     assert private != real_home and private.is_relative_to(real_home)
-    assert call["home_files"] == [".claude/.credentials.json"]  # not settings.json, hooks or ~/.ssh
+    assert call["home_files"] == [".claude/.credentials.json", ".owner"]  # the login and the pid of this run; not settings.json or ~/.ssh
+    assert (call["bytecode"], call["api_key"]) == ("1", None)
     assert not private.exists()
 
 
@@ -373,7 +386,7 @@ def test_settings_the_author_writes_in_its_home_do_not_survive_to_the_next_round
              {"write": {"done.txt": "ok\n"}})
     result = go(repo, runner, verify="test -f done.txt")
     assert result.rounds == 2
-    assert calls()[1]["home_files"] == [".claude/.credentials.json"]
+    assert calls()[1]["home_files"] == [".claude/.credentials.json", ".owner"]
 
 
 def test_a_cli_that_does_not_answer_in_time_fails_the_run(repo, real_home, monkeypatch):
@@ -469,10 +482,38 @@ def test_a_file_the_author_creates_and_deletes_in_the_same_round_is_no_change(re
     assert go(repo, runner, verify="true", rounds=1).reason_code == "empty_diff"
 
 
-def test_the_caches_python_leaves_are_not_changes(repo, fake):
+def test_the_caches_python_leaves_are_not_changes_unless_they_shadow_a_protected_module(repo, fake):
     scenario, _calls, runner = fake
-    scenario({"write": {"done.txt": "ok\n"}, "run": [["sh", "-c", "mkdir -p __pycache__ .pytest_cache && echo x > __pycache__/a.pyc && echo y > .pytest_cache/b"]]})
+    scenario({"write": {"done.txt": "ok\n"}, "run": [["sh", "-c", "mkdir -p __pycache__ .pytest_cache pkg/__pycache__ && echo x > __pycache__/a.pyc "
+                                                                   "&& echo y > .pytest_cache/b && echo z > pkg/__pycache__/m.cpython-314.pyc"]]})
     assert go(repo, runner, verify="true").changed == ["done.txt"]
+
+
+@pytest.mark.parametrize("pyc", ["simplicio_loop/__pycache__/plan_paths.cpython-314.pyc", "hooks/__pycache__/guard.cpython-314.pyc",
+                                 "simplicio_loop/watcher247/__pycache__/verify.cpython-314.pyc"])
+def test_a_pyc_beside_a_protected_module_is_a_protected_change(repo, fake, pyc):
+    """python imports an UNCHECKED_HASH .pyc without reading the .py: the cache folder is not blind."""
+    scenario, _calls, runner = fake
+    scenario({"write": {pyc: "hostile\n", "done.txt": "ok\n"}})
+    result = go(repo, runner, verify="touch ran.marker", rounds=1)
+    assert (result.reason_code, pyc in result.changed) == ("protected_path", True)
+    assert not (repo / "ran.marker").exists()  # a protected change found before verify: verify does not run
+
+
+def test_a_protected_pyc_written_by_the_verify_command_is_caught_too(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    result = go(repo, runner, verify="mkdir -p hooks/__pycache__ && echo x > hooks/__pycache__/guard.cpython-314.pyc", rounds=1)
+    assert result.reason_code == "protected_path"
+
+
+def test_the_cli_and_verify_run_with_bytecode_writing_off_and_without_the_api_key(repo, fake, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-secretsecret")
+    scenario, calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    result = go(repo, runner, verify='test "$PYTHONDONTWRITEBYTECODE" = 1 && test -z "$ANTHROPIC_API_KEY" && test -f done.txt')
+    assert result.status == "ok"
+    assert (calls()[0]["bytecode"], calls()[0]["api_key"]) == ("1", None)  # the login is the file; an API key is not accepted yet
 
 
 def test_a_deleted_protected_file_is_a_change(repo, fake):
@@ -507,13 +548,13 @@ def test_a_file_the_verify_command_makes_in_an_ordinary_path_is_not_a_failure(re
     scenario, _calls, runner = fake
     scenario({"write": {"done.txt": "ok\n"}})
     result = go(repo, runner, verify="echo x > report.txt")
-    assert (result.status, result.changed) == ("ok", ["done.txt"])
+    assert (result.status, result.changed) == ("ok", ["done.txt", "report.txt"])  # changed: the original snapshot against the final one
 
 
 # --- inputs the flow must survive -----------------------------------------------------------------------------------------
 
-@pytest.mark.parametrize("rounds", [0, -1])
-def test_rounds_below_one_is_a_failed_result_not_an_exception(repo, fake, rounds):
+@pytest.mark.parametrize("rounds", [0, -1, 11])
+def test_rounds_outside_one_to_ten_is_a_failed_result_not_an_exception(repo, fake, rounds):
     _scenario, _calls, runner = fake
     result = go(repo, runner, rounds=rounds)
     assert (result.status, result.reason_code, result.rounds) == ("failed", "bad_rounds", 0) and runner.seen == []
@@ -541,6 +582,186 @@ def test_a_verify_command_that_cannot_start_is_a_failed_verify(repo, fake):
 
     result = go(repo, no_shell, verify="true", rounds=1)
     assert (result.reason_code, result.failures[0]["kind"]) == ("verify_failed", "verify_failed")
+
+
+# --- the snapshot has a size and a time limit --------------------------------------------------------------------------------
+
+def test_a_huge_sparse_file_is_recorded_by_size_and_mtime_not_hashed(tmp_path):
+    root = tmp_path / "tree"
+    root.mkdir()
+    with open(root / "huge.bin", "wb") as handle:
+        handle.truncate(8 << 30)  # 8 GiB of holes: hashing it would read all of it
+    (root / "small.txt").write_text("x")
+    started = time.monotonic()
+    first = author_isolation.snapshot(root)
+    assert time.monotonic() - started < 5
+    assert first["huge.bin"].startswith("big:") and not first["small.txt"].startswith("big:")
+    assert author_isolation.snapshot(root) == first
+    os.utime(root / "huge.bin", ns=(1, 1))  # a touch is seen
+    assert author_isolation.diff(first, author_isolation.snapshot(root)) == ["huge.bin"]
+
+
+def test_the_threshold_is_the_size_above_which_a_file_is_not_hashed(tmp_path, monkeypatch):
+    monkeypatch.setattr(author_isolation, "BIG_FILE", 10)
+    (tmp_path / "edge.txt").write_text("0123456789")
+    (tmp_path / "over.txt").write_text("0123456789a")
+    snap = author_isolation.snapshot(tmp_path)
+    assert not snap["edge.txt"].startswith("big:") and snap["over.txt"].startswith("big:")
+
+
+def test_a_snapshot_over_its_time_budget_raises_instead_of_hanging(tmp_path):
+    (tmp_path / "a.txt").write_text("a")
+    with pytest.raises(author_isolation.SnapshotTimeout):
+        author_isolation.snapshot(tmp_path, budget_s=0)
+
+
+def test_a_snapshot_that_runs_out_of_time_is_a_failed_result(repo, fake, monkeypatch):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    monkeypatch.setattr(author_isolation, "SNAPSHOT_BUDGET_S", 0)
+    result = go(repo, runner, verify="true")
+    assert (result.status, result.reason_code) == ("failed", "snapshot_timeout")
+    assert not list((Path.home() / author_isolation.HOMES).glob("*"))
+
+
+def test_a_symlink_to_a_folder_is_recorded_not_followed(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "big.txt").write_text("1")
+    root = tmp_path / "tree"
+    root.mkdir()
+    (root / "link").symlink_to(outside)
+    (root / "loop").symlink_to(".")  # a loop would never end if links were followed
+    first = author_isolation.snapshot(root)
+    assert sorted(first) == ["link", "loop"]
+    (outside / "big.txt").write_text("2")
+    assert author_isolation.diff(first, author_isolation.snapshot(root)) == []
+
+
+def test_retargeting_a_symlink_is_a_change(tmp_path):
+    (tmp_path / "link").symlink_to("a")
+    first = author_isolation.snapshot(tmp_path)
+    (tmp_path / "link").unlink()
+    (tmp_path / "link").symlink_to("b")
+    assert author_isolation.diff(first, author_isolation.snapshot(tmp_path)) == ["link"]
+
+
+def test_a_folder_that_cannot_be_listed_is_an_entry_of_its_own(tmp_path, monkeypatch):
+    (tmp_path / "locked").mkdir()
+    (tmp_path / "a.txt").write_text("a")
+    real = os.scandir
+
+    def scandir(path="."):
+        if str(path).endswith("locked"):
+            raise PermissionError(13, "denied", str(path))
+        return real(path)
+
+    monkeypatch.setattr(os, "scandir", scandir)
+    snap = author_isolation.snapshot(tmp_path)
+    assert snap["locked"] == "special:40000" and "a.txt" in snap
+
+
+# --- the private HOME survives kills, races and odd hosts ----------------------------------------------------------------------
+
+def stale_homes(real_home):
+    return sorted(p.name for p in (real_home / author_isolation.HOMES).glob("*"))
+
+
+def test_a_home_left_by_a_killed_run_is_swept_at_the_next_start_and_a_live_one_is_kept(repo, fake, real_home):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    homes = real_home / author_isolation.HOMES
+    gone = subprocess.Popen(["true"])
+    gone.wait()
+    for name, pid in (("dead", gone.pid), ("live", os.getpid()), ("junk", "not a pid")):
+        (homes / name / ".claude").mkdir(parents=True)
+        (homes / name / ".claude" / ".credentials.json").write_text("{}")
+        (homes / name / ".owner").write_text(str(pid))
+    for name, age in (("nopid-old", 3600), ("nopid-new", 0)):
+        (homes / name).mkdir()
+        os.utime(homes / name, (time.time() - age, time.time() - age))
+    os.utime(homes / "junk", (time.time() - 3600,) * 2)
+    assert go(repo, runner, verify="true").status == "ok"
+    assert stale_homes(real_home) == ["live", "nopid-new"]
+
+
+def test_the_owner_file_holds_the_pid_of_this_process(repo, fake, real_home):
+    scenario, calls, runner = fake
+    seen = []
+
+    async def spy(argv, **kwargs):
+        if argv[0] == "claude":
+            seen.append((Path(kwargs["env"]["HOME"]) / ".owner").read_text())
+        return await runner(argv, **kwargs)
+
+    scenario({"write": {"done.txt": "ok\n"}})
+    go(repo, spy, verify="true")
+    assert seen == [str(os.getpid())]
+
+
+@pytest.mark.parametrize("sig", [signal.SIGTERM, signal.SIGHUP])
+def test_a_termination_signal_still_deletes_the_private_home_and_restores_the_handler(repo, fake, real_home, sig):
+    scenario, _calls, runner = fake
+    before = signal.getsignal(sig)
+    homes = []
+
+    async def killed(argv, **kwargs):
+        homes.append(kwargs["env"]["HOME"])
+        os.kill(os.getpid(), sig)
+        await asyncio.sleep(5)
+
+    with pytest.raises(SystemExit):
+        go(repo, killed)
+    assert not Path(homes[0]).exists() and signal.getsignal(sig) == before
+
+
+def test_no_handler_is_installed_off_the_main_thread(repo, fake, real_home):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    before = signal.getsignal(signal.SIGTERM)
+    out = []
+    worker = threading.Thread(target=lambda: out.append(go(repo, runner, verify="true")))
+    worker.start()
+    worker.join()
+    assert out[0].status == "ok" and signal.getsignal(signal.SIGTERM) == before
+
+
+def test_parallel_runs_never_trip_over_each_other_creating_and_dropping_homes(tmp_path, fake, real_home):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    repos = [make_repo(tmp_path / f"r{i}") for i in range(4)]
+    out, errors = [], []
+
+    def work(path):
+        try:
+            for _ in range(5):
+                out.append(go(path, runner, verify="true", rounds=1).status)
+                (path / "done.txt").unlink()
+        except BaseException as exc:  # noqa: BLE001 - the test reports whatever escaped
+            errors.append(repr(exc))
+
+    threads = [threading.Thread(target=work, args=(path,)) for path in repos]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert errors == [] and out == ["ok"] * 20 and stale_homes(real_home) == []
+
+
+def test_a_host_where_the_home_cannot_be_made_is_a_failed_result(repo, fake, real_home):
+    _scenario, _calls, runner = fake
+    (real_home / ".cache").write_text("a file where the folder should be")
+    result = go(repo, runner, verify="true")
+    assert (result.status, result.reason_code, result.rounds) == ("failed", "home_unavailable", 0) and runner.seen == []
+
+
+def test_a_missing_claude_binary_in_the_sandbox_is_cli_unavailable_before_any_home(repo, fake, real_home, monkeypatch):
+    scenario, calls, runner = fake
+    monkeypatch.setattr(sandbox, "engine", lambda *a, **k: "bwrap")
+    monkeypatch.setattr(author_flow.shutil, "which", lambda name, path=None: None)
+    result = go(repo, runner, verify="true", allow_unsandboxed=False)
+    assert (result.status, result.reason_code, result.rounds) == ("failed", "cli_unavailable", 0)
+    assert runner.seen == [] and not (real_home / author_isolation.HOMES).exists()
 
 
 # --- the CLI --------------------------------------------------------------------------------------------------------------

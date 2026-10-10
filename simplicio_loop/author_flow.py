@@ -7,15 +7,19 @@ the second executor, for tasks a plan cannot carry (mostly fixing simplicio-loop
 2. ``changed`` is the difference between a file system snapshot taken before round 1 and one taken after the CLI
    (``author_isolation``; git is never asked): no change fails the round (``empty_diff``);
 3. a changed path under ``plan_paths.PROTECTED_PATHS`` fails the round (verify is not run on a tree that holds one);
-4. the ``verify`` command runs in the worktree, and a third snapshot catches what IT wrote: the verify command runs the author's
+4. the ``verify`` command runs in the worktree, and a snapshot after it catches what IT wrote: the verify command runs the author's
    code (a conftest), so a protected path it creates fails the round (``protected_path``) even when verify passed. Red output
    goes back as the next correction.
 
+``changed`` in the result is always the original snapshot against the last one taken (after verify, or after a CLI error).
+
 The CLI runs with a private HOME that holds a copy of the login and nothing else (settings it could load are removed before each
-round, and ``--setting-sources user`` never reads the worktree's ``.claude``). The verify command sees an empty HOME. Both run in the
-watcher sandbox with an allowlisted env (no GH_TOKEN): with no sandbox engine the run is refused (``sandbox_unavailable``) unless the
-caller passes ``allow_unsandboxed=True``. Only ``claude`` is supported; the flags in ``author_argv`` were checked against
-``claude --help``. The sandbox keeps the network open: the author's code can reach the network.
+round, and ``--setting-sources user`` never reads the worktree's ``.claude``). The verify command sees an empty HOME. Neither gets an
+API key: the login is the file. Both run in the watcher sandbox with an allowlisted env (no GH_TOKEN) and
+``PYTHONDONTWRITEBYTECODE=1``: with no sandbox engine the run is refused (``sandbox_unavailable``) unless the caller passes
+``allow_unsandboxed=True``. Only ``claude`` is supported; the flags in ``author_argv`` were checked against ``claude --help``. The
+sandbox keeps the network open: the author's code can reach the network. A SIGTERM or SIGHUP on the main thread unwinds the run, so
+the private HOME is deleted; after a SIGKILL the next run sweeps it.
 """
 from __future__ import annotations
 
@@ -23,26 +27,31 @@ import asyncio
 import errno
 import json
 import os
+import shutil
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from . import author_isolation, evidence, model_roles, plan_paths
 from .watcher247 import host_mode, proc, sandbox
 
 FAMILIES = ("claude",)
 ROLE = "coordination"  # the role that edits code and fixes a failing check (squad coordinator)
+# No `git add` / `git commit`: in the sandbox a commit never finishes (read-only .git), and the loop reads files, not git.
 ALLOWED_TOOLS = (
     "Read", "Grep", "Glob", "Edit", "Write", "Bash(python -m pytest:*)", "Bash(python3 -m pytest:*)",
-    "Bash(git status:*)", "Bash(git diff:*)", "Bash(git add:*)", "Bash(git commit:*)",
+    "Bash(git status:*)", "Bash(git diff:*)",
 )
 DISALLOWED_TOOLS = "WebFetch,WebSearch"
 AUTHOR_TIMEOUT_S = 900  # one CLI round
 VERIFY_TIMEOUT_S = 600
+MAX_ROUNDS = 10
 DETAIL_CAP = 1500  # the tail of a failure output kept in one failure
 PROMPT_CAP = 6000  # a whole correction prompt
 USAGE_KEYS = {"input_tokens": "input_tokens", "output_tokens": "output_tokens", "cache_read_tokens": "cache_read_input_tokens"}
+NO_BYTECODE = {"PYTHONDONTWRITEBYTECODE": "1"}  # a .pyc beside a protected module would be code the loop never reads
 
 Runner = Callable[..., Awaitable[proc.Result]]  # proc.run's shape: runner(argv, timeout=, cwd=, env=)
 
@@ -103,23 +112,22 @@ def correction_prompt(failures: list[dict[str, str]]) -> str:
     return ("Your last round did not pass.\n\n" + "\n\n".join(parts))[:PROMPT_CAP]
 
 
-def _usage(stdout: str) -> dict[str, int]:
-    """The integer counters of the CLI envelope's ``usage``; a key the CLI left out (or filled with a non-integer) is absent."""
+def _envelope(stdout: str) -> dict[str, Any] | None:
+    """The CLI's JSON envelope, or None when its output is not a JSON object."""
     try:
-        usage = json.loads(stdout).get("usage")
-    except (ValueError, AttributeError):
-        return {}
+        envelope = json.loads(stdout)
+    except ValueError:
+        return None
+    return envelope if isinstance(envelope, dict) else None
+
+
+def _usage(envelope: dict[str, Any]) -> dict[str, int]:
+    """The integer counters of the envelope's ``usage``; a key the CLI left out (or filled with a non-integer) is absent."""
+    usage = envelope.get("usage")
     if not isinstance(usage, dict):
         return {}
     return {key: usage[source] for key, source in USAGE_KEYS.items()
             if isinstance(usage.get(source), int) and not isinstance(usage[source], bool)}
-
-
-def _envelope_error(stdout: str) -> bool:
-    try:
-        return json.loads(stdout).get("is_error") is True
-    except (ValueError, AttributeError):
-        return False
 
 
 def _protected(changed: list[str], worktree: Path) -> list[str]:
@@ -127,37 +135,45 @@ def _protected(changed: list[str], worktree: Path) -> list[str]:
     return [reason for reason in reasons if reason]
 
 
-async def run_author(task_text: str, worktree: str | os.PathLike[str], *, family: str = "claude", verify: str | None = None,
-                     rounds: int = 3, runner: Runner = proc.run, allow_unsandboxed: bool = False) -> AuthorResult:
-    """Author, verify and correct in ``worktree`` for at most ``rounds`` rounds. A failed round is a result, not an exception."""
-    worktree = Path(worktree)
-    session = str(uuid.uuid4())
-    done = {"changed": [], "usage": {}, "measured": 0}
+class _Run:
+    """One author run: the state a result reports, the sandboxed launches and the snapshots."""
 
-    def result(status: str, n: int, reason: str, failures: list[dict[str, str]]) -> AuthorResult:
-        usage = {**done["usage"], "measured_rounds": done["measured"]} if done["measured"] else None
-        return AuthorResult(status, n, "" if n == 0 else session, done["changed"], failures, usage, reason)
+    def __init__(self, worktree: Path, verify: str | None, rounds: int, runner: Runner, allow_unsandboxed: bool):
+        self.worktree, self.verify, self.rounds, self.runner, self.allow_unsandboxed = worktree, verify, rounds, runner, allow_unsandboxed
+        self.session = str(uuid.uuid4())
+        self.n = 0  # the round in progress; 0 before the first
+        self.changed: list[str] = []
+        self.usage: dict[str, int] = {}
+        self.measured = 0
+        self.before: dict[str, str] = {}
 
-    if family not in FAMILIES:
-        return result("unsupported", 0, "unsupported_family", [{"kind": "unsupported_family", "detail": str(AuthorUnsupported(family))}])
-    if rounds < 1:
-        return result("failed", 0, "bad_rounds", [{"kind": "bad_rounds", "detail": f"rounds must be 1 or more; got {rounds}"}])
-    if not allow_unsandboxed and sandbox.engine() is None:
-        return result("failed", 0, "sandbox_unavailable", [{"kind": "sandbox_unavailable", "detail": "no bwrap on this host"}])
+    def result(self, status: str, reason: str, failures: list[dict[str, str]]) -> AuthorResult:
+        usage = {**self.usage, "measured_rounds": self.measured} if self.measured else None
+        return AuthorResult(status, self.n, "" if self.n == 0 else self.session, self.changed, failures, usage, reason)
 
-    real_home = Path.home()
-    try:
-        home = author_isolation.make_home(real_home, session)
-    except author_isolation.LoginMissing as exc:
-        return result("failed", 0, "claude_login_missing", [{"kind": "claude_login_missing", "detail": str(exc)}])
+    def fail(self, reason: str, detail: str) -> AuthorResult:
+        return self.result("failed", reason, [{"kind": reason, "detail": detail}])
 
-    def wrap(argv: list[str], view: sandbox.HomeView) -> list[str]:
-        return argv if allow_unsandboxed else sandbox.wrap(argv, clone=worktree, state_dir=worktree, home=view)
+    def refusal(self, family: str) -> AuthorResult | None:
+        """The result of a run that must not start (family, rounds, sandbox, binary), or None."""
+        if family not in FAMILIES:
+            return self.result("unsupported", "unsupported_family", [{"kind": "unsupported_family", "detail": str(AuthorUnsupported(family))}])
+        if not 1 <= self.rounds <= MAX_ROUNDS:
+            return self.fail("bad_rounds", f"rounds must be from 1 to {MAX_ROUNDS}; got {self.rounds}")
+        if not self.allow_unsandboxed:
+            if sandbox.engine() is None:
+                return self.fail("sandbox_unavailable", "no bwrap on this host")
+            if shutil.which(family, path=os.environ.get("PATH") or sandbox.DEFAULT_PATH) is None:  # inside bwrap a miss is an opaque exit 1
+                return self.fail("cli_unavailable", f"{family} is not on PATH")
+        return None
 
-    async def launch(argv: list[str], view: sandbox.HomeView, env: dict[str, str], timeout: int):
+    def wrap(self, argv: list[str], view: sandbox.HomeView) -> list[str]:
+        return argv if self.allow_unsandboxed else sandbox.wrap(argv, clone=self.worktree, state_dir=self.worktree, home=view)
+
+    async def launch(self, argv: list[str], view: sandbox.HomeView, env: dict[str, str], timeout: int):
         """(run, None), or (None, (reason_code, detail)) when the process did not start or did not finish."""
         try:
-            return await runner(wrap(argv, view), timeout=timeout, cwd=worktree, env=env), None
+            return await self.runner(self.wrap(argv, view), timeout=timeout, cwd=self.worktree, env=env), None
         except TimeoutError:  # before OSError: it is one
             return None, ("timeout", f"{argv[0]} did not finish in {timeout}s")
         except sandbox.SandboxUnavailable as exc:
@@ -165,47 +181,83 @@ async def run_author(task_text: str, worktree: str | os.PathLike[str], *, family
         except OSError as exc:
             return None, ("argv_too_long" if exc.errno == errno.E2BIG else "cli_unavailable", str(exc))
 
-    resolved = model_roles.resolve(family, ROLE)
-    cli_env = sandbox.scrubbed_env(os.environ, home=home, keep=host_mode.FAMILY_ENV[family])  # HOME is the private one
-    cli_view = sandbox.HomeView(real_home, rw=(str(home.relative_to(real_home)),), ro=host_mode.FAMILY_HOME[family]["ro"])
-    verify_env = sandbox.scrubbed_env(os.environ, home=real_home)  # no provider key; the sandbox shows an empty HOME
-    verify_view = sandbox.HomeView(real_home)
-    prompt = AUTHOR_PREAMBLE.format(protected=", ".join(plan_paths.PROTECTED_PATHS), verify=f"`{verify}`" if verify else "no command") + task_text
+    async def observe(self) -> list[str]:
+        """Take a snapshot now; ``changed`` is the original one against it."""
+        self.changed = author_isolation.diff(self.before, await asyncio.to_thread(author_isolation.snapshot, self.worktree))
+        return self.changed
 
-    try:
-        before = await asyncio.to_thread(author_isolation.snapshot, worktree)
-        for n in range(1, rounds + 1):
+    async def check(self, env: dict[str, str], view: sandbox.HomeView) -> list[dict[str, str]]:
+        """Run verify and look at what it wrote; the failures, none when it is green and planted nothing protected."""
+        run, error = await self.launch(["sh", "-c", self.verify], view, env, VERIFY_TIMEOUT_S)
+        failures = []
+        if error:
+            failures.append({"kind": "verify_failed", "detail": f"{error[0]}: {error[1]}"})
+        elif run.returncode:
+            failures.append({"kind": "verify_failed", "detail": f"exit {run.returncode}\n{run.stdout}\n{run.stderr}"})
+        if planted := _protected(await self.observe(), self.worktree):  # verify ran the author's code after the check that came before it
+            failures.append({"kind": "protected_path", "detail": "\n".join(planted)})
+        return failures
+
+    async def go(self, family: str, task_text: str, home: Path, real_home: Path) -> AuthorResult:
+        resolved = model_roles.resolve(family, ROLE)
+        cli_env = {**sandbox.scrubbed_env(os.environ, home=home), **NO_BYTECODE}  # HOME is the private one; no API key, no GH_TOKEN
+        cli_view = sandbox.HomeView(real_home, rw=(str(home.relative_to(real_home)),), ro=host_mode.FAMILY_HOME[family]["ro"])
+        verify_env = {**sandbox.scrubbed_env(os.environ, home=real_home), **NO_BYTECODE}  # the sandbox shows an empty HOME
+        verify_view = sandbox.HomeView(real_home)
+        prompt = (AUTHOR_PREAMBLE.format(protected=", ".join(plan_paths.PROTECTED_PATHS), verify=f"`{self.verify}`" if self.verify else "no command")
+                  + task_text)
+        self.before = await asyncio.to_thread(author_isolation.snapshot, self.worktree)
+        failures: list[dict[str, str]] = []
+        for self.n in range(1, self.rounds + 1):
             author_isolation.reset_config(home)
-            argv = author_argv(family, prompt, session=session, resume=n > 1, model=resolved["model"], effort=resolved["effort"])
-            run, error = await launch(argv, cli_view, cli_env, AUTHOR_TIMEOUT_S)
+            argv = author_argv(family, prompt, session=self.session, resume=self.n > 1, model=resolved["model"], effort=resolved["effort"])
+            run, error = await self.launch(argv, cli_view, cli_env, AUTHOR_TIMEOUT_S)
             if error:
-                return result("failed", n, error[0], [{"kind": error[0], "detail": error[1]}])
-            counters = _usage(run.stdout)
+                await self.observe()
+                return self.fail(*error)
+            envelope = _envelope(run.stdout)
+            counters = _usage(envelope or {})
             for key, value in counters.items():
-                done["usage"][key] = done["usage"].get(key, 0) + value
-            done["measured"] += bool(counters)
-            if run.returncode or _envelope_error(run.stdout):
-                return result("failed", n, "cli_error", [{"kind": "cli_error", "detail": _tail(f"{run.stdout}\n{run.stderr}")}])
+                self.usage[key] = self.usage.get(key, 0) + value
+            self.measured += bool(counters)
+            if run.returncode or (envelope or {}).get("is_error") is True:
+                await self.observe()
+                return self.fail("cli_error", _tail(f"{run.stdout}\n{run.stderr}"))
+            if envelope is None:
+                await self.observe()
+                return self.fail("bad_envelope", _tail(f"the CLI exited 0 without a JSON object:\n{run.stdout}"))
 
-            changed = author_isolation.diff(before, await asyncio.to_thread(author_isolation.snapshot, worktree))
-            done["changed"] = changed
-            failures: list[dict[str, str]] = []
+            changed = await self.observe()
+            failures = []
             if not changed:
                 failures.append({"kind": "empty_diff", "detail": ""})
-            elif reasons := _protected(changed, worktree):
+            elif reasons := _protected(changed, self.worktree):
                 failures.append({"kind": "protected_path", "detail": "\n".join(reasons)})
-            elif verify:
-                check, error = await launch(["sh", "-c", verify], verify_view, verify_env, VERIFY_TIMEOUT_S)
-                if error:
-                    failures.append({"kind": "verify_failed", "detail": f"{error[0]}: {error[1]}"})
-                elif check.returncode:
-                    failures.append({"kind": "verify_failed", "detail": f"exit {check.returncode}\n{check.stdout}\n{check.stderr}"})
-                planted = _protected(author_isolation.diff(before, await asyncio.to_thread(author_isolation.snapshot, worktree)), worktree)
-                if planted:  # the verify command ran the author's code after the check above
-                    failures.append({"kind": "protected_path", "detail": "\n".join(planted)})
+            elif self.verify:
+                failures = await self.check(verify_env, verify_view)
             if not failures:
-                return result("ok", n, "ok" if verify else "ok_unverified", [])
+                return self.result("ok", "ok" if self.verify else "ok_unverified", [])
             prompt = correction_prompt(failures)
-        return result("failed", rounds, failures[-1]["kind"], [{**f, "detail": _tail(f["detail"])} for f in failures])
-    finally:
-        author_isolation.drop_home(real_home, home)
+        return self.result("failed", failures[-1]["kind"], [{**f, "detail": _tail(f["detail"])} for f in failures])
+
+
+async def run_author(task_text: str, worktree: str | os.PathLike[str], *, family: str = "claude", verify: str | None = None,
+                     rounds: int = 3, runner: Runner = proc.run, allow_unsandboxed: bool = False) -> AuthorResult:
+    """Author, verify and correct in ``worktree`` for at most ``rounds`` rounds. A failed round is a result, not an exception."""
+    run = _Run(Path(worktree), verify, rounds, runner, allow_unsandboxed)
+    if refused := run.refusal(family):
+        return refused
+    real_home = Path.home()
+    with author_isolation.terminating():  # a SIGTERM raises SystemExit here, and the finally below runs
+        try:
+            home = author_isolation.make_home(real_home, run.session)
+        except author_isolation.LoginMissing as exc:
+            return run.fail("claude_login_missing", str(exc))
+        except OSError as exc:
+            return run.fail("home_unavailable", f"cannot make the private HOME: {exc}")
+        try:
+            return await run.go(family, task_text, home, real_home)
+        except author_isolation.SnapshotTimeout as exc:
+            return run.fail("snapshot_timeout", str(exc))
+        finally:
+            author_isolation.drop_home(home)

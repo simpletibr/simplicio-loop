@@ -12,13 +12,10 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from .author_flow import AuthorResult, run_author
+from .author_flow import MAX_ROUNDS, AuthorResult, run_author
 
 EXIT_STATUS = {"ok": 0, "failed": 3, "unsupported": 69}
 EXIT_USAGE = 2
-
-
-MAX_ROUNDS = 10
 
 
 def _rounds(text: str) -> int:

@@ -2,14 +2,24 @@
 
 ``snapshot`` maps every path of the worktree to a digest, so ``changed`` is what the files say, whatever git is told (a new
 ``.gitignore``, ``update-index --assume-unchanged`` and a ``.git`` file that points elsewhere hide nothing). It does not follow
-symlinks (a link is its target text), and it records the mode. It skips ``__pycache__``, ``.pytest_cache`` and the ``.git``
-folder, which git itself rewrites on every ``add`` and ``commit``; of ``.git`` it keeps ``config`` and ``hooks/``, the two places
-that run a program on the host. A ``.git`` FILE (a linked worktree) is an ordinary entry: pointing it elsewhere is a change.
+symlinks (a link is its target text), and it records the mode. Of ``.git`` it skips everything git rewrites on every ``add`` and
+``commit`` and keeps ``config`` and ``hooks/``, the two places that run a program on the host. A ``.git`` FILE (a linked worktree)
+is an ordinary entry: pointing it elsewhere is a change.
+
+``__pycache__`` and ``.pytest_cache`` are in the snapshot, but ``diff`` leaves their entries out of ``changed`` unless they match
+``plan_paths.protected_refusal``: python imports an UNCHECKED_HASH ``.pyc`` without reading its ``.py``, so a ``.pyc`` beside a protected
+module is a protected change. The CLI and the verify command run with ``PYTHONDONTWRITEBYTECODE=1``, so the ``.pyc`` files they leave
+are none.
+
+A file over ``BIG_FILE`` is not hashed (the author can make a sparse file of any size with the pytest it may run): it is recorded as
+``big:<mode>:<size>:<mtime_ns>:<inode>``. A same-size rewrite of a big file that keeps its mtime and inode is not seen; no protected
+path is that big. The whole snapshot has a time budget (``SnapshotTimeout``).
 
 The CLI gets a private HOME under the real HOME (``.cache/simplicio-loop-author/<run>``) holding only a copy of the login. It is not
 inside the worktree: the sandbox binds the whole worktree read-write for the verify command too, and the verify command runs the
 author's code, so the login must be visible to the CLI alone. The sandbox binds this folder (``HomeView.rw``) for the CLI and
-nothing else; the real HOME is an empty tmpfs for both.
+nothing else; the real HOME is an empty tmpfs for both. A run that dies without cleaning (SIGKILL) leaves its HOME with a
+``.owner`` file; the next run sweeps every HOME whose owner pid is gone.
 """
 from __future__ import annotations
 
@@ -17,38 +27,58 @@ import contextlib
 import hashlib
 import os
 import shutil
+import signal
 import stat
+import threading
+import time
+from collections.abc import Iterator
 from pathlib import Path
 
-SKIP_DIRS = frozenset({"__pycache__", ".pytest_cache"})
+from . import plan_paths
+
+CACHE_DIRS = frozenset({"__pycache__", ".pytest_cache"})
 GIT_KEPT = (".git/config", ".git/hooks")
+BIG_FILE = 64 << 20  # bytes; above this a file is recorded by size, mtime and inode
+SNAPSHOT_BUDGET_S = 120.0
 HOMES = Path(".cache") / "simplicio-loop-author"
 LOGIN = Path(".claude") / ".credentials.json"
+OWNER = ".owner"
+UNOWNED_GRACE_S = 60  # a HOME with no readable owner file is stale only after this long (its owner may be writing the file)
 # What the CLI could load from its HOME and run, rebuilt away before every round (the login and the transcripts stay).
 CLAUDE_CONFIG = ("settings.json", "settings.local.json", "CLAUDE.md", "hooks", "agents", "commands", "skills", "plugins")
+TERMINATION = tuple(getattr(signal, name) for name in ("SIGTERM", "SIGHUP") if hasattr(signal, name))
 
 
 class LoginMissing(Exception):
     """The real HOME has no login to copy: nothing runs."""
 
 
-def _digest(path: str) -> str:
+class SnapshotTimeout(Exception):
+    """The snapshot did not finish inside its time budget."""
+
+
+def _digest(path: str, deadline: float) -> str:
     info = os.lstat(path)
     if stat.S_ISLNK(info.st_mode):
         return "link:" + os.readlink(path)
     if not stat.S_ISREG(info.st_mode):
         return f"special:{stat.S_IFMT(info.st_mode):o}"
+    mode = stat.S_IMODE(info.st_mode)
+    if info.st_size > BIG_FILE:
+        return f"big:{mode:o}:{info.st_size}:{info.st_mtime_ns}:{info.st_ino}"
     sha = hashlib.sha256()
     try:
         with open(path, "rb") as handle:
             for chunk in iter(lambda: handle.read(1 << 20), b""):
                 sha.update(chunk)
+                if time.monotonic() >= deadline:
+                    raise SnapshotTimeout(f"snapshot over its budget while reading {path}")
     except OSError as exc:
         return f"unreadable:{exc.errno}"
-    return f"{stat.S_IMODE(info.st_mode):o}:{sha.hexdigest()}"
+    return f"{mode:o}:{sha.hexdigest()}"
 
 
-def _entries(root: str):
+def _entries(root: str) -> Iterator[str]:
     """Absolute paths of the files and symlinks the snapshot covers."""
     unreadable: list[str] = []  # a folder the walk cannot list would hide what is in it: it is an entry of its own
     for folder, dirs, files in os.walk(root, followlinks=False, onerror=lambda exc: unreadable.append(exc.filename)):
@@ -58,8 +88,8 @@ def _entries(root: str):
         for name in dirs:
             if os.path.islink(os.path.join(folder, name)):  # walk lists a link to a folder as a folder and does not enter it
                 yield os.path.join(folder, name)
-        dirs[:] = [name for name in dirs if name not in SKIP_DIRS and not (git and name == ".git")]
         if git:
+            dirs[:] = [name for name in dirs if name != ".git"]
             for kept in GIT_KEPT:
                 path = os.path.join(root, kept)
                 if os.path.isfile(path):
@@ -69,41 +99,79 @@ def _entries(root: str):
     yield from unreadable
 
 
-def snapshot(root: str | os.PathLike[str]) -> dict[str, str]:
-    """``{relative posix path: digest}`` of the worktree."""
+def snapshot(root: str | os.PathLike[str], budget_s: float | None = None) -> dict[str, str]:
+    """``{relative posix path: digest}`` of the worktree. ``SnapshotTimeout`` after ``budget_s`` (default ``SNAPSHOT_BUDGET_S``)."""
     base = os.fspath(root)
-    return {os.path.relpath(path, base).replace(os.sep, "/"): _digest(path) for path in _entries(base)}
+    deadline = time.monotonic() + (SNAPSHOT_BUDGET_S if budget_s is None else budget_s)
+    out: dict[str, str] = {}
+    for path in _entries(base):
+        if time.monotonic() >= deadline:
+            raise SnapshotTimeout(f"snapshot over its budget at {path}")
+        out[os.path.relpath(path, base).replace(os.sep, "/")] = _digest(path, deadline)
+    return out
+
+
+def _cache_noise(path: str) -> bool:
+    """A cache entry that does not shadow a protected module."""
+    return not CACHE_DIRS.isdisjoint(path.split("/")[:-1]) and plan_paths.protected_refusal(path) is None
 
 
 def diff(before: dict[str, str], after: dict[str, str]) -> list[str]:
-    """Paths created, changed or deleted between two snapshots."""
-    return sorted(path for path in before.keys() | after.keys() if before.get(path) != after.get(path))
+    """Paths created, changed or deleted between two snapshots (python's own cache files left out unless they are protected)."""
+    return sorted(path for path in before.keys() | after.keys() if before.get(path) != after.get(path) and not _cache_noise(path))
+
+
+def _owner_alive(home: Path) -> bool:
+    try:
+        pid = int((home / OWNER).read_text())
+    except (OSError, ValueError):
+        try:
+            return time.time() - home.stat().st_mtime < UNOWNED_GRACE_S
+        except OSError:
+            return False
+    if pid <= 0:  # kill(0, ...) would signal a whole process group
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def sweep(real_home: Path) -> None:
+    """Delete the private HOMES whose owner is gone (a killed run cannot clean its own)."""
+    with contextlib.suppress(OSError):
+        for home in (real_home / HOMES).iterdir():
+            if not _owner_alive(home):
+                shutil.rmtree(home, ignore_errors=True)
 
 
 def make_home(real_home: Path, name: str) -> Path:
-    """A private HOME (0700) with a 0600 copy of the login. ``LoginMissing`` when the real HOME has none."""
+    """A private HOME (0700) with a 0600 copy of the login and the pid of this process. ``LoginMissing`` when there is no login."""
     source = real_home / LOGIN
     if not source.is_file():
         raise LoginMissing(f"{source} not found: log in to claude first")
-    (real_home / HOMES).mkdir(parents=True, exist_ok=True, mode=0o700)
+    sweep(real_home)
+    (real_home / HOMES).mkdir(parents=True, exist_ok=True, mode=0o700)  # on every creation: a parallel run may have emptied it
     home = real_home / HOMES / name
     try:
         home.mkdir(mode=0o700)
+        (home / OWNER).write_text(str(os.getpid()))
         (home / LOGIN.parent).mkdir(mode=0o700)
         fd = os.open(home / LOGIN, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(fd, "wb") as target:
             target.write(source.read_bytes())
     except BaseException:
-        drop_home(real_home, home)
+        drop_home(home)
         raise
     return home
 
 
-def drop_home(real_home: Path, home: Path) -> None:
-    """Delete the private HOME, and the folder of the private HOMES when it is the last one."""
+def drop_home(home: Path) -> None:
+    """Delete the private HOME. The folder that holds the HOMES stays: another run may be using it."""
     shutil.rmtree(home, ignore_errors=True)
-    with contextlib.suppress(OSError):
-        (real_home / HOMES).rmdir()  # fails (and stays) while another run uses it
 
 
 def reset_config(home: Path) -> None:
@@ -115,3 +183,22 @@ def reset_config(home: Path) -> None:
         else:
             with contextlib.suppress(OSError):
                 target.unlink()
+
+
+@contextlib.contextmanager
+def terminating() -> Iterator[None]:
+    """On the main thread, SIGTERM and SIGHUP raise ``SystemExit`` so the ``finally`` of the caller runs; the old handlers come back."""
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+
+    def stop(signum: int, _frame: object) -> None:
+        raise SystemExit(128 + signum)
+
+    saved = {sig: signal.signal(sig, stop) for sig in TERMINATION}
+    try:
+        yield
+    finally:
+        for sig, handler in saved.items():
+            if handler is not None:  # None: it was installed from C and cannot be set back from Python
+                signal.signal(sig, handler)
