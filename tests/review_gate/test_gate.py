@@ -172,9 +172,11 @@ def test_the_sandbox_wrapper_is_built_for_the_head_tree_and_wraps_every_pytest_r
     # each run wrapped for the tree it runs in (the sandbox chdirs there): redgreen head+main, line_coverage probe+run, mutation x3
     assert [root.name for root, _ in seen] == ["head", "base", "head", "head", "head", "head", "head"]
     assert all(root.parent.name == f"pr-11-{run.head[:7]}" for root, _ in seen)
-    assert all(argv[1] == "-c" for _, argv in seen)
-    assert [argv[2] == "import coverage" for _, argv in seen].count(True) == 1  # the one probe; every other run is a pytest run
-    assert all("pytest.main" in argv[2] for _, argv in seen if argv[2] != "import coverage")
+    code = [argv[argv.index("-c") + 1] for _, argv in seen]  # every run is `python [-P] -c <code>`, the code after the flag
+    assert all("-c" in argv for _, argv in seen)
+    assert code.count("import coverage") == 1  # the one probe; every other run is a pytest run
+    assert all("pytest.main" in c for c in code if c != "import coverage")
+    assert [argv[1] for _, argv in seen[2:4]] == ["-P", "-P"]  # line_coverage's probe and run import from the interpreter's own path
     assert len(seen) == 2 + 2 + 3  # redgreen on head and on main, line_coverage probe and run, the unmutated tree, two mutants
 
 
