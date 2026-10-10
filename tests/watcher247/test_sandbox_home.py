@@ -244,7 +244,8 @@ def test_the_table_has_only_folders_and_binaries_under_home():
 def test_the_planner_argv_starts_with_the_family_name():
     """host_mode picks the HOME view from argv[0], because exec_planner hands the wrapper only the argv."""
     for family in exec_planner.SUPPORTED_FAMILIES:
-        assert exec_planner.build_argv(family, "planning", "p", "default", "/x", "low")[0] == family
+        argv = exec_planner.build_argv(family, "planning", "p", "default", "/x", "low", schema_file="/s/p.json")
+        assert argv[0] == family
 
 
 def test_planner_wrap_gives_each_family_its_own_home_view(tmp_path, monkeypatch):
