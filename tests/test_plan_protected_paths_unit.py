@@ -264,6 +264,12 @@ def test_a_dotdot_cannot_climb_above_the_first_component():
     assert plan_paths.protected_refusal("a/b/../../src/x") is None
 
 
+@pytest.mark.parametrize("path", ["", ".", "./", "/", "a/..", "sub/../.", " "])
+def test_a_path_with_no_component_is_no_protected_path(path):
+    """The root holds everything, but `refusal` turns such a path away as unsafe_path; this check does not guess."""
+    assert plan_paths.protected_refusal(path) is None
+
+
 def test_the_config_path_the_gate_reads_is_protected():
     assert plan_paths.protected_refusal(intake_gate.CONFIG_PATH).startswith("protected_path:")
 

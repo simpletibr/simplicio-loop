@@ -135,6 +135,33 @@ sandbox"): o login de outro CLI, `~/.ssh`, `~/.config/gh`, `~/.aws` e `~/.simpli
 comando exato que corrige, por exemplo `sudo -u simplicio-loop -H codex login`. Exit 0 quando todos estao ok, 1 caso
 contrario. Nao le nem imprime token. O mesmo estado derruba o tick com `login_missing:<cli>`.
 
+## Caminhos protegidos (`plan_paths.PROTECTED_PATHS`, issue #1567)
+
+Alguns arquivos controlam o próprio watcher ou a esteira de entrega. Um plano que os edite deixa o passo seguinte aprovar a
+própria mudança. Por isso nenhum plano cria, edita, move ou apaga um deles. O portão fica em `plan_paths.operations_refusal`,
+que `turbo.apply_plan`, o `apply` e o runner chamam antes do dev-cli. A razão é sempre `protected_path: '<caminho>' touches
+protected '<entrada>'`.
+
+| entrada | por que |
+|---|---|
+| `.github` (workflows, templates, `CODEOWNERS`), `CODEOWNERS`, `docs/CODEOWNERS` | a esteira e quem revisa |
+| `.simplicio-loop` | `loop.toml` (opt-in, autores, `verify`) e o estado do loop |
+| `packaging/systemd`, `scripts/check.py` | a unidade do serviço e o CI local |
+| `hooks`, `plugin/hooks`, `simplicio_loop/_bundle/hooks` | os hooks que o host roda (portão de ação, parada, pre-commit) |
+| `simplicio_loop/plan_paths.py`, `intake_gate.py` | este portão e o opt-in do repo |
+| `watcher247/sandbox.py`, `secret_scan.py`, `prompt_guard.py`, `env_guard.py`, `squad_flow.py` | isolamento, segredos, injeção e revisão do squad |
+| `watcher247/points/judge.py`, `points/delivery_gate.py` | o juiz e o portão de entrega |
+
+- Uma entrada vale para ela mesma e para tudo abaixo dela. Um diretório que contém uma entrada (`packaging`, `plugin`,
+  `simplicio_loop`) também conta, porque mover ou apagar o pai levaria o arquivo junto.
+- O caminho é comparado como o sistema de arquivos o lê: caixa, `\`, `.`, `..`, pontos e espaços no fim, caracteres de largura
+  zero e formas de compatibilidade (ponto de largura total). Os symlinks são seguidos antes: `ln -s .github x` não abre `x/workflows/ci.yml`.
+- Só a escrita é recusada. Um plano ainda pode pedir um trecho (`need`) de um arquivo protegido.
+- Um humano muda esses arquivos com um commit e um PR dele, revisados como os demais. Não existe rótulo nem variável de
+  ambiente que libere um plano. Um link físico para um arquivo protegido não é visto (o dev-cli troca o arquivo em vez de
+  escrever através dele, medido).
+- Um teste falha se uma entrada deixar de existir no repo, para que um rename não tire a proteção em silêncio.
+
 ## Isolamento do sandbox (`watcher247/sandbox.py`, issue #1563)
 
 Todo subprocesso do watcher (planner, `turbo --apply`, git, testes do merge train, pontos de extensão) roda sob `bwrap`
