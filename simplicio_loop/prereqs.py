@@ -19,7 +19,7 @@ import shutil
 import subprocess
 import sys
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Optional
 
@@ -72,9 +72,10 @@ class Action:
     name: str
     result: str  # unchanged | installed | would-install | skipped | failed
     detail: str  # for "skipped": the exact command to run; never a secret
+    sha256: Optional[str] = field(default=None, compare=False)  # of the bytes written by an install, taken at that moment
 
     def as_dict(self) -> dict:
-        return asdict(self)
+        return {"name": self.name, "result": self.result, "detail": self.detail}
 
 
 # --- looking --------------------------------------------------------------------------------------------------------
@@ -88,6 +89,9 @@ def _run(argv: Sequence[str], timeout: float = TIMEOUT_S) -> tuple[Optional[int]
     except (OSError, subprocess.TimeoutExpired):
         return None, ""
     return done.returncode, (done.stdout + done.stderr)[:4096]
+
+
+run_command = _run  # what `setup_cli` wraps to check a file again right before it runs
 
 
 def _is_root() -> bool:
@@ -252,18 +256,19 @@ def _install_release(tool: str, where: _Where, dry_run: bool) -> Action:
     if dry_run:
         return Action(tool, "would-install", f"{dest} from the official {tool} release (SHA256 checked)")
     repo = "cli/cli" if tool == "gh" else "astral-sh/uv"
+    written: list[str] = []
     try:
         tag = json.loads(where.get(f"https://api.github.com/repos/{repo}/releases/latest")).get("tag_name")
         if not isinstance(tag, str) or not _TAG.fullmatch(tag):
             raise FetchError("bad_response", f"the latest {tool} release has no usable tag")
         archive, sums_url, archive_url, member = _release_files(tool, tag, *target)
         result = install_binary(archive_url=archive_url, archive_name=archive, checksums_url=sums_url, member=member,
-                                dest=dest, get=where.get)
+                                dest=dest, get=where.get, on_installed=written.append)
     except FetchError as exc:
         return Action(tool, "failed", f"{exc.reason_code}: {exc}")
     except (ValueError, AttributeError):
         return Action(tool, "failed", "bad_response: the release answer is not JSON")
-    return Action(tool, result, f"{tag} {dest} (SHA256 checked)")
+    return Action(tool, result, f"{tag} {dest} (SHA256 checked)", written[0] if result == "installed" and written else None)
 
 
 def _install_python(uv: Optional[Check], where: _Where, run: Run, dry_run: bool) -> list[Action]:

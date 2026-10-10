@@ -1,12 +1,19 @@
 """Fakes of the `setup` steps, shared by the flow tests and the wiring tests (#1588)."""
 from __future__ import annotations
 
+import hashlib
 import io
+from dataclasses import replace
+from pathlib import Path
 
 from simplicio_loop import github_cred, host_detect, prereqs, setup_cli
 
 TOKEN = "ghp_FAKEFAKEFAKEFAKEFAKE0042"
 OTHER_TOKEN = "ghp_FAKEFAKEFAKEFAKEFAKE0043"
+
+
+def sha256_of(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest() if Path(path).is_file() else None
 
 
 def check(name, status="ok", required=True, fix=""):
@@ -40,6 +47,7 @@ class Fakes:
         self.stdin_text = ""
         self.ask_value = TOKEN
         self.during_resolve = None  # called inside the GitHub step: lets a test change a file mid-run
+        self.after_ensure = None  # called when the install is done, before `ensure` returns
 
     def seams(self):
         def detect(environ, **_):
@@ -52,7 +60,12 @@ class Fakes:
 
         def ensure(checks, **kw):
             self.calls.append(("ensure", dict(kw)))
-            return list(self.actions)
+            bin_dir = Path(kw["environ"]["HOME"]) / ".local" / "bin"
+            actions = [replace(a, sha256=sha256_of(bin_dir / a.name)) if a.result == "installed" and a.sha256 is None else a
+                       for a in self.actions]  # the real `ensure` hashes the bytes it installed, before it returns
+            if self.after_ensure:
+                self.after_ensure()
+            return actions
 
         def resolve(environ, **kw):
             self.calls.append(("resolve", {k: v for k, v in kw.items() if k != "state_dir"}))

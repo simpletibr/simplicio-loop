@@ -173,6 +173,9 @@ def _run(argv: list[str], env: dict[str, str], input_text: Optional[str], cwd: O
     return done.returncode, done.stdout
 
 
+run_command = _run  # what `setup_cli` wraps to check a file again right before it runs
+
+
 def _child_env(environ: Mapping[str, str], **extra: str) -> dict[str, str]:
     env = {name: environ[name] for name in _CHILD_ENV if name in environ}
     if "PATH" in env:
