@@ -175,7 +175,7 @@ def test_a_model_without_a_price_makes_its_task_cost_unverified_with_the_reason(
     assert view['breakdown']['by_task'][0]['tokens'] == 10
 
 
-def test_agent_map_comes_from_worker_claimed_events_and_slots_stay_unverified():
+def test_agent_map_comes_from_worker_claimed_events_and_the_slots_are_not_an_event():
     events = [
         _ev(1, 'worker_claimed', {'lease_id': 'L1', 'branch': 'feat/a'}, lane='coder', task_id='T1'),
         _ev(2, 'worker_claimed', {'lease_id': 'L2'}, lane='coder', task_id='T2'),
@@ -187,7 +187,7 @@ def test_agent_map_comes_from_worker_claimed_events_and_slots_stay_unverified():
     assert lanes['state'] == 'PASS'
     tester = _by(agent_map['lanes'], 'tester')
     assert tester['claims'] == 1 and tester['lease_ids'] == [] and tester['lease_reason']
-    assert agent_map['slots']['state'] == 'UNVERIFIED' and agent_map['slots']['reason']
+    assert 'slots' not in agent_map  # instances and slots come from the Mapper store (dashboard/agent_map.py), not from events
     assert agent_map['state'] == 'PASS'
 
 

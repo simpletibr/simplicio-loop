@@ -223,6 +223,19 @@ class _Store:
                 'state': 'live' if live else 'stale', 'beats': beats,
                 'expired': state != 'active' or expires <= now}, None
 
+    def read(self, sql: str, params: tuple = ()) -> tuple[list[tuple] | None, str | None]:
+        '''Rows of one parameterised read-only query, or the reason the store cannot be read (remembered for the whole request).'''
+        if self._down:
+            return None, self._down
+        if not self.database.is_file():
+            self._down = f'{self.database.name} ausente'
+            return None, self._down
+        try:
+            return self._connect().execute(sql, params).fetchall(), None
+        except sqlite3.Error as exc:
+            self._down = f'store não lido: {exc}'
+            return None, self._down
+
 
 def _lane_row(lane: str, lease_id: str, leases: list[dict[str, Any]], failure: str | None, now: float,
               store: _Store | None = None) -> dict[str, Any]:
@@ -370,7 +383,8 @@ def _running_command(ordered: list[dict[str, Any]], now: float) -> dict[str, Any
 
 def extras(run_dir: str | Path, events: Iterable[Any], backlog_path: str | Path | None = None,
            now: float | None = None) -> dict[str, Any]:
-    '''The run's extras: last measured command, the command running now, declared tasks, model per lane and lane lease heartbeats.
+    '''The run's extras: last measured command, the command running now, declared tasks, model per lane, the measured token series
+    (the sparkline) and lane lease heartbeats.
 
     Only dashboard events are read, in ascending seq order, so the latest record wins. ``now`` (epoch seconds, default
     the wall clock) is the clock the heartbeat age is measured against; ``backlog_path`` overrides the backlog file.
@@ -378,5 +392,5 @@ def extras(run_dir: str | Path, events: Iterable[Any], backlog_path: str | Path 
     ordered = sorted((e for e in events if isinstance(e, dict) and e.get('schema') == EVENT_SCHEMA), key=_seq)
     current = time.time() if now is None else float(now)
     return {'schema': SCHEMA, 'last_command': _last_command(ordered), 'running_command': _running_command(ordered, current),
-            'tasks': _tasks(run_dir), 'models': _models(ordered),
+            'tasks': _tasks(run_dir), 'models': _models(ordered), 'tokens_series': budget.token_series(ordered),
             'heartbeat': _heartbeat(_lane_claims(ordered), _beat_rows(ordered, current), run_dir, backlog_path, current)}
