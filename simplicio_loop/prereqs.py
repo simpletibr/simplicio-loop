@@ -11,11 +11,13 @@ Nothing runs through a shell. A tool that is already there is never replaced.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import platform as platform_module
 import re
 import shutil
+import stat
 import subprocess
 import sys
 from collections.abc import Callable, Mapping, Sequence
@@ -271,6 +273,24 @@ def _install_release(tool: str, where: _Where, dry_run: bool) -> Action:
     return Action(tool, result, f"{tag} {dest} (SHA256 checked)", written[0] if result == "installed" and written else None)
 
 
+def _expect(path: str, sha256: str, inner: Run) -> Run:
+    """`inner` that refuses to start `path` when its bytes are no longer `sha256`; the refusal looks like a program that did not start."""
+    def run(argv: Sequence[str], timeout: float = TIMEOUT_S) -> tuple[Optional[int], str]:
+        if argv and str(argv[0]) == path:
+            try:
+                fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+            except OSError:
+                return None, ""
+            try:
+                with os.fdopen(fd, "rb") as handle:
+                    if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode) or hashlib.file_digest(handle, "sha256").hexdigest() != sha256:
+                        return None, ""
+            except OSError:
+                return None, ""
+        return inner(argv, timeout)
+    return run
+
+
 def _install_python(uv: Optional[Check], where: _Where, run: Run, dry_run: bool) -> list[Action]:
     command = f"uv python install {PY_TARGET}"
     if dry_run:
@@ -284,6 +304,8 @@ def _install_python(uv: Optional[Check], where: _Where, run: Run, dry_run: bool)
         if actions[-1].result != "installed":
             return actions
         uv_path = str(where.exe("uv"))
+        if actions[-1].sha256:
+            run = _expect(uv_path, actions[-1].sha256, run)  # the file this run wrote must still be the bytes it wrote
     code, _ = run([uv_path, "python", "install", PY_TARGET], INSTALL_TIMEOUT_S)
     if code != 0:
         return actions + [Action("python", "failed", f"`{command}` did not finish (exit {code})")]

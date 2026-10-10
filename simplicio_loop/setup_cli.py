@@ -262,7 +262,8 @@ def _prereq_step(options: Options, environ: Mapping[str, str], seams: Seams, nod
     from . import prereqs
     checks = seams.check_all(environ, node_for=node_for, trusted=_paths(environ, vouched),
                              run=_pinned(environ, vouched, prereqs.run_command))
-    actions = seams.ensure(checks, yes=options.yes, dry_run=options.check or options.dry_run, environ=environ)
+    actions = seams.ensure(checks, yes=options.yes, dry_run=options.check or options.dry_run, environ=environ,
+                           run=_pinned(environ, vouched, prereqs.run_command))  # `uv python install` and `find` run the approved uv
     bin_dir = _bin_dir(environ)
     fresh = {a.name: a.sha256 for a in actions if a.result == "installed" and a.name in INSTALLED_TOOLS and a.sha256
              and _private_dir(bin_dir) and _digest(bin_dir / _exe(a.name)) == a.sha256}
@@ -357,6 +358,14 @@ def _loose_parent(path: str) -> Optional[str]:
     return None
 
 
+def _owned(folder: str) -> bool:
+    """The current user owns `folder`, so `chmod` on it can work."""
+    try:
+        return os.stat(folder).st_uid == os.geteuid()
+    except (OSError, AttributeError):
+        return False
+
+
 def _ignored_fix(path: str, reason: str) -> str:
     """What to do about a program in a PATH entry that is not searched. Every path is quoted for a shell.
 
@@ -371,11 +380,13 @@ def _ignored_fix(path: str, reason: str) -> str:
         return f"its folder belongs to another user, so you cannot make it private. Install it where only root writes, for example {install}"
     if reason == "writable_parent":
         parent = _loose_parent(path)
-        if parent is not None:
+        if parent is not None and _owned(parent):
             return (f"a folder above it can be rewritten by anyone: remove that write permission (`chmod o-w {shlex.quote(parent)}`), "
                     f"or install it where only root writes, for example {install}")
         return f"a folder above it can be rewritten by anyone. Install it where only root writes, for example {install}"
-    return f"make its folder private (`chmod go-w {shlex.quote(folder)}`), or move the program to /usr/local/bin"
+    if _owned(folder):
+        return f"make its folder private (`chmod go-w {shlex.quote(folder)}`), or move the program to /usr/local/bin"
+    return f"its folder can be rewritten by anyone and is not yours, so you cannot make it private. Install it where only root writes, for example {install}"
 
 
 def _ignored_line(row: Mapping[str, str]) -> str:

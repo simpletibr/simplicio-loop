@@ -67,9 +67,48 @@ def test_every_path_in_a_fix_is_one_shell_word():
         assert {w for w in words if "/" in w} <= allowed, reason
 
 
-def test_writable_by_others_is_fixed_by_making_the_folder_private():
-    words = fix_of("x Fix: " + setup_cli._ignored_fix("/tmp/a b/claude", "writable_by_others"))
-    assert words == ["chmod", "go-w", "/tmp/a b"]
+def not_mine(monkeypatch):
+    """The current user is somebody else than the owner of every folder."""
+    monkeypatch.setattr(os, "geteuid", lambda: os.stat(os.sep).st_uid + 4242)
+
+
+def test_writable_by_others_is_fixed_by_making_the_folder_private(tmp_path):
+    folder = tmp_path / "a b"
+    folder.mkdir()
+    words = fix_of("x Fix: " + setup_cli._ignored_fix(str(folder / "claude"), "writable_by_others"))
+    assert words == ["chmod", "go-w", str(folder)]
+
+
+def test_a_writable_folder_of_another_user_is_not_fixed_with_chmod(tmp_path, monkeypatch):
+    folder = tmp_path / "other"
+    folder.mkdir()
+    not_mine(monkeypatch)
+    fix = setup_cli._ignored_fix(str(folder / "claude"), "writable_by_others")
+    assert "chmod" not in fix and "go-w" not in fix
+    assert fix_of("x Fix: " + fix) == ["sudo", "install", "-m", "755", str(folder / "claude"), "/usr/local/bin/claude"]
+
+
+def test_a_writable_parent_of_another_user_is_not_fixed_with_chmod(tmp_path, monkeypatch):
+    parent = tmp_path / "wr par"
+    parent.mkdir()
+    parent.chmod(0o777)
+    claude = put_exe(parent / "bin")
+    assert setup_cli._loose_parent(str(claude)) == str(parent)
+    assert ["chmod", "o-w", str(parent)] == fix_of("x Fix: " + setup_cli._ignored_fix(str(claude), "writable_parent"))
+    not_mine(monkeypatch)
+    fix = setup_cli._ignored_fix(str(claude), "writable_parent")
+    assert "chmod" not in fix and "o-w" not in fix
+    assert fix_of("x Fix: " + fix) == ["sudo", "install", "-m", "755", str(claude), "/usr/local/bin/claude"]
+
+
+def test_a_sticky_folder_is_not_a_loose_parent(tmp_path):
+    parent = tmp_path / "shared"
+    parent.mkdir()
+    claude = put_exe(parent / "bin")
+    parent.chmod(0o1777)  # like /tmp: anyone can write, but only the owner of an entry can rename or remove it
+    assert setup_cli._loose_parent(str(claude)) != str(parent)
+    parent.chmod(0o777)
+    assert setup_cli._loose_parent(str(claude)) == str(parent)
 
 
 def test_a_folder_of_another_user_is_not_fixed_with_chmod():
