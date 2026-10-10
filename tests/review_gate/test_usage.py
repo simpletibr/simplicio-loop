@@ -149,6 +149,13 @@ class TestCheckUsage:
         assert result.status == SKIPPED
         assert "sem codigo" in str(result.reasons).lower()
 
+    def test_skip_caused_by_non_python_production_says_so(self, tmp_path):
+        result = check_usage(tmp_path, [FileChange("web/app.js", "M", (1,)), FileChange("tests/test_app.py", "A", (1,))], {})
+        assert result.status == SKIPPED
+        assert result.reasons[0].startswith("production change is not Python: no behavior check ran") and "web/app.js" in result.reasons[0]
+        tests_only = check_usage(tmp_path, [FileChange("tests/test_app.py", "A", (1,))], {})
+        assert tests_only.reasons == ("sem codigo de producao alterado",)
+
     def test_modified_symbol_validation(self, tmp_path):
         """Symbols modified (not added) are checked only if they are new."""
         (tmp_path / "mymod").mkdir()

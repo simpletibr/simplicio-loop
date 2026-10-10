@@ -23,13 +23,26 @@ class FileChange:
         return kind_of(self.path)
 
 
+# Scripts and compiled languages: a file of these under `docs/` is still behavior, not documentation.
+EXECUTABLE_SUFFIXES = frozenset(".sh .bash .zsh .ps1 .bat .cmd .js .jsx .mjs .cjs .ts .tsx .go .rs .rb .php .java .kt .cs .c .cc .cpp .h .hpp".split())
+
+
+def is_requirements_file(path: str) -> bool:
+    """`requirements.txt`, `requirements-dev.txt`, ... at any depth: a `.txt` that the installer reads, not documentation."""
+    name = PurePosixPath(path).name.lower()
+    return name.startswith("requirements") and name.endswith(".txt")
+
+
 def kind_of(path: str) -> str:
     """`test`, `docs`, `code` (python outside the tests) or `other`."""
     p = PurePosixPath(path)
     if p.suffix == ".py" and (p.parts[0] == "tests" or p.name.startswith("test_") or p.name.endswith("_test.py")
                               or p.name == "conftest.py"):
         return "test"
-    if p.suffix in _DOC_SUFFIXES or p.parts[0] == "docs":
+    if is_requirements_file(path):
+        return "other"
+    # under `docs/` only what is not executable is documentation (text, diagrams, images, JSON of a flow): `docs/run.sh` is not
+    if p.suffix in _DOC_SUFFIXES or (p.parts[0] == "docs" and p.suffix.lower() not in EXECUTABLE_SUFFIXES):
         return "docs"
     return "code" if p.suffix == ".py" else "other"
 

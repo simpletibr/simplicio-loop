@@ -364,6 +364,26 @@ def test_the_level_is_recomputed_from_the_files_of_the_diff_not_read_from_the_co
         assert result["approved"] is False and result["reason"] == "level_below_diff" and result["level"] == 2, path
 
 
+def test_a_diff_with_only_non_python_production_needs_level_2_whatever_the_comment_says():
+    """M2 follow-up (#1649): `classify_level` says T2 for a JavaScript or shell production file, so the floor of the gate says it too."""
+    head = _commit("a", "feat: x", "2026-10-09T01:00:00Z")
+    level1 = {"commits": [head], "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")]}
+    for production in ("web/app.js", "scripts/run.sh", "docs/build.js", "requirements.txt"):
+        files = [{"path": production}, {"path": "tests/test_app.py"}]
+        result = _gate({**level1, "files": files})
+        assert result["approved"] is False and result["reason"] == "level_below_diff" and result["level"] == 2, production
+    files = [{"path": "web/app.js"}, {"path": "tests/test_app.py"}]
+    level2 = APPROVAL.replace("(nível 1)", "(nível 2)")
+    review = ("REVISÃO INDEPENDENTE: APROVADA\nrevisor: rev-9\npapel: independent-reviewer\nmodelo: opus-5.5\nhost: local\n"
+              f"head: {OID_A}")
+    pr = {"commits": [head], "files": files,
+          "comments": [_comment(level2, "2026-10-09T01:05:00Z"), _comment(review, "2026-10-09T01:06:00Z", "c2")]}
+    assert _gate(pr)["approved"] is True
+    assert _gate({**pr, "comments": pr["comments"][:1]})["reason"] == "independent_review_missing"
+    python_only = {**level1, "files": [{"path": "src/app.py"}, {"path": "tests/test_app.py"}, {"path": "docs/GUIDE.md"}]}
+    assert _gate(python_only)["approved"] is True  # control: nothing changed for a Python-only diff
+
+
 def test_merge_with_conflict_resolution_counts_as_a_change():
     pr = {
         "commits": [

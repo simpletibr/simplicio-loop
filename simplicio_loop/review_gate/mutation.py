@@ -16,7 +16,7 @@ from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import isolation
+from . import identity, isolation
 from .diffs import FileChange
 from .model import ERROR, FAIL, PASS, SKIPPED, CheckResult
 
@@ -182,7 +182,9 @@ def check_mutation(root: Path, changes: Sequence[FileChange], test_argv: Sequenc
         except (OSError, UnicodeDecodeError):
             continue
     if not mutants:
-        return CheckResult("mutation", SKIPPED, ("sem linha de producao mutavel",))
+        python_changed = any(c.kind == "code" and c.status in ("A", "M") for c in changes)  # Python with no mutable line: the old reason
+        reason = None if python_changed else identity.non_python_skip_reason(changes)
+        return CheckResult("mutation", SKIPPED, (reason or "sem linha de producao mutavel",))
     if not test_argv:  # pytest without a file would run the whole suite
         return CheckResult("mutation", FAIL, ("sem teste novo nem vizinho para rodar contra os mutantes",))
     code = _run(root, test_argv, timeout_each * 2, wrap, env, home)  # the tests have to pass on the unmutated tree, or every mutant "dies"
