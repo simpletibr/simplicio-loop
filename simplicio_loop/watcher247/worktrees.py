@@ -75,7 +75,7 @@ _REPO_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
 def _repo_dir(repo: str) -> str:
     """The repo name as one directory under config.WORK: a GitHub name, never a path, never `<x>.wt` / `<x>.state` (those are ours)."""
-    if not _REPO_NAME.fullmatch(repo) or repo.endswith((".wt", ".state")):
+    if not _REPO_NAME.fullmatch(repo) or repo.lower().endswith((".wt", ".state")):  # any case: a case-insensitive disk folds `X.WT` onto `x.wt`
         raise ValueError(f"not a usable repo name: {repo!r}")
     return repo
 
@@ -131,9 +131,53 @@ async def _free_head(base: Path, number: int) -> str:
     raise RuntimeError(f"every branch name loop/issue-{number}..-r{MAX_ATTEMPT_NAMES} is already on origin")
 
 
+_DAMAGED_OBJECTS = ("bad object", "unable to read", "missing object", "could not open", "packfile", "object file")
+
+
+async def _base_damage(base: Path) -> str:
+    """"" when the base reads its HEAD tree; else git's own words if they say an object or pack is missing (a deleted pack .idx).
+    Any other failure (a killed git, EIO, an unborn HEAD) is not proof of damage: it returns "" and the fetch below reports it."""
+    done = await proc.run(["git", "cat-file", "-e", "HEAD^{tree}"], cwd=base, timeout=60)
+    if done.returncode == 0:
+        return ""
+    text = f"{done.stderr}\n{done.stdout}".lower()
+    if any(marker in text for marker in _DAMAGED_OBJECTS):
+        return text.strip()
+    # A deleted pack index prints only "Not a valid object name HEAD^{tree}", the same words an unborn HEAD prints: it is damage only
+    # when HEAD names a commit (the ref is there) whose tree cannot be read.
+    if "not a valid object name" in text and (await proc.run(["git", "rev-parse", "-q", "--verify", "HEAD"], cwd=base, timeout=60)).returncode == 0:
+        return text.strip()
+    return ""
+
+
+def _live_items(base: Path) -> list[str]:
+    """The item worktrees registered in the base whose folder still exists: deleting the base would destroy them and their unpublished commits."""
+    live = []
+    for entry in sorted((base / ".git" / "worktrees").glob("*")):
+        try:
+            folder = Path((entry / "gitdir").read_text().strip()).parent
+        except OSError:
+            continue
+        if folder.exists():
+            live.append(str(folder))
+    return live
+
+
 async def _update_base(repo: str, branch: str, number: int, fix: bool, head: str | None = None) -> Path:
     """Clone the repo once, then fetch what this item starts from. The base holds no loop/* branch: it is detached at the base."""
     dest = base_path(repo)
+    damage = await _base_damage(dest) if (dest / ".git").exists() else ""
+    if damage:
+        # The object store is shared with every item's sandbox (#1656 item 3): an item can delete a pack's .idx and the base then fails
+        # with `bad object HEAD`. The base is a throwaway clone and the origin has the truth, but only when no item lives in it.
+        live = _live_items(dest)
+        if live:
+            state.log(f"{repo}: the base clone is damaged and {len(live)} item worktree(s) live in it; trying again later")
+            raise points.PointDeferred("worktree", "base_damaged", "live_items", live)
+        state.log(f"{repo}: the base clone cannot read its own HEAD ({damage[:120]}); cloning it again")
+        await asyncio.to_thread(shutil.rmtree, dest, ignore_errors=True)
+        if dest.exists():
+            raise RuntimeError(f"{repo}: the damaged base clone could not be removed completely: {dest}")
     if not (dest / ".git").exists():
         dest.parent.mkdir(parents=True, exist_ok=True)
         result = await proc.run(

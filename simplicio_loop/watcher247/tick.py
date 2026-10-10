@@ -408,7 +408,7 @@ async def _enqueue_fixes(runner, name: str, fixes: dict) -> None:
 def _map_gc_bases() -> None:
     """`map gc` (default policy) for each base clone under config.WORK, at most once an hour per repo (#1671). Never raises."""
     try:
-        bases = sorted(p for p in config.WORK.iterdir() if p.is_dir() and not p.name.endswith((".wt", ".state")) and (p / ".git").exists())
+        bases = sorted(p for p in config.WORK.iterdir() if p.is_dir() and not p.name.lower().endswith((".wt", ".state")) and (p / ".git").exists())
     except OSError:
         return
     for base in bases:

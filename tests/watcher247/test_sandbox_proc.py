@@ -46,7 +46,7 @@ import json, os, subprocess, sys
 spec = json.load(sys.stdin)
 pid = str(os.getpid())
 argv = [part.replace("{pid}", pid) for part in spec["argv"]]
-done = subprocess.run(argv, env=spec["env"], capture_output=True, text=True, timeout=60)
+done = subprocess.run(argv, env=spec["env"], capture_output=True, text=True, timeout=spec.get("timeout", 60))
 print(json.dumps({"pid": os.getpid(), "rc": done.returncode, "out": done.stdout, "err": done.stderr}))
 """
 
@@ -66,12 +66,22 @@ exit 0
 """
 
 
+def load_factor() -> float:
+    """How many times busier than idle this machine is (#1656 item 6): 1 when the run queue fits the CPUs, more when it does not.
+    A fixed limit failed under load 13; the limits below grow with it, and a hung probe still ends."""
+    try:
+        return max(1.0, os.getloadavg()[0] / (os.cpu_count() or 1))
+    except OSError:
+        return 1.0
+
+
 def run_as_watcher(tmp_path, wrapped_argv, secret):
     """Run argv from a fresh process whose environment holds `secret`; the child gets the scrubbed env."""
+    factor = load_factor()
     watcher_env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "FAKE_SECRET": secret, "GH_TOKEN": secret}
-    spec = {"argv": wrapped_argv, "env": sandbox.scrubbed_env(watcher_env, home=tmp_path)}
+    spec = {"argv": wrapped_argv, "env": sandbox.scrubbed_env(watcher_env, home=tmp_path), "timeout": 60 * factor}
     done = subprocess.run([sys.executable, "-I", "-c", WATCHER], input=json.dumps(spec), env=watcher_env,
-                          capture_output=True, text=True, timeout=120)
+                          capture_output=True, text=True, timeout=120 * factor)
     assert done.returncode == 0, done.stderr
     return json.loads(done.stdout)
 
