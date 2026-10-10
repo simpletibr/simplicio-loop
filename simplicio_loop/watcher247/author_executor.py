@@ -158,7 +158,8 @@ async def run(dest: Path, repo: str, issue: dict, task: str, test_cmd: str | Non
     started = time.monotonic()
     result = await author_flow.run_author(
         task, dest, family=family, verify=test_cmd, rounds=rounds(), runner=proc.run,
-        allow_unsandboxed=os.environ.get(sandbox.OPT_OUT) == "1", run_tests=cli_runs_tests())
+        allow_unsandboxed=os.environ.get(sandbox.OPT_OUT) == "1", run_tests=cli_runs_tests(),
+        timeout_s=author_flow.author_timeout())
     if result.rounds:
         await budget.record("model_calls", result.rounds)  # one call per round that really ran
     moved = await head_moved(dest, head) if result.status == "ok" else ""

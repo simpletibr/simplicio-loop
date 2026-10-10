@@ -40,6 +40,7 @@ Set `SIMPLICIO_247_EXECUTOR=author` in the env file of the service. The default 
 
 - The tick calls `run_author` in the worktree of the item (`<repo>.wt/<n>`) instead of `host_mode.run_exec`.
 - `SIMPLICIO_247_AUTHOR_ROUNDS` sets the rounds. The default is 3. The maximum is 10.
+- `SIMPLICIO_247_AUTHOR_TIMEOUT_S` sets the time limit of one CLI round, in seconds. The default is 900. The minimum is 60. The maximum is 3600. The value must be a whole number. The flow ignores any other value and uses 900.
 - `SIMPLICIO_247_AUTHOR_RUN_TESTS=1` lets the CLI run `pytest` itself. Without it the CLI has only the file tools and no `Bash(...)` entry. The prompt says it cannot run tests. The host runs the verify and sends the failures back.
 - **Warning.** With `SIMPLICIO_247_AUTHOR_RUN_TESTS=1` the CLI runs the pytest of the author in its own sandbox. That sandbox has the private HOME (a copy of the login) and an open network. A conftest can read the login and send it out, so a credential leak is possible. Turn it on only for repositories you trust.
 - `SIMPLICIO_247_AUTHOR_HOME_BASE` sets the folder of the private HOMEs. It must be an absolute path inside the real HOME. The default is `~/.cache/simplicio-loop-author`. With `ProtectHome=read-only`, add this folder to `ReadWritePaths=` in the unit (for example `ReadWritePaths=/home/simplicio-loop/.simplicio/authors`).
@@ -62,9 +63,15 @@ Set `SIMPLICIO_247_EXECUTOR=author` in the env file of the service. The default 
    - a CLI error (`cli_error`)
    - an output that is not a JSON object (`bad_envelope`)
    - a CLI that does not start (`cli_unavailable`, `argv_too_long`)
-   - a timeout (`timeout`)
 
    A missing login stops it before the first round (`claude_login_missing`). `--rounds` must be from 1 to 10, in the command and in `run_author`.
+
+8. A CLI round that does not end in the time limit is not fatal while rounds remain:
+   - The loop keeps the worktree and takes a snapshot.
+   - The next round uses `--resume` with the same session. Its prompt tells the CLI that the time limit stopped the last round. The CLI continues from the current state of the worktree. It does the remaining work, never redoes finished work, and then stops.
+   - A timeout counts as a round. The loop does not run verify for that round.
+   - If the last round also times out, the result is `failed` with the reason `timeout`. `changed` still lists the files, so you can look at the work.
+9. The time limit of one round is 900 s. Set `SIMPLICIO_247_AUTHOR_TIMEOUT_S` or `--timeout SECONDS` to change it (60 to 3600). The flag wins over the variable. The flag stops the command with exit code 2 when the value is outside the limits. The variable does not stop the command: the loop ignores a bad value.
 
 ## Snapshot limits
 

@@ -1,6 +1,6 @@
 """``simplicio-loop author``: run the author flow (``author_flow.run_author``) in a worktree and print the result as JSON.
 
-Exit codes: 0 ok, 3 failed, 69 unsupported family, 2 usage error (bad flag, unreadable task file, ``--rounds`` outside 1 to 10).
+Exit codes: 0 ok, 3 failed, 69 unsupported family, 2 usage error (bad flag, unreadable task file, ``--rounds`` outside 1 to 10, ``--timeout`` outside 60 to 3600).
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from .author_flow import MAX_ROUNDS, AuthorResult, run_author
+from .author_flow import MAX_ROUNDS, TIMEOUT_MAX_S, TIMEOUT_MIN_S, AuthorResult, author_timeout, run_author
 
 EXIT_STATUS = {"ok": 0, "failed": 3, "unsupported": 69}
 EXIT_USAGE = 2
@@ -25,6 +25,12 @@ def _rounds(text: str) -> int:
     return value
 
 
+def _timeout(text: str) -> int:
+    if not (text.isascii() and text.isdigit()) or not TIMEOUT_MIN_S <= int(text) <= TIMEOUT_MAX_S:
+        raise argparse.ArgumentTypeError(f"must be a whole number from {TIMEOUT_MIN_S} to {TIMEOUT_MAX_S}")
+    return int(text)
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="simplicio-loop author",
@@ -33,6 +39,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--task-file", required=True, help="file with the task text")
     parser.add_argument("--verify", help="command run in the worktree after each round; its failure output is the next correction")
     parser.add_argument("--rounds", type=_rounds, default=3, help=f"author round plus corrections, at most this many (1 to {MAX_ROUNDS}, default 3)")
+    parser.add_argument("--timeout", type=_timeout, metavar="SECONDS", default=None,
+                        help=f"time limit of one CLI round ({TIMEOUT_MIN_S} to {TIMEOUT_MAX_S}; default: SIMPLICIO_247_AUTHOR_TIMEOUT_S, else 900)")
     parser.add_argument("--family", default="claude", help="CLI family (default claude; only claude is supported)")
     parser.add_argument("--allow-unsandboxed", action="store_true", help="run without bwrap (manual use only)")
     return parser
@@ -50,6 +58,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps({"status": "error", "reason_code": "task_file_unreadable", "error": str(exc)}), file=sys.stderr)
         return EXIT_USAGE
     result: AuthorResult = asyncio.run(run_author(
-        task, args.repo, family=args.family, verify=args.verify, rounds=args.rounds, allow_unsandboxed=args.allow_unsandboxed))
+        task, args.repo, family=args.family, verify=args.verify, rounds=args.rounds,
+        allow_unsandboxed=args.allow_unsandboxed, timeout_s=args.timeout if args.timeout is not None else author_timeout()))
     print(json.dumps(dataclasses.asdict(result), ensure_ascii=False, sort_keys=True))
     return EXIT_STATUS[result.status]
