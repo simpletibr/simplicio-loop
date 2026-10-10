@@ -215,11 +215,12 @@ def test_an_equivalent_survivor_does_not_fail_a_two_mutant_sample(tmp_path, monk
     assert result.measured["total"] == 2 and result.measured["killed"] == 1 and result.measured["equivalent"] == 1
 
 
-def test_a_vacuous_test_still_fails_a_sample_with_an_equivalent_survivor(tmp_path, monkeypatch):
+def test_a_vacuous_test_on_one_live_mutant_is_warned_not_judged(tmp_path, monkeypatch):
     root = make_project(tmp_path, TWO, "def test_f():\n    assert True\n")
     fake_tests(monkeypatch, set())
     result = check_mutation(root, [FileChange("app.py", "A", (2, 3))], PYTEST, n=2, seed="s")
-    assert result.status == FAIL and result.measured["killed"] == 0 and result.measured["equivalent"] == 1
+    assert result.status == PASS and result.measured["killed"] == 0 and result.measured["equivalent"] == 1
+    assert result.measured["judged"] is False and "app.py:2 return_none" in result.reasons[0]  # the survivor is named
 
 
 def test_a_sample_of_only_equivalent_mutants_fails_because_it_says_nothing(tmp_path, monkeypatch):
@@ -236,3 +237,39 @@ def test_equivalent_mutants_are_at_most_half_of_the_sample(tmp_path, monkeypatch
     fake_tests(monkeypatch, {killer.source})
     result = check_mutation(root, [FileChange("app.py", "A", (2, 3, 4))], PYTEST, n=3, seed="s")
     assert result.status == FAIL and "equivalentes 2/3" in result.reasons[0] and result.measured["equivalent"] == 2
+
+
+TWO_REACHABLE = "def f(x):\n    if x:\n        return x\n"  # two live candidates: `negate_cond` on line 2, `return_none` on line 3
+SIX_REACHABLE = "def f(x, y):\n    a = x == 1\n    b = y < 2\n    c = x and y\n    return a and b and c\n"  # 7 live candidates; n=6 samples 6
+
+
+def test_one_kill_of_two_reachable_mutants_is_not_a_fail(tmp_path, monkeypatch):
+    root = make_project(tmp_path, TWO_REACHABLE, "from app import f\n\ndef test_f():\n    assert f(1) == 1\n")
+    (killer,) = [m for m in generate("app.py", TWO_REACHABLE, [2, 3]) if m.kind == "return_none"]
+    fake_tests(monkeypatch, {killer.source})
+    result = check_mutation(root, [FileChange("app.py", "A", (2, 3))], PYTEST, n=12, seed="s")
+    assert result.status == PASS, result.reasons
+    assert result.measured["total"] == 2 and result.measured["killed"] == 1 and result.measured["judged"] is False
+    assert any("app.py:2 negate_cond" in reason for reason in result.reasons)  # the survivor is named for the human review
+
+
+def test_zero_kills_of_six_live_mutants_still_fail(tmp_path, monkeypatch):
+    root = make_project(tmp_path, SIX_REACHABLE, "from app import f\n\ndef test_f():\n    assert True\n")
+    fake_tests(monkeypatch, set())
+    result = check_mutation(root, [FileChange("app.py", "A", (2, 3, 4, 5))], PYTEST, n=6, seed="s")
+    assert result.status == FAIL and result.measured["total"] == 6 and result.measured["killed"] == 0
+    assert result.measured["judged"] is True and "mortos 0/6" in result.reasons[0]
+
+
+def test_every_mutant_killed_passes_a_small_sample(tmp_path, monkeypatch):
+    root = make_project(tmp_path, TWO_REACHABLE, "from app import f\n\ndef test_f():\n    assert f(1) == 1\n")
+    fake_tests(monkeypatch, {m.source for m in generate("app.py", TWO_REACHABLE, [2, 3])})
+    result = check_mutation(root, [FileChange("app.py", "A", (2, 3))], PYTEST, n=12, seed="s")
+    assert result.status == PASS and result.reasons == () and result.measured["killed"] == 2
+
+
+def test_a_candidate_pool_no_bigger_than_the_sample_is_tested_whole(tmp_path, monkeypatch):
+    root = make_project(tmp_path, SIX_REACHABLE, "from app import f\n\ndef test_f():\n    assert True\n")
+    fake_tests(monkeypatch, set())
+    result = check_mutation(root, [FileChange("app.py", "A", (2, 3, 4, 5))], PYTEST, n=7, seed="s")
+    assert result.measured["candidates"] == result.measured["total"] == 7 and result.measured["n"] == 7
