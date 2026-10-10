@@ -242,7 +242,8 @@ def _apply_task_devcli(root: Path, task: Mapping[str, Any], run_dir: Path) -> di
     """Apply one task's operations through simplicio-dev-cli's 2-step
     contract (compile pins hashes without mutating; apply mutates)."""
     if reason := plan_paths.operations_refusal(task["operations"], root):
-        return {"ok": False, "steps": [{"step": "guard", "ok": False, "error": reason}], "reason_code": "unsafe_path"}
+        code = "protected_path" if reason.startswith("protected_path:") else "unsafe_path"
+        return {"ok": False, "steps": [{"step": "guard", "ok": False, "error": reason}], "reason_code": code}
     dev_cli = _resolve_dev_cli()
     minimal_path = run_dir / f"{task['id']}.ops.json"
     compiled_path = run_dir / f"{task['id']}.plan.json"

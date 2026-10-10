@@ -15,6 +15,15 @@ before dev-cli writes (two dev-cli subprocesses) is not stopped here. It needs w
 already reaches ``.git/hooks``; only a dev-cli with its own symlink check (main, not 0.18.16) refuses again at write time.
 A hard link to ``.git/config`` is no symlink and is not seen; both dev-cli versions replace the file instead of writing
 through it (measured).
+
+Protected paths (issue #1567). Some files control the watcher or the delivery line itself: the opt-in and the ``verify``
+command in ``loop.toml``, the workflows and CODEOWNERS, the hooks, the systemd unit, the local CI, and the gates. A plan
+that edits one of them lets the next step approve its own change, so ``PROTECTED_PATHS`` names them and no plan may
+create, edit, move or delete one. A human changes them with a commit of their own, reviewed as any other. The list is
+checked for writes only (``operations_refusal``): a plan may still read an excerpt of such a file. The path is compared the
+way a forgiving file system reads it (case, ``\\``, ``.``, trailing dots and spaces, zero-width and compatibility code
+points), after every symlink is followed, and a directory that holds a protected path counts as protected too, so a move
+or a delete of the parent cannot carry the file away. A plan names the reason ``protected_path`` and never decides it.
 """
 from __future__ import annotations
 
@@ -27,15 +36,42 @@ from typing import Any
 PATH_KEYS = ("path", "dest")
 PLAN_KEYS = ("operations", "ops", "edits")
 
+# One list, relative to the repository root. A name stands for itself and for everything below it.
+PROTECTED_PATHS = (
+    ".github",  # workflows, templates, CODEOWNERS
+    "CODEOWNERS",
+    "docs/CODEOWNERS",
+    ".simplicio-loop",  # loop.toml (opt-in, allowed authors, verify) and the loop's own state
+    "packaging/systemd",  # the unit and the env file of the watcher
+    "scripts/check.py",  # the local CI
+    "hooks",  # the hooks the host runs: action gate, stop hook, pre-commit
+    "plugin/hooks",
+    "simplicio_loop/_bundle/hooks",
+    "simplicio_loop/plan_paths.py",  # this gate
+    "simplicio_loop/intake_gate.py",  # the repo and issue opt-in
+    "simplicio_loop/watcher247/sandbox.py",
+    "simplicio_loop/watcher247/secret_scan.py",
+    "simplicio_loop/watcher247/prompt_guard.py",
+    "simplicio_loop/watcher247/env_guard.py",
+    "simplicio_loop/watcher247/squad_flow.py",
+    "simplicio_loop/watcher247/points/judge.py",
+    "simplicio_loop/watcher247/points/delivery_gate.py",
+)
+
+
+def _fold(part: str) -> str:
+    """One path component the way a forgiving file system reads it.
+
+    Case-insensitive volumes fold ``.GIT``; NTFS drops trailing dots and spaces; HFS+ ignores zero-width code points and
+    reads compatibility forms (a full-width dot) as their plain letter.
+    """
+    name = "".join(ch for ch in unicodedata.normalize("NFKC", part) if unicodedata.category(ch) != "Cf")
+    return name.rstrip(". ").casefold()
+
 
 def _is_git_dir_name(part: str) -> bool:
-    """One path component that names a git directory on a filesystem git supports.
-
-    Case-insensitive volumes fold ``.GIT``; NTFS drops trailing dots and spaces and answers to the short name ``git~1``;
-    HFS+ ignores zero-width code points (the cases git's own ``.git`` checks refuse).
-    """
-    name = "".join(ch for ch in part if unicodedata.category(ch) != "Cf").rstrip(". ").casefold()
-    return name in {".git", "git~1"}
+    """One path component that names a git directory (the cases git's own ``.git`` checks refuse; NTFS answers to ``git~1``)."""
+    return _fold(part) in {".git", "git~1"}
 
 
 def inside_git_dir(path: str) -> bool:
@@ -51,11 +87,16 @@ def _unsafe_relative(path: str) -> bool:
     )
 
 
-def _resolved_refusal(root: str | os.PathLike[str], path: str) -> str | None:
+def _landing(root: str | os.PathLike[str], path: str) -> Path:
     """Where ``path`` lands under ``root`` once every symlink is followed, even for a path that does not exist yet."""
+    base = os.path.realpath(root)
+    return Path(os.path.realpath(os.path.join(base, path))).relative_to(base)
+
+
+def _resolved_refusal(root: str | os.PathLike[str], path: str) -> str | None:
+    """The reason ``path`` may not be written when it lands in ``.git`` or outside ``root``, or None."""
     try:
-        base = os.path.realpath(root)
-        landing = Path(os.path.realpath(os.path.join(base, path))).relative_to(base)
+        landing = _landing(root, path)
     except ValueError:
         return f"{path!r} resolves outside the repository: a plan never writes beyond the root"
     except OSError:
@@ -74,13 +115,50 @@ def refusal(path: str, root: str | os.PathLike[str] | None = None) -> str | None
     return None if root is None else _resolved_refusal(root, path)
 
 
+def _parts(path: str) -> tuple[str, ...]:
+    """The folded components of ``path``: ``/`` or ``\\`` separate, ``.`` and empty parts vanish, ``..`` climbs."""
+    parts: list[str] = []
+    for component in path.replace("\\", "/").split("/"):
+        if component == "..":
+            if parts:
+                parts.pop()
+        elif name := _fold(component):
+            parts.append(name)
+    return tuple(parts)
+
+
+_PROTECTED = tuple((entry, _parts(entry)) for entry in PROTECTED_PATHS)
+
+
+def _protected_entry(parts: tuple[str, ...]) -> str | None:
+    """The protected entry that ``parts`` is, lies below, or holds (a parent directory carries its children away)."""
+    for entry, protected in _PROTECTED:
+        shared = min(len(parts), len(protected))
+        if shared and parts[:shared] == protected[:shared]:
+            return entry
+    return None
+
+
+def protected_refusal(path: str, root: str | os.PathLike[str] | None = None) -> str | None:
+    """The reason a plan may not create, edit, move or delete ``path``, or None. With ``root`` symlinks are followed first."""
+    entry = _protected_entry(_parts(path))
+    if entry is None and root is not None:
+        try:
+            entry = _protected_entry(_parts(_landing(root, path).as_posix()))
+        except (ValueError, OSError):
+            return None  # outside the root or unresolvable: `refusal` names that reason
+    if entry is None:
+        return None
+    return f"protected_path: {path!r} touches protected {entry!r}: a plan never creates, edits, moves or deletes it"
+
+
 def operations_refusal(operations: Iterable[Any], root: str | os.PathLike[str]) -> str | None:
     """The first reason any ``path`` or ``dest`` of these operations may not be written, or None."""
     for operation in operations:
         if isinstance(operation, dict):
             for key in PATH_KEYS:
                 value = operation.get(key)
-                if isinstance(value, str) and (reason := refusal(value, root)):
+                if isinstance(value, str) and (reason := refusal(value, root) or protected_refusal(value, root)):
                     return reason
     return None
 
