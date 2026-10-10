@@ -325,9 +325,10 @@ def test_the_commands_are_wired(box, capsys, monkeypatch):
     assert cli.main(["doctor", "login", "--json"]) == 0
     assert [c["name"] for c in json.loads(capsys.readouterr().out)["checks"]] == ["login"]
     assert cli.main(["doctor", "all", "--json"]) == 0
-    assert len(json.loads(capsys.readouterr().out)["checks"]) == 7
+    every = ["login", "update", "distribution", "runtime", "operators", "disk", "map-store", "setup"]  # 8: map-store came with #1671
+    assert [c["name"] for c in json.loads(capsys.readouterr().out)["checks"]] == every
     assert cli.main(["doctor", "--json"]) == 0  # a bare `doctor` is the overview
-    assert len(json.loads(capsys.readouterr().out)["checks"]) == 7
+    assert [c["name"] for c in json.loads(capsys.readouterr().out)["checks"]] == every
 
 
 def test_the_old_doctor_forms_still_exist():

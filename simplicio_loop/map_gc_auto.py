@@ -19,6 +19,7 @@ from .map_service_git import git_common_dir
 
 INTERVAL_SECONDS = 3600.0
 STAMP_NAME = "map-gc-auto.json"
+LOCK_NAME = "map-gc-auto.lock"  # single-flight per repository: one collection at a time across threads and processes
 
 
 def _default_gc(repo: str) -> Dict[str, Any]:
@@ -36,10 +37,16 @@ def _last_run(stamp: Path) -> Optional[float]:
 def maybe_gc(repo: str, *, clock: Callable[[], float] = time.time, interval: float = INTERVAL_SECONDS,
              gc: Callable[[str], Any] = _default_gc) -> Optional[Any]:
     """Run ``map gc`` for ``repo`` unless it ran less than ``interval`` seconds ago. The result of ``gc``, or None when skipped."""
+    lock = None
     try:
         store = git_common_dir(str(repo)) / "simplicio"
-        if not store.is_dir():
-            return None  # nothing was ever mapped here: nothing to reclaim
+        if not store.is_dir() or store.is_symlink() or (store / "map").is_symlink():
+            return None  # nothing was ever mapped here, or the store points out of the repository: never delete through a link
+        from simplicio_mapper.mapper.file_lock import acquire_lock_at
+
+        lock = acquire_lock_at(str(store / LOCK_NAME), operation="map-gc-auto")
+        if lock is None:
+            return None  # another process or thread is collecting this repository right now
         now = clock()
         stamp = store / STAMP_NAME
         last = _last_run(stamp)
@@ -51,6 +58,14 @@ def maybe_gc(repo: str, *, clock: Callable[[], float] = time.time, interval: flo
         return gc(str(repo))
     except Exception:  # noqa: BLE001 - never break the caller
         return None
+    finally:
+        if lock is not None:
+            try:
+                from simplicio_mapper.mapper.file_lock import release_lock_at
+
+                release_lock_at(lock)
+            except Exception:  # noqa: BLE001
+                pass
 
 
-__all__ = ["INTERVAL_SECONDS", "STAMP_NAME", "maybe_gc"]
+__all__ = ["INTERVAL_SECONDS", "LOCK_NAME", "STAMP_NAME", "maybe_gc"]
