@@ -423,6 +423,8 @@ async def tick(dry_run: bool = False) -> None:
         await status(phase="blocked", reason_code=blocked)
         state.log(f"blocked: {blocked}")
         return
+    if persist:  # housekeeping, not work on issues: it runs at the daily cap too (#1671)
+        await asyncio.to_thread(_map_gc_bases)
     if capped := await budget.reached():
         await status(phase="daily_cap_reached", reason_code="daily_cap_reached", cap=capped,
                      budget=await budget.snapshot())
@@ -462,8 +464,6 @@ async def tick(dry_run: bool = False) -> None:
     if persist:
         for key, claim in (await store.reap_expired(now=clock)).items():
             state.log(f"lease expired {key}: {claim['status']}")
-    if persist:
-        await asyncio.to_thread(_map_gc_bases)
     found = await github.repos()
     baseline = await state.load(config.BASELINE, None)
     fixes = await state.load(config.FIXES, {"queued": {}, "seen": []})
