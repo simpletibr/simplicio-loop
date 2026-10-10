@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .. import escalation, exec_auth, exec_planner, execution_report, executor_select, turbo_window
+from .. import escalation, exec_auth, exec_planner, execution_report, executor_select, turbo_cli, turbo_window
 from . import budget, config, proc, raw_log, sandbox, verify
 from . import convergence  # the failed-verify path asks it: retry, escalate or stop (a module, not a point)
 
@@ -277,6 +277,7 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
     try:
         leave_open = run_id is not None  # the watcher opened the run: it closes it after the pr stage
         request, run_id = await _request(dest, task, run_id)  # step 1: every retry reuses this request and run
+        scope = turbo_cli.task_scope(dest, turbo_cli.build_tasks(dest, [task]))  # what every answer of this task must stay in
         windows: list[dict] = []  # lines the planner asked for; each ask prints the request again with them
         cut = _cut(request)
         report["run_id"] = run_id  # the watcher's role receipt lands in the report turbo writes for this run
@@ -289,7 +290,8 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
                 ladder.current_role(), plan_prompt(request, failure), cwd=str(dest),
                 timeout_sec=config.PLAN_TIMEOUT_S, families=list(executor.families),
                 wrap=planner_wrap(dest), env_for=_planner_env,
-                config_dir=config.ROOT / "opencode")  # inside the bound state dir: /tmp is a tmpfs in the sandbox
+                config_dir=config.ROOT / "opencode",  # inside the bound state dir: /tmp is a tmpfs in the sandbox
+                scope=scope)
             ladder.family = planned.family or ladder.family
             ok, failure, tokens_report, label, result, status, reason = False, "", None, "", None, "failed", ""
             log_path = config.LOGS / f"{repo}-{number}-{attempts}-s{step}.log"

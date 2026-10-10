@@ -16,7 +16,7 @@ import signal
 import tempfile
 import time
 
-from . import model_roles, structured_output
+from . import model_roles, plan_scope, structured_output
 
 DEFAULT_FAMILIES = ["claude", "codex", "grok", "gemini"]
 KILL_GRACE_SEC = 3.0
@@ -295,11 +295,35 @@ def _find_plan(text):
     return None
 
 
-def _extract_plan_json(output):
-    """Extract and validate plan JSON from CLI output."""
+def _answer_text(output):
+    """The model's own answer inside the CLI envelope: the parsed object a schema flag fills (re-encoded), else the text
+    field, else the output as it is. This is what ``plan_scope`` judges, so prose around the JSON still shows."""
+    try:
+        obj = json.loads(output)
+    except ValueError:
+        return output
+    while isinstance(obj, dict) and "operations" not in obj and "need" not in obj:
+        nested = next((obj[key] for key in _OBJECT_KEYS if isinstance(obj.get(key), dict)), None)
+        if nested is None:
+            return next((obj[key] for key in _TEXT_KEYS if isinstance(obj.get(key), str)), output)
+        obj = nested
+    return json.dumps(obj) if isinstance(obj, dict) else output
+
+
+def _extract_plan_json(output, scope=None, root=None):
+    """Extract and validate plan JSON from CLI output.
+
+    With a ``scope`` (``plan_scope.TaskScope``) the answer is also held to the closed plan contract and to that scope
+    (``plan_scope.check_response``): extra prose, an extra field, a file outside the scope or over the line limit is a
+    ValueError listing the violations. A plan that only asks for lines (``need``, no operations) is a valid answer.
+    """
     plan = _find_plan(output)
     if plan is None:
         raise ValueError("plan JSON not found or invalid")
+    if scope is not None:
+        checked = plan_scope.check_response(_answer_text(output), scope, root or ".")
+        if not checked.ok:
+            raise ValueError(plan_scope.retry_message(checked.violations))
     return plan
 
 
@@ -319,7 +343,7 @@ def _temp_file(prefix, text, directory):
 
 
 async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_sec=KILL_GRACE_SEC, wrap=None, env=None,
-                      config_dir=None):
+                      config_dir=None, scope=None):
     """Run the planner CLI for a specific family and role.
 
     ``wrap`` maps the argv to the argv actually spawned (the watcher passes its sandbox); the default is the identity.
@@ -327,6 +351,8 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
     ``config_dir`` is where the opencode deny config and the codex schema file are written (default: the system temp
     dir). A sandbox that mounts a tmpfs on /tmp hides them, so opencode would then run WITHOUT the deny rules: pass a
     directory the sandbox binds. Both files are removed when the run ends.
+    ``scope`` (``plan_scope.TaskScope``): the answer must stay inside it, else the result is ``bad_plan`` and its error
+    lists the violations (the text for the next attempt).
     """
     started = time.monotonic()
     try:
@@ -379,22 +405,23 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
         return _result("process_error", family, role, model, effort, started, error=f"exit {returncode}",
                        raw=f"{stdout}\n--- stderr ---\n{stderr}", structured=receipt)
     try:
-        plan = _extract_plan_json(stdout)
+        plan = _extract_plan_json(stdout, scope, cwd)
     except ValueError as e:
         return _result("bad_plan", family, role, model, effort, started, error=str(e), raw=stdout, structured=receipt)
     return _result("ok", family, role, model, effort, started, plan=plan, raw=stdout, structured=receipt)
 
 
 async def run_planner_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, families=None, grace_sec=KILL_GRACE_SEC,
-                                    wrap=None, env_for=None, config_dir=None):
+                                    wrap=None, env_for=None, config_dir=None, scope=None):
     """Try to run planner with each family in order, falling back on non-fatal errors.
 
-    ``wrap`` and ``env_for(family)`` are passed to run_planner (the argv wrapper and the per-family environment).
+    ``wrap``, ``env_for(family)`` and ``scope`` are passed to run_planner (the argv wrapper, the per-family environment
+    and the task scope the answer must stay in).
     """
     last_result = None
     for family in families or _get_families():
         result = await run_planner(family, role, prompt, cwd, timeout_sec, grace_sec, wrap=wrap,
-                                   env=env_for(family) if env_for else None, config_dir=config_dir)
+                                   env=env_for(family) if env_for else None, config_dir=config_dir, scope=scope)
         if result.reason_code in ("bad_role", "bad_argv") or result.is_ok():
             return result
         last_result = result

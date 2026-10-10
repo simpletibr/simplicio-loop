@@ -14,7 +14,7 @@ import subprocess
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Mapping, Sequence
 
-from . import operator_exec, plan_paths, turbo_window
+from . import operator_exec, plan_paths, plan_scope, turbo_window
 
 IndexFn = Callable[[Path], Awaitable[str]]
 
@@ -189,7 +189,28 @@ class EmptyPlanError(ValueError):
     """The plan holds no operations."""
 
 
-def _parse_operations(content: str) -> list[dict]:
+class PlanRejected(ValueError):
+    """The answer broke the closed contract or the task scope; ``violations`` are the deterministic reasons."""
+
+    def __init__(self, violations: Sequence[str]) -> None:
+        self.violations = list(violations)
+        super().__init__(plan_scope.retry_message(self.violations))
+
+
+ScopeFor = Callable[[Sequence[Mapping[str, Any]]], "plan_scope.TaskScope"]
+
+
+def _parse_operations(content: str, scope: plan_scope.TaskScope | None = None, root: Path | None = None) -> list[dict]:
+    """The operations of a model answer. With a ``scope`` the answer is held to the closed plan contract and to the
+    scope (``plan_scope.check_response``): a fence or prose around it, an extra field, a file outside the scope or
+    over the line limit raises ``PlanRejected``. Without one the older tolerant parse applies."""
+    if scope is not None:
+        checked = plan_scope.check_response(content, scope, root or Path("."))
+        if not checked.ok:
+            raise PlanRejected(checked.violations)
+        if not checked.operations:
+            raise EmptyPlanError("the plan has no operations")
+        return checked.operations
     payload = _payload(content)
     operations = payload.get("operations") if isinstance(payload, dict) else None
     if not isinstance(operations, list) or not operations:
@@ -287,10 +308,14 @@ def _call_record(reply: Mapping[str, Any], turn: int) -> dict[str, Any]:
     }
 
 
-async def _apply_operations(root: Path, operations: list[dict], binary: str, label: str, apply_lock: asyncio.Lock) -> list[dict]:
+async def _apply_operations(root: Path, operations: list[dict], binary: str, label: str, apply_lock: asyncio.Lock,
+                            scope: plan_scope.TaskScope | None = None) -> list[dict]:
     import json
     if reason := plan_paths.operations_refusal(operations, root):  # followed through symlinks: an old dev-cli does not
         return [{"command": "plan_paths", "returncode": 1, "stdout": reason, "label": label}]
+    if scope is not None and (held := plan_scope.check_operations(operations, scope, root)).violations:
+        return [{"command": "plan_scope", "returncode": 1, "stdout": "; ".join(held.violations), "label": label,
+                 "violations": held.violations}]
     state = root / ".simplicio-loop"
     state.mkdir(parents=True, exist_ok=True)
     ops_path = state / f"turbo-ops-{label}.json"
@@ -339,43 +364,100 @@ def _verdict(operations: list[dict], commands: list[dict]) -> tuple[bool, str | 
     return True, None
 
 
-async def apply_plan(root: Path, operations: list[dict], label: str = "host-1", dev_cli: str | None = None, apply_lock: asyncio.Lock | None = None) -> dict[str, Any]:
-    """Apply one find/replace plan through simplicio-dev-cli. ``reason`` is dev-cli's own message on refusal."""
+async def apply_plan(root: Path, operations: list[dict], label: str = "host-1", dev_cli: str | None = None, apply_lock: asyncio.Lock | None = None,
+                     scope: plan_scope.TaskScope | None = None) -> dict[str, Any]:
+    """Apply one find/replace plan through simplicio-dev-cli. ``reason`` is dev-cli's own message on refusal.
+
+    With a ``scope`` an operation outside it is refused before dev-cli runs (``reason`` lists the violations)."""
     if apply_lock is None:
         apply_lock = asyncio.Lock()
-    commands = await _apply_operations(root, operations, dev_cli or _dev_cli_bin(), label, apply_lock)
+    commands = await _apply_operations(root, operations, dev_cli or _dev_cli_bin(), label, apply_lock, scope)
     applied, reason = _verdict(operations, commands)
     return {"applied": applied, "reason": reason, "commands": commands}
 
 
-async def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, generation: str, binary: str, turn: int, base: list[dict] | None = None, apply_lock: asyncio.Lock | None = None) -> tuple[list[dict], list[dict], str, list[dict], dict]:
-    """Ask once. If dev-cli rejects the plan, send that error back one time."""
+def _read_plan(reply: Mapping[str, Any], scope: plan_scope.TaskScope | None, root: Path) -> tuple[list[dict], str | None, list[str]]:
+    """(operations, reason, violations) of one model reply; ``violations`` only when the contract or the scope refused it."""
+    if not reply.get("ok", True):
+        return [], None, []
+    try:
+        return _parse_operations(reply.get("content") or "", scope, root), None, []
+    except PlanRejected as exc:
+        return [], str(exc), exc.violations
+    except (ValueError, json.JSONDecodeError) as exc:
+        return [], str(exc), []
+
+
+def _scope_violations(commands: Sequence[Mapping[str, Any]]) -> list[str]:
+    """The violations ``_apply_operations`` refused a plan with, or []."""
+    return next((list(c["violations"]) for c in commands if c.get("violations")), [])
+
+
+class _Rejections:
+    """What a lane did with refused answers: each refusal, the retry it scheduled, and whether it ended in ``needs_human``."""
+
+    def __init__(self) -> None:
+        self.refused: list[list[str]] = []
+        self.retries: list[dict[str, Any]] = []
+        self.needs_human = False
+
+    def note(self, attempt: int, violations: list[str]) -> bool:
+        """Record a refusal on this ``attempt``; True when the planner still has a retry."""
+        self.refused.append(violations)
+        if plan_scope.next_action(attempt) == "retry":
+            self.retries.append({"reason": "out_of_scope", "violations": violations})
+            return True
+        self.needs_human = True
+        return False
+
+    def reason(self, reason: str | None) -> str | None:
+        if not self.needs_human:
+            return reason
+        return "needs_human: " + "; ".join(self.refused[-1][:plan_scope.MAX_REPORTED])
+
+    def into(self, outcome: dict[str, Any]) -> dict[str, Any]:
+        """Add the refusals to an outcome; an outcome nobody refused is left as it was."""
+        if self.refused:
+            outcome.update({"rejections": self.refused, "retries": self.retries, "needs_human": self.needs_human})
+        return outcome
+
+
+def _retry_text(violations: Sequence[str], detail: str) -> str:
+    if violations:
+        return plan_scope.retry_message(violations)
+    return f"dev-cli rejected the plan:\n{detail}\nReturn a corrected JSON plan."
+
+
+async def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, generation: str, binary: str, turn: int, base: list[dict] | None = None, apply_lock: asyncio.Lock | None = None, scope_for: ScopeFor | None = None) -> tuple[list[dict], list[dict], str, list[dict], dict]:
+    """Ask once. If dev-cli rejects the plan, or the answer leaves the task scope, send that back one time.
+
+    A second refusal by the scope ends the lane as ``needs_human`` with the violations as the cause."""
     if apply_lock is None:
         apply_lock = asyncio.Lock()
+    scope = scope_for(tasks) if scope_for else None
+    task_ids = [int(t.get("index") or 0) for t in tasks]
     messages = [*(base if base is not None else [header_message(reading)]), task_message(tasks, root)]
     calls: list[dict] = []
     commands: list[dict] = []
     content = ""
     applied_ok, reason = False, None
+    refused = _Rejections()
     for attempt in (1, 2):
         reply = await complete("simplicio", messages)
         content = reply.get("content") or ""
-        calls.append(_call_record(reply, len(calls) + 1 if turn == 1 else turn))
-        try:
-            operations = _parse_operations(content) if reply.get("ok", True) else []
-        except (ValueError, json.JSONDecodeError) as exc:
-            operations = []
-            reason = str(exc)
-        else:
-            reason = None
-        applied = await _apply_operations(root, operations, binary, f"{turn}-{attempt}", apply_lock) if operations else []
+        calls.append({**_call_record(reply, len(calls) + 1 if turn == 1 else turn), "tasks": task_ids})
+        operations, reason, violations = _read_plan(reply, scope, root)
+        applied = await _apply_operations(root, operations, binary, f"{turn}-{attempt}", apply_lock, scope) if operations else []
         commands.extend(applied)
         applied_ok, refusal = _verdict(operations, applied)
+        violations = violations or _scope_violations(applied)
         if not applied_ok:
             reason = refusal or reason or (str(reply.get("error")) if not reply.get("ok", True) else None) \
                 or "the model returned no plan"
         if applied_ok:
             reason = None
+            break
+        if violations and not refused.note(attempt, violations):
             break
         if attempt == 2:
             break
@@ -383,10 +465,10 @@ async def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, re
         messages = [
             *messages,
             {"role": "assistant", "content": content},
-            {"role": "user", "content": f"dev-cli rejected the plan:\n{detail}\nReturn a corrected JSON plan."},
+            {"role": "user", "content": _retry_text(violations, detail)},
         ]
     messages.append({"role": "assistant", "content": content})
-    outcome = {"tasks": [int(t.get("index") or 0) for t in tasks], "applied": applied_ok, "reason": reason}
+    outcome = refused.into({"tasks": task_ids, "applied": applied_ok, "reason": refused.reason(reason)})
     return calls, commands, content, messages, outcome
 
 
@@ -400,39 +482,41 @@ def _ready(pending: list[Mapping[str, Any]], done: set[int]) -> list[Mapping[str
 
 
 async def _wave_task(root: Path, task: Mapping[str, Any], messages: list[dict], complete, binary: str,
-                     apply_lock: asyncio.Lock) -> tuple[list[dict], list[dict], str, dict]:
-    """One fanned-out task: ask, apply under the lock, and on a refusal send it back once."""
+                     apply_lock: asyncio.Lock, scope_for: ScopeFor | None = None) -> tuple[list[dict], list[dict], str, dict]:
+    """One fanned-out task: ask, apply under the lock, and on a refusal (dev-cli's or the task scope's) send it back once."""
+    scope = scope_for([task]) if scope_for else None
+    task_ids = [int(task.get("index") or 0)]
     calls: list[dict] = []
     commands: list[dict] = []
     content, reason, applied_ok = "", None, False
+    refused = _Rejections()
     for attempt in (1, 2):
         reply = await complete("simplicio", messages)
         content = reply.get("content") or ""
-        calls.append(_call_record(reply, 0))
-        try:
-            operations = _parse_operations(content) if reply.get("ok", True) else []
-            reason = None
-        except (ValueError, json.JSONDecodeError) as exc:
-            operations, reason = [], str(exc)
-        applied = await _apply_operations(root, operations, binary, f"wave-{task.get('index')}-{attempt}", apply_lock) if operations else []
+        calls.append({**_call_record(reply, 0), "tasks": task_ids})
+        operations, reason, violations = _read_plan(reply, scope, root)
+        applied = await _apply_operations(root, operations, binary, f"wave-{task.get('index')}-{attempt}", apply_lock, scope) if operations else []
         commands.extend(applied)
         applied_ok, refusal = _verdict(operations, applied)
+        violations = violations or _scope_violations(applied)
         if applied_ok:
             reason = None
             break
         reason = refusal or reason or str(reply.get("error") or "the model returned no plan")
+        if violations and not refused.note(attempt, violations):
+            break
         if attempt == 1:
             messages = [
                 *messages,
                 {"role": "assistant", "content": content},
-                {"role": "user", "content": "dev-cli rejected the plan:\n" + reason + "\nReturn a corrected JSON plan."},
+                {"role": "user", "content": _retry_text(violations, reason)},
             ]
-    outcome = {"tasks": [int(task.get("index") or 0)], "applied": applied_ok, "reason": reason}
+    outcome = refused.into({"tasks": task_ids, "applied": applied_ok, "reason": refused.reason(reason)})
     return calls, commands, content, outcome
 
 
 async def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, generation: str, binary: str,
-                    apply_lock: asyncio.Lock) -> tuple[list[dict], list[dict], str, list[dict]]:
+                    apply_lock: asyncio.Lock, scope_for: ScopeFor | None = None) -> tuple[list[dict], list[dict], str, list[dict]]:
     """First call runs alone so the header is cached. Later calls append or fan out after it."""
     pending = list(tasks)
     done: set[int] = set()
@@ -454,6 +538,7 @@ async def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, re
             task = ready[0]
             lane_calls, lane_commands, content, stack, outcome = await _one_lane(
                 root, [task], complete, reading, generation, binary, len(calls) + 1, base=stack, apply_lock=apply_lock,
+                scope_for=scope_for,
             )
             outcomes.append(outcome)
             calls.extend(lane_calls)
@@ -466,7 +551,7 @@ async def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, re
         # The prompts are built before any plan is applied; the model calls run together (bounded by the
         # caller's semaphore) and dev-cli applies one plan at a time (apply_lock).
         lanes = await asyncio.gather(*(
-            _wave_task(root, task, [*base, task_message([task], root)], complete, binary, apply_lock)
+            _wave_task(root, task, [*base, task_message([task], root)], complete, binary, apply_lock, scope_for)
             for task in ready
         ))
         for task, (lane_calls, lane_commands, content, outcome) in zip(ready, lanes):
@@ -480,11 +565,16 @@ async def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, re
     return calls, commands, "\n".join(contents), outcomes
 
 
-async def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli: str | None = None) -> dict[str, Any]:
+async def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli: str | None = None,
+                    scope_for: ScopeFor | None = None) -> dict[str, Any]:
     """Mapper reads once. Up to 3 tasks share one model call. Above that, the first call warms the header and the rest follow.
 
     Any task count takes this one async path: model calls are bounded by an ``asyncio.Semaphore``
     (``SIMPLICIO_TURBO_CONCURRENCY``) and dev-cli applies never overlap (``asyncio.Lock``).
+
+    ``scope_for`` maps the tasks of a lane to their ``TaskScope`` (issue #1612): with it every answer is held to the
+    closed plan contract and to that scope, a refused answer goes back once, and a second refusal is ``needs_human``.
+    Without it the older tolerant parse applies.
     """
     from . import turbo_provider
 
@@ -503,11 +593,12 @@ async def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, de
     if len(task_list) <= WAVE_TURBO_ABOVE:
         calls, commands, content, _stack, outcome = await _one_lane(
             root, task_list, bounded, reading, survey["generation"], binary, 1, apply_lock=apply_lock,
+            scope_for=scope_for,
         )
         outcomes = [outcome]
     else:
         calls, commands, content, outcomes = await _run_wave(
-            root, task_list, bounded, reading, survey["generation"], binary, apply_lock,
+            root, task_list, bounded, reading, survey["generation"], binary, apply_lock, scope_for,
         )
     return {
         "turns": len(calls),
@@ -553,7 +644,7 @@ def _rewrite_existing_creates(root: Path, operations: list[dict]) -> list[dict]:
 
 
 async def repair_with_test_output(root: Path, tasks: Sequence[Mapping[str, Any]], complete, test_output: str,
-                                    dev_cli: str | None = None) -> dict[str, Any]:
+                                    dev_cli: str | None = None, scope_for: ScopeFor | None = None) -> dict[str, Any]:
     """One more call after the tests failed: the same header, the current files and the test output.
 
     The header is byte-identical to the run's, so the provider serves it from cache. The files the task named
@@ -572,20 +663,19 @@ async def repair_with_test_output(root: Path, tasks: Sequence[Mapping[str, Any]]
          + "\nNote: the files above already exist; to rewrite one, send its whole current text as find."
          + "\nReturn a JSON plan that makes them pass."},
     ]
+    scope = scope_for(task_list) if scope_for else None
     reply = await complete("simplicio", messages)
-    try:
-        operations = _parse_operations(reply.get("content") or "") if reply.get("ok", True) else []
-        reason = None
-    except (ValueError, json.JSONDecodeError) as exc:
-        operations, reason = [], str(exc)
+    operations, reason, violations = _read_plan(reply, scope, root)
     operations = _rewrite_existing_creates(root, operations)
-    applied = await _apply_operations(root, operations, binary, "repair-1", apply_lock) if operations else []
+    applied = await _apply_operations(root, operations, binary, "repair-1", apply_lock, scope) if operations else []
     ok, refusal = _verdict(operations, applied)
+    violations = violations or _scope_violations(applied)
     return {
-        "llm_calls": [_call_record(reply, 1)],
+        "llm_calls": [{**_call_record(reply, 1), "tasks": [int(t.get("index") or 0) for t in task_list]}],
         "commands": applied,
         "applied": ok,
         "reason": None if ok else (refusal or reason or "the model returned no plan"),
+        "rejections": [violations] if violations and not ok else [],
     }
 
 

@@ -47,9 +47,10 @@ class TaskScope:
     dirs: tuple[str, ...] = ()
     criteria: tuple[str, ...] = ()
     max_lines: int = MAX_FILE_LINES
+    unbounded: bool = False  # the task names no file: no path to hold an operation to (the line limit still applies)
 
     def contains(self, path: str) -> bool:
-        return path in self.paths or any(path.startswith(d) for d in self.dirs)
+        return self.unbounded or path in self.paths or any(path.startswith(d) for d in self.dirs)
 
 
 @dataclass
@@ -73,7 +74,8 @@ def scope_from_tasks(tasks: Sequence[Mapping[str, Any]], *, named_paths: Iterabl
             if name:
                 paths.add(str(name))
     dirs = tuple(sorted(p for p in paths if p.endswith("/")))
-    return TaskScope(frozenset(p for p in paths if not p.endswith("/")), dirs, tuple(criteria), max_lines)
+    files = frozenset(p for p in paths if not p.endswith("/"))
+    return TaskScope(files, dirs, tuple(criteria), max_lines, unbounded=not files and not dirs)
 
 
 def _unframe(text: str) -> tuple[str, int]:
@@ -171,7 +173,19 @@ def check_response(text: str, scope: TaskScope, root: str | os.PathLike[str]) ->
         return result
     if result.violations and any(v.split(":", 1)[0] not in {"extra_prose"} for v in result.violations):
         return result
-    operations = payload.get("operations") or []
+    held = check_operations(payload.get("operations") or [], scope, root)
+    result.violations.extend(held.violations)
+    result.widenings = held.widenings
+    if result.ok:
+        result.operations = held.operations
+    return result
+
+
+def check_operations(operations: Sequence[Mapping[str, Any]], scope: TaskScope,
+                     root: str | os.PathLike[str]) -> CheckResult:
+    """Hold already parsed operations to the scope and to the line limit (the last gate before dev-cli)."""
+    root = Path(root)
+    result = CheckResult()
     for op in operations:
         path = op["path"]
         if reason := plan_paths.refusal(path, root):
@@ -187,8 +201,18 @@ def check_response(text: str, scope: TaskScope, root: str | os.PathLike[str]) ->
         if lines > scope.max_lines:
             result.violations.append(f"lines_over_limit:{path}:{lines}")
     if result.ok:
-        result.operations = operations
+        result.operations = list(operations)
     return result
+
+
+def violation_path(violation: str) -> str | None:
+    """The file a violation names (``out_of_scope`` and ``lines_over_limit``), else None."""
+    code, _, detail = violation.partition(":")
+    if code == "out_of_scope":
+        return detail
+    if code == "lines_over_limit":
+        return detail.rpartition(":")[0]
+    return None
 
 
 def next_action(rejections: int) -> str:

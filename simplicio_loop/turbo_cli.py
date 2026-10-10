@@ -26,9 +26,9 @@ import shutil
 import sys
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
-from . import plan_paths, turbo_window
+from . import plan_paths, plan_scope, turbo_window
 
 if TYPE_CHECKING:
     from .turbo_run import TurboRun
@@ -50,6 +50,7 @@ _CODE_EXTENSIONS = frozenset((
     "yaml", "toml", "ini", "cfg", "txt", "go", "rs", "java", "kt", "rb", "php", "cs", "c", "h", "cpp",
     "hpp", "sh", "sql", "vue", "svelte", "swift", "dart", "lua", "xml",
 ))
+_CRITERION = re.compile(r"^\s*[-*]\s*\[[ xX]\]\s*(.+)$", re.M)
 _PATH_TOKEN = re.compile(r"(?<![\w/.-])((?:[\w-]+/)*[\w.-]*\w\.([A-Za-z][A-Za-z0-9]{0,7}))(?![\w/-])")
 
 
@@ -90,6 +91,21 @@ def build_tasks(root: Path, texts: Sequence[str], target: str | None = None,
         ]
         tasks.append(task)
     return tasks
+
+
+def task_scope(root: Path, tasks: Sequence[Mapping[str, Any]]) -> plan_scope.TaskScope:
+    """What these tasks may touch (issue #1612): their target and context (the Mapper focus), every path their text
+    names (a file to create included), and their checklist criteria. A task that names no file is ``unbounded``."""
+    texts = [str(task.get("text") or "") for task in tasks]
+    return plan_scope.scope_from_tasks(
+        tasks, named_paths=[p for text in texts for p in mentioned_paths(text, root)],
+        criteria=[m.group(1).strip() for text in texts for m in _CRITERION.finditer(text)])
+
+
+def _scope_summary(scope: plan_scope.TaskScope, widenings: Sequence[Mapping[str, str]]) -> dict[str, Any]:
+    """The scope a run was held to, for the document: counts, not the paths, and every widening rule that was used."""
+    return {"files": len(scope.paths), "dirs": len(scope.dirs), "criteria": len(scope.criteria),
+            "unbounded": scope.unbounded, "max_lines": scope.max_lines, "widenings": list(widenings)}
 
 
 def _emit(document: dict[str, Any]) -> None:
@@ -257,8 +273,13 @@ def _excerpt(text: str | None, find: str) -> str:
     return "\n".join(lines[first:first + 12])[:_EXCERPT_CHARS]
 
 
-def _plan_failures(root: Path, operations: list[dict], reason: str) -> list[dict[str, Any]]:
-    """One entry per operation whose ``find`` no longer matches exactly once, else one entry with dev-cli's reason."""
+def _plan_failures(root: Path, operations: list[dict], reason: str, violations: Sequence[str] = ()) -> list[dict[str, Any]]:
+    """One entry per operation whose ``find`` no longer matches exactly once, else one entry with dev-cli's reason.
+
+    ``violations`` (the answer was refused by ``plan_scope``) come first, one entry each: the reason is the violation
+    itself (``out_of_scope:<path>``, ``extra_field:...``), the same text on every run, and the excerpt is empty."""
+    if violations:
+        return [{"path": plan_scope.violation_path(v), "reason": v, "excerpt": ""} for v in violations]
     failures = []
     for operation in operations:
         find = operation.get("find") or ""
@@ -305,6 +326,32 @@ def _saved_request(run_: TurboRun) -> dict[str, Any]:
     return saved if isinstance(saved, dict) else {}
 
 
+def _saved_scope(root: Path, saved: Mapping[str, Any]) -> plan_scope.TaskScope | None:
+    """The scope of the request this run printed, or None when the run has none (a bare ``--apply`` names no task)."""
+    if "texts" not in saved:
+        return None
+    tasks = build_tasks(root, saved["texts"], saved.get("target"), saved.get("context") or (), saved.get("tasks_file"))
+    return task_scope(root, tasks)
+
+
+def _refusal_document(run_: TurboRun, head: dict[str, Any], root: Path, operations: list[dict],
+                      violations: Sequence[str], scope: plan_scope.TaskScope) -> dict[str, Any]:
+    """The plan broke the closed contract or the scope: nothing is applied. The first refusal of a run is a ``retry``
+    (``retry_scheduled``; ``detail`` is what to tell the planner), the second is ``needs_human`` with the cause."""
+    count = run_.count_refusal()
+    action = plan_scope.next_action(count)
+    run_.refused(violations, action, count)
+    document: dict[str, Any] = {
+        **head, "status": "failed", "reason_code": "turbo_plan_refused" if action == "retry" else "needs_human",
+        "next_action": action, "detail": plan_scope.retry_message(violations), "applied": [],
+        "failed": _plan_failures(root, operations, "plan_refused", violations),
+        "rejected": plan_scope.counters(violations), "scope": _scope_summary(scope, []), "format": PLAN_FORMAT,
+    }
+    if action == "needs_human":
+        document["cause"] = list(violations[:plan_scope.MAX_REPORTED])
+    return document
+
+
 async def _apply_plan_async(repo: str, plan: str, verify: str | None, run_id: str | None = None,
                             leave_open: bool = False) -> int | tuple[Any, ...]:
     from .turbo import NO_RECEIPT, EmptyPlanError, apply_plan, load_need, load_operations, plan_prompt
@@ -346,7 +393,14 @@ async def _apply_plan_async(repo: str, plan: str, verify: str | None, run_id: st
     if text is None:
         return _conclude(run_, {**head, "status": "failed", "reason_code": "turbo_plan_missing", "detail": missing})
     try:
-        result = await apply_plan(root, operations, "host-1")
+        scope = _saved_scope(root, saved)
+    except (OSError, ValueError) as exc:  # the request's own --tasks-file is gone or bad: no scope to hold the plan to
+        return _conclude(run_, {**head, "status": "blocked", "reason_code": "turbo_scope_unavailable", "detail": str(exc)})
+    checked = plan_scope.check_response(text, scope, root) if scope is not None else None
+    if checked is not None and not checked.ok:
+        return _conclude(run_, _refusal_document(run_, head, root, operations, checked.violations, scope))
+    try:
+        result = await apply_plan(root, operations, "host-1", scope=scope)
     except RuntimeError as exc:
         return _conclude(run_, {**head, "status": "blocked", "reason_code": "turbo_engine_error", "detail": str(exc)})
     receipts = run_.persist_receipts(result["commands"])
@@ -363,6 +417,8 @@ async def _apply_plan_async(repo: str, plan: str, verify: str | None, run_id: st
         "failed": [] if result["applied"] else _plan_failures(root, operations, result["reason"]),
         "verify": None,
     }
+    if scope is not None:
+        document["scope"] = _scope_summary(scope, checked.widenings)
     if verify and result["applied"]:
         run_.enter("verify")
         document["verify"], _output = await _run_verify(root, verify, run_)
@@ -417,6 +473,7 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
     complete = functools.partial(
         turbo_provider.complete, session_id=turbo_provider.session_id_for(root),
         **structured_output.provider_fields(turbo_provider.model_name(), tasks, root))
+    scope_for = functools.partial(task_scope, root)  # every answer is held to the scope of the tasks it answers
     # The saved survey marker belongs to one run. Ask Mapper again on every invocation: its own
     # tree-state cache keeps an unchanged tree free and byte-identical, and a changed tree gets a new map.
     (root / ".simplicio-loop" / "turbo-survey.json").unlink(missing_ok=True)
@@ -425,10 +482,16 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
     run_.enter("plan")
     try:
         # dev-cli applies run inside run_turbo, between the model calls of each wave; "apply" is entered once it returns.
-        result = await run_turbo(root, tasks, complete)
+        result = await run_turbo(root, tasks, complete, scope_for=scope_for)
     except RuntimeError as exc:
         return _conclude(run_, {**head, "status": "blocked", "reason_code": "turbo_engine_error",
                                 "detail": str(exc), "tasks": len(tasks)})
+    refusals: list[list[str]] = [v for o in result["outcomes"] for v in o.get("rejections", [])]
+    for outcome in result["outcomes"]:  # an answer refused by the contract or the scope, then asked again or ended
+        for number, retry in enumerate(outcome.get("retries", []), start=1):
+            run_.refused(retry["violations"], "retry", number)
+        if outcome.get("needs_human"):
+            run_.refused(outcome["rejections"][-1], "needs_human", len(outcome["rejections"]))
     run_.enter("apply")
     receipts = run_.persist_receipts(result["commands"])
     calls = list(result["llm_calls"])
@@ -452,8 +515,9 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
         document["verify"], output = await _run_verify(root, verify, run_)
         if not document["verify"]["passed"]:
             # One repair call with the test output, then the tests run again.
-            repair = await repair_with_test_output(root, tasks, complete, output)
+            repair = await repair_with_test_output(root, tasks, complete, output, scope_for=scope_for)
             calls.extend(repair["llm_calls"])
+            refusals.extend(repair["rejections"])
             receipts.extend(run_.persist_receipts(repair["commands"]))
             retry = {"attempted": True, "applied": repair["applied"], "reason": repair["reason"], "passed": False}
             if repair["applied"]:
@@ -473,6 +537,7 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
         "cost_usd": round(sum(c.get("cost_usd") or 0 for c in billed), 6),
         "calls": [{k: c.get(k) for k in ("latency_s", "provider", "prompt_tokens", "cached_tokens",
                                          "completion_tokens", "hedged", "warm")} for c in calls],
+        "structured_metrics": structured_output.output_metrics(calls, refusals),
     })
     document["wall_s"] = round(time.time() - started, 2)
     return _conclude(run_, document, calls)
