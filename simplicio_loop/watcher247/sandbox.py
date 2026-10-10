@@ -121,7 +121,7 @@ def _absolute_link_in(path: Path) -> tuple[Path, str] | None:
     """The first symbolic link on the way to `path` whose target is absolute, else None. Followed one component at a time, so a
     relative link that leads to an absolute one counts. bwrap mounts a tmpfs fine behind a RELATIVE link (`/home -> var/home` on
     ostree hosts, measured) and fails with `Can't mkdir` / `Can't mount tmpfs` behind an absolute one.
-    
+
     Returns tuple of (link, reason) where reason is "absolute target" or "loop of symbolic links", or None if no problem found.
     """
     pending, resolved, hops = list(path.parts[1:]), Path(path.anchor), 0
