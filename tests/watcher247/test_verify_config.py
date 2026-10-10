@@ -153,3 +153,34 @@ def test_the_merge_train_runs_the_verify_of_the_repo(env, monkeypatch):
     run_tick()
     assert fake.merges == [101, 102]
     assert fake.ran("python3", "-m", "pytest") == [["python3", "-m", "pytest", "-q", "tests/x.py"]]
+
+
+def test_fake_run_hermetic_git_rev_parse_would_fail_if_broken(env):
+    """Mutant test: verify FakeRun properly returns SHA on rev-parse after fetch.
+    
+    This test ensures the hermetic fix for git rev-parse is working. If FakeRun._git()
+    returns exit 1 for rev-parse instead of the fetched SHA, squad_review.evaluate()
+    would fail and reviews would be rejected. This test catches regressions.
+    """
+    import asyncio
+    from simplicio_loop.watcher247 import proc
+    
+    async def test_rev_parse():
+        fake = FakeRun({"simplicio-a": [issue(1)]}, distinct_prs=True, 
+                       pr_views={101: _view(1)})
+        orig_run = proc.run
+        proc.run = fake
+        try:
+            # After fetch, rev-parse must return the SHA (exit 0), not exit 1
+            result = await fake(["git", "fetch", "--depth", "200", "origin",
+                                 "+refs/heads/loop/issue-1:refs/remotes/origin/loop/issue-1"])
+            assert result.returncode == 0, "fetch should succeed"
+            
+            result = await fake(["git", "rev-parse", "--verify",
+                                 "refs/remotes/origin/loop/issue-1^{commit}"])
+            assert result.returncode == 0, "rev-parse should return exit 0 (was broken: returned 1)"
+            assert result.stdout.strip() != "", "rev-parse should return SHA, not empty"
+        finally:
+            proc.run = orig_run
+    
+    asyncio.run(test_rev_parse())
