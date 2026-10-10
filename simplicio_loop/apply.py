@@ -81,7 +81,7 @@ def _normalize_tasks(ops: Mapping[str, Any]) -> list[dict[str, Any]]:
         for op in operations:
             if not isinstance(op, Mapping) or not all(k in op for k in ("path", "find", "replace")):
                 raise ApplyValidationError(f"task {task_id!r} has a malformed operation")
-            if reason := plan_paths.refusal(str(op["path"])):
+            if reason := plan_paths.refusal(str(op["path"])) or plan_paths.protected_refusal(str(op["path"])):  # before any task writes
                 raise ApplyValidationError(f"task {task_id!r}: {reason}")
             normalized_ops.append({"path": str(op["path"]), "find": str(op["find"]), "replace": str(op["replace"])})
         out.append({
@@ -197,6 +197,9 @@ def validate_ops(root: Path, tasks: Sequence[Mapping[str, Any]], chains: Sequenc
                 if plan_paths.refusal(path, root):  # nothing is read for it: no count, no existence
                     problems.append({"task": task_id, "path": path, "op_index": idx, "reason": "unsafe_path"})
                     continue
+                if plan_paths.protected_refusal(path, root):  # also through a symlink; blocks the whole file before task one writes
+                    problems.append({"task": task_id, "path": path, "op_index": idx, "reason": "protected_path"})
+                    continue
                 current = read(path)
                 if find_text == "":
                     if (root / path).exists() and current:
@@ -242,7 +245,8 @@ def _apply_task_devcli(root: Path, task: Mapping[str, Any], run_dir: Path) -> di
     """Apply one task's operations through simplicio-dev-cli's 2-step
     contract (compile pins hashes without mutating; apply mutates)."""
     if reason := plan_paths.operations_refusal(task["operations"], root):
-        return {"ok": False, "steps": [{"step": "guard", "ok": False, "error": reason}], "reason_code": "unsafe_path"}
+        code = "protected_path" if reason.startswith("protected_path:") else "unsafe_path"
+        return {"ok": False, "steps": [{"step": "guard", "ok": False, "error": reason}], "reason_code": code}
     dev_cli = _resolve_dev_cli()
     minimal_path = run_dir / f"{task['id']}.ops.json"
     compiled_path = run_dir / f"{task['id']}.plan.json"
