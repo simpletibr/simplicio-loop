@@ -23,8 +23,11 @@ STUB = textwrap.dedent('''\
         deny = json.load(open(cfg))["permission"]["bash"] == "deny"
     except Exception:
         deny = False
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "seen.txt"), "w") as handle:
-        handle.write(cfg)
+    try:  # records what it saw; the sandbox keeps the state dir (this folder) read-only, which is not what is under test
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "seen.txt"), "w") as handle:
+            handle.write(cfg)
+    except OSError:
+        pass
     if not deny:
         sys.exit(3)
     print(json.dumps({"operations": []}))
