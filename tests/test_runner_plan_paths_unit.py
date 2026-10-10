@@ -159,7 +159,7 @@ def test_compile_refuses_a_compiled_plan_that_carries_validation_commands(repo, 
                                                   validation=VALIDATION)), encoding="utf-8")
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
-    monkeypatch.setattr(runner, "_run_cmd", compile_with_validation)
+    patch_runner(monkeypatch, "_run_cmd", compile_with_validation)
     compiled, reason_code, message = runner._compile_minimal_host_plan(repo, plan_path)
     assert compiled is None and reason_code == "plan_path_unsafe" and message.startswith("protected_path: validation")
     assert json.loads(plan_path.read_text(encoding="utf-8")) == _minimal("app.py", "old")
