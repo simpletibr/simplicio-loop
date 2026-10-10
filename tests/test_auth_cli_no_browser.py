@@ -433,3 +433,15 @@ def test_no_browser_that_cannot_install_the_stand_ins_exits_2_with_the_reason_an
     assert doc["status"] == "REFUSED" and doc["reason_code"] == "no_browser_unsupported"
     assert "no space left on device" in doc["detail"] and "3.10.0" in doc["detail"]
     assert not called.exists()
+
+
+# --- docs (#1575): the login row must describe the stand-ins that ship, not only BROWSER=true ----------------------------
+
+
+def test_the_login_row_of_the_docs_describes_the_stand_ins_and_the_refusal():
+    root = Path(__file__).resolve().parents[1]
+    row = next(line for line in (root / "docs" / "CLI_COMMANDS.md").read_text().splitlines() if line.startswith("| `login` |"))
+    assert "sets `BROWSER=true` for the Runtime (UNVERIFIED that the Runtime obeys it)" not in row
+    assert "stand-ins" in row and "xdg-open" in row
+    assert "DBUS_SESSION_BUS_ADDRESS" in row
+    assert "`no_browser_unsupported`" in row and "exits 2" in row
