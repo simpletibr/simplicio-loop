@@ -167,13 +167,17 @@ def test_an_optional_missing_tool_is_not_pending(home):
     assert run(fakes, home)[0] == 0
 
 
+def install_tool(home, name, content=b"#!/bin/sh\necho tool\n"):
+    """The file `prereqs.ensure` would have written."""
+    tool = home / ".local" / "bin" / name
+    tool.parent.mkdir(parents=True, exist_ok=True)
+    tool.write_bytes(content)
+    tool.chmod(0o755)
+    return tool
+
+
 def install_gh(home, content=b"#!/bin/sh\necho gh\n"):
-    """The file `prereqs.ensure` would have written, and the action it would have reported."""
-    gh = home / ".local" / "bin" / "gh"
-    gh.parent.mkdir(parents=True, exist_ok=True)
-    gh.write_bytes(content)
-    gh.chmod(0o755)
-    return gh
+    return install_tool(home, "gh", content)
 
 
 def trusted_of(fakes):
@@ -183,6 +187,7 @@ def trusted_of(fakes):
 def test_after_an_install_the_checks_run_again_with_that_exact_file_vouched_and_the_path_unchanged(home):
     fakes = Fakes()
     fakes.actions = [prereqs.Action(name="gh", result="installed", detail="2.60.0")]
+    install_gh(home)
     run(fakes, home)
     paths = [c[2] for c in fakes.calls if c[0] == "check_all"]
     assert paths == ["/usr/bin", "/usr/bin"]  # ~/.local/bin is never added to the PATH that detection searches
@@ -193,6 +198,8 @@ def test_only_gh_and_uv_installs_are_vouched(home):
     fakes = Fakes()
     fakes.actions = [prereqs.Action(name="python", result="installed", detail="x"), prereqs.Action(name="git", result="installed", detail="x"),
                      prereqs.Action(name="uv", result="installed", detail="x"), prereqs.Action(name="gh", result="unchanged", detail="x")]
+    for name in ("python", "git", "uv", "gh"):
+        install_tool(home, name)
     run(fakes, home)
     assert trusted_of(fakes)[1] == {"uv": str(home / ".local" / "bin" / "uv")}
 
@@ -251,6 +258,78 @@ def test_a_record_that_is_forged_or_names_another_tool_is_not_vouched(home):
     later = Fakes()
     run(later, home)
     assert trusted_of(later)[0] == {}
+
+
+def installed_gh_fakes():
+    fakes = Fakes()
+    fakes.actions = [prereqs.Action(name="gh", result="installed", detail="2.60.0")]
+    return fakes
+
+
+def recorded(home):
+    return json.loads(summary_file(home).read_text())["installs"]
+
+
+def test_a_file_swapped_during_the_github_step_is_not_recorded_as_installed(home):
+    import hashlib
+    gh = install_gh(home)
+    original = hashlib.sha256(gh.read_bytes()).hexdigest()
+    fakes = installed_gh_fakes()
+    fakes.during_resolve = lambda: gh.write_bytes(b"#!/bin/sh\ntouch /tmp/swapped\n")  # up to 15 s of network in real life
+    run(fakes, home)
+    assert recorded(home) == {"gh": original}  # the hash taken when the file was installed, not the one at the end
+    later = Fakes()
+    run(later, home)
+    assert trusted_of(later)[0] == {}
+
+
+def test_a_vouched_file_swapped_during_the_github_step_loses_its_record_next_run(home):
+    import hashlib
+    gh = install_gh(home)
+    original = hashlib.sha256(gh.read_bytes()).hexdigest()
+    run(installed_gh_fakes(), home)
+    second = Fakes()
+    second.during_resolve = lambda: gh.write_bytes(b"#!/bin/sh\ntouch /tmp/swapped\n")
+    run(second, home)
+    assert trusted_of(second)[0] == {"gh": str(gh)} and recorded(home) == {"gh": original}
+    third = Fakes()
+    run(third, home)
+    assert trusted_of(third)[0] == {}
+
+
+def test_nothing_in_the_user_bin_is_vouched_while_that_folder_is_writable_by_others(home):
+    gh = install_gh(home)
+    run(installed_gh_fakes(), home)
+    gh.parent.chmod(0o777)
+    later = Fakes()
+    later.actions = [prereqs.Action(name="gh", result="installed", detail="2.60.0")]
+    later.checks = [check("python"), check("gh", "missing", fix="download it")]
+    code, text = run(later, home)
+    assert trusted_of(later) == [{}] and recorded(home) == {}  # not vouched, so there is no second look either
+    assert f"chmod go-w {gh.parent}" in text
+
+
+def test_an_agent_cli_found_only_in_an_ignored_path_entry_is_named_with_the_fix(home):
+    claude = home / ".local" / "bin" / "claude"
+    claude.parent.mkdir(parents=True)
+    claude.write_text("#!/bin/sh\n")
+    claude.chmod(0o755)
+    fakes = Fakes()
+    fakes.hosts = [host("claude-code", installed=False), host("codex", login="no")]
+    path = os.pathsep.join([str(claude.parent), "/usr/bin"])
+    code, text = run(fakes, home, path=path)
+    assert f"claude-code: {claude} is in an ignored PATH entry (user_local_bin) and is not run" in text
+    assert "sudo install -m 755" in text
+    doc = json.loads(run(fakes, home, path=path, json_out=True)[1])
+    assert doc["ignored_hosts"] == [{"host": "claude-code", "path": str(claude), "reason": "user_local_bin"}]
+
+
+def test_no_ignored_agent_cli_means_no_such_line(home):
+    fakes = Fakes()
+    fakes.hosts = [host("claude-code", installed=False)]
+    code, text = run(fakes, home)
+    assert "ignored PATH entry" not in text
+    assert json.loads(run(fakes, home, json_out=True)[1])["ignored_hosts"] == []
 
 
 def test_a_tool_in_the_user_bin_that_the_setup_did_not_install_is_not_run_and_the_fix_says_to_remove_it(home):

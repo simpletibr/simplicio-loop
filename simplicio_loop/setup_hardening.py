@@ -3,13 +3,15 @@
 Minimal probe env, PATH hygiene, exact download allowlist, strict redirect
 handling, safe reads of private state files and an isolated cwd for git.
 
-PATH hygiene (decision: warn and ignore). Host detection and the prerequisite probes never run a program found in an
-unsafe PATH entry; ``path_warnings`` names each one and ``simplicio-loop setup`` prints it. An entry is unsafe when it is
-relative or empty, is ``~/.local/bin``, is writable by anyone (``o+w``, sticky or not), or belongs to a user other than
-root and the current one. Group write on a folder that root or the user owns is accepted: Homebrew (``/opt/homebrew/bin``
-is ``775 user:admin``) and Debian (``/usr/local/bin`` is ``root:staff``) install like that, and their group is trusted.
-``~/.local/bin`` is the one folder the setup writes to itself (gh and uv): ``prereqs.check_all(trusted=...)`` runs those
-exact files, only after ``setup_cli`` checked their recorded SHA256.
+PATH hygiene (decision: warn and ignore). Host detection, the prerequisite probes and the GitHub credential sources never
+run a program found in an unsafe PATH entry; ``path_warnings`` names each one and ``simplicio-loop setup`` prints it. An entry
+is unsafe when it is relative or empty, is ``~/.local/bin`` (however it is spelled or linked), cannot be examined, is writable
+by anyone (``o+w``, sticky or not), belongs to a user other than root and the current one, or sits under a folder or link
+that anyone can rewrite (``o+w`` without the sticky bit) or that a foreign user owns. A folder that does not exist is not
+searched and not reported. Group write on a folder that root or the user owns is accepted: Homebrew (``/opt/homebrew/bin`` is
+``775 user:admin``) and Debian (``/usr/local/bin`` is ``root:staff``) install like that, and their group is trusted.
+``~/.local/bin`` is the one folder the setup writes to itself (gh and uv): ``safe_which(trusted=...)`` runs those exact files,
+only after ``setup_cli`` checked their recorded SHA256.
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ import os
 import shutil
 import stat
 import tempfile
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
@@ -63,8 +65,10 @@ def minimal_env(environ: Mapping[str, str] | None = None) -> dict[str, str]:
 
 
 def path_warnings(path_value: str, home: str | None = None) -> list[tuple[str, str]]:
-    """Unsafe PATH entries as (entry, reason) pairs; reason is relative, user_local_bin, writable_by_others or foreign_owner."""
-    local_bin = os.path.normpath(os.path.join(home or str(Path.home()), ".local", "bin"))
+    """Unsafe PATH entries as (entry, reason) pairs.
+
+    reason is relative, user_local_bin, unreadable, writable_by_others, writable_parent or foreign_owner."""
+    local_bin = os.path.realpath(os.path.join(home or str(Path.home()), ".local", "bin"))
     warnings: list[tuple[str, str]] = []
     for entry in path_value.split(os.pathsep):
         reason = _entry_reason(entry, local_bin)
@@ -73,22 +77,50 @@ def path_warnings(path_value: str, home: str | None = None) -> list[tuple[str, s
     return warnings
 
 
+def _foreign(info: os.stat_result) -> bool:
+    return info.st_uid not in (0, os.geteuid())
+
+
 def _entry_reason(entry: str, local_bin: str) -> str | None:
     if not entry or not os.path.isabs(entry):
         return "relative"
-    if os.path.normpath(entry) == local_bin:
+    real = os.path.realpath(entry)
+    if real == local_bin:
         return "user_local_bin"
     if os.name == "nt":
         return None
     try:
-        info = os.stat(entry)
+        info = os.stat(real)
+    except (FileNotFoundError, NotADirectoryError):
+        return None  # nothing there to run; it is checked again the next time
     except OSError:
-        return None
+        return "unreadable"
     if info.st_mode & stat.S_IWOTH:
         return "writable_by_others"
-    if info.st_uid not in (0, os.geteuid()):
+    if _foreign(info):
         return "foreign_owner"
+    # whoever can rewrite a folder above the entry, or the link that points at it, can swap what is inside
+    holders = {*_ancestors(os.path.normpath(entry)), *_ancestors(real)} - {real}
+    for holder in sorted(holders):
+        try:
+            above = os.lstat(holder)
+        except OSError:
+            return "unreadable"
+        if _foreign(above):
+            return "foreign_owner"
+        if stat.S_ISDIR(above.st_mode) and above.st_mode & stat.S_IWOTH and not above.st_mode & stat.S_ISVTX:
+            return "writable_parent"
     return None
+
+
+def _ancestors(path: str) -> Iterator[str]:
+    """``path`` and every folder above it, down to the root."""
+    while True:
+        yield path
+        parent = os.path.dirname(path)
+        if parent == path:
+            return
+        path = parent
 
 
 def safe_path(path_value: str, home: str | None = None) -> str:
@@ -129,6 +161,21 @@ def probe_env(environ: Mapping[str, str] | None = None) -> dict[str, str]:
     if "PATH" in env:
         env["PATH"] = exec_path(env["PATH"], _home_of(source))
     return env
+
+
+def find_ignored(environ: Mapping[str, str], names: Iterable[str]) -> dict[str, tuple[str, str]]:
+    """For each name that has an executable file in an unsafe PATH entry: name -> (path, reason). The first entry wins."""
+    unsafe = path_warnings(environ.get("PATH", os.defpath), _home_of(environ))
+    found: dict[str, tuple[str, str]] = {}
+    for name in names:
+        for entry, reason in unsafe:
+            if reason == "unreadable":
+                continue
+            candidate = os.path.join(entry or os.curdir, name)
+            if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                found[name] = (candidate, reason)
+                break
+    return found
 
 
 def is_allowed_download(url: str) -> bool:
@@ -201,7 +248,7 @@ def isolated_git_cwd(
     read; global and system helpers still apply.
     """
     with tempfile.TemporaryDirectory(prefix="simplicio-git-") as workdir:
-        env = minimal_env(environ)
+        env = probe_env(environ)
         env["GIT_CEILING_DIRECTORIES"] = os.path.dirname(workdir)
         env["GIT_TERMINAL_PROMPT"] = "0"
         yield workdir, env

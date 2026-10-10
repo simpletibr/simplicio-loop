@@ -273,7 +273,10 @@ def _install_python(uv: Optional[Check], where: _Where, run: Run, dry_run: bool)
     actions, uv_path = [], uv.path if uv else None
     if uv_path is None:
         actions.append(_install_release("uv", where, dry_run=False))
-        if actions[-1].result not in ("installed", "unchanged"):
+        if actions[-1].result == "unchanged":  # a file nobody verified: it is not run
+            return actions + [Action("python", "skipped", f"uv is not verified, so `{command}` did not run; "
+                                     f"remove {where.exe('uv')} and run `simplicio-loop setup`")]
+        if actions[-1].result != "installed":
             return actions
         uv_path = str(where.exe("uv"))
     code, _ = run([uv_path, "python", "install", PY_TARGET], INSTALL_TIMEOUT_S)

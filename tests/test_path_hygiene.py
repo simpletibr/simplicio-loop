@@ -136,3 +136,27 @@ def test_setup_with_the_real_steps_runs_nothing_from_unsafe_entries_and_prints_e
     for entry, reason in (("reldir", "relative"), (machine.entries["writable_by_others"], "writable_by_others"),
                           (machine.entries["user_local_bin"], "user_local_bin")):
         assert f"{entry}  ({reason})" in text
+
+
+def test_python_install_never_runs_a_uv_that_setup_did_not_verify(tmp_path):
+    marker = tmp_path / "uv-ran"
+    bin_dir = tmp_path / "home" / ".local" / "bin"
+    program(bin_dir, "uv", f": > {marker}\nexit 0\n")  # there before the setup: nobody checked its bytes
+
+    def no_network(url):
+        raise AssertionError(url)
+
+    checks = [prereqs.Check("python", "missing", True, None, None, "3.11", "uv python install 3.11", "user"),
+              prereqs.Check("uv", "missing", True, None, None, None, "", "user")]
+    actions = prereqs.ensure(checks, environ={"HOME": str(tmp_path / "home"), "PATH": "/usr/bin"}, bin_dir=bin_dir,
+                             platform="linux", machine="x86_64", get=no_network)
+    assert not marker.exists()
+    assert [(a.name, a.result) for a in actions] == [("uv", "unchanged"), ("python", "skipped")]
+    assert "remove" in actions[0].detail and "uv" in actions[1].detail
+
+
+def test_the_real_runner_resolves_a_bare_program_name_only_through_safe_path_entries(machine, monkeypatch):
+    monkeypatch.setenv("PATH", machine.environ["PATH"])
+    monkeypatch.setenv("HOME", machine.environ["HOME"])
+    assert prereqs._run(["gh", "--version"], 5) == (0, "gh version 2.60.0 (2024-11-01)\n")  # the safe gh answered
+    assert machine.ran() == []

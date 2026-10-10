@@ -39,6 +39,7 @@ class Fakes:
         self.tty = False
         self.stdin_text = ""
         self.ask_value = TOKEN
+        self.during_resolve = None  # called inside the GitHub step: lets a test change a file mid-run
 
     def seams(self):
         def detect(environ, **_):
@@ -55,6 +56,8 @@ class Fakes:
 
         def resolve(environ, **kw):
             self.calls.append(("resolve", {k: v for k, v in kw.items() if k != "state_dir"}))
+            if self.during_resolve:
+                self.during_resolve()
             return self.resolution
 
         def save_token(directory, token, login):
