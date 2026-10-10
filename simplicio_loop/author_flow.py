@@ -20,6 +20,10 @@ API key: the login is the file. Both run in the watcher sandbox with an allowlis
 ``allow_unsandboxed=True``. Only ``claude`` is supported; the flags in ``author_argv`` were checked against ``claude --help``. The
 sandbox keeps the network open: the author's code can reach the network. A SIGTERM or SIGHUP on the main thread unwinds the run, so
 the private HOME is deleted; after a SIGKILL the next run sweeps it.
+
+The login must not reach a file the host commits. ``author_argv`` denies the file tools (Read, Grep, Glob, Edit, Write) the private
+HOME and the login file (``deny_rules``), and every snapshot is followed by a scan: a changed file that holds the login file or one of
+its tokens fails the round with ``secret_in_diff`` (the detail names the file, never the secret).
 """
 from __future__ import annotations
 
@@ -29,7 +33,7 @@ import json
 import os
 import shutil
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -45,6 +49,7 @@ ALLOWED_TOOLS = (
     "Bash(git status:*)", "Bash(git diff:*)",
 )
 DISALLOWED_TOOLS = "WebFetch,WebSearch"
+DENIED_FILE_TOOLS = ("Read", "Grep", "Glob", "Edit", "Write")  # every file tool the CLI has without Bash
 AUTHOR_TIMEOUT_S = 900  # one CLI round
 VERIFY_TIMEOUT_S = 600
 MAX_ROUNDS = 10
@@ -66,6 +71,8 @@ ADVICE = {
     "protected_path": ("You changed protected paths or Python bytecode. Undo every change to a protected path (restore its original content). "
                        "Delete every .pyc and .pyo you made. Do not make bytecode: PYTHONDONTWRITEBYTECODE=1 is set.\n{detail}"),
     "empty_diff": "You made no change to any file. Edit the files that the task needs.",
+    "secret_in_diff": ("A file you changed holds a secret (a copy of the login of this session or one of its tokens). "
+                       "Delete the secret from these files and never read or copy it:\n{detail}"),
 }
 
 
@@ -90,8 +97,23 @@ class AuthorResult:
     reason_code: str
 
 
-def author_argv(family: str, prompt: str, *, session: str, resume: bool, model: str, effort: str, run_tests: bool = True) -> list[str]:
+def deny_rules(private_home: Path, real_home: Path) -> list[str]:
+    """``--disallowedTools`` rules that keep the file tools off the login: the private HOME, and the ``.claude`` folder and the login
+    file of both HOMEs. ``Tool(//abs/path/**)`` is Claude Code's permission rule for an absolute path (one leading ``/`` is relative to
+    the settings file, ``//`` is the file system root); a deny rule wins over any allow rule. The login file has a rule of its own.
+    """
+    paths = []
+    for home, whole in ((private_home, True), (real_home, False)):
+        base = "/" + os.fspath(home)  # an absolute path starts with "/": the rule starts with "//"
+        paths += ([f"{base}/**"] if whole else []) + [f"{base}/{author_isolation.LOGIN.parent}/**", f"{base}/{author_isolation.LOGIN}"]
+    return [f"{tool}({path})" for tool in DENIED_FILE_TOOLS for path in paths]
+
+
+def author_argv(family: str, prompt: str, *, session: str, resume: bool, model: str, effort: str, run_tests: bool = True,
+                deny: Sequence[str] = ()) -> list[str]:
     """The claude argv for one round. ``allowedTools`` and ``disallowedTools`` take lists, so a flag follows each list.
+
+    ``deny`` (see ``deny_rules``) goes after the web tools in ``disallowedTools``, one argument each.
 
     ``run_tests=False`` leaves the CLI only the file tools: no ``Bash(...)`` entry at all. pytest runs the author's conftest in the
     CLI's own sandbox, with the private HOME (the login) mounted and the network open, and ``git status`` / ``git diff`` run a program
@@ -105,7 +127,7 @@ def author_argv(family: str, prompt: str, *, session: str, resume: bool, model: 
         argv += ["--model", model]
     if effort:
         argv += ["--effort", effort]
-    argv += ["--permission-mode", "acceptEdits", "--allowedTools", *tools, "--disallowedTools", DISALLOWED_TOOLS,
+    argv += ["--permission-mode", "acceptEdits", "--allowedTools", *tools, "--disallowedTools", DISALLOWED_TOOLS, *deny,
              "--disable-slash-commands", "--strict-mcp-config", "--setting-sources", "user", "--output-format", "json"]
     return argv + (["--resume", session] if resume else ["--session-id", session])
 
@@ -157,6 +179,8 @@ class _Run:
         self.usage: dict[str, int] = {}
         self.measured = 0
         self.before: dict[str, str] = {}
+        self.login_files: tuple[Path, ...] = ()
+        self.secrets: set[bytes] = set()  # the bytes of the login and its tokens: in memory only, never in a log or a detail
 
     def result(self, status: str, reason: str, failures: list[dict[str, str]]) -> AuthorResult:
         usage = {**self.usage, "measured_rounds": self.measured} if self.measured else None
@@ -197,17 +221,26 @@ class _Run:
         self.changed = author_isolation.diff(self.before, await asyncio.to_thread(author_isolation.snapshot, self.worktree))
         return self.changed
 
+    async def findings(self, changed: list[str]) -> list[dict[str, str]]:
+        """The failures in the changed files themselves: a protected path, then a copy of the login (``secret_in_diff``, last: it is the reason)."""
+        failures = []
+        if planted := _protected(changed, self.worktree):
+            failures.append({"kind": "protected_path", "detail": "\n".join(planted)})
+        # read again every time: the CLI may refresh the tokens in its home; the old values stay in the set
+        self.secrets |= await asyncio.to_thread(author_isolation.login_secrets, *self.login_files)
+        if held := await asyncio.to_thread(author_isolation.leaks, self.worktree, changed, self.secrets):
+            failures.append({"kind": "secret_in_diff", "detail": "\n".join(f"{path}: holds the login or one of its tokens" for path in held)})
+        return failures
+
     async def check(self, env: dict[str, str], view: sandbox.HomeView) -> list[dict[str, str]]:
-        """Run verify and look at what it wrote; the failures, none when it is green and planted nothing protected."""
+        """Run verify and look at what it wrote; the failures, none when it is green and planted nothing protected or secret."""
         run, error = await self.launch(["sh", "-c", self.verify], view, env, VERIFY_TIMEOUT_S)
         failures = []
         if error:
             failures.append({"kind": "verify_failed", "detail": f"{error[0]}: {error[1]}"})
         elif run.returncode:
             failures.append({"kind": "verify_failed", "detail": f"exit {run.returncode}\n{run.stdout}\n{run.stderr}"})
-        if planted := _protected(await self.observe(), self.worktree):  # verify ran the author's code after the check that came before it
-            failures.append({"kind": "protected_path", "detail": "\n".join(planted)})
-        return failures
+        return failures + await self.findings(await self.observe())  # verify ran the author's code after the check that came before it
 
     async def go(self, family: str, task_text: str, home: Path, real_home: Path) -> AuthorResult:
         resolved = model_roles.resolve(family, ROLE)
@@ -217,12 +250,15 @@ class _Run:
         verify_view = sandbox.HomeView(real_home)
         prompt = (AUTHOR_PREAMBLE.format(protected=", ".join(plan_paths.PROTECTED_PATHS), verify=f"`{self.verify}`" if self.verify else "no command",
                                                   no_run="" if self.run_tests else NO_RUN_NOTE) + task_text)
+        self.login_files = (home / author_isolation.LOGIN, real_home / author_isolation.LOGIN)
+        self.secrets = await asyncio.to_thread(author_isolation.login_secrets, *self.login_files)
+        deny = deny_rules(home, real_home)
         self.before = await asyncio.to_thread(author_isolation.snapshot, self.worktree)
         failures: list[dict[str, str]] = []
         for self.n in range(1, self.rounds + 1):
             author_isolation.reset_config(home)
             argv = author_argv(family, prompt, session=self.session, resume=self.n > 1, model=resolved["model"], effort=resolved["effort"],
-                               run_tests=self.run_tests)
+                               run_tests=self.run_tests, deny=deny)
             run, error = await self.launch(argv, cli_view, cli_env, AUTHOR_TIMEOUT_S)
             if error:
                 await self.observe()
@@ -240,12 +276,8 @@ class _Run:
                 return self.fail("bad_envelope", _tail(f"the CLI exited 0 without a JSON object:\n{run.stdout}"))
 
             changed = await self.observe()
-            failures = []
-            if not changed:
-                failures.append({"kind": "empty_diff", "detail": ""})
-            elif reasons := _protected(changed, self.worktree):
-                failures.append({"kind": "protected_path", "detail": "\n".join(reasons)})
-            elif self.verify:
+            failures = await self.findings(changed) if changed else [{"kind": "empty_diff", "detail": ""}]
+            if changed and not failures and self.verify:
                 failures = await self.check(verify_env, verify_view)
             if not failures:
                 return self.result("ok", "ok" if self.verify else "ok_unverified", [])

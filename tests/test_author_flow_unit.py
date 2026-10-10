@@ -1102,3 +1102,207 @@ def test_the_cli_view_binds_the_private_home_of_the_configured_base(repo, fake, 
     result = go(repo, runner, verify="true", allow_unsandboxed=False)
     assert result.status == "ok"
     assert views[0].rw == (f"state/authors/{result.session_id}",)
+
+
+# --- the login never reaches a file the host commits (MAJOR, round 3) ---------------------------------------------------------------
+
+ACCESS = "sk-ant-oat01-ACCESSTOKENVALUE0123456789"
+REFRESH = "sk-ant-ort01-REFRESHTOKENVALUE987654321"
+LOGIN_JSON = json.dumps({"claudeAiOauth": {"accessToken": ACCESS, "refreshToken": REFRESH, "expiresAt": 1}})
+FILE_TOOLS = ("Read", "Grep", "Glob", "Edit", "Write")
+
+
+@pytest.fixture
+def token_login(real_home):
+    (real_home / ".claude" / ".credentials.json").write_text(LOGIN_JSON)
+    return LOGIN_JSON
+
+
+def test_deny_rules_pin_the_exact_strings_for_an_absolute_path():
+    rules = author_flow.deny_rules(Path("/h/priv/run-1"), Path("/h/user"))
+    paths = ("//h/priv/run-1/**", "//h/priv/run-1/.claude/**", "//h/priv/run-1/.claude/.credentials.json",
+             "//h/user/.claude/**", "//h/user/.claude/.credentials.json")
+    assert rules == [f"{tool}({path})" for tool in FILE_TOOLS for path in paths]
+
+
+def test_the_credential_file_is_denied_by_its_own_path_for_every_file_tool():
+    rules = author_flow.deny_rules(Path("/h/priv/run-1"), Path("/h/user"))
+    for tool in FILE_TOOLS:
+        assert f"{tool}(//h/priv/run-1/.claude/.credentials.json)" in rules
+        assert f"{tool}(//h/user/.claude/.credentials.json)" in rules
+        assert f"{tool}(//h/priv/run-1/**)" in rules  # the whole private home too
+
+
+def test_author_argv_hands_the_deny_rules_to_disallowed_tools_one_argument_each():
+    rules = author_flow.deny_rules(Path("/h/priv/run-1"), Path("/h/user"))
+    argv = author_flow.author_argv("claude", "x", session=SESSION, resume=False, model="", effort="", deny=rules)
+    assert flag_values(argv, "--disallowedTools") == ["WebFetch,WebSearch", *rules]
+    assert flag_values(argv, "--allowedTools") == list(author_flow.ALLOWED_TOOLS)  # an allow entry does not beat a deny rule, and stays
+
+
+def test_the_cli_of_a_run_is_denied_its_private_home_and_the_credential_file(repo, fake, real_home):
+    scenario, calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    assert go(repo, runner).status == "ok"
+    argv = calls()[0]["argv"]
+    private = calls()[0]["home"].lstrip("/")
+    real = str(real_home).lstrip("/")
+    denied = flag_values(argv, "--disallowedTools")
+    for tool in FILE_TOOLS:
+        assert f"{tool}(//{private}/**)" in denied
+        assert f"{tool}(//{private}/.claude/.credentials.json)" in denied
+        assert f"{tool}(//{real}/.claude/.credentials.json)" in denied
+    assert "WebFetch,WebSearch" in denied
+
+
+def test_every_round_keeps_the_deny_rules(repo, fake):
+    scenario, calls, runner = fake
+    scenario({"write": {"a.txt": "1\n"}}, {"write": {"done.txt": "ok\n"}})
+    assert go(repo, runner, verify="test -f done.txt").rounds == 2
+    first, second = (flag_values(call["argv"], "--disallowedTools") for call in calls())
+    assert first == second and len(first) == 1 + 5 * len(FILE_TOOLS)
+
+
+def test_a_cli_that_copies_the_login_file_fails_the_round_with_secret_in_diff(repo, fake, token_login, real_home):
+    scenario, _calls, runner = fake
+    scenario({"run": [["cp", str(real_home / ".claude/.credentials.json"), "notes.txt"]]})
+    result = go(repo, runner, rounds=1)
+    assert (result.status, result.reason_code) == ("failed", "secret_in_diff")
+    assert result.changed == ["notes.txt"]
+    assert "notes.txt" in result.failures[0]["detail"]
+    assert ACCESS not in repr(result) and REFRESH not in repr(result) and "accessToken" not in repr(result)
+
+
+@pytest.mark.parametrize("secret", [ACCESS, REFRESH])
+def test_a_token_value_inside_other_text_is_a_leak_too(repo, fake, token_login, secret):
+    scenario, _calls, runner = fake
+    scenario({"write": {"docs/notes.md": f"# notes\ntoken = {secret}\n", "done.txt": "ok\n"}})
+    result = go(repo, runner, verify="test -f done.txt", rounds=1)
+    assert (result.status, result.reason_code) == ("failed", "secret_in_diff")
+    assert "docs/notes.md" in result.failures[-1]["detail"] and secret not in repr(result)
+
+
+def test_the_leak_stops_the_round_before_verify_runs(repo, fake, token_login, tmp_path):
+    scenario, _calls, runner = fake
+    marker = tmp_path / "verify-ran"
+    scenario({"write": {"notes.txt": ACCESS, "done.txt": "ok\n"}})
+    result = go(repo, runner, verify=f"touch {marker}", rounds=1)
+    assert result.reason_code == "secret_in_diff" and not marker.exists()
+
+
+def test_a_secret_that_verify_writes_into_the_tree_is_a_leak(repo, fake, token_login):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    verify = f"printf %s '{ACCESS}' > leaked.txt; test -f done.txt"
+    result = go(repo, runner, verify=verify, rounds=1)
+    assert result.reason_code == "secret_in_diff" and "leaked.txt" in result.failures[-1]["detail"]
+    assert ACCESS not in repr(result)
+
+
+def test_the_author_can_remove_the_leak_in_the_next_round_and_the_prompt_has_no_secret(repo, fake, token_login):
+    scenario, calls, runner = fake
+    scenario({"write": {"notes.txt": ACCESS, "done.txt": "ok\n"}}, {"delete": ["notes.txt"]})
+    result = go(repo, runner, verify="test -f done.txt")
+    assert (result.status, result.rounds) == ("ok", 2)
+    second = prompt_of(calls()[1])
+    assert "notes.txt" in second and "secret" in second.lower() and ACCESS not in second and REFRESH not in second
+
+
+def test_a_token_the_cli_refreshed_in_its_home_during_the_round_is_a_leak_too(repo, fake, token_login):
+    scenario, _calls, runner = fake
+    fresh = "sk-ant-oat01-FRESHLYROTATEDTOKEN0000"
+    new = json.dumps({"claudeAiOauth": {"accessToken": fresh, "refreshToken": "sk-ant-ort01-FRESHREFRESH000000"}})
+    scenario({"home_write": {".claude/.credentials.json": new}, "write": {"notes.txt": fresh}})
+    result = go(repo, runner, rounds=1)
+    assert result.reason_code == "secret_in_diff" and fresh not in repr(result)
+
+
+def test_nothing_the_run_prints_or_logs_holds_the_secret(repo, fake, token_login, capfd, caplog):
+    scenario, _calls, runner = fake
+    caplog.set_level("DEBUG")
+    scenario({"write": {"notes.txt": f"{ACCESS}{REFRESH}"}})
+    result = go(repo, runner, rounds=1)
+    out = capfd.readouterr()
+    for text in (out.out, out.err, caplog.text, json.dumps(result.failures), json.dumps(result.changed), repr(result)):
+        assert ACCESS not in text and REFRESH not in text
+
+
+def test_a_changed_file_without_the_secret_is_not_a_leak(repo, fake, token_login):
+    scenario, _calls, runner = fake
+    scenario({"write": {"notes.txt": "sk-ant-oat01-SOMEOTHERTOKEN\n", "done.txt": "ok\n"}})
+    assert go(repo, runner, verify="test -f done.txt").status == "ok"
+
+
+def test_a_login_file_of_a_short_or_odd_shape_never_flags_every_file(repo, fake, real_home):
+    scenario, _calls, runner = fake
+    (real_home / ".claude/.credentials.json").write_text('{"claudeAiOauth": {"accessToken": "ab", "refreshToken": 7}}')
+    scenario({"write": {"notes.txt": "ab 7 abab\n", "done.txt": "ok\n"}})
+    assert go(repo, runner, verify="test -f done.txt").status == "ok"
+
+
+def test_login_secrets_are_the_whole_file_and_both_token_values_and_nothing_shorter(tmp_path):
+    path = tmp_path / "c.json"
+    path.write_text(LOGIN_JSON)
+    secrets = author_isolation.login_secrets(path, tmp_path / "missing.json")
+    assert LOGIN_JSON.encode() in secrets and ACCESS.encode() in secrets and REFRESH.encode() in secrets
+    assert all(len(secret) >= author_isolation.MIN_SECRET for secret in secrets)
+    path.write_text("not json at all, but a long enough credential blob")
+    assert author_isolation.login_secrets(path) == {b"not json at all, but a long enough credential blob"}
+
+
+def test_the_scan_finds_a_secret_that_straddles_two_chunks(tmp_path, monkeypatch):
+    monkeypatch.setattr(author_isolation, "SCAN_CHUNK", 16)
+    (tmp_path / "big.txt").write_text("x" * 13 + ACCESS + "y" * 40)
+    (tmp_path / "clean.txt").write_text("z" * 100)
+    found = author_isolation.leaks(tmp_path, ["big.txt", "clean.txt", "gone.txt"], {ACCESS.encode()})
+    assert found == ["big.txt"]
+
+
+def test_the_scan_does_not_read_through_a_symlink(tmp_path):
+    (tmp_path / "secret").write_text(ACCESS)
+    (tmp_path / "link").symlink_to("secret")
+    assert author_isolation.leaks(tmp_path, ["link"], {ACCESS.encode()}) == []
+
+
+# --- inside the telemetry folder a link or a special file is still a change (MINOR 2) -----------------------------------------------
+
+TELEMETRY = ".simplicio-loop/orchestrator/runs/run-1"
+
+
+def test_a_symlink_in_the_telemetry_folder_is_a_change_and_a_regular_file_is_not(tmp_path):
+    (tmp_path / TELEMETRY).mkdir(parents=True)
+    (tmp_path / TELEMETRY / "events.jsonl").write_text("1\n")
+    first = author_isolation.snapshot(tmp_path)
+    assert f"{TELEMETRY}/events.jsonl" not in first
+    (tmp_path / TELEMETRY / "events.jsonl").write_text("2\n")
+    assert author_isolation.diff(first, author_isolation.snapshot(tmp_path)) == []
+    (tmp_path / TELEMETRY / "events.jsonl").unlink()
+    (tmp_path / TELEMETRY / "events.jsonl").symlink_to("../../../../.git/config")
+    assert author_isolation.diff(first, author_isolation.snapshot(tmp_path)) == [f"{TELEMETRY}/events.jsonl"]
+
+
+def test_a_link_to_a_folder_a_fifo_and_a_hard_link_in_the_telemetry_folder_are_changes(tmp_path):
+    (tmp_path / TELEMETRY).mkdir(parents=True)
+    (tmp_path / "target").write_text("t")
+    first = author_isolation.snapshot(tmp_path)
+    (tmp_path / TELEMETRY / "dirlink").symlink_to("/etc")
+    os.mkfifo(tmp_path / TELEMETRY / "pipe")
+    os.link(tmp_path / "target", tmp_path / TELEMETRY / "hard")
+    assert author_isolation.diff(first, author_isolation.snapshot(tmp_path)) == sorted(
+        [f"{TELEMETRY}/dirlink", f"{TELEMETRY}/pipe", f"{TELEMETRY}/hard"])
+
+
+def test_a_symlink_a_conftest_plants_in_the_telemetry_folder_is_protected_path(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n", RUNS: "{}\n"}})
+    plant = f"rm {RUNS} && ln -s ../../../../.git/config {RUNS}; test -f done.txt"
+    result = go(repo, runner, verify=plant)
+    assert (result.status, result.reason_code) == ("failed", "protected_path")
+    assert RUNS in result.changed
+
+
+def test_a_symlink_the_cli_plants_in_the_telemetry_folder_is_protected_path(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"run": [["mkdir", "-p", str(Path(RUNS).parent)], ["ln", "-s", "../../../../.git/config", RUNS]], "write": {"done.txt": "ok\n"}})
+    result = go(repo, runner, rounds=1)
+    assert (result.status, result.reason_code) == ("failed", "protected_path") and RUNS in result.changed

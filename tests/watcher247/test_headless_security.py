@@ -15,16 +15,23 @@ from .fakes import CONCRETE_BODY, FakeRun, baseline, issue, read_json, run_tick,
 AWS = "AKIA" + "QRSTUVWX01234567"
 GITHUB = "ghp_" + "z" * 36
 PEM = "-----BEGIN RSA " + "PRIVATE KEY-----"
+ANTHROPIC_OAT = "sk-ant-" + "oat01-" + "Ab1_" * 12  # the shape of a claude login token
+ANTHROPIC_API = "sk-ant-" + "api03-" + "Zy9-" * 12
+OAUTH_JSON = '{"claudeAiOauth": {"accessToken": "' + "q7Lm" * 12 + '", "refreshToken": "' + "r8Nn" * 12 + '"}}'
 
 
 def diff_of(path: str, added: str) -> str:
     return f"diff --git a/{path} b/{path}\n--- a/{path}\n+++ b/{path}\n@@ -0,0 +1 @@\n+{added}\n"
 
 
-@pytest.mark.parametrize("secret", [f"aws = {AWS}", f"token={GITHUB}", PEM])
+@pytest.mark.parametrize("secret", [f"aws = {AWS}", f"token={GITHUB}", PEM, ANTHROPIC_OAT, ANTHROPIC_API, OAUTH_JSON])
 def test_secret_in_staged_diff_names_the_file(secret):
     hits = secret_scan.scan_diff(diff_of("app/conf.py", secret) + diff_of("ok.py", "x = 1"))
     assert hits == ["app/conf.py"]
+
+
+def test_a_camel_case_oauth_field_with_a_short_value_is_not_a_secret():
+    assert secret_scan.scan_diff(diff_of("ok.py", 'accessToken: str = field(default="")')) == []
 
 
 def test_clean_diff_has_no_hit():
