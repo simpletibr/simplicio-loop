@@ -189,7 +189,7 @@ def test_the_planner_stub_runs_through_exec_planner(rig, monkeypatch):
     stub.chmod(0o755)
     monkeypatch.setenv("PATH", f"{stub.parent}:/usr/local/bin:/usr/bin:/bin")
     result = asyncio.run(exec_planner.run_planner(
-        "opencode", "planning", "task", cwd=str(clone), config_dir=state / "opencode",
+        "opencode", "planning", "task", cwd=str(clone), repo_root=clone, config_dir=state / "opencode",
         wrap=lambda argv: sandbox.wrap(argv, clone=clone, state_dir=state, platform="linux", environ={})))
     assert result.reason_code == "ok", result
 
