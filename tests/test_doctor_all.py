@@ -275,7 +275,7 @@ def test_disk_looks_at_the_nearest_existing_folder_of_each_state_dir(box, tmp_pa
 def test_the_document_has_every_section_and_the_worst_status(box):
     doc = collect(box)
     assert doc["schema"] == "simplicio.doctor/v1"
-    assert [c["name"] for c in doc["checks"]] == ["login", "update", "distribution", "runtime", "operators", "disk", "setup"]
+    assert [c["name"] for c in doc["checks"]] == ["login", "update", "distribution", "runtime", "operators", "disk", "map-store", "setup"]
     assert doc["status"] == "warn"  # no login in the box
     put_login(box.login)
     assert collect(box)["status"] == "warn" and check(collect(box), "setup")["fix"] == "simplicio-loop setup"  # setup did not run
@@ -288,7 +288,7 @@ def test_run_prints_one_line_per_check_with_the_fix_and_returns_0_for_warnings(b
                  kind=distribution.PIP, fetch=lambda: "v3.48.1", repo=box.tmp)
     out = capsys.readouterr().out
     assert rc == 0
-    for name in ("login", "update", "distribution", "runtime", "operators", "disk", "setup"):
+    for name in ("login", "update", "distribution", "runtime", "operators", "disk", "map-store", "setup"):
         assert name in out
     assert "warn" in out and "fix:" in out and "pip install --force-reinstall simplicio-loop" in out
 

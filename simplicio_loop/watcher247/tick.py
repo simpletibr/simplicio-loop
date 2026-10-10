@@ -11,7 +11,7 @@ import subprocess
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from .. import escalation, intake_gate, squad_capacity, watcher_github
+from .. import escalation, intake_gate, map_gc_auto, squad_capacity, watcher_github
 from ..claim_lease import ClaimStore
 from . import author_executor, budget, config, events, github, host_mode, onboarding, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify, worktrees
 from .closing_words import sanitize
@@ -387,6 +387,16 @@ async def _enqueue_fixes(runner, name: str, fixes: dict) -> None:
         entry["texts"].append(task.text)
 
 
+def _map_gc_bases() -> None:
+    """`map gc` (default policy) for each base clone under config.WORK, at most once an hour per repo (#1671). Never raises."""
+    try:
+        bases = sorted(p for p in config.WORK.iterdir() if p.is_dir() and not p.name.endswith((".wt", ".state")) and (p / ".git").exists())
+    except OSError:
+        return
+    for base in bases:
+        map_gc_auto.maybe_gc(str(base))
+
+
 async def tick(dry_run: bool = False) -> None:
     """One pass. dry_run reads GitHub and logs what it would do; it writes no baseline, claims, fixes or status (only the issues-disabled cache) and skips the subscription refresh."""
     persist = not dry_run
@@ -452,6 +462,8 @@ async def tick(dry_run: bool = False) -> None:
     if persist:
         for key, claim in (await store.reap_expired(now=clock)).items():
             state.log(f"lease expired {key}: {claim['status']}")
+    if persist:
+        await asyncio.to_thread(_map_gc_bases)
     found = await github.repos()
     baseline = await state.load(config.BASELINE, None)
     fixes = await state.load(config.FIXES, {"queued": {}, "seen": []})
