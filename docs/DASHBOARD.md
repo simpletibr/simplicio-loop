@@ -357,6 +357,10 @@ Read-only, token-gated like `/api/queue`. The source is the backlog JSONL: `$SIM
 - Agent and model names, and the running command: no producer yet, so they show UNVERIFIED (#1404).
 - Real-GPU 60 fps: UNVERIFIED. Only the software Chromium measurement exists.
 
+## Langfuse panel (#1610)
+
+Each run's extras panel shows the Langfuse chip (`desligado`, `enviando`, `atrasado N min`, `erro`, `em dia`), the number of queued requests, the trace link and the score and token comparison against the loop's own values. It is off unless `langfuse_enabled = true` is set on the default branch's `loop.toml`, and the reply is then only the chip. It reads local files only: a Langfuse outage cannot stall the panel and no key reaches the browser. Route, fields and mutant coverage are documented in [LANGFUSE.md](LANGFUSE.md#dashboard).
+
 ## Alerts (#1406, slices 1406a and 1406b)
 
 The server evaluates the run alert rules over the event stream (`simplicio_loop/dashboard/alerts.py`). Each stream connection gets its own watch, and the server sends only changes, so one alert is raised once while it stays active. The alert center is the **Alertas (N)** button in the header. It counts only the alerts you can see. Each alert names its severity in text, its reason, and a **Ver** action when it points to a drill target.
