@@ -106,11 +106,11 @@ class TestBuildArgvPlanOnly:
         assert argv[argv.index("--tools") + 1] == "Read"
 
     def test_codex_flags(self):
-        argv = exec_planner.build_argv("codex", "planning", "P", "gpt-6-astra", "/w", "high", schema_file="/s/p.json")
+        argv = exec_planner.build_argv("codex", "planning", "P", "gpt-5.6-terra", "/w", "high", schema_file="/s/p.json")
         assert argv[:2] == ["codex", "exec"]
         assert argv[argv.index("-s") + 1] == "read-only"
         assert argv[argv.index("--cd") + 1] == "/w"
-        assert argv[argv.index("-m") + 1] == "gpt-6-astra"
+        assert argv[argv.index("-m") + 1] == "gpt-5.6-terra"
         assert 'model_reasoning_effort="high"' in argv
         assert argv[-1] == "-"
 

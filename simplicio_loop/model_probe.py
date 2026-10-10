@@ -70,7 +70,7 @@ def excerpt(output: str) -> str:
 
 
 def is_listed(model: str, listing: str) -> bool:
-    return re.search(rf"(?<![\\w.-]){re.escape(model)}(?![\\w.-])", listing) is not None
+    return re.search(rf"(?<![\w.-]){re.escape(model)}(?![\w.-])", listing) is not None
 
 
 def probe(
