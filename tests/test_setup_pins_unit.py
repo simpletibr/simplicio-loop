@@ -104,10 +104,13 @@ def test_a_tool_or_platform_without_a_pin_is_skipped_and_nothing_is_downloaded(t
 
     actions = install_gh(tmp_path, no_network, pins_for("0" * 64, system="linux", arch="arm64"))
     assert [(a.name, a.result) for a in actions] == [("gh", "skipped")] and "no pinned gh release" in actions[0].detail
+    assert actions[0].detail.startswith("no_pin:")
     actions = install_gh(tmp_path, no_network, pins_for("0" * 64), platform="darwin", machine="arm64")
     assert [(a.name, a.result) for a in actions] == [("gh", "skipped")] and "macos-arm64" in actions[0].detail
+    assert actions[0].detail.startswith("no_pin:")
     unpinned = {"schema": setup_pins.SCHEMA, "gh": {"tag": None, "assets": {}}, "uv": {"tag": None, "assets": {}}}
-    assert install_gh(tmp_path, no_network, unpinned)[0].result == "skipped"
+    actions = install_gh(tmp_path, no_network, unpinned)
+    assert actions[0].result == "skipped" and actions[0].detail.startswith("no_pin:") and not (tmp_path / "bin").exists()
 
 
 def test_a_pin_whose_archive_name_is_not_the_one_of_its_release_is_treated_as_no_pin(tmp_path):
@@ -129,7 +132,8 @@ def test_a_malformed_pin_is_treated_as_no_pin_and_nothing_is_downloaded(tmp_path
         raise AssertionError(url)
 
     actions = install_gh(tmp_path, no_network, doc)
-    assert [(a.name, a.result) for a in actions] == [("gh", "skipped")] and not (tmp_path / "bin").exists()
+    assert [(a.name, a.result) for a in actions] == [("gh", "skipped")] and actions[0].detail.startswith("no_pin:")
+    assert not (tmp_path / "bin").exists()
 
 
 def fake_github(gh_tag="v2.61.0", uv_tag="0.6.0"):
@@ -149,16 +153,17 @@ def fake_github(gh_tag="v2.61.0", uv_tag="0.6.0"):
     return files
 
 
-def test_a_latest_uv_release_whose_tag_has_no_v_prefix_is_installed(tmp_path):
+def test_a_pinned_uv_release_whose_tag_has_no_v_prefix_is_installed(tmp_path):
     archive = "uv-x86_64-unknown-linux-gnu.tar.gz"
     base = "https://github.com/astral-sh/uv/releases/download/0.6.0/"
     blob = tar_gz("uv-x86_64-unknown-linux-gnu/uv", b"#!/bin/sh\necho uv\n")
-    web = Web({"https://api.github.com/repos/astral-sh/uv/releases/latest": b'{"tag_name": "0.6.0"}',
-               base + archive: blob, base + archive + ".sha256": f"{hashlib.sha256(blob).hexdigest()}  {archive}\n".encode()})
+    web = Web({base + archive: blob, base + archive + ".sha256": f"{hashlib.sha256(blob).hexdigest()}  {archive}\n".encode()})
+    pins = {"schema": setup_pins.SCHEMA, "gh": {"tag": None, "assets": {}},
+            "uv": {"tag": "0.6.0", "assets": {"linux-amd64": {"archive": archive, "sha256": hashlib.sha256(blob).hexdigest()}}}}
     python = prereqs.Check(name="python", status="missing", required=True, path=None, version=None, minimum=None, fix="", auto="user")
     uv = prereqs.Check(name="uv", status="missing", required=False, path=None, version=None, minimum=None, fix="", auto="user")
     actions = prereqs.ensure([python, uv], get=web, bin_dir=tmp_path / "bin", platform="linux", machine="x86_64",
-                             environ={"PATH": ""}, run=lambda argv, timeout: (0, ""))
+                             environ={"PATH": ""}, run=lambda argv, timeout: (0, ""), pins=pins)
     assert actions[0].name == "uv" and actions[0].result == "installed" and "0.6.0" in actions[0].detail
 
 
@@ -195,7 +200,7 @@ def test_ensure_runs_its_python_install_with_the_install_runner_when_no_runner_i
     monkeypatch.setattr(prereqs, "_run_install", lambda argv, timeout=prereqs.TIMEOUT_S: ran.append(list(argv)) or (0, "/u/py"))
     python = prereqs.Check(name="python", status="missing", required=True, path=None, version=None, minimum=None, fix="", auto="user")
     uv = prereqs.Check(name="uv", status="ok", required=False, path="/fake/bin/uv", version="0.6.0", minimum=None, fix="", auto="")
-    actions = prereqs.ensure([python, uv], environ={"PATH": ""}, which=lambda name: None, platform="linux")
+    actions = prereqs.ensure([python, uv], environ={"PATH": ""}, which=lambda name: None, platform="linux", pins={})
     assert [a.result for a in actions] == ["installed"] and ran[0] == ["/fake/bin/uv", "python", "install", "3.11"]
 
 

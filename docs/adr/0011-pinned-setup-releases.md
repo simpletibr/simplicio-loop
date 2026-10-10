@@ -21,15 +21,20 @@ Options considered:
 
 (b). `simplicio_loop/setup_pins.json` holds, per tool and platform, the tag and the SHA256 of the archive.
 `prereqs.ensure` installs only the pinned tag, and only when the downloaded archive matches the pin and its release
-checksums. The archive is refused before it is opened. A tool or platform without a pin is not downloaded; setup names
-the install page instead. `scripts/update_release_pins.py` writes the pins from the latest releases, and a maintainer
-checks each archive with `gh attestation verify` before committing the file.
+checksums. The archive is refused before it is opened. `ensure` takes the pins as a required argument: a tool or
+platform without a usable pin is refused with reason code `no_pin` and nothing is downloaded; setup names the install
+page instead. `scripts/update_release_pins.py` writes the pins from the latest releases, and a maintainer checks each
+archive with `gh attestation verify` before committing the file.
 
 ## Consequences
 
+- The shipped pins are gh v2.102.0 and uv 0.13.0, for linux, macOS and Windows on amd64 and arm64 (six platforms per
+  tool). Setup installs exactly these until a reviewed change replaces them.
 - Setup installs an older release than the newest one, until the pins are updated.
 - Every pin update is a PR; six platforms times two tools.
-- Provenance is checked once, by the maintainer, with a `gh` that has `attestation`. Setup itself does not check it.
-- UNVERIFIED: the real pins need network. The shipped file has no release, so until it is filled setup installs neither
-  gh nor uv and says so.
+- MEASURED on 2026-10-10: all 12 pinned archives (gh v2.102.0 and uv 0.13.0, six platforms each) were downloaded again. The
+  SHA256 of every one matches its pin, and `gh attestation verify <archive> --repo cli/cli` or `--repo astral-sh/uv` (run with
+  the pinned gh 2.102.0) exited 0 for every one.
+- Provenance is a maintainer step, not a setup step: before merging a new pin, the maintainer runs `gh attestation verify`
+  on each archive with a `gh` that has `attestation`. Setup itself does not check it.
 - UNVERIFIED: `uv` attestations as a stable contract, and macOS and Windows archives under real release conditions.

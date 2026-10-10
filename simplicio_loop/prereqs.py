@@ -13,7 +13,6 @@ Nothing runs through a shell. A tool that is already there is never replaced.
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import platform as platform_module
 import re
@@ -252,13 +251,13 @@ def _release_files(tool: str, tag: str, system: str, arch: str) -> tuple[str, st
 
 @dataclass(frozen=True)
 class _Where:
-    """Where an installer puts files, on which system, how it downloads, and which releases it may install (None: any latest)."""
+    """Where an installer puts files, on which system, how it downloads, and which pinned releases it may install."""
 
     bin_dir: Path
     platform: str
     machine: str
     get: Callable[[str], bytes]
-    pins: Optional[Mapping[str, Any]] = None
+    pins: Mapping[str, Any]
 
     def exe(self, tool: str) -> Path:
         return self.bin_dir / (tool + (".exe" if self.platform.startswith("win") else ""))
@@ -283,40 +282,26 @@ def _pin(tool: str, pins: Mapping[str, Any], system: str, arch: str) -> Optional
 def _install_release(tool: str, where: _Where, dry_run: bool) -> Action:
     target = _target(where.platform, where.machine)
     if target is None:
-        return Action(tool, "skipped", f"no official {tool} release for {where.platform} {where.machine}; install {tool} yourself")
+        return Action(tool, "skipped", f"no_pin: no pinned {tool} release for {where.platform} {where.machine}; install {tool} yourself")
     dest = where.exe(tool)
     if os.path.lexists(dest):
         return Action(tool, "unchanged", f"{dest} exists but is not verified (this setup did not install it), so it is not used; "
                                          f"remove it to let setup install {tool}")
-    pin = None
-    if where.pins is not None:
-        pin = _pin(tool, where.pins, *target)
-        if pin is None:
-            return Action(tool, "skipped", f"no pinned {tool} release for {target[0]}-{target[1]} in this version of simplicio-loop; "
-                                           f"install {tool} yourself")
+    pin = _pin(tool, where.pins, *target)
+    if pin is None:
+        return Action(tool, "skipped", f"no_pin: no pinned {tool} release for {target[0]}-{target[1]} in this version of simplicio-loop; "
+                                       f"install {tool} yourself")
+    tag, archive, sha = pin
     if dry_run:
-        return Action(tool, "would-install", f"{dest} from the official {tool} release (SHA256 checked)")
+        return Action(tool, "would-install", f"{dest} from the pinned {tool} release {tag} (SHA256 pinned)")
+    _, sums_url, archive_url, member = _release_files(tool, tag, *target)
     written: list[str] = []
     try:
-        if pin is None:
-            repo = "cli/cli" if tool == "gh" else "astral-sh/uv"
-            tag = json.loads(where.get(f"https://api.github.com/repos/{repo}/releases/latest")).get("tag_name")
-            if not isinstance(tag, str) or not _TAG.fullmatch(tag):
-                raise FetchError("bad_response", f"the latest {tool} release has no usable tag")
-            archive, sums_url, archive_url, member = _release_files(tool, tag, *target)
-            result = install_binary(archive_url=archive_url, archive_name=archive, checksums_url=sums_url, member=member,
-                                    dest=dest, get=where.get, on_installed=written.append)
-        else:
-            tag, archive, sha = pin
-            _, sums_url, archive_url, member = _release_files(tool, tag, *target)
-            result = install_binary(archive_url=archive_url, archive_name=archive, checksums_url=sums_url, member=member,
-                                    dest=dest, get=where.get, on_installed=written.append, expected_sha256=sha)
+        result = install_binary(archive_url=archive_url, archive_name=archive, checksums_url=sums_url, member=member,
+                                dest=dest, get=where.get, on_installed=written.append, expected_sha256=sha)
     except FetchError as exc:
         return Action(tool, "failed", f"{exc.reason_code}: {exc}")
-    except (ValueError, AttributeError):
-        return Action(tool, "failed", "bad_response: the release answer is not JSON")
-    proof = "SHA256 pinned" if pin else "SHA256 checked"
-    return Action(tool, result, f"{tag} {dest} ({proof})", written[0] if result == "installed" and written else None)
+    return Action(tool, result, f"{tag} {dest} (SHA256 pinned)", written[0] if result == "installed" and written else None)
 
 
 def _expect(path: str, sha256: str, inner: Run) -> Run:
@@ -383,10 +368,10 @@ def _install_system(names: Sequence[str], *, yes: bool, dry_run: bool, which: Wh
 def ensure(checks: Sequence[Check], *, yes: bool = False, dry_run: bool = False, environ: Optional[Mapping[str, str]] = None,
            which: Optional[Which] = None, run: Optional[Run] = None, get: Callable[[str], bytes] = default_get,
            bin_dir: Optional[Path] = None, platform: Optional[str] = None, machine: Optional[str] = None,
-           pins: Optional[Mapping[str, Any]] = None) -> list[Action]:
+           pins: Mapping[str, Any]) -> list[Action]:
     """One Action per required check that is not ok. `dry_run` runs and downloads nothing.
 
-    `pins` (`setup_pins.load()`) limits gh and uv to the pinned releases; None installs the latest one, checked against its checksums."""
+    `pins` (`setup_pins.load()`) is the only source of gh and uv releases: a tool or platform it does not pin is skipped with `no_pin`."""
     env = os.environ if environ is None else environ
     which = which or setup_hardening.safe_which(env)
     run, platform = run or _run_install, platform or sys.platform
