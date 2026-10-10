@@ -46,6 +46,19 @@ def test_every_keyword_in_every_case(word):
         assert rewrite(f"{variant} #9") == "Parte de #9"
 
 
+@pytest.mark.parametrize("text, expected", [
+    ("Fixes https://github.com/owner/repo/issues/12", "Parte de https://github.com/owner/repo/issues/12"),
+    ("Fixes https://github.com/owner/repo/pull/12", "Parte de https://github.com/owner/repo/pull/12"),
+    ("Closes GH-12", "Parte de GH-12"),
+    ("closes: GH-12.", "Parte de GH-12."),
+])
+def test_github_url_and_gh_number_forms_are_closing_and_rewritten(text, expected):
+    assert has_closing(text)
+    assert rewrite(text) == expected
+    assert not has_closing(expected)
+    assert sanitize(text, "PR body") == expected
+
+
 def test_sanitize_returns_the_rewrite_and_names_what_it_refuses(monkeypatch):
     assert sanitize("x Fixes #2 y", "PR body") == "x Parte de #2 y"
     monkeypatch.setattr(closing_words, "rewrite", lambda text: text)  # a rewrite that missed it: the guard still refuses
