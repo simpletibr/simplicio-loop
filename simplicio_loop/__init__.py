@@ -19,8 +19,8 @@ def __getattr__(name: str) -> str:
         try:
             __version__ = version("simplicio-loop")
         except PackageNotFoundError:
-            __version__ = "3.48.1"
+            __version__ = "3.49.0"
     except Exception:  # pragma: no cover
-        __version__ = "3.48.1"
+        __version__ = "3.49.0"
     globals()["__version__"] = __version__
     return __version__
