@@ -321,6 +321,40 @@ def test_a_pr_with_production_and_a_skipped_new_test_is_tests_not_run_too(tmp_pa
     assert result.status == FAIL and any(r.startswith("tests_not_run") for r in result.reasons)
 
 
+def test_a_pr_that_only_refactors_a_test_helper_runs_the_tests_that_import_it(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    scenario.git(repo, "init", "-q", "-b", "main")
+    scenario._write(repo, {"mod.py": MOD, "tests/helpers.py": "def expected():\n    return 3\n",
+                           "tests/test_uses_helper.py": "from mod import add\nfrom tests.helpers import expected\n\n\n"
+                                                        "def test_add():\n    assert add(1, 2) == expected()\n"})
+    scenario.git(repo, "add", "-A")
+    scenario.git(repo, "commit", "-q", "-m", "base")
+    base = scenario.git(repo, "rev-parse", "HEAD")
+    scenario.git(repo, "checkout", "-q", "-b", "loop/issue-5")
+    scenario._write(repo, {"tests/helpers.py": "def _three():\n    return 3\n\n\ndef expected():\n    return _three()\n"})
+    scenario.git(repo, "add", "-A")
+    scenario.git(repo, "commit", "-q", "-m", "head")
+    head = scenario.git(repo, "rev-parse", "HEAD")
+    report = gate.run_gate(gate.GateInput(repo=repo, pr=11, issue=5, issue_body=ISSUE, pr_body=CLOSES, base=base, head=head,
+                                          author=WORKER, wrap_for=scenario.UNSANDBOXED, n_mutants=2))
+    red = next(c for c in report.checks if c.name == "redgreen")
+    assert red.status == PASS, red.reasons
+    assert red.measured["mode"] == "helper_neighbors" and red.measured["tests"] == 1 and red.measured["head_failed"] == []
+
+
+def test_a_test_helper_refactor_that_breaks_a_test_that_imports_it_fails_the_pr(tmp_path):
+    base, head = _trees(tmp_path, GOOD)
+    (base / "tests" / "helpers.py").write_text("def expected():\n    return 3\n")
+    (head / "tests" / "helpers.py").write_text("def expected():\n    return 4\n")
+    (head / "tests" / "test_uses_helper.py").write_text("from tests.helpers import expected\n\n\ndef test_uses():\n"
+                                                        "    assert expected() == 3\n")
+    changes = [FileChange("tests/helpers.py", "M", (1,))]
+    result = redgreen.check_redgreen(base, head, changes, python=sys.executable, env={"PYTHONPATH": "."},
+                                     neighbours=["tests/test_uses_helper.py"])
+    assert result.status == FAIL and "tests/test_uses_helper.py" in result.reasons[0], result.reasons
+
+
 def test_parse_not_run_reads_skips_xfails_and_the_summary():
     out = ("SKIPPED [1] tests/test_a.py:4: later\nXFAIL tests/test_a.py::test_b - reason\nXPASS tests/test_a.py::test_c[1]\n"
            "PASSED tests/test_a.py::test_d\n1 passed, 1 skipped in 0.01s\n")

@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Callable, Collection, Mapping, Sequence
 
 from . import isolation, pytest_cmd, vacuity
-from .diffs import PYTEST_CONFIG_NAMES, FileChange, is_pytest_infra
+from .diffs import PYTEST_CONFIG_NAMES, FileChange, is_pytest_infra, is_test_helper
 from .model import ERROR, FAIL, PASS, SKIPPED, CheckResult
 
 NAME = "redgreen"
@@ -168,8 +168,30 @@ def _verdict(outcomes: Mapping[str, str], ref: TestRef) -> str:
     return outcomes.get(ref.path, "missing")  # a collection error took the whole file down
 
 
+def _check_helper_neighbours(head_root: Path, base_root: Path, changes: Sequence[FileChange], helpers: Sequence[str],
+                             neighbours: Sequence[str], *, python: str, timeout: float, wrap_in: Callable[[Path], Callable],
+                             env: Mapping[str, str] | None, home: Path | None) -> CheckResult:
+    """A PR that only changes shared test helpers has no test function of its own: the tests that import the helpers run on the
+    head and must all PASS, so a refactor that breaks one of them fails the PR."""
+    measured: dict = {"mode": "helper_neighbors", "helpers": list(helpers), "tests": len(neighbours)}
+    try:
+        neutralize_pytest_infra(base_root, head_root, changes)
+        outcomes, not_run = _pytest(head_root, list(neighbours), python, timeout, wrap_in(head_root), env, "head", home)
+    except RuntimeError as exc:
+        return CheckResult(NAME, ERROR, (str(exc),))
+    failed = sorted(name for name, verdict in outcomes.items() if verdict != "passed")
+    measured.update(head_failed=failed, not_run=not_run)
+    reasons: list[str] = []
+    if not_run:
+        reasons.append("tests_not_run: teste que importa o helper alterado e pulado (skip) ou xfail na head: " + ", ".join(not_run[:8]))
+    if failed:
+        reasons.append("testes que importam o helper alterado falham na head: " + ", ".join(failed[:8]))
+    return CheckResult(NAME, FAIL if reasons else PASS, tuple(reasons), measured)
+
+
 def _check_tests_only(head_root: Path, base_root: Path, changes: Sequence[FileChange], tests: Sequence[FileChange], *, python: str,
-                      timeout: float, wrap_in: Callable[[Path], Callable], env: Mapping[str, str] | None, home: Path | None) -> CheckResult:
+                      timeout: float, wrap_in: Callable[[Path], Callable], env: Mapping[str, str] | None, home: Path | None,
+                      neighbours: Sequence[str] = ()) -> CheckResult:
     """A PR with no production change: no test can be red on main, so the proof is that the tests it adds or changes RUN on the
     head (inside the jail), all PASS, and none is skipped, xfail, xpass or an error. A test with no assert that can fail is rejected
     too (`vacuous_test`), because a test that cannot fail runs and passes for any code."""
@@ -187,6 +209,10 @@ def _check_tests_only(head_root: Path, base_root: Path, changes: Sequence[FileCh
             return CheckResult(NAME, ERROR, (f"tests_not_run: cannot read the tests of {change.path}: {exc}",))
         refs += found
     measured: dict = {"mode": "tests_only"}
+    helpers = [c.path for c in runnable if is_test_helper(c.path)]
+    if not refs and helpers and neighbours:
+        return _check_helper_neighbours(head_root, base_root, changes, helpers, neighbours, python=python, timeout=timeout,
+                                        wrap_in=wrap_in, env=env, home=home)
     if not refs:
         return CheckResult(NAME, FAIL, ("tests_not_run: o PR de testes muda " + ", ".join(c.path for c in runnable[:5]) +
                                         " sem nenhuma funcao de teste nova ou alterada para rodar",), {**measured, "tests": 0})
@@ -219,16 +245,18 @@ def _check_tests_only(head_root: Path, base_root: Path, changes: Sequence[FileCh
 def check_redgreen(base_root: Path, head_root: Path, changes: Sequence[FileChange], *, python: str = sys.executable,
                    timeout: float = 300.0, wrap: Callable = lambda argv: argv,
                    env: Mapping[str, str] | None = None, wrap_for: Callable[[Path], Callable] | None = None,
-                   home: Path | None = None) -> CheckResult:
+                   home: Path | None = None, neighbours: Sequence[str] = ()) -> CheckResult:
     """`wrap_for(root)` builds the wrapper of the run in `root` (the sandbox does `--chdir <root>`, so one wrapper cannot serve
-    both trees); without it `wrap` is used for both. `home` is the HOME of the child (default: an empty, missing directory)."""
+    both trees); without it `wrap` is used for both. `home` is the HOME of the child (default: an empty, missing directory).
+    `neighbours` are the tests that import a changed test helper: the run of a PR that changes only helpers."""
     wrap_in = wrap_for or (lambda root: wrap)
     code = [c for c in changes if c.kind == "code" and c.status in ("A", "M")]
     tests = [c for c in changes if c.kind == "test" and c.status in ("A", "M")]
     if not code and not tests:
         return CheckResult(NAME, SKIPPED, ("sem codigo de producao nem teste alterado",))
     if not code:
-        return _check_tests_only(head_root, base_root, changes, tests, python=python, timeout=timeout, wrap_in=wrap_in, env=env, home=home)
+        return _check_tests_only(head_root, base_root, changes, tests, python=python, timeout=timeout, wrap_in=wrap_in, env=env, home=home,
+                                 neighbours=neighbours)
     refs: list[TestRef] = []
     for change in tests:
         if is_pytest_infra(change.path):

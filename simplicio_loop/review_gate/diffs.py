@@ -53,6 +53,14 @@ def is_pytest_infra(path: str) -> bool:
     return parts[-1] in _PYTEST_INFRA_NAMES or (parts[-1].endswith(".py") and bool(_PYTEST_INFRA_DIRS.intersection(parts[:-1])))
 
 
+def is_test_helper(path: str) -> bool:
+    """A shared module under `tests/` that is not a test file (fixtures, builders): it has no test function of its own, so the
+    tests that import it are what proves a change to it."""
+    p = PurePosixPath(path.replace("\\", "/"))
+    return (p.parts[:1] == ("tests",) and p.suffix == ".py" and not p.name.startswith("test_") and not p.name.endswith("_test.py")
+            and p.name != "__init__.py" and not is_pytest_infra(path))
+
+
 def parse_diff(text: str) -> list[FileChange]:
     """Parse `git diff --unified=0 --no-renames` output."""
     files: list[dict] = []
