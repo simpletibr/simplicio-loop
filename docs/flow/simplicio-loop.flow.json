@@ -14,7 +14,7 @@
     {"id": "human", "kind": "gate", "label": "Human gate: irreversible operation", "source": "hooks/action_gate.py"},
     {"id": "claim", "kind": "step", "label": "Drain: claim issue (CLAIMED comment)", "source": "simplicio_loop/github_lifecycle.py"},
     {"id": "journal", "kind": "step", "label": "Run journal + stall detector", "source": "scripts/loop_journal.py"},
-    {"id": "pr", "kind": "step", "label": "PR with Closes #N + AC checklist + prints", "source": "scripts/pr_evidence.py"},
+    {"id": "pr", "kind": "step", "label": "PR with Parte de #N + AC checklist + prints", "source": "scripts/pr_evidence.py"},
     {"id": "merge", "kind": "step", "label": "Merge", "source": "simplicio_loop/github_lifecycle.py"},
     {"id": "promise", "kind": "gate", "label": "Evidence-gated promise (DoD)", "source": "hooks/loop_stop.py"},
     {"id": "stop", "kind": "gate", "label": "STOP / cancel / max_iterations", "source": "hooks/loop_stop.py"},
