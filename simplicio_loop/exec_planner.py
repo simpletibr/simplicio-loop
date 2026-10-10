@@ -87,13 +87,13 @@ def _real_model(model):
 
 
 def _build_argv_claude(prompt, role, model, effort, cwd):
-    # VERIFIED via `claude --help`: -p, --model, --effort, --permission-mode plan, --tools, --output-format.
-    argv = ["claude", "-p", prompt]
+    # VERIFIED via `claude --help` (--bare and the tool/MCP/session flags); UNVERIFIED: --bare keeps OAuth login, measure once.
+    argv = ["claude", "--bare", "-p", prompt, "--tools", "", "--disable-slash-commands", "--strict-mcp-config", "--no-session-persistence"]
     if _real_model(model):
         argv.extend(["--model", model])
     if effort:
         argv.extend(["--effort", effort])
-    argv.extend(["--permission-mode", "plan", "--tools", "Read", "--output-format", "json"])
+    argv.extend(["--output-format", "json"])
     return argv
 
 
