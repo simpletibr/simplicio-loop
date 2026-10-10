@@ -130,10 +130,14 @@ def test_a_review_fix_is_skipped_without_verify_and_runs_once_it_is_configured(e
 
 def _view(number):
     commit, approval = "2026-10-01T00:00:00Z", "2026-10-02T00:00:00Z"
+    # Hermetic: use proper 40-character SHAs for squad_gate
+    oid = f"abc123def456789012345678901234567890{number:04d}"[:40]
+    # Hermetic: include the OID marker in the approval comment so squad_gate can find it
+    approval_body = f"REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n<!-- simplicio-loop:squad-approval:{oid} -->"
     return {
-        "files": [{"path": f"src/m{number}/app.py"}], "headRefOid": f"oid{number}",
-        "commits": [{"oid": f"oid{number}", "committedDate": commit, "messageHeadline": "loop: x"}],
-        "comments": [{"id": number, "createdAt": approval, "body": "REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n",
+        "files": [{"path": f"src/m{number}/app.py"}], "headRefOid": oid,
+        "commits": [{"oid": oid, "committedDate": commit, "messageHeadline": "loop: x"}],
+        "comments": [{"id": number, "createdAt": approval, "body": approval_body,
                       "author": {"login": "squad-bot"}, "authorAssociation": "MEMBER"}],
     }
 
