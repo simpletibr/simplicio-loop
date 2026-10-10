@@ -42,6 +42,28 @@ PROBE_ENV_KEYS = (
     "COMSPEC",
 )
 
+# What installs need on a network with a proxy or a private CA. Credentials are not in it, and `uv` index credentials are
+# left out on purpose: an install never needs them.
+INSTALL_ENV_KEYS = (
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "NO_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "all_proxy",
+    "no_proxy",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "REQUESTS_CA_BUNDLE",
+    "CURL_CA_BUNDLE",
+    "UV_CA_CERT",
+    "UV_NATIVE_TLS",
+    "UV_HTTP_TIMEOUT",
+    "UV_PYTHON_INSTALL_MIRROR",
+    "UV_PYTHON_INSTALL_DIR",
+)
+
 # Exact hosts serving GitHub release assets (gh and uv publish on GitHub Releases).
 ALLOWED_DOWNLOAD_HOSTS = frozenset(
     {"github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com"}
@@ -160,6 +182,14 @@ def probe_env(environ: Mapping[str, str] | None = None) -> dict[str, str]:
     env = minimal_env(source)
     if "PATH" in env:
         env["PATH"] = exec_path(env["PATH"], _home_of(source))
+    return env
+
+
+def install_env(environ: Mapping[str, str] | None = None) -> dict[str, str]:
+    """``probe_env`` plus the proxy and certificate settings that an install downloads through."""
+    source = os.environ if environ is None else environ
+    env = probe_env(source)
+    env.update({key: source[key] for key in INSTALL_ENV_KEYS if key in source})
     return env
 
 

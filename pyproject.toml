@@ -89,7 +89,7 @@ include = ["simplicio_loop*", "simplicio_mapper*", "simplicio", "simplicio.*"]
 namespaces = true
 
 [tool.setuptools.package-data]
-simplicio_loop = ["_bundle/**/*", "_contracts/**/*.json", "_catalog/*.json"]
+simplicio_loop = ["_bundle/**/*", "_contracts/**/*.json", "_catalog/*.json", "setup_pins.json"]
 "simplicio_loop._bundle" = ["**/*"]
 "simplicio_loop._contracts" = ["**/*.json", "*.json"]
 "simplicio_loop._catalog" = ["*.json"]

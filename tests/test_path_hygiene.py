@@ -149,7 +149,7 @@ def test_python_install_never_runs_a_uv_that_setup_did_not_verify(tmp_path):
     checks = [prereqs.Check("python", "missing", True, None, None, "3.11", "uv python install 3.11", "user"),
               prereqs.Check("uv", "missing", True, None, None, None, "", "user")]
     actions = prereqs.ensure(checks, environ={"HOME": str(tmp_path / "home"), "PATH": "/usr/bin"}, bin_dir=bin_dir,
-                             platform="linux", machine="x86_64", get=no_network)
+                             platform="linux", machine="x86_64", get=no_network, pins={})
     assert not marker.exists()
     assert [(a.name, a.result) for a in actions] == [("uv", "unchanged"), ("python", "skipped")]
     assert "remove" in actions[0].detail and "uv" in actions[1].detail
