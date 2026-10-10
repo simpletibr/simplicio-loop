@@ -11,6 +11,7 @@ import subprocess
 from pathlib import Path
 
 from simplicio_loop import runner as runner_mod
+from tests.runner_patch import patch_runner
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -95,7 +96,7 @@ def test_wave_dispatch_asks_the_physical_admission_monitor_for_lane_capacity(tmp
         {"task_index": 1, "run_id": run_id, "repo": str(repo), "task_spec": {"files_affected": ["a.txt"]}},
         {"task_index": 2, "run_id": run_id, "repo": str(repo), "task_spec": {"files_affected": ["b.txt"]}},
     ]
-    monkeypatch.setattr(runner_mod, "_run_operator_item_process", _make_fake_dispatch())
+    patch_runner(monkeypatch, "_run_operator_item_process", _make_fake_dispatch())
 
     _FakeMonitor.instances = []
 
@@ -143,7 +144,7 @@ def test_wave_dispatch_defers_to_serial_fallback_when_capacity_is_not_admitted(t
         calls.append(item["task_index"])
         raise AssertionError("must not dispatch any lane task when capacity is not admitted")
 
-    monkeypatch.setattr(runner_mod, "_run_operator_item_process", spy)
+    patch_runner(monkeypatch, "_run_operator_item_process", spy)
 
     class RefusingMonitor(_FakeMonitor):
         def refresh(self, *, force=False):
@@ -180,7 +181,7 @@ def test_wave_runs_when_pressure_blocks_admission_but_safe_workers_remain(tmp_pa
         {"task_index": 1, "run_id": run_id, "repo": str(repo), "task_spec": {"files_affected": ["a.txt"]}},
         {"task_index": 2, "run_id": run_id, "repo": str(repo), "task_spec": {"files_affected": ["b.txt"]}},
     ]
-    monkeypatch.setattr(runner_mod, "_run_operator_item_process", _make_fake_dispatch())
+    patch_runner(monkeypatch, "_run_operator_item_process", _make_fake_dispatch())
 
     class PressuredMonitor(_FakeMonitor):
         def refresh(self, *, force=False):

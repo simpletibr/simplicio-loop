@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 from simplicio_loop import runner as runner_mod
+from tests.runner_patch import patch_runner
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -71,7 +72,7 @@ def test_no_verifier_declared_integrates_normally(tmp_path, monkeypatch):
     repo = _init_repo(tmp_path)
     run_id = "wave-run-no-verifier"
     run_dir = _seed_run_dir(repo, run_id)
-    monkeypatch.setattr(runner_mod, "_run_operator_item_process", _make_fake_dispatch())
+    patch_runner(monkeypatch, "_run_operator_item_process", _make_fake_dispatch())
 
     result = runner_mod._wave_worktree_dispatch(
         repo_path=repo, run_id=run_id, run_dir=run_dir,
@@ -90,7 +91,7 @@ def test_failing_verification_command_blocks_every_lane_from_integrating(tmp_pat
     repo = _init_repo(tmp_path)
     run_id = "wave-run-failing-verifier"
     run_dir = _seed_run_dir(repo, run_id)
-    monkeypatch.setattr(runner_mod, "_run_operator_item_process", _make_fake_dispatch())
+    patch_runner(monkeypatch, "_run_operator_item_process", _make_fake_dispatch())
 
     result = runner_mod._wave_worktree_dispatch(
         repo_path=repo, run_id=run_id, run_dir=run_dir,
@@ -116,7 +117,7 @@ def test_passing_verification_command_still_integrates(tmp_path, monkeypatch):
     repo = _init_repo(tmp_path)
     run_id = "wave-run-passing-verifier"
     run_dir = _seed_run_dir(repo, run_id)
-    monkeypatch.setattr(runner_mod, "_run_operator_item_process", _make_fake_dispatch())
+    patch_runner(monkeypatch, "_run_operator_item_process", _make_fake_dispatch())
 
     result = runner_mod._wave_worktree_dispatch(
         repo_path=repo, run_id=run_id, run_dir=run_dir,
