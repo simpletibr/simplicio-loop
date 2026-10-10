@@ -47,9 +47,12 @@ def tick_run(flow_env, flow_base: Path, remote_bare: Path):
     finally:
         subscription.mcp_subscription = original_subscription
         config.set_state_dir(previous_root)
-    clone = flow_base / "watcher-state" / "work" / REPO_NAME
+    work = flow_base / "watcher-state" / "work"
     calls = [json.loads(line) for line in (flow_base / "gh-calls.jsonl").read_text().splitlines()]
-    return {"state": state_dir, "clone": clone, "remote": remote_bare, "calls": calls}
+    # #1601: the base clone is never edited. The item runs in `<repo>.wt/<issue>` and its `.simplicio-loop/` (map, events,
+    # reports) is kept in `<repo>.state/<issue>` once the worktree is removed.
+    return {"state": state_dir, "clone": work / REPO_NAME, "item_state": work / f"{REPO_NAME}.state" / str(ISSUE_NUMBER),
+            "remote": remote_bare, "calls": calls}
 
 
 def _claims(run) -> dict:
@@ -68,7 +71,7 @@ def _canonical_calls(run) -> list[dict]:
 
 
 def _run_dirs(run) -> list[dict]:
-    return dashboard_runs.discover_runs(run["clone"])
+    return dashboard_runs.discover_runs(run["item_state"])
 
 
 def test_issue_admitted(tick_run):
@@ -95,7 +98,8 @@ def test_default_executor_planned_with_the_exec_cli_read_only(tick_run, planner_
 
 
 def test_mapper_produced_project_map(tick_run):
-    project_map = tick_run["clone"] / ".simplicio-loop" / "project-map.json"
+    assert not (tick_run["clone"] / ".simplicio-loop" / "project-map.json").exists(), "the base clone must stay unedited (#1601)"
+    project_map = tick_run["item_state"] / ".simplicio-loop" / "project-map.json"
     assert project_map.is_file(), "mapper did not write project-map.json"
     document = json.loads(project_map.read_text())
     assert document["schema"] == "simplicio.project-map/v1"
@@ -166,14 +170,14 @@ def test_pipeline_events_open_and_close_the_run_once_without_issue_text(tick_run
 
 
 def test_events_parseable_by_dashboard_runs(tick_run):
-    runs = dashboard_runs.list_runs(tick_run["clone"])
+    runs = dashboard_runs.list_runs(tick_run["item_state"])
     assert len(runs) == 1, f"dashboard sees {len(runs)} runs"
     assert runs[0]["last_seq"] >= len(PIPELINE_STAGES)
     assert runs[0]["status"] == "done"
 
 
 def test_execution_report_written(tick_run):
-    report = execution_report.load_latest(tick_run["clone"])
+    report = execution_report.load_latest(tick_run["item_state"])
     assert report is not None, "no execution report was written"
     assert report["schema"] == "simplicio.execution-report/v1"
     assert report["status"] == "COMPLETE"
@@ -192,7 +196,7 @@ def test_execution_report_written(tick_run):
 def test_kanban_run_has_its_own_complete_report(tick_run):
     """The `turbo --apply -` run the kanban shows keeps the execution report turbo wrote for it."""
     run = _run_dirs(tick_run)[0]
-    path = tick_run["clone"] / _turbo_document(tick_run)["execution_report"]
+    path = tick_run["item_state"] / _turbo_document(tick_run)["execution_report"]
     report = json.loads(path.read_text())
     assert report["schema"] == "simplicio.execution-report/v1"
     assert report["run_id"] == run["run_id"]
@@ -200,6 +204,6 @@ def test_kanban_run_has_its_own_complete_report(tick_run):
 
 
 def test_execution_report_belongs_to_the_kanban_run(tick_run):
-    report = execution_report.load_latest(tick_run["clone"])
+    report = execution_report.load_latest(tick_run["item_state"])
     assert report["run_id"] == _run_dirs(tick_run)[0]["run_id"], "the report belongs to the run the kanban shows"
 
