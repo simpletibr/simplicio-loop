@@ -979,6 +979,49 @@ def test_ensure_state_dir_in_the_items_sandbox_fails_with_erofs_before_the_seed_
     assert exclude_file(r).read_text().splitlines().count(EXCLUDE_LINE) == 1
 
 
+TURBO_WRITE = ("; (Path({clone!r}) / '.simplicio-loop' / 'turbo-request.json').write_text('{{}}')")
+
+
+@needs_bwrap
+def test_a_turbo_like_run_in_the_items_sandbox_writes_its_state_dir_without_errno_30_once_the_base_is_seeded(two_live_items):
+    """#1680 item 7, end to end: after the host seeds the line, ensure_state_dir and a write into the item's state dir both succeed
+    inside the item's real sandbox. The state dir is the item's clone's `.simplicio-loop/`, which the item may write."""
+    r, a, _b = two_live_items
+    code = ENSURE.format(root=str(Path(__file__).resolve().parents[2]), clone=str(a.path)) + TURBO_WRITE.format(clone=str(a.path))
+    script = f"{shlex.quote(sys.executable)} -c {shlex.quote(code)}"
+    exclude_file(r).write_text("*.log\n")  # a base the host has not seeded yet: the first attempt is the EROFS of the ticket
+    assert "Errno 30" in in_sandbox(a.path, script).stderr
+    asyncio.run(worktrees._update_base(REPO, "main", 31, False))  # the host seeds the line
+    done = in_sandbox(a.path, script)
+    assert done.returncode == 0 and "Errno 30" not in done.stderr, done.stderr
+    assert (a.path / ".simplicio-loop" / "turbo-request.json").read_text() == "{}"
+
+
+def test_a_base_whose_pack_index_was_deleted_is_cloned_again_and_a_healthy_base_is_not(real_repo, monkeypatch):
+    """#1656 item 3: an item can delete a pack .idx in the shared objects; the base (and every item) is then broken for good
+    unless the host notices and clones again."""
+    r = real_repo
+    git("repack", "-a", "-d", "-q", cwd=r.base)  # a small fetch is unpacked to loose objects: make sure there is a pack to break
+    indexes = list((r.common / "objects" / "pack").glob("*.idx"))
+    assert indexes
+    for index in indexes:
+        index.unlink()
+    assert git_rc("cat-file", "-e", "HEAD^{tree}", cwd=r.base) != 0  # the control: the damage is real
+    real_run, cloned = proc.run, []
+
+    async def run(argv, **kwargs):
+        if argv[:3] == ["gh", "repo", "clone"]:  # no network here: the same clone, from the local origin
+            cloned.append(argv)
+            return await real_run(["git", "clone", "-q", "--depth", "1", f"file://{r.origin}", argv[4]], **kwargs)
+        return await real_run(argv, **kwargs)
+
+    monkeypatch.setattr(proc, "run", run)
+    asyncio.run(worktrees._update_base(REPO, "main", 1, False))
+    assert len(cloned) == 1 and git_rc("cat-file", "-e", "HEAD^{tree}", cwd=r.base) == 0
+    asyncio.run(worktrees._update_base(REPO, "main", 2, False))
+    assert len(cloned) == 1  # healthy: fetched, not cloned again
+
+
 def test_drop_never_follows_a_symlink_planted_at_the_items_path(real_repo, tmp_path):
     r, gate = real_repo, worktrees.Gate(2)
 
@@ -1013,7 +1056,7 @@ def test_a_link_at_the_items_path_to_a_directory_outside_is_removed_and_the_outs
     assert (outside / "keep.txt").read_text() == "keep\n" and [p.name for p in outside.iterdir()] == ["keep.txt"]
 
 
-@pytest.mark.parametrize("repo", ["../x", "..", ".", "a/b", "/abs", "", "foo.wt", "foo.state", "-rf", ".hidden", "sp ace", "ünï", "a\nb"])
+@pytest.mark.parametrize("repo", ["../x", "..", ".", "a/b", "/abs", "", "foo.wt", "foo.state", "foo.WT", "x.Wt", "foo.State", "-rf", ".hidden", "sp ace", "ünï", "a\nb"])
 def test_a_repo_name_that_could_leave_work_or_collide_with_a_layout_dir_is_refused_everywhere(repo):
     for call in (worktrees.item_path, worktrees.state_home):
         with pytest.raises(ValueError):
@@ -1215,3 +1258,38 @@ def test_task4_seed_exclude_with_file_instead_of_directory_raises_clear_error(tm
 
     with pytest.raises(RuntimeError, match="cannot seed .simplicio-loop"):
         worktrees._seed_exclude(repo)
+
+
+def test_a_damaged_base_with_a_live_item_is_not_deleted_and_the_item_keeps_its_commit(real_repo):
+    """#1656 item 3, review of the first version: cloning the base again destroyed the live items of the repo and their unpublished commits."""
+    r, gate = real_repo, worktrees.Gate(2)
+
+    async def scenario():
+        item = await worktrees._acquire(gate, REPO, "main", 41, False)
+        git("commit", "-q", "--allow-empty", "-m", "unpublished", cwd=item.path)
+        git("repack", "-a", "-d", "-q", cwd=item.path)
+        for index in (r.common / "objects" / "pack").glob("*.idx"):
+            index.unlink()
+        assert git_rc("cat-file", "-e", "HEAD^{tree}", cwd=r.base) != 0  # the control: the damage is real
+        with pytest.raises(worktrees.points.PointDeferred):
+            await worktrees._update_base(REPO, "main", 42, False)
+        return item
+
+    item = asyncio.run(scenario())
+    assert (r.base / ".git").exists() and (item.path / ".git").exists()  # nothing was deleted
+    assert git_rc("rev-parse", "--git-dir", cwd=item.path) == 0
+
+
+def test_a_cat_file_failure_that_is_not_a_missing_object_does_not_reclone(real_repo, monkeypatch):
+    r, real_run, cloned = real_repo, proc.run, []
+
+    async def run(argv, **kwargs):
+        if argv[:2] == ["git", "cat-file"]:  # a killed git or an I/O error: no proof of damage
+            return proc.Result(137, "", "Killed")
+        if argv[:3] == ["gh", "repo", "clone"]:
+            cloned.append(argv)
+        return await real_run(argv, **kwargs)
+
+    monkeypatch.setattr(proc, "run", run)
+    asyncio.run(worktrees._update_base(REPO, "main", 1, False))
+    assert cloned == [] and (r.base / ".git").exists()

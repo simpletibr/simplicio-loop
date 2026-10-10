@@ -104,7 +104,7 @@ def test_without_bwrap_evaluate_returns_a_report_rejected_with_sandbox_unavailab
 
 
 def test_evaluate_gives_the_gate_the_bodies_the_merge_base_the_author_and_the_state_dir_for_its_jail(world, monkeypatch):
-    gh = FakeGh(comments=[{"body": MARKER.format(head=world.head), "authorAssociation": "OWNER"}], pr_body="Parte de #7", issue_body="- [ ] algo")
+    gh = FakeGh(comments=[{"body": MARKER.format(head=world.head), "author": {"login": "owner-dev"}, "authorAssociation": "OWNER"}], pr_body="Parte de #7", issue_body="- [ ] algo")
     monkeypatch.setattr(squad_review, "_gh", gh)
     seen, held = {}, []
     lock = asyncio.Lock()
@@ -226,11 +226,26 @@ def test_the_lock_is_released_when_the_review_fails(world, gh):
 
 
 def test_a_comment_with_the_independent_marker_for_this_head_fills_independent(world, monkeypatch):
-    comments = [{"body": "só um comentário"}, {"body": MARKER.format(head=world.head)}]
+    comments = [{"body": "só um comentário", "authorAssociation": "OWNER"},
+                {"body": MARKER.format(head=world.head), "author": {"login": "owner-dev"}, "authorAssociation": "OWNER"}]
     monkeypatch.setattr(squad_review, "_gh", FakeGh(comments=comments))
     report, independent = _evaluate(world.head)
     assert independent == identity.Agent("rev-9", "independent-reviewer", "opus-5.5", "other-host")
     assert next(c for c in report.checks if c.name == "identity").measured["independent"] == "rev-9"
+
+
+def test_an_independent_marker_posted_by_an_unauthorized_login_does_not_make_the_review_independent(world, monkeypatch):
+    """Finding m2 of #1649: any commenter could post the marker. A CONTRIBUTOR login that is not an approver is ignored."""
+    stranger = {"body": MARKER.format(head=world.head), "author": {"login": "stranger"}, "authorAssociation": "CONTRIBUTOR"}
+    monkeypatch.setattr(squad_review, "_gh", FakeGh(comments=[stranger]))
+    assert _evaluate(world.head)[1] is None
+
+
+def test_an_independent_marker_from_a_listed_approver_login_counts_whatever_its_association(world, monkeypatch):
+    dev = {"body": MARKER.format(head=world.head), "author": {"login": "Owner-Dev"}, "authorAssociation": "CONTRIBUTOR"}
+    monkeypatch.setattr(squad_review, "_gh", FakeGh(comments=[dev]))
+    assert _evaluate(world.head, approvers=["owner-dev"])[1] == identity.Agent("rev-9", "independent-reviewer", "opus-5.5", "other-host")
+    assert _evaluate(world.head)[1] is None  # the same comment without that approver is not authorized
 
 
 def test_a_marker_with_a_seven_character_sha_does_not_fill_independent(world, monkeypatch):
