@@ -27,6 +27,7 @@ from .model import ERROR, FAIL, PASS, SKIPPED, CheckResult
 
 KILLED, SURVIVED, TIMEOUT, EQUIVALENT = "killed", "survived", "timeout", "equivalent"  # a timeout is not a kill: a slow test must not pass a PR
 NO_TESTS_COLLECTED = 5  # pytest exit code
+EXTRA_CAP = 3  # probes per sampled mutant, spent only on new red tests the sample did not attribute
 _JUMPS = (ast.Return, ast.Raise, ast.Continue, ast.Break)
 _FLIPS: dict[type, type] = {
     ast.Eq: ast.NotEq, ast.NotEq: ast.Eq, ast.Lt: ast.GtE, ast.GtE: ast.Lt, ast.Gt: ast.LtE, ast.LtE: ast.Gt,
@@ -209,6 +210,15 @@ def run_mutants(root: Path, mutants: Sequence[Mutant], test_argv: Sequence[str],
     return results
 
 
+def _killer_map(outcomes: Sequence[Outcome]) -> dict[str, list[str]]:
+    """Test node id -> the ids of the mutants it killed."""
+    killers: dict[str, list[str]] = {}
+    for outcome in outcomes:
+        for test in outcome.killers:
+            killers.setdefault(test, []).append(outcome.mutant.id)
+    return killers
+
+
 def _unattributed(red: Sequence[str], killers: Mapping[str, object]) -> list[str]:
     """The new tests that fail on main and killed no mutant of the sample. A file-level entry (a collection error) kills its tests."""
     return [test for test in red if test not in killers and test.split("::", 1)[0] not in killers]
@@ -245,20 +255,23 @@ def check_mutation(root: Path, changes: Sequence[FileChange], test_argv: Sequenc
     code, _ = _run(root, test_argv, timeout_each * 2, wrap, env, home)  # the tests have to pass on the unmutated tree, or every mutant "dies"
     if code != 0:
         return CheckResult("mutation", ERROR, (f"os testes nao passam sem mutante (saida {code}): a amostra nao diz nada",))
-    results = run_mutants(root, sample(mutants, n, seed), test_argv, timeout_each, wrap=wrap, env=env, home=home)
+    picked = sample(mutants, n, seed)
+    results = run_mutants(root, picked, test_argv, timeout_each, wrap=wrap, env=env, home=home)
+    probes: list[Outcome] = []  # the sample is bounded by seed: a new red test it missed is probed with the other mutants, capped
+    for mutant in [m for m in mutants if m not in picked][:EXTRA_CAP * max(n, 1)] if red else []:
+        if not _unattributed(red, _killer_map(results + probes)):
+            break
+        probes += run_mutants(root, [mutant], test_argv, timeout_each, wrap=wrap, env=env, home=home)
     killed = sum(1 for o in results if o.status == KILLED)
     equivalent = sum(1 for o in results if o.status == EQUIVALENT)
     survivors = [o.mutant for o in results if o.status == SURVIVED]
     live = len(results) - equivalent
     ratio = killed / live if live else 0.0
-    killers: dict[str, list[str]] = {}
-    for outcome in results:
-        for test in outcome.killers:
-            killers.setdefault(test, []).append(outcome.mutant.id)
+    killers = _killer_map(results + probes)
     unattributed = _unattributed(red, killers) if red else []
     measured = {"total": len(results), "killed": killed, "timeout": sum(1 for o in results if o.status == TIMEOUT),
                 "survived": [m.describe() for m in survivors[:8]], "ratio": round(ratio, 3), "n": n, "seed": seed,
-                "candidates": len(mutants), "equivalent": equivalent, "killers": killers, "unattributed": unattributed}
+                "candidates": len(mutants), "equivalent": equivalent, "killers": killers, "unattributed": unattributed, "probes": len(probes)}
     extra = (_attribution_reason(unattributed),) if unattributed else ()  # appended to whatever else fails the sample
     if live == 0:
         return CheckResult("mutation", FAIL, ("nenhum mutante vivo na amostra (todos equivalentes ou inalcancaveis): a amostra nao diz nada", *extra), measured)

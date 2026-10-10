@@ -298,3 +298,15 @@ def test_real_pytest_names_every_test_that_fails_under_a_mutant(tmp_path):
     (outcome,) = run_mutants(root, [flip], no_x, 60)
     assert outcome.status == KILLED
     assert outcome.killers == ("tests/test_app.py::test_first", "tests/test_app.py::test_second")
+
+
+def test_a_red_test_that_kills_only_a_mutant_outside_the_sample_is_probed_and_attributed(tmp_path, monkeypatch):
+    """The sample is bounded by seed: a new test can miss it. Unattributed red tests are probed with the other mutants, up to a cap."""
+    root = make_project(tmp_path, ATTR, ATTR_TESTS)
+    mutants = generate("app.py", ATTR, [2])
+    seed = next(s for s in map(str, range(200)) if "None" in sample(mutants, 1, s)[0].replacement)  # the sample holds only `return None`
+    fake_killers(monkeypatch, ATTR, lambda text: ["tests/test_app.py::test_other"] if "None" in text else ["tests/test_app.py::test_new"])
+    result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, n=1, seed=seed, red=NEW_RED)
+    assert result.status == PASS, result.reasons
+    assert result.measured["total"] == 1 and result.measured["probes"] >= 1 and result.measured["unattributed"] == []
+    assert set(result.measured["killers"]) == {"tests/test_app.py::test_other", "tests/test_app.py::test_new"}
