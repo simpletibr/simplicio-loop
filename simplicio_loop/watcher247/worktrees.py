@@ -137,7 +137,10 @@ def _seed_exclude(base: Path) -> None:
     so the `ensure_state_dir` of turbo would fail with EROFS there: the host writes the line first."""
     exclude = state_dir._git_info_exclude_path(base)
     if exclude is not None:
-        state_dir._append_exclude_line_once(exclude)
+        try:
+            state_dir._append_exclude_line_once(exclude)
+        except (IsADirectoryError, UnicodeDecodeError, OSError) as e:
+            raise RuntimeError(f"cannot seed .simplicio-loop/ into {base}: {str(e)[:200]}") from e
 
 
 def _forget(common: Path, path: Path) -> None:

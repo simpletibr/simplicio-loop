@@ -1169,3 +1169,50 @@ def test_rmtree_is_called_only_inside_forget_and_only_on_the_items_path_or_entry
     assert calls["worktrees.py"], "the scan found no rmtree at all"
     for scope, first_arg in calls["worktrees.py"]:
         assert scope == "_forget" and first_arg in ("path", "entry"), (scope, first_arg)
+
+
+# Task 4: _seed_exclude error handling
+def test_task4_seed_exclude_with_directory_raises_clear_error(tmp_path):
+    """#1680 task 4: _seed_exclude raises clear RuntimeError when .git/info/exclude is a directory."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git("init", "-q", cwd=repo)
+
+    # Replace .git/info/exclude file with a directory
+    exclude_path = repo / ".git" / "info" / "exclude"
+    exclude_path.unlink()  # Remove the file created by git init
+    exclude_path.mkdir()  # Replace it with a directory
+
+    with pytest.raises(RuntimeError, match="cannot seed .simplicio-loop"):
+        worktrees._seed_exclude(repo)
+
+
+def test_task4_seed_exclude_with_non_utf8_file_raises_clear_error(tmp_path):
+    """#1680 task 4: _seed_exclude raises clear RuntimeError when .git/info/exclude is not UTF-8."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git("init", "-q", cwd=repo)
+
+    # Create .git/info/exclude with non-UTF-8 content
+    exclude_file = repo / ".git" / "info" / "exclude"
+    exclude_file.parent.mkdir(parents=True, exist_ok=True)
+    exclude_file.write_bytes(b"\x80\x81\x82\x83")  # Invalid UTF-8
+
+    with pytest.raises(RuntimeError, match="cannot seed .simplicio-loop"):
+        worktrees._seed_exclude(repo)
+
+
+
+def test_task4_seed_exclude_with_file_instead_of_directory_raises_clear_error(tmp_path):
+    """#1680 task 4: _seed_exclude raises clear RuntimeError when .git/info is a file instead of directory."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git("init", "-q", cwd=repo)
+
+    # Replace .git/info directory with a file
+    info_dir = repo / ".git" / "info"
+    shutil.rmtree(info_dir)  # Remove the directory
+    info_dir.write_text("")  # Create it as a file
+
+    with pytest.raises(RuntimeError, match="cannot seed .simplicio-loop"):
+        worktrees._seed_exclude(repo)
