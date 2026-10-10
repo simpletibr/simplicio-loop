@@ -153,11 +153,21 @@ def test_strict_mode_armed_by_one_command_does_not_stay_armed_for_the_next(daemo
     assert normal(later.stdout.replace(str(warm), "<repo>")) == normal(expected.stdout.replace(str(plain), "<repo>"))
 
 
+def own_environment_first() -> dict[str, str]:
+    """PATH with the scripts directory of this Python first: the daemon forks only the Mapper that is the console
+    script of the loop's own environment (docs/DAEMON.md, "Operator shortcut"), never one found elsewhere on PATH
+    (an old /usr/local/bin/simplicio-mapper ahead of the venv made this test depend on who ran it)."""
+    scripts = os.path.dirname(sys.executable)
+    assert (Path(scripts) / "simplicio-mapper").exists(), f"no simplicio-mapper console script next to {sys.executable}"
+    return {"PATH": scripts + os.pathsep + os.environ.get("PATH", "")}
+
+
 def test_the_orient_step_runs_the_mapper_through_the_daemon_too(daemon_dir, tmp_path):
     repo = make_repo(tmp_path / "repo")
     args = ["turbo", "--repo", ".", "--task", "In pkg/mod.py replace hello with hi"]
-    expected = cli(daemon_dir, args, via_daemon=False, cwd=make_repo(tmp_path / "plain"))
-    got = cli(daemon_dir, args, via_daemon=True, cwd=repo)
+    environment = own_environment_first()
+    expected = cli(daemon_dir, args, via_daemon=False, cwd=make_repo(tmp_path / "plain"), extra_env=environment)
+    got = cli(daemon_dir, args, via_daemon=True, cwd=repo, extra_env=environment)
     assert got.returncode == expected.returncode == 0, got.stderr
     first, second = json.loads(got.stdout), json.loads(expected.stdout)
     assert first["status"] == second["status"] == "needs_plan"
