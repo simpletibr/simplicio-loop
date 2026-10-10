@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import time
 import urllib.error
 import urllib.request
@@ -40,20 +39,6 @@ def _public_subscription(ent: dict, reason: str, active: bool) -> dict:
         "source": ent.get("source"),
         "plan": ent.get("plan"),
     }
-
-
-NO_LOGIN_ENV = "SIMPLICIO_247_NO_LOGIN"  # DEV ONLY and a release blocker: scripts/release_rehearsal.py dev-switches
-
-
-def no_login_enabled(environ: dict[str, str] | None = None) -> bool:
-    """DEV ONLY. Off unless the operator sets SIMPLICIO_247_NO_LOGIN to exactly 1."""
-    return (os.environ if environ is None else environ).get(NO_LOGIN_ENV) == "1"
-
-
-def dev_no_login() -> dict:
-    """What the status shows instead of a subscription while the dev switch skips the gate: never active, never `ok`."""
-    return _public_subscription({}, "dev_no_login", False) | {
-        "detail": f"{NO_LOGIN_ENV}=1: the login gate is skipped, the login file is not read (dev only, release blocker)"}
 
 
 def _http_detail(exc: urllib.error.HTTPError) -> str:

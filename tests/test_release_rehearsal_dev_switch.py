@@ -24,10 +24,8 @@ def _repo(tmp_path: Path, files: dict[str, str]) -> Path:
     return tmp_path
 
 
-def test_switch_name_is_the_one_the_watcher_reads():
-    from simplicio_loop.watcher247 import subscription
-
-    assert rr.DEV_SWITCHES == (subscription.NO_LOGIN_ENV,) == (SWITCH,)
+def test_the_blocked_switch_is_the_dev_login_switch():
+    assert rr.DEV_SWITCHES == (SWITCH,)
 
 
 def test_finds_the_switch_anywhere_under_simplicio_loop(tmp_path):
