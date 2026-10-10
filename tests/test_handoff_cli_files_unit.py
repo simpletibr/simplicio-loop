@@ -72,8 +72,8 @@ def test_write_makes_a_private_file_and_private_directories(tmp_path, capsys, mo
     write(capsys, monkeypatch, tmp_path, doc())
     path = target(tmp_path)
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
-    assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
-    assert stat.S_IMODE(path.parent.parent.stat().st_mode) == 0o700
+    for directory in (path.parent, path.parent.parent, path.parent.parent.parent, tmp_path / ".simplicio-loop"):
+        assert stat.S_IMODE(directory.stat().st_mode) == 0o700, directory
 
 
 @POSIX
@@ -84,7 +84,8 @@ def test_write_keeps_a_private_mode_whatever_the_umask(tmp_path, capsys, monkeyp
     finally:
         os.umask(old)
     assert stat.S_IMODE(target(tmp_path).stat().st_mode) == 0o600
-    assert stat.S_IMODE(target(tmp_path).parent.stat().st_mode) == 0o700
+    for directory in (target(tmp_path).parent, tmp_path / ".simplicio-loop", tmp_path / ".simplicio-loop" / "orchestrator"):
+        assert stat.S_IMODE(directory.stat().st_mode) == 0o700, directory
 
 
 @POSIX
