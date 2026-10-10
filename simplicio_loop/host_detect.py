@@ -4,7 +4,8 @@
 them equal when the Runtime source is present. The Runtime registry holds ids only, so the executable names, the version
 and login commands and the install text live here.
 
-Detection finds the EXACT executable name on PATH and runs its version command. The login state comes only from the
+Detection finds the EXACT executable name on PATH and runs its version command. PATH entries that are relative, writable by
+others or `~/.local/bin` are skipped (`setup_hardening.path_warnings`): nothing in them is run, not even indirectly. The login state comes only from the
 official status command of the host (`claude auth status`, `codex login status`, `opencode auth list`); a host without
 one is `UNVERIFIED`. No credential file is opened, and no CLI output is shown: only a version number is kept.
 
@@ -15,7 +16,6 @@ from __future__ import annotations
 
 import os
 import re
-import shutil
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
@@ -23,7 +23,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Optional
 
-from . import exec_planner
+from . import exec_planner, setup_hardening
 from .watcher247 import sandbox
 
 VERSION = re.compile(r"\d+\.\d+\.\d+")  # no suffix: a suffix could carry text of the output
@@ -147,11 +147,13 @@ def _detect_one(spec: HostSpec, which: Callable[[str], Optional[str]], run: Run,
 
 def detect(environ: Optional[Mapping[str, str]] = None, *, which: Optional[Callable[[str], Optional[str]]] = None,
            run: Optional[Run] = None) -> list[HostStatus]:
-    """One HostStatus per host that has an executable to look for, in table order. Child processes get a scrubbed env."""
+    """One HostStatus per host that has an executable to look for, in table order. Child processes get a scrubbed env
+    whose PATH, like the lookup, leaves out the unsafe entries."""
     env = os.environ if environ is None else environ
-    which = which or (lambda name: shutil.which(name, path=env.get("PATH")))
+    which = which or setup_hardening.safe_which(env)
     home = Path(env.get("HOME") or env.get("USERPROFILE") or Path.home())
     child_env = sandbox.scrubbed_env(env, home=home)
+    child_env["PATH"] = setup_hardening.exec_path(child_env["PATH"], str(home))
     specs = [spec for spec in HOSTS if spec.exes]
     with ThreadPoolExecutor(max_workers=8) as pool:  # a slow CLI start must not add up: the answer takes the slowest one
         return list(pool.map(lambda spec: _detect_one(spec, which, run or _run, child_env), specs))

@@ -210,6 +210,35 @@ def test_yes_as_root_runs_the_manager_directly(monkeypatch):
     assert world.ran("sudo") == [] and world.ran("apt-get") == [["apt-get", "install", "-y", "git"]]
 
 
+@pytest.mark.parametrize("manager, argv_full, argv_display", [
+    ("dnf", ["sudo", "-n", "dnf", "install", "-y", "git"], "sudo dnf install -y git"),
+    ("pacman", ["sudo", "-n", "pacman", "-S", "--needed", "--noconfirm", "git"], "sudo pacman -S --needed --noconfirm git"),
+])
+def test_yes_with_sudo_n_installs_with_sudo_n_for_dnf_and_pacman(manager, argv_full, argv_display):
+    world = World(git=None, **{"apt-get": None, manager: "x"})
+    actions = ensure(world, yes=True)
+    assert [(a.result, a.detail) for a in actions] == [("installed", argv_display)]
+    assert world.ran("sudo") == [["sudo", "-n", "true"], argv_full]
+
+
+@pytest.mark.parametrize("manager, argv_direct", [
+    ("dnf", ["dnf", "install", "-y", "git"]),
+    ("pacman", ["pacman", "-S", "--needed", "--noconfirm", "git"]),
+])
+def test_yes_as_root_runs_manager_directly_for_dnf_and_pacman(monkeypatch, manager, argv_direct):
+    monkeypatch.setattr(prereqs, "_is_root", lambda: True)
+    world = World(git=None, **{"apt-get": None, manager: "x"})
+    assert ensure(world, yes=True)[0].result == "installed"
+    assert world.ran("sudo") == [] and world.ran(argv_direct[0]) == [argv_direct]
+
+
+@pytest.mark.parametrize("manager, shown", [("dnf", "sudo dnf install -y git"), ("pacman", "sudo pacman -S --needed --noconfirm git")])
+def test_without_yes_dnf_and_pacman_only_name_the_full_command_and_run_nothing(manager, shown):
+    world = World(git=None, **{"apt-get": None, manager: "x"})
+    assert [(a.result, a.detail) for a in ensure(world)] == [("skipped", shown)]
+    assert world.ran("sudo") == [] and world.ran(manager) == []
+
+
 def test_brew_and_winget_never_use_sudo():
     world = World(git=None, **{"apt-get": None, "brew": "x"})
     assert ensure(world, yes=True, platform="darwin")[0].result == "installed"
