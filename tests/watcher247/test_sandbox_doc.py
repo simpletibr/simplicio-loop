@@ -11,6 +11,7 @@ from simplicio_loop.watcher247 import config, host_mode, sandbox
 DOC = Path(__file__).resolve().parents[2] / "docs" / "WATCHER_247.md"
 WRITE_HEADING = "**O que o item pode escrever (lista exata)**"
 HOME_HEADING = "**`HOME` do planner por família**"
+LIMIT_HEADING = "**A pasta da família é gravável**"
 
 
 def section(start: str, stop: str) -> str:
@@ -61,10 +62,25 @@ def test_the_doc_lists_exactly_the_writable_binds_of_wrap(real_wrap):
 
 def test_the_doc_names_every_state_file_as_read_only():
     text = section("Todo o resto", HOME_HEADING)
+    listed = re.search(r"Isso inclui o state dir inteiro:(.*?)\.\s", text, re.DOTALL)
+    assert listed, "the sentence that lists the read-only state files is gone"
+    names = re.findall(r"`([^`]+)`", listed.group(1))  # only this list: "não cria `STOP`" later in the section does not count
     state_files = [path.name for path in (config.CLAIMS, config.BUDGET, config.STOP, config.STATUS, config.FIXES, config.BASELINE, config.DISABLED)]
-    for name in (*state_files, "work/", "logs/", "opencode/"):
-        assert f"`{name}`" in text, name
+    assert names == [*state_files, "work/", "logs/", "opencode/"]
     assert "somente leitura" in text and "não cria `STOP`" in text
+
+
+def test_the_doc_names_what_a_compromised_planner_can_replace_in_each_writable_family_folder():
+    block = section(LIMIT_HEADING, "**Continua visível")
+    bullets = {match[0]: match[1] for match in re.findall(r"^- `(\w+)`:(.*?)(?=^- |^\s*$|\Z)", block, re.DOTALL | re.MULTILINE)}
+    assert set(bullets) == set(host_mode.FAMILY_HOME)
+    for family, entry in host_mode.FAMILY_HOME.items():
+        for name in entry["rw"]:
+            assert f"`~/{name}`" in bullets[family], (family, name)
+    for family, path in {"claude": "~/.claude/settings.json", "codex": "~/.codex/config.toml", "grok": "~/.grok/bin/grok"}.items():
+        assert f"`{path}`" in bullets[family], (family, path)
+    paragraph = block[block.index("**Limite conhecido.**"):]
+    assert "persiste" in paragraph and "não deve rodar o planner como um usuário cujos binários ele não pode alterar" in " ".join(paragraph.split())
 
 
 def test_the_doc_lists_the_home_folders_of_every_family():

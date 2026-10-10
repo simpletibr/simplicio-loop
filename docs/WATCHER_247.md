@@ -268,6 +268,21 @@ de login do próprio CLI). Se o `HOME` não for um diretório absoluto (ou for `
 Binário fora do `HOME` (`/usr`, `/usr/local`) não precisa de linha. Um link em `~/.local/bin` é recriado como link, então o alvo
 entra na tabela (para o `claude`, `~/.local/share/claude`. Para o `codex` e o `grok`, a própria pasta de login).
 
+**A pasta da família é gravável** (o que um planner comprometido troca, #1680)
+
+Dentro do sandbox o planner grava as pastas `rw` da tabela. Ele troca o binário ou a config que mora nelas. A lista sai de
+`host_mode.FAMILY_HOME`. Os caminhos abaixo foram medidos neste host em 2026-10-10 com `readlink -f`.
+
+- `claude`: grava `~/.claude`. Ali moram `~/.claude/settings.json` e os hooks. O binário fica em `~/.local/share/claude`, somente leitura.
+- `codex`: grava `~/.codex`. Ali moram `~/.codex/config.toml` e o binário: `~/.local/bin/codex` é um link para `~/.codex/packages/standalone/current/bin/codex`. O planner pode trocar o binário.
+- `grok`: grava `~/.grok`. Ali moram o binário `~/.grok/bin/grok` (alvo do link `~/.local/bin/grok`) e `~/.grok/bin/agent`. O planner pode trocar os dois.
+- `agy`: grava `~/.gemini/antigravity-cli`. O binário `~/.local/bin/agy` é um arquivo comum fora dessa pasta, somente leitura.
+- `opencode`: grava `~/.local/share/opencode`. O binário fica em `/usr/local` e a config em `~/.config/opencode`, os dois somente leitura.
+- `gemini`: grava `~/.gemini`. A config do CLI mora ali (DOC-BASED: o CLI não está instalado onde se mediu).
+
+**Limite conhecido.** A troca persiste depois da chamada. O próximo uso do binário ou do hook trocado roda com o login do usuário
+do serviço. O host não deve rodar o planner como um usuário cujos binários ele não pode alterar.
+
 **Continua visível (decisão e limites conhecidos)**
 
 | Canal | Estado | Motivo |

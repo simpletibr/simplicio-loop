@@ -40,7 +40,7 @@ async def run(ctx: PointContext) -> PointResult:
     title = str((ctx.issue or {}).get("title") or ctx.repo)[:80].lstrip("-") or ctx.repo
     argv = [sys.executable, str(script), "verify", "--engine", "hyperframes", "--frames", str(frames),
             "--name", VIDEO_NAME, "--title", title, "--issue", issue, "--out", str(out_dir)]
-    done = await _scripts.sandboxed(argv, clone=ctx.clone, writable=out_dir, timeout=TIMEOUT_S)
+    done = await _scripts.sandboxed(argv, clone=ctx.clone, state_dir=out_dir, timeout=TIMEOUT_S)
     if done.returncode != 0:
         code = _ERROR_CODE.get(done.returncode, "video_evidence_error")
         return PointResult(NAME, "error", {"return_code": done.returncode, "output": _scripts.tail(done)}, code)

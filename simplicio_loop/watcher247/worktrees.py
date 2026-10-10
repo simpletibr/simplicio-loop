@@ -32,7 +32,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeVar
 
-from .. import squad_capacity
+from .. import squad_capacity, state_dir
 from . import config, points, proc, state
 
 T = TypeVar("T")
@@ -128,7 +128,16 @@ async def _update_base(repo: str, branch: str, number: int, fix: bool) -> Path:
     detach = await proc.run(["git", "checkout", "-q", "-f", "--detach", f"origin/{branch}"], cwd=dest, timeout=60)
     if detach.returncode != 0:
         raise _fail(detach, "base checkout failed")
+    await asyncio.to_thread(_seed_exclude, dest)
     return dest
+
+
+def _seed_exclude(base: Path) -> None:
+    """Put `.simplicio-loop/` in the base's info/exclude (state_dir's own helper). Inside an item's sandbox that file is read-only,
+    so the `ensure_state_dir` of turbo would fail with EROFS there: the host writes the line first."""
+    exclude = state_dir._git_info_exclude_path(base)
+    if exclude is not None:
+        state_dir._append_exclude_line_once(exclude)
 
 
 def _forget(common: Path, path: Path) -> None:
