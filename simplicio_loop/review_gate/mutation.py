@@ -4,6 +4,11 @@ The mutants come from the AST, never from the text of a line: a string, a commen
 (they are not nodes the operators below visit), and a mutant that does not compile is dropped. Each mutant is the whole
 mutated file (`ast.unparse`), applied to the head tree, run against the PR's tests and restored. A mutant the tests
 do not fail on is a survivor; the gate fails when too few mutants die.
+
+An equivalent mutant changes no observable behaviour, so no test can kill it. The only mutants classed as equivalent
+(rule `_unreachable`) are the ones no run reaches: after an unconditional return, raise, continue or break in the same
+block, or in the branch a literal test never takes (`if False:`, the else of `if True:`). A surviving equivalent leaves
+the sample; the sample fails when no live mutant is left or when the equivalents are more than half of it.
 """
 from __future__ import annotations
 
@@ -20,8 +25,9 @@ from . import isolation
 from .diffs import FileChange
 from .model import ERROR, FAIL, PASS, SKIPPED, CheckResult
 
-KILLED, SURVIVED, TIMEOUT = "killed", "survived", "timeout"  # a timeout is not a kill: a slow test must not pass a PR
+KILLED, SURVIVED, TIMEOUT, EQUIVALENT = "killed", "survived", "timeout", "equivalent"  # a timeout is not a kill: a slow test must not pass a PR
 NO_TESTS_COLLECTED = 5  # pytest exit code
+_JUMPS = (ast.Return, ast.Raise, ast.Continue, ast.Break)
 _FLIPS: dict[type, type] = {
     ast.Eq: ast.NotEq, ast.NotEq: ast.Eq, ast.Lt: ast.GtE, ast.GtE: ast.Lt, ast.Gt: ast.LtE, ast.LtE: ast.Gt,
     ast.Is: ast.IsNot, ast.IsNot: ast.Is, ast.In: ast.NotIn, ast.NotIn: ast.In,
@@ -37,6 +43,7 @@ class Mutant:
     original: str  # the node before the mutation, as `ast.unparse` prints it
     replacement: str  # the same node after it
     source: str  # the whole mutated file
+    equivalent: bool = False  # no run reaches the node: see `_unreachable`
 
     @property
     def id(self) -> str:
@@ -74,6 +81,22 @@ def _candidates(tree: ast.AST, lines: Collection[int]) -> list[tuple[int, str, i
     return found
 
 
+def _unreachable(tree: ast.AST) -> set[int]:
+    """Indexes (in `ast.walk` order) of the nodes no run reaches: after a jump in the same block, or under a literal test that never takes them."""
+    dead: set[int] = set()
+    for node in ast.walk(tree):
+        for field in ("body", "orelse", "finalbody"):
+            block = getattr(node, field, None)
+            if isinstance(block, list):
+                for i, stmt in enumerate(block):
+                    if isinstance(stmt, _JUMPS):
+                        dead.update(id(n) for after in block[i + 1:] for n in ast.walk(after))
+        if isinstance(node, ast.If) and isinstance(node.test, ast.Constant):
+            for stmt in node.orelse if node.test.value else node.body:
+                dead.update(id(n) for n in ast.walk(stmt))
+    return {index for index, node in enumerate(ast.walk(tree)) if id(node) in dead}
+
+
 def _text(node: ast.AST, kind: str) -> str:
     return ast.unparse(node.test if kind == "negate_cond" else node)  # type: ignore[attr-defined]
 
@@ -102,6 +125,7 @@ def generate(path: str, source: str, lines: Collection[int]) -> list[Mutant]:
     try:
         plain = ast.unparse(ast.parse(source)) + "\n"
         picks = _candidates(ast.parse(source), set(lines))
+        unreachable = _unreachable(ast.parse(source))
     except (SyntaxError, ValueError):
         return []
     mutants: list[Mutant] = []
@@ -117,7 +141,8 @@ def generate(path: str, source: str, lines: Collection[int]) -> list[Mutant]:
         except (SyntaxError, ValueError):
             continue
         if mutated != plain:
-            mutants.append(Mutant(path, node.lineno, kind, before, _text(node, kind), mutated))  # type: ignore[attr-defined]
+            mutants.append(Mutant(path, node.lineno, kind, before, _text(node, kind), mutated,  # type: ignore[attr-defined]
+                                  equivalent=index in unreachable))
     return sorted(mutants, key=lambda m: (m.path, m.line, m.kind, m.id))
 
 
@@ -154,7 +179,7 @@ def _run(root: Path, argv: Sequence[str], timeout: float, wrap: Callable[[list[s
 def run_mutants(root: Path, mutants: Sequence[Mutant], test_argv: Sequence[str], timeout_each: float,
                 wrap: Callable[[list[str]], list[str]] = lambda argv: argv, env: dict[str, str] | None = None,
                 home: Path | None = None) -> list[tuple[Mutant, str]]:
-    """Apply each mutant to `root`, run the tests, restore the file. Status: killed (tests failed), survived (passed or collected nothing), timeout."""
+    """Apply each mutant to `root`, run the tests, restore the file. Status: killed (tests failed), survived (passed or collected nothing), equivalent (a survivor no run reaches), timeout."""
     results: list[tuple[Mutant, str]] = []
     stamp = _Stamp()
     for mutant in mutants:
@@ -165,14 +190,15 @@ def run_mutants(root: Path, mutants: Sequence[Mutant], test_argv: Sequence[str],
             code = _run(root, test_argv, timeout_each, wrap, env, home)
         finally:
             stamp.write(target, original)
-        results.append((mutant, TIMEOUT if code is None else SURVIVED if code in (0, NO_TESTS_COLLECTED) else KILLED))
+        status = TIMEOUT if code is None else KILLED if code not in (0, NO_TESTS_COLLECTED) else EQUIVALENT if mutant.equivalent else SURVIVED
+        results.append((mutant, status))
     return results
 
 
 def check_mutation(root: Path, changes: Sequence[FileChange], test_argv: Sequence[str], n: int = 12, min_kill: float = 0.6,
                    timeout_each: float = 120.0, seed: str = "", wrap: Callable[[list[str]], list[str]] = lambda argv: argv,
                    env: dict[str, str] | None = None, home: Path | None = None) -> CheckResult:
-    """Fail when fewer than `min_kill` of a sample of n mutants of the PR's added production lines die under the PR's tests."""
+    """Fail when fewer than `min_kill` of the live mutants in a sample of n of the PR's added production lines die under the PR's tests."""
     mutants: list[Mutant] = []
     for change in changes:
         if change.kind != "code" or change.status not in ("A", "M") or not (root / change.path).is_file():
@@ -190,12 +216,18 @@ def check_mutation(root: Path, changes: Sequence[FileChange], test_argv: Sequenc
         return CheckResult("mutation", ERROR, (f"os testes nao passam sem mutante (saida {code}): a amostra nao diz nada",))
     results = run_mutants(root, sample(mutants, n, seed), test_argv, timeout_each, wrap=wrap, env=env, home=home)
     killed = sum(1 for _, status in results if status == KILLED)
+    equivalent = sum(1 for _, status in results if status == EQUIVALENT)
     survivors = [m for m, status in results if status == SURVIVED]
-    ratio = killed / len(results)
+    live = len(results) - equivalent
+    ratio = killed / live if live else 0.0
     measured = {"total": len(results), "killed": killed, "timeout": sum(1 for _, s in results if s == TIMEOUT),
                 "survived": [m.describe() for m in survivors[:8]], "ratio": round(ratio, 3), "n": n, "seed": seed,
-                "candidates": len(mutants)}
+                "candidates": len(mutants), "equivalent": equivalent}
+    if live == 0:
+        return CheckResult("mutation", FAIL, ("nenhum mutante vivo na amostra (todos equivalentes ou inalcancaveis): a amostra nao diz nada",), measured)
+    if equivalent * 2 > len(results):
+        return CheckResult("mutation", FAIL, (f"mutantes equivalentes {equivalent}/{len(results)} (mais da metade da amostra): a amostra nao diz nada",), measured)
     if ratio < min_kill:
-        reason = f"mutantes mortos {killed}/{len(results)} (<{int(min_kill * 100)}%): sobreviventes: " + ", ".join(m.describe() for m in survivors[:8])
+        reason = f"mutantes mortos {killed}/{live} (<{int(min_kill * 100)}%): sobreviventes: " + ", ".join(m.describe() for m in survivors[:8])
         return CheckResult("mutation", FAIL, (reason,), measured)
     return CheckResult("mutation", PASS, (), measured)

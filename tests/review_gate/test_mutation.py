@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from simplicio_loop.review_gate import mutation
 from simplicio_loop.review_gate.diffs import FileChange
 from simplicio_loop.review_gate.model import ERROR, FAIL, PASS, SKIPPED
 from simplicio_loop.review_gate.mutation import KILLED, SURVIVED, TIMEOUT, Mutant, _Stamp, check_mutation, generate, run_mutants, sample
@@ -166,3 +167,62 @@ def test_the_tests_see_the_path_of_the_host_even_when_the_gate_passes_only_pytho
                         "import os\nfrom app import f\n\ndef test_f():\n    assert os.environ.get('PATH')\n    assert f(1, 1) and not f(1, 2)\n")
     result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, seed="s", env={"PYTHONPATH": "."})
     assert result.status == PASS, result.reasons
+
+
+def fake_tests(monkeypatch, killed: set[str]) -> None:
+    """A deterministic test run: the mutant whose whole source is in `killed` fails the tests, every other run passes."""
+    def run(root, argv, timeout, wrap, env, home):
+        return 1 if (root / "app.py").read_text(encoding="utf-8") in killed else 0
+    monkeypatch.setattr(mutation, "_run", run)
+
+
+TWO = "def f(x):\n    return x\n    y = 1\n"  # two candidates: `return None` on line 2 (live), `y = 1` on line 3 (after a return: equivalent)
+
+
+def test_code_after_a_return_is_equivalent():
+    (m,) = generate("a.py", TWO, [3])
+    assert m.kind == "int_const" and m.equivalent
+
+
+def test_code_under_a_literal_false_test_is_equivalent():
+    (m,) = generate("a.py", "def f(x):\n    if False:\n        y = 1\n    return x\n", [3])
+    assert m.equivalent
+
+
+def test_code_in_the_else_of_a_literal_true_test_is_equivalent_and_the_taken_branch_is_not():
+    source = "def f(x):\n    if True:\n        y = 1\n    else:\n        z = 2\n    return x\n"
+    (taken,) = generate("a.py", source, [3])
+    (dead,) = generate("a.py", source, [5])
+    assert not taken.equivalent and dead.equivalent
+
+
+def test_an_equivalent_survivor_does_not_fail_a_two_mutant_sample(tmp_path, monkeypatch):
+    root = make_project(tmp_path, TWO, "from app import f\n\ndef test_f():\n    assert f(1) == 1\n")
+    (killer,) = [m for m in generate("app.py", TWO, [2, 3]) if m.kind == "return_none"]
+    fake_tests(monkeypatch, {killer.source})
+    result = check_mutation(root, [FileChange("app.py", "A", (2, 3))], PYTEST, n=2, seed="s")
+    assert result.status == PASS, result.reasons
+    assert result.measured["total"] == 2 and result.measured["killed"] == 1 and result.measured["equivalent"] == 1
+
+
+def test_a_vacuous_test_still_fails_a_sample_with_an_equivalent_survivor(tmp_path, monkeypatch):
+    root = make_project(tmp_path, TWO, "def test_f():\n    assert True\n")
+    fake_tests(monkeypatch, set())
+    result = check_mutation(root, [FileChange("app.py", "A", (2, 3))], PYTEST, n=2, seed="s")
+    assert result.status == FAIL and result.measured["killed"] == 0 and result.measured["equivalent"] == 1
+
+
+def test_a_sample_of_only_equivalent_mutants_fails_because_it_says_nothing(tmp_path, monkeypatch):
+    root = make_project(tmp_path, "def f(x):\n    return x\n    y = 1\n    z = 2\n", "def test_f():\n    assert True\n")
+    fake_tests(monkeypatch, set())
+    result = check_mutation(root, [FileChange("app.py", "A", (3, 4))], PYTEST, n=2, seed="s")
+    assert result.status == FAIL and "nenhum mutante vivo" in result.reasons[0] and result.measured["equivalent"] == 2
+
+
+def test_equivalent_mutants_are_at_most_half_of_the_sample(tmp_path, monkeypatch):
+    source = "def f(x):\n    return x\n    y = 1\n    z = 2\n"
+    root = make_project(tmp_path, source, "from app import f\n\ndef test_f():\n    assert f(1) == 1\n")
+    (killer,) = [m for m in generate("app.py", source, [2, 3, 4]) if m.kind == "return_none"]
+    fake_tests(monkeypatch, {killer.source})
+    result = check_mutation(root, [FileChange("app.py", "A", (2, 3, 4))], PYTEST, n=3, seed="s")
+    assert result.status == FAIL and "equivalentes 2/3" in result.reasons[0] and result.measured["equivalent"] == 2
