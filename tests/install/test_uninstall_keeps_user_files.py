@@ -359,3 +359,116 @@ def test_a_registered_directory_that_is_a_symlink_is_left_alone(tmp_path, repo, 
     result = uninstall(repo)
     assert "mylink" not in result["removed_dirs"]
     assert (repo / "mylink").is_symlink() and elsewhere.is_dir()
+
+
+# --- item 5 (#1635): the global scope's resync files are outside the receipt, and the command says so ---------------
+
+
+def test_global_uninstall_says_which_resynced_files_stay(tmp_path, capsys, monkeypatch, bundle):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr(cli_impl, "BUNDLE", bundle)
+    run(capsys, "install", "--global")
+    rc, out = run(capsys, "install", "--uninstall", "--global")
+    assert rc == 0
+    assert "outside the ownership receipt" in out and "simplicio-*" in out
+
+    target = tmp_path / "proj"
+    target.mkdir()
+    run(capsys, "install", "--target", str(target))
+    rc, out = run(capsys, "install", "--uninstall", "--target", str(target))
+    assert rc == 0 and "outside the ownership receipt" not in out
+
+
+# --- 22 tampered receipts (#1635): nothing outside the target is ever deleted -------------------------------------
+
+
+def snapshot(folder: Path) -> dict:
+    return {
+        path.relative_to(folder).as_posix(): path.read_text(encoding="utf-8") if path.is_file() else None
+        for path in folder.rglob("*")
+    }
+
+
+def _add(root: Path, key: str, *items) -> None:
+    tamper(root, **{key: receipt_of(root)[key] + list(items)})
+
+
+def _link(root: Path, name: str, target: Path) -> None:
+    (root / name).symlink_to(target, target_is_directory=target.is_dir())
+
+
+def _through_dir_symlink(root, outside):
+    _link(root, "docs", outside)
+    _add(root, "paths", "docs/keep.txt")
+
+
+def _leaf_symlink_to_file(root, outside):
+    _link(root, "ln.txt", outside / "keep.txt")
+    _add(root, "paths", "ln.txt")
+
+
+def _symlink_to_dir_listed_as_file(root, outside):
+    _link(root, "link", outside)
+    _add(root, "paths", "link")
+
+
+def _symlink_to_dir_listed_as_dir(root, outside):
+    _link(root, "link", outside)
+    _add(root, "dirs", "link")
+
+
+def _hooks_replaced_by_symlink(root, outside):
+    (root / "hooks" / "loop_stop.py").unlink()
+    (root / "hooks").rmdir()
+    _link(root, "hooks", outside)
+
+
+def _replace(root, **changes):
+    tamper(root, **changes)
+
+
+TAMPERS = [
+    pytest.param(lambda r, o: _add(r, "paths", str(o / "keep.txt")), True, id="paths-absolute-file"),
+    pytest.param(lambda r, o: _add(r, "paths", "../outside/keep.txt"), True, id="paths-dotdot"),
+    pytest.param(lambda r, o: _add(r, "paths", ".claude/../../outside/keep.txt"), True, id="paths-nested-dotdot"),
+    pytest.param(lambda r, o: _add(r, "paths", "../*"), True, id="paths-dotdot-glob"),
+    pytest.param(lambda r, o: _add(r, "paths", "."), True, id="paths-dot"),
+    pytest.param(lambda r, o: _add(r, "paths", ""), True, id="paths-empty"),
+    pytest.param(lambda r, o: _add(r, "paths", "/"), True, id="paths-root"),
+    pytest.param(_through_dir_symlink, True, id="paths-through-dir-symlink"),
+    pytest.param(_leaf_symlink_to_file, False, id="paths-leaf-symlink-to-file"),
+    pytest.param(_symlink_to_dir_listed_as_file, False, id="paths-symlink-to-dir-listed-as-file"),
+    pytest.param(lambda r, o: _add(r, "paths", "*"), False, id="paths-glob-is-literal"),
+    pytest.param(lambda r, o: _replace(r, paths=[1]), True, id="paths-int-item"),
+    pytest.param(lambda r, o: _replace(r, paths="abc"), True, id="paths-string"),
+    pytest.param(lambda r, o: _replace(r, paths=None), True, id="paths-null"),
+    pytest.param(lambda r, o: _add(r, "dirs", str(o)), True, id="dirs-absolute-outside"),
+    pytest.param(lambda r, o: _add(r, "dirs", "../outside"), True, id="dirs-dotdot"),
+    pytest.param(lambda r, o: _add(r, "dirs", "."), True, id="dirs-dot"),
+    pytest.param(_symlink_to_dir_listed_as_dir, False, id="dirs-symlink-to-outside-dir"),
+    pytest.param(_hooks_replaced_by_symlink, True, id="dirs-replaced-by-symlink"),
+    pytest.param(lambda r, o: _replace(r, dirs=[None]), True, id="dirs-int-item"),
+    pytest.param(lambda r, o: _replace(r, dirs="x"), True, id="dirs-string"),
+    pytest.param(lambda r, o: _replace(r, owner="someone-else"), True, id="owner-tampered"),
+]
+
+
+@pytest.mark.parametrize("tamper_case, refused", TAMPERS)
+def test_no_tampered_receipt_deletes_anything_outside_the_target(
+    tmp_path, repo, bundle, tamper_case, refused
+):
+    outside = tmp_path / "outside"
+    write(outside / "keep.txt", "keep\n")
+    write(outside / "sub" / "keep2.txt", "keep2\n")
+    install(repo, bundle)
+    before = snapshot(outside)
+    tamper_case(repo, outside)
+    if refused:
+        with pytest.raises(InstallError):
+            uninstall(repo)
+        assert loop_skill(repo).is_file()
+    else:
+        uninstall(repo)
+    assert snapshot(outside) == before
