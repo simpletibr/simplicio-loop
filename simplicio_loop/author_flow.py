@@ -21,7 +21,6 @@ import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from . import evidence, model_roles, plan_paths
 from .watcher247 import host_mode, proc, sandbox
