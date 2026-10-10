@@ -112,7 +112,6 @@ def test_grok_catalog_ids_are_accepted_by_grok_models() -> None:
 
 
 @pytest.mark.skipif(shutil.which("codex") is None, reason="codex CLI not installed")
-@pytest.mark.skipif(shutil.which("codex") is None, reason="codex CLI not installed")
 def test_codex_execution_model_gpt_5_6_luna_is_catalog_validated() -> None:
     """codex execution model must be in the codex models_cache."""
     # codex stores available models in ~/.codex/models_cache.json
