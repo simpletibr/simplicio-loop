@@ -233,6 +233,60 @@ def test_run_planner_reports_bad_plan_with_the_violations(tmp_path, monkeypatch)
     assert result.reason_code == "bad_plan" and "out_of_scope:evil.py" in result.error
 
 
+def test_run_planner_keeps_the_violations_of_a_refused_answer_for_the_retry(tmp_path, monkeypatch):
+    async def fake_run(argv, **kwargs):
+        return json.dumps(OUT), "", 0
+
+    monkeypatch.setattr(exec_planner, "_find_cli", lambda name: "/bin/claude")
+    monkeypatch.setattr(exec_planner, "_run_subprocess", fake_run)
+    result = asyncio.run(exec_planner.run_planner("claude", "planning", "x", cwd=str(tmp_path), scope=_scope("hello.txt")))
+    assert result.violations == ["out_of_scope:evil.py"] and result.error == plan_scope.retry_message(result.violations)
+
+
+# --- the scope holds on the fan-out and on the host apply (a run without it must fail these) -----------------------
+
+def _wave_tasks(count: int) -> list[dict]:
+    return [{"index": i, "text": f"write f{i}.txt", "target": f"f{i}.txt", "context": [], "depends_on": []}
+            for i in range(1, count + 1)]
+
+
+def test_a_fan_out_of_more_than_three_tasks_holds_every_answer_to_its_scope(repo, tmp_path):
+    seen: list[str] = []
+
+    async def complete(arm, messages, **kwargs):
+        seen.append(messages[-1]["content"])
+        return {"ok": True, "content": json.dumps(OUT), "usage_reported": True}
+
+    tasks = _wave_tasks(turbo.WAVE_TURBO_ABOVE + 1)
+    scope_for = lambda group: plan_scope.TaskScope(paths=frozenset(t["target"] for t in group))  # noqa: E731
+    result = asyncio.run(turbo.run_turbo(repo, tasks, complete, dev_cli=_stub_dev_cli(tmp_path), scope_for=scope_for))
+    assert result["wave"] is True and result["applied_all"] is False
+    assert not (repo / "evil.py").exists() and all(command["command"] == "plan_scope" for command in result["commands"])
+    assert all(o["needs_human"] and o["rejections"][-1] == ["out_of_scope:evil.py"] for o in result["outcomes"])
+    assert any("out_of_scope:evil.py" in text for text in seen)  # the second request of each task carried the violation
+
+
+def test_host_apply_plan_holds_the_plan_to_the_scope_before_dev_cli_runs(tmp_path):
+    result = asyncio.run(turbo.apply_plan(tmp_path, OUT["operations"], "host-1", dev_cli="/nonexistent/dev-cli",
+                                          scope=_scope("hello.txt")))
+    assert result["applied"] is False and result["commands"][0]["command"] == "plan_scope"
+    assert result["commands"][0]["violations"] == ["out_of_scope:evil.py"]
+
+
+def test_the_host_apply_of_the_cli_passes_the_scope_of_the_request(repo, tmp_path, capsys, monkeypatch):
+    run_id = _request(repo, capsys)
+    seen = []
+    real = turbo.apply_plan
+
+    async def spy(root, operations, label, *args, **kwargs):
+        seen.append(kwargs.get("scope"))
+        return await real(root, operations, label, *args, dev_cli=_stub_dev_cli(tmp_path), **kwargs)
+
+    monkeypatch.setattr("simplicio_loop.turbo.apply_plan", spy)
+    rc, doc = _apply(repo, tmp_path, run_id, GOOD, capsys)
+    assert len(seen) == 1 and seen[0] is not None and seen[0].paths == frozenset({"hello.txt"}), (rc, doc)
+
+
 # --- metrics ------------------------------------------------------------------------------------------------------
 
 def test_output_tokens_are_measured_only_when_the_provider_reported_usage():

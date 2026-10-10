@@ -371,7 +371,7 @@ def _provider_run(tmp_path, monkeypatch, capsys, model=None):
         seen.append(kwargs)
         return {"ok": True, "content": PLAN_OK}
 
-    async def fake_run_turbo(root, tasks, complete):
+    async def fake_run_turbo(root, tasks, complete, dev_cli=None, scope_for=None):
         await complete("simplicio", [{"role": "user", "content": "x"}])
         await complete("simplicio", [{"role": "user", "content": "w"}], max_tokens=1)
         return {"commands": [], "llm_calls": [], "outcomes": [], "applied_all": True}

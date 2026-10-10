@@ -36,11 +36,19 @@ class ExecPlannerError(Exception):
     """Base error for exec planner failures."""
 
 
+class ScopeRejected(ValueError):
+    """The answer broke the closed plan contract or the task scope; ``violations`` are the deterministic reasons."""
+
+    def __init__(self, violations):
+        self.violations = list(violations)
+        super().__init__(plan_scope.retry_message(self.violations))
+
+
 class PlannerResult:
     """Result of running a planner via CLI exec."""
 
     def __init__(self, reason_code, family, role, model, effort, plan=None, error=None, execution_ms=0.0, raw=None,
-                 structured=("", "")):
+                 structured=("", ""), violations=()):
         self.reason_code = reason_code
         self.family = family
         self.role = role
@@ -51,6 +59,7 @@ class PlannerResult:
         self.execution_ms = execution_ms
         self.raw = raw  # the CLI text before the plan is cut out of it, NOT redacted (None: it never answered); redact before it is stored
         self.structured_output, self.structured_reason = structured  # what the argv asked of the CLI; ("", "") when none ran
+        self.violations = list(violations)  # why plan_scope refused the answer (reason_code bad_plan), else empty
 
     def is_ok(self):
         return self.reason_code == "ok"
@@ -323,13 +332,13 @@ def _extract_plan_json(output, scope=None, root=None):
     if scope is not None:
         checked = plan_scope.check_response(_answer_text(output), scope, root or ".")
         if not checked.ok:
-            raise ValueError(plan_scope.retry_message(checked.violations))
+            raise ScopeRejected(checked.violations)
     return plan
 
 
-def _result(code, family, role, model, effort, started, plan=None, error=None, raw=None, structured=("", "")):
+def _result(code, family, role, model, effort, started, plan=None, error=None, raw=None, structured=("", ""), violations=()):
     return PlannerResult(code, family, role, model, effort, plan=plan, error=error, execution_ms=(time.monotonic() - started) * 1000,
-                         raw=raw, structured=structured)
+                         raw=raw, structured=structured, violations=violations)
 
 
 def _temp_file(prefix, text, directory):
@@ -351,7 +360,7 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
     ``config_dir`` is where the opencode deny config and the codex schema file are written (default: the system temp
     dir). A sandbox that mounts a tmpfs on /tmp hides them, so opencode would then run WITHOUT the deny rules: pass a
     directory the sandbox binds. Both files are removed when the run ends.
-    ``scope`` (``plan_scope.TaskScope``): the answer must stay inside it, else the result is ``bad_plan`` and its error
+    ``scope`` (``plan_scope.TaskScope``): the answer must stay inside it, else the result is ``bad_plan`` with ``violations`` (no other family is tried) and its error
     lists the violations (the text for the next attempt).
     """
     started = time.monotonic()
@@ -406,6 +415,9 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
                        raw=f"{stdout}\n--- stderr ---\n{stderr}", structured=receipt)
     try:
         plan = _extract_plan_json(stdout, scope, cwd)
+    except ScopeRejected as e:  # still bad_plan, but with the violations: another family would get the same prompt and scope
+        return _result("bad_plan", family, role, model, effort, started, error=str(e), raw=stdout, structured=receipt,
+                       violations=e.violations)
     except ValueError as e:
         return _result("bad_plan", family, role, model, effort, started, error=str(e), raw=stdout, structured=receipt)
     return _result("ok", family, role, model, effort, started, plan=plan, raw=stdout, structured=receipt)
@@ -422,7 +434,7 @@ async def run_planner_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, fa
     for family in families or _get_families():
         result = await run_planner(family, role, prompt, cwd, timeout_sec, grace_sec, wrap=wrap,
                                    env=env_for(family) if env_for else None, config_dir=config_dir, scope=scope)
-        if result.reason_code in ("bad_role", "bad_argv") or result.is_ok():
+        if result.reason_code in ("bad_role", "bad_argv") or result.violations or result.is_ok():
             return result
         last_result = result
     return last_result or PlannerResult("no_families", "", role, "", "", error="no families")

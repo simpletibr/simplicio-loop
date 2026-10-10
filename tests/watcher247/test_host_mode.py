@@ -623,3 +623,73 @@ def test_the_planner_prompt_explains_need_and_window_with_an_example():
     text = host_mode.plan_prompt("{}")
     assert '{"operations": [], "need": [{"path": "tests/test_x.py", "start": 147, "end": 190}]}' in text
     assert "--window tests/test_x.py:147-190" in text and "omitted" in text
+
+
+# --- an answer outside the task scope: one new attempt with the violations, then needs_human (#1612) --------------
+
+OUT = {"operations": [{"path": "other.py", "find": "", "replace": "x\n"}]}
+
+
+def _scope_planner(monkeypatch, answers):
+    """A planner whose answers are plans (ok) or violation lists (bad_plan with the violations, as run_planner reports them)."""
+    from simplicio_loop import exec_planner, plan_scope
+    seen = []
+
+    async def planner(role, prompt, **kwargs):
+        seen.append((role, prompt, kwargs.get("scope")))
+        answer = answers[min(len(seen), len(answers)) - 1]
+        if isinstance(answer, dict):
+            return exec_planner.PlannerResult("ok", "claude", role, "m", "high", plan=answer)
+        return exec_planner.PlannerResult("bad_plan", "claude", role, "m", "high", error=plan_scope.retry_message(answer),
+                                          violations=list(answer))
+
+    monkeypatch.setattr(host_mode.exec_planner, "run_planner_with_fallback", planner)
+    return seen
+
+
+def _events(dest):
+    path = dest / ".simplicio-loop" / "orchestrator" / "runs" / RUN_ID / "events.jsonl"
+    return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
+
+def _reasons(dest):
+    return [(e["kind"], (e.get("payload") or {}).get("reason")) for e in _events(dest)]
+
+
+def test_an_out_of_scope_answer_gets_one_new_attempt_that_carries_the_violations(env, cli_dir, monkeypatch):
+    fake = env(HostRun({REPO: [issue(1)]}, [OK]))
+    baseline()
+    seen = _scope_planner(monkeypatch, [["out_of_scope:other.py"], PLAN])
+    result = _run_exec(fake)
+    assert len(seen) == 2 and result["steps"][-1]["outcome"] == "ok"
+    assert "out_of_scope:other.py" not in seen[0][1]
+    assert "out_of_scope:other.py" in seen[1][1] and "The previous plan was applied and failed" not in seen[1][1]
+    reasons = _reasons(config.WORK / REPO)
+    assert ("retry_scheduled", "out_of_scope") in reasons and not any(kind == "decision_requested" for kind, _ in reasons)
+
+
+def test_a_second_out_of_scope_answer_is_needs_human_with_the_cause(env, cli_dir, monkeypatch):
+    fake = env(HostRun({REPO: [issue(1)]}, [OK]))
+    baseline()
+    seen = _scope_planner(monkeypatch, [["out_of_scope:other.py"], ["out_of_scope:third.py"], PLAN])
+    with pytest.raises(RuntimeError, match=r"needs_human: out_of_scope:third\.py") as raised:
+        _run_exec(fake)
+    assert len(seen) == 2 and fake.turbo_stdin == []  # no third request, nothing applied
+    assert [s["outcome"] for s in host_mode.steps_of(raised.value)] == ["failed", "failed"]
+    reasons = _reasons(config.WORK / REPO)
+    assert ("retry_scheduled", "out_of_scope") in reasons and ("decision_requested", "needs_human") in reasons
+
+
+def test_the_real_cli_is_asked_twice_and_never_more_when_it_stays_out_of_scope(env, cli_dir):
+    (cli_dir / "claude").write_text(
+        "#!/usr/bin/env python3\nimport json, os, sys\nd = os.path.dirname(os.path.abspath(__file__))\n"
+        "if sys.argv[1:2] == ['auth']:\n    sys.exit(0)\n"
+        "open(d + '/calls.jsonl', 'a').write(json.dumps(sys.argv[1:]) + '\\n')\n"
+        f"print(json.dumps({{'result': json.dumps({OUT!r})}}))\n")
+    fake = env(HostRun({REPO: [issue(1)]}, [OK]))
+    baseline()
+    with pytest.raises(RuntimeError, match=r"needs_human: out_of_scope:other\.py"):
+        _run_exec(fake)
+    calls = planner_calls(cli_dir)
+    assert len(calls) == 2 and "out_of_scope:other.py" in " ".join(calls[1]) and "out_of_scope:other.py" not in " ".join(calls[0])
+    assert fake.turbo_stdin == []
