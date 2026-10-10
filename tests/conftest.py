@@ -14,6 +14,21 @@ for _local_module_root in (_REPO_ROOT / "scripts", _REPO_ROOT / "hooks"):
 
 from simplicio_loop.core_network_guard import install as install_core_network_guard
 
+# Shim template for creating wrapper scripts around checkout operators (Mapper and Dev CLI)
+SHIM = '''#!{python}
+import sys
+for _path in {paths!r}:
+    sys.path.insert(0, _path)
+from {module} import main
+raise SystemExit(main())
+'''
+
+
+def write_shim(path: Path, paths: list[Path], module: str) -> None:
+    """Write a shim script that adds paths to sys.path and calls the module's main."""
+    path.write_text(SHIM.format(python=sys.executable, paths=[str(p) for p in paths], module=module))
+    path.chmod(0o755)
+
 
 @pytest.fixture(autouse=True)
 def disable_operator_bootstrap_network_by_default(monkeypatch) -> None:
@@ -212,3 +227,18 @@ def _squad_review_green(request):
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(squad_review, "evaluate", fake)
         yield
+
+
+@pytest.fixture(autouse=True)
+def tree_operators(tmp_path, monkeypatch) -> Path:
+    """The Mapper and Dev CLI of THIS checkout lead PATH, as the flow tests do.
+
+    A standalone `simplicio-mapper` left on the host can share the version (0.26.35) and still lack the build identity, so
+    `prepare` blocks with `mapper_provenance_missing` (#1575, #1666). The environment must not decide these tests.
+    """
+    bin_dir = tmp_path / "operator-bin"
+    bin_dir.mkdir()
+    write_shim(bin_dir / "simplicio-mapper", [_REPO_ROOT / "packages" / "mapper"], "simplicio_mapper.cli")
+    write_shim(bin_dir / "simplicio-dev-cli", [_REPO_ROOT / "packages" / "dev-cli"], "simplicio.cli")
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}")
+    return bin_dir

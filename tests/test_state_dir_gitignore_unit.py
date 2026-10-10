@@ -175,6 +175,8 @@ def test_a_turbo_request_and_apply_leave_no_simplicio_loop_path_in_git_status(tm
     assert json.loads(capsys.readouterr().out)["status"] == "ok"
     # Only app.py should show as modified, not .gitignore
     assert sorted(_status(repo)) == [" M app.py"]
+    # Verify no .simplicio/ directory was created (only .simplicio-loop/ is created by the loop)
+    assert not (repo / ".simplicio").exists(), "flow must not write to .simplicio/ (that is Runtime's directory)"
 
 
 def test_a_provider_run_registers_the_state_directory_too(tmp_path, monkeypatch, capsys):
@@ -191,3 +193,5 @@ def test_a_provider_run_registers_the_state_directory_too(tmp_path, monkeypatch,
     assert json.loads(capsys.readouterr().out)["status"] == "ok"
     # Only app.py should show as modified, not .gitignore
     assert sorted(_status(repo)) == [" M app.py"]
+    # Verify no .simplicio/ directory was created (only .simplicio-loop/ is created by the loop)
+    assert not (repo / ".simplicio").exists(), "flow must not write to .simplicio/ (that is Runtime's directory)"
