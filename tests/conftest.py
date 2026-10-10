@@ -193,12 +193,14 @@ def pytest_configure(config) -> None:
     install_core_network_guard()
 
 
-@pytest.fixture(autouse=True)
-def _squad_review_green(monkeypatch, request):
+@pytest.fixture(autouse=True, scope="module")
+def _squad_review_green(request):
     """The squad flow tests exercise the flow, not the gate: the review gate answers T1 green (tests/review_gate covers the gate).
 
-    `tests/watcher247/test_squad_review.py` opts out and tests the real `evaluate`."""
+    Module scope, because the e2e flow fixtures are module scoped. A module opts out with `pytestmark = pytest.mark.real_squad_review`
+    (`tests/watcher247/test_squad_review.py` tests the real `evaluate`)."""
     if "real_squad_review" in request.keywords:
+        yield
         return
     from simplicio_loop.review_gate import model
     from simplicio_loop.watcher247 import squad_review
@@ -207,4 +209,6 @@ def _squad_review_green(monkeypatch, request):
         check = model.CheckResult("fake-gate", model.PASS)
         return model.GateReport(number, issue, head, model.Level.T1, (check,)), None
 
-    monkeypatch.setattr(squad_review, "evaluate", fake)
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(squad_review, "evaluate", fake)
+        yield
