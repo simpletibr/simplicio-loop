@@ -34,6 +34,22 @@ The command prints one JSON object: `status`, `rounds`, `session_id`, `changed`,
 | 69 | `unsupported` family |
 | 2 | usage error |
 
+## Use it in the 24/7 watcher
+
+Set `SIMPLICIO_247_EXECUTOR=author` in the env file of the service. The default is `plan`. Any other value stops the service at start.
+
+- The tick calls `run_author` in the worktree of the item (`<repo>.wt/<n>`) instead of `host_mode.run_exec`.
+- `SIMPLICIO_247_AUTHOR_ROUNDS` sets the rounds. The default is 3. The maximum is 10.
+- `SIMPLICIO_247_AUTHOR_RUN_TESTS=1` lets the CLI run `pytest` itself. Without it the CLI has only the file tools and no `Bash(...)` entry. The prompt says it cannot run tests. The host runs the verify and sends the failures back.
+- **Warning.** With `SIMPLICIO_247_AUTHOR_RUN_TESTS=1` the CLI runs the pytest of the author in its own sandbox. That sandbox has the private HOME (a copy of the login) and an open network. A conftest can read the login and send it out, so a credential leak is possible. Turn it on only for repositories you trust.
+- `SIMPLICIO_247_AUTHOR_HOME_BASE` sets the folder of the private HOMEs. It must be an absolute path inside the real HOME. The default is `~/.cache/simplicio-loop-author`. With `ProtectHome=read-only`, add this folder to `ReadWritePaths=` in the unit (for example `ReadWritePaths=/home/simplicio-loop/.simplicio/authors`).
+- The snapshot skips the regular files in `.simplicio-loop/orchestrator/runs/` (the host writes its telemetry there). A symlink, a hard link, a fifo or a socket in that folder is a change (`protected_path`). Every other path in `.simplicio-loop` stays protected.
+- The watcher passes the `verify` command of `loop.toml`, the first family that the flow supports, and no env. The flow deletes `GH_TOKEN`.
+- On `ok`, the watcher delivers as in the plan flow: it commits, pushes, opens the pull request with `Parte de #N` and runs the squad review. The watcher makes no commit and no push before `ok`.
+- On `failed` or `unsupported`, the watcher releases the claim. The retry rule does not change. The claim holds the `reason_code`.
+- The watcher logs the rounds, the kinds of failure and the measured `usage`. `usage` is `none` when the CLI reported no counter.
+- `SIMPLICIO_EXECUTOR` must be unset or `exec`. See `docs/WATCHER_247.md`.
+
 ## Rules for each round
 
 1. Round 1 starts the session with `--session-id`. Each correction uses `--resume` with the same id.
@@ -70,6 +86,8 @@ What the author sees and writes:
 - `--setting-sources user` reads the private HOME only, never `.claude/settings.json` of the worktree. Before each round the loop deletes settings, hooks, agents, skills and plugins from the private HOME.
 - The child environment has no `GH_TOKEN`, no `GITHUB_TOKEN` and no `ANTHROPIC_API_KEY`. The login is the credentials file. An API key is not a login for this flow yet. This is a known limit.
 - The tool list cannot change. It has no `git add` and no `git commit`: in the sandbox a commit never ends. Web tools, slash commands and MCP servers are off.
+- The loop denies Read, Grep, Glob, Edit and Write on the private HOME and on the login file. It uses `--disallowedTools` rules like `Read(//abs/path/**)`. The same rules cover the `.claude` folder and the login file of the real HOME.
+- After each round and after verify, the loop reads the login file and its `accessToken` and `refreshToken` values into memory. A changed file that holds one of these byte strings fails the round (`secret_in_diff`). The detail names the file and never the secret. The loop never logs the secret.
 - Text that goes back to the CLI hides secrets and has a fixed size.
 - The snapshot covers `.git/config`, `.git/hooks` and a `.git` file. A hook, a config line or a repointed `.git` file fails the round. Other `.git` files change on every `git add` and `git commit`, so the snapshot skips them.
 - The snapshot sees `__pycache__` and fails the round on any bytecode change. It does not see `.pytest_cache`. Git ignores these files, so the reviewer of a pull request does not see them either.
