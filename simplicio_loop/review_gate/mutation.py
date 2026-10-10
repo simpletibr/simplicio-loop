@@ -99,7 +99,7 @@ def generate(path: str, source: str, lines: Collection[int]) -> list[Mutant]:
     if not lines:
         return []
     try:
-        plain = ast.unparse(ast.parse(source))
+        plain = ast.unparse(ast.parse(source)) + "\n"
         picks = _candidates(ast.parse(source), set(lines))
     except (SyntaxError, ValueError):
         return []
@@ -110,7 +110,7 @@ def generate(path: str, source: str, lines: Collection[int]) -> list[Mutant]:
         before = _text(node, kind)
         _apply(node, kind, sub)
         ast.fix_missing_locations(tree)
-        mutated = ast.unparse(tree)
+        mutated = ast.unparse(tree) + "\n"
         try:
             compile(mutated, path, "exec")  # the mutant has to compile, or it dies for the wrong reason
         except (SyntaxError, ValueError):

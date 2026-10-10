@@ -1,13 +1,12 @@
 """Mutation sample of the review gate: AST mutants (never strings, comments or docstrings), run against the PR's tests."""
 from __future__ import annotations
 
-import subprocess
 import sys
 from pathlib import Path
 
 from simplicio_loop.review_gate.diffs import FileChange
 from simplicio_loop.review_gate.model import ERROR, FAIL, PASS, SKIPPED
-from simplicio_loop.review_gate.mutation import KILLED, SURVIVED, TIMEOUT, Mutant, check_mutation, generate, run_mutants, sample
+from simplicio_loop.review_gate.mutation import KILLED, SURVIVED, TIMEOUT, Mutant, _Stamp, check_mutation, generate, run_mutants, sample
 
 PYTEST = [sys.executable, "-m", "pytest", "-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", "tests"]
 
@@ -95,12 +94,18 @@ def test_run_mutants_kills_survives_and_restores(tmp_path):
     assert {s for _, s in run_mutants(root, killer, PYTEST, 60)} == {SURVIVED}
 
 
-def test_a_same_size_mutant_is_not_masked_by_a_stale_bytecode(tmp_path):
-    root = make_project(tmp_path, "def f(x):\n    return x == 0\n", "from app import f\n\ndef test_f():\n    assert f(0)\n")
-    assert subprocess.run(PYTEST, cwd=root, capture_output=True, check=False).returncode == 0  # writes the .pyc of the plain file
-    flip = [m for m in generate("app.py", (root / "app.py").read_text(), [2]) if m.kind == "flip_cmp"]
-    assert len(flip) == 1 and len(flip[0].source) == len((root / "app.py").read_text())
-    assert [s for _, s in run_mutants(root, flip, PYTEST, 60)] == [KILLED]
+def test_two_writes_in_the_same_second_get_different_whole_second_mtimes(tmp_path):
+    """A .pyc stores the mtime in whole seconds and the size: a same-size mutant written in the same second would load the stale bytecode."""
+    target, stamp, seen = tmp_path / "a.py", _Stamp(), []
+    for text in ("x = 1\n", "x = 2\n", "x = 1\n"):
+        stamp.write(target, text)
+        seen.append(int(target.stat().st_mtime))
+    assert seen[0] < seen[1] < seen[2] and target.read_text() == "x = 1\n"
+
+
+def test_the_mutant_source_keeps_the_size_of_a_canonical_file(tmp_path):
+    (flip,) = [m for m in generate("a.py", "def f(x):\n    return x == 0\n", [2]) if m.kind == "flip_cmp"]
+    assert flip.source == "def f(x):\n    return x != 0\n"
 
 
 def test_a_timeout_is_reported_and_is_not_a_kill(tmp_path):
