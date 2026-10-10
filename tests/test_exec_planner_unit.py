@@ -172,7 +172,7 @@ class TestOpencodeDenyConfigEnv:
     def test_opencode_gets_temp_config_with_denies_then_cleaned_up(self, bindir, monkeypatch):
         monkeypatch.delenv("OPENCODE_CONFIG", raising=False)
         fake_cli(bindir, "opencode", body=self.CAPTURE)
-        res = run(exec_planner.run_planner("opencode", "planning", "x", cwd=str(bindir)))
+        res = run(exec_planner.run_planner("opencode", "planning", "x", cwd=str(bindir), repo_root=bindir))
         assert res.reason_code == "ok" and res.plan == PLAN
         seen = json.loads((bindir / "cfg.json").read_text())
         assert seen["path"]
@@ -182,14 +182,14 @@ class TestOpencodeDenyConfigEnv:
     def test_temp_config_removed_even_on_failure(self, bindir, monkeypatch):
         monkeypatch.delenv("OPENCODE_CONFIG", raising=False)
         fake_cli(bindir, "opencode", body=self.CAPTURE + "\nsys.exit(3)")
-        res = run(exec_planner.run_planner("opencode", "planning", "x", cwd=str(bindir)))
+        res = run(exec_planner.run_planner("opencode", "planning", "x", cwd=str(bindir), repo_root=bindir))
         assert res.reason_code == "process_error"
         assert not os.path.exists(json.loads((bindir / "cfg.json").read_text())["path"])
 
     def test_other_families_get_no_opencode_config(self, bindir, monkeypatch):
         monkeypatch.delenv("OPENCODE_CONFIG", raising=False)
         fake_cli(bindir, "claude", body=self.CAPTURE.replace("open(cfg).read() if cfg else None", "None"))
-        run(exec_planner.run_planner("claude", "planning", "x", cwd=str(bindir)))
+        run(exec_planner.run_planner("claude", "planning", "x", cwd=str(bindir), repo_root=bindir))
         assert json.loads((bindir / "cfg.json").read_text())["path"] is None
 
 
@@ -212,7 +212,7 @@ class TestRunPlanner:
     @pytest.mark.parametrize("family", ["claude", "codex", "grok", "gemini"])
     def test_ok_argv_uses_model_roles_resolve(self, bindir, family):
         fake_cli(bindir, family)
-        res = run(exec_planner.run_planner(family, "planning", "do it", cwd=str(bindir)))
+        res = run(exec_planner.run_planner(family, "planning", "do it", cwd=str(bindir), repo_root=bindir))
         assert res.reason_code == "ok" and res.plan == PLAN
         want = model_roles.resolve(family, "planning")
         assert (res.model, res.effort) == (want["model"], want["effort"])
@@ -226,34 +226,34 @@ class TestRunPlanner:
 
     def test_role_changes_model(self, bindir):
         fake_cli(bindir, "claude")
-        run(exec_planner.run_planner("claude", "execution", "x", cwd=str(bindir)))
+        run(exec_planner.run_planner("claude", "execution", "x", cwd=str(bindir), repo_root=bindir))
         assert model_roles.resolve("claude", "execution")["model"] in call_of(bindir, "claude")["argv"]
 
     def test_bad_role(self, bindir):
-        res = run(exec_planner.run_planner("claude", "nope", "x"))
+        res = run(exec_planner.run_planner("claude", "nope", "x", repo_root=bindir))
         assert res.reason_code == "bad_role"
 
     def test_cli_missing(self, bindir, monkeypatch):
         monkeypatch.setenv("PATH", str(bindir))
-        res = run(exec_planner.run_planner("claude", "planning", "x"))
+        res = run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir))
         assert res.reason_code == "cli_missing"
 
     def test_bad_plan(self, bindir):
         fake_cli(bindir, "claude", stdout="no json here")
-        assert run(exec_planner.run_planner("claude", "planning", "x")).reason_code == "bad_plan"
+        assert run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir)).reason_code == "bad_plan"
 
     def test_auth_error(self, bindir):
         fake_cli(bindir, "claude", body="sys.stderr.write('Authentication failed: please login'); sys.exit(1)")
-        assert run(exec_planner.run_planner("claude", "planning", "x")).reason_code == "auth_error"
+        assert run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir)).reason_code == "auth_error"
 
     def test_process_error(self, bindir):
         fake_cli(bindir, "claude", body="sys.exit(3)")
-        res = run(exec_planner.run_planner("claude", "planning", "x"))
+        res = run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir))
         assert res.reason_code == "process_error" and res.error == "exit 3"
 
     def test_timeout(self, bindir):
         fake_cli(bindir, "claude", body="time.sleep(60)")
-        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=0.5, grace_sec=1.0))
+        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=0.5, grace_sec=1.0, repo_root=bindir))
         assert res.reason_code == "timeout"
 
 
@@ -263,27 +263,27 @@ class TestRaw:
     def test_ok_keeps_the_whole_cli_text(self, bindir):
         text = "thinking...\n" + json.dumps(PLAN) + "\ndone\n"
         fake_cli(bindir, "claude", stdout=text)
-        res = run(exec_planner.run_planner("claude", "planning", "x"))
+        res = run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir))
         assert res.is_ok() and res.raw == text and res.to_dict()["raw"] == text
 
     def test_bad_plan_keeps_the_text(self, bindir):
         fake_cli(bindir, "claude", stdout="no json here")
-        res = run(exec_planner.run_planner("claude", "planning", "x"))
+        res = run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir))
         assert res.reason_code == "bad_plan" and res.raw == "no json here"
 
     def test_a_failed_cli_keeps_stdout_and_stderr(self, bindir):
         fake_cli(bindir, "claude", body="sys.stdout.write('half'); sys.stdout.flush(); sys.stderr.write('boom'); sys.exit(3)")
-        res = run(exec_planner.run_planner("claude", "planning", "x"))
+        res = run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir))
         assert res.reason_code == "process_error" and "half" in res.raw and "boom" in res.raw
 
     def test_auth_failure_keeps_the_text(self, bindir):
         fake_cli(bindir, "claude", body="sys.stderr.write('Authentication failed: please login'); sys.exit(1)")
-        assert "Authentication failed" in run(exec_planner.run_planner("claude", "planning", "x")).raw
+        assert "Authentication failed" in run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir)).raw
 
     def test_no_answer_means_no_raw(self, bindir):
-        assert run(exec_planner.run_planner("claude", "planning", "x")).raw is None  # cli_missing
+        assert run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir)).raw is None  # cli_missing
         fake_cli(bindir, "claude", body="time.sleep(60)")
-        assert run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=0.5, grace_sec=1.0)).raw is None
+        assert run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=0.5, grace_sec=1.0, repo_root=bindir)).raw is None
 
 
 class TestTreeKill:
@@ -295,7 +295,7 @@ class TestTreeKill:
             "time.sleep(60)"
         ) % str(pidfile)
         fake_cli(bindir, "claude", body=body)
-        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=1.0, grace_sec=1.0))
+        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=1.0, grace_sec=1.0, repo_root=bindir))
         assert res.reason_code == "timeout"
         child = int(pidfile.read_text())
         assert pid_gone(child), "child sleep survived the timeout"
@@ -313,7 +313,7 @@ class TestTreeKill:
         ) % str(pidfile)
         fake_cli(bindir, "claude", body=body)
         started = time.monotonic()
-        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=1.0, grace_sec=0.5))
+        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=1.0, grace_sec=0.5, repo_root=bindir))
         elapsed = time.monotonic() - started
         assert res.reason_code == "timeout"
         assert 1.0 + 0.5 <= elapsed < 1.0 + 0.5 + 1.0, "SIGTERM grace, then SIGKILL, within grace+1s after the timeout"
@@ -326,7 +326,7 @@ class TestFallback:
         fake_cli(bindir, "grok", body="sys.exit(2)")
         fake_cli(bindir, "claude", stdout="garbage")
         fake_cli(bindir, "codex")
-        res = run(exec_planner.run_planner_with_fallback("coordination", "x", cwd=str(bindir)))
+        res = run(exec_planner.run_planner_with_fallback("coordination", "x", cwd=str(bindir), repo_root=bindir))
         assert res.is_ok() and res.family == "codex"
         assert (bindir / "order.log").read_text().split() == ["grok", "claude", "codex"]
         assert model_roles.resolve("codex", "coordination")["model"] in call_of(bindir, "codex")["argv"]
@@ -335,14 +335,14 @@ class TestFallback:
         fake_cli(bindir, "codex")
         fake_cli(bindir, "grok")
         res = run(
-            exec_planner.run_planner_with_fallback("planning", "x", families=["gemini", "codex", "grok"])
+            exec_planner.run_planner_with_fallback("planning", "x", families=["gemini", "codex", "grok"], repo_root=bindir)
         )
         assert res.family == "codex"
         assert (bindir / "order.log").read_text().split() == ["codex"]
 
     def test_all_fail_returns_last_result(self, bindir):
         fake_cli(bindir, "claude", stdout="garbage")
-        res = run(exec_planner.run_planner_with_fallback("planning", "x", families=["claude", "gemini"]))
+        res = run(exec_planner.run_planner_with_fallback("planning", "x", families=["claude", "gemini"], repo_root=bindir))
         assert res.reason_code == "cli_missing" and res.family == "gemini"
 
     def test_timeout_falls_through(self, bindir):
@@ -350,14 +350,14 @@ class TestFallback:
         fake_cli(bindir, "codex")
         res = run(
             exec_planner.run_planner_with_fallback(
-                "planning", "x", timeout_sec=0.5, families=["claude", "codex"], grace_sec=1.0
+                "planning", "x", timeout_sec=0.5, families=["claude", "codex"], grace_sec=1.0, repo_root=bindir
             )
         )
         assert res.family == "codex" and res.is_ok()
 
     def test_bad_role_stops_immediately(self, bindir):
         fake_cli(bindir, "claude")
-        res = run(exec_planner.run_planner_with_fallback("nope", "x", families=["claude", "codex"]))
+        res = run(exec_planner.run_planner_with_fallback("nope", "x", families=["claude", "codex"], repo_root=bindir))
         assert res.reason_code == "bad_role"
         assert not (bindir / "order.log").exists()
 
@@ -367,7 +367,7 @@ def test_an_out_of_scope_answer_is_not_tried_again_on_another_family(bindir, tmp
     fake_cli(bindir, "claude", stdout=json.dumps({"operations": [{"path": "other.py", "find": "", "replace": "x\n"}]}))
     fake_cli(bindir, "codex")
     scope = plan_scope.TaskScope(frozenset({"a.py"}))
-    res = run(exec_planner.run_planner_with_fallback("planning", "x", cwd=str(tmp_path), families=["claude", "codex"], scope=scope))
+    res = run(exec_planner.run_planner_with_fallback("planning", "x", cwd=str(tmp_path), families=["claude", "codex"], scope=scope, repo_root=tmp_path))
     assert res.reason_code == "bad_plan" and res.violations == ["out_of_scope:other.py"] and not res.is_ok()
     assert "out_of_scope:other.py" in res.error
     assert (bindir / "order.log").read_text().split() == ["claude"]
@@ -378,5 +378,5 @@ def test_a_malformed_answer_is_still_bad_plan_and_falls_through(bindir, tmp_path
     fake_cli(bindir, "claude", stdout="garbage")
     fake_cli(bindir, "codex")
     scope = plan_scope.TaskScope(frozenset({"a.py"}))
-    run(exec_planner.run_planner_with_fallback("planning", "x", cwd=str(tmp_path), families=["claude", "codex"], scope=scope))
+    run(exec_planner.run_planner_with_fallback("planning", "x", cwd=str(tmp_path), families=["claude", "codex"], scope=scope, repo_root=tmp_path))
     assert (bindir / "order.log").read_text().split() == ["claude", "codex"]

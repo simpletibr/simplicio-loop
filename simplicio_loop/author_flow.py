@@ -233,6 +233,17 @@ class _Run:
                 return self.fail("cli_unavailable", f"{family} is not on PATH")
         return None
 
+    def ceiling_refusal(self, prompt: str) -> AuthorResult | None:
+        """The refusal of a prompt above the input-token ceiling (or a bad ceiling setting), or None: nothing is sent for it."""
+        try:
+            ceiling = input_ceiling.resolve_ceiling(self.worktree)
+            input_ceiling.enforce_budget(input_ceiling.Projection.estimated(prompt), ceiling)
+        except input_ceiling.CeilingConfigError as e:
+            return self.fail("ceiling_invalid", str(e))
+        except input_ceiling.InputCeilingExceeded:
+            return self.fail("input_ceiling_exceeded", "prompt exceeds ceiling")
+        return None
+
     def wrap(self, argv: list[str], view: sandbox.HomeView) -> list[str]:
         return argv if self.allow_unsandboxed else sandbox.wrap(argv, clone=self.worktree, state_dir=self.worktree, home=view)
 
@@ -281,20 +292,17 @@ class _Run:
         verify_view = sandbox.HomeView(real_home)
         prompt = (AUTHOR_PREAMBLE.format(protected=", ".join(plan_paths.PROTECTED_PATHS), verify=f"`{self.verify}`" if self.verify else "no command",
                                                   no_run="" if self.run_tests else NO_RUN_NOTE) + task_text)
-        try:
-            ceiling = input_ceiling.resolve_ceiling(self.worktree)
-            projection = input_ceiling.Projection.estimated(prompt)
-            input_ceiling.enforce_budget(projection, ceiling)
-        except input_ceiling.CeilingConfigError as e:
-            return self.fail("ceiling_invalid", str(e))
-        except input_ceiling.InputCeilingExceeded:
-            return self.fail("input_ceiling_exceeded", "prompt exceeds ceiling")
+        if refused := self.ceiling_refusal(prompt):
+            return refused
         self.login_files = (home / author_isolation.LOGIN, real_home / author_isolation.LOGIN)
         self.secrets = await asyncio.to_thread(author_isolation.login_secrets, *self.login_files)
         deny = deny_rules(home, real_home)
         self.before = await asyncio.to_thread(author_isolation.snapshot, self.worktree)
         failures: list[dict[str, str]] = []
-        for self.n in range(1, self.rounds + 1):
+        for n in range(1, self.rounds + 1):
+            if n > 1 and (refused := self.ceiling_refusal(prompt)):  # a correction is sent only when it fits the ceiling
+                return refused
+            self.n = n
             author_isolation.reset_config(home)
             argv = author_argv(family, prompt, session=self.session, resume=self.n > 1, model=resolved["model"], effort=resolved["effort"],
                                run_tests=self.run_tests, deny=deny)

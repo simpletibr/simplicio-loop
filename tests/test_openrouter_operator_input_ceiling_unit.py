@@ -192,3 +192,41 @@ def test_the_loop_toml_of_the_cwd_is_not_the_one_read(repo, monkeypatch):
         task_index=1, attempt=1
     )
     assert len(calls) == 1, "Should use repo ceiling (98k), not cwd (1)"
+
+
+def _configure_provider(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api")
+    monkeypatch.setenv("SIMPLICIO_MODEL", "anthropic/claude-opus")
+
+
+def _creation_request(repo, goal):
+    return openrouter_operator.request_mechanical_plan(
+        task={"id": "T-1", "goal": goal, "type": "creation"}, target="test.txt", repo_path=repo,
+        mapper_context={"mapper_generation": "g1"}, run_id="run-1", task_index=1, attempt=1
+    )
+
+
+def test_an_over_ceiling_prompt_leaves_the_refusal_in_the_receipt(repo, monkeypatch):
+    _configure_provider(monkeypatch)
+    monkeypatch.setenv(ENV_NAME, "1000")
+    with pytest.raises(InputCeilingExceeded) as info:
+        _creation_request(repo, "word " * 5000)
+    receipt = info.value.receipt
+    assert receipt["schema"] == openrouter_operator.RECEIPT_SCHEMA
+    assert receipt["status"] == "input_ceiling_exceeded"
+    assert receipt["error_code"] == "input_ceiling_exceeded"
+    assert "above the ceiling 1000" in receipt["error_detail"]
+    assert receipt["request_sent"] is False
+    assert "test-key" not in json.dumps(receipt)
+
+
+def test_a_bad_ceiling_leaves_the_refusal_in_the_receipt(repo, monkeypatch):
+    _configure_provider(monkeypatch)
+    monkeypatch.setenv(ENV_NAME, "abc")
+    with pytest.raises(CeilingConfigError) as info:
+        _creation_request(repo, "test")
+    receipt = info.value.receipt
+    assert receipt["status"] == "ceiling_invalid"
+    assert receipt["error_code"] == "ceiling_invalid"
+    assert receipt["request_sent"] is False

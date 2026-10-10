@@ -352,8 +352,10 @@ def _temp_file(prefix, text, directory):
 
 
 async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_sec=KILL_GRACE_SEC, wrap=None, env=None,
-                      config_dir=None, scope=None, repo_root=None):
+                      config_dir=None, scope=None, *, repo_root):
     """Run the planner CLI for a specific family and role.
+
+    ``repo_root`` is the repo the planner works in: its loop.toml sets the input-token ceiling the prompt must fit.
 
     ``wrap`` maps the argv to the argv actually spawned (the watcher passes its sandbox); the default is the identity.
     ``env`` is the whole environment of the subprocess; the default inherits the caller's.
@@ -374,10 +376,9 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
         return _result("cli_missing", family, role, model, effort, started, error=f"CLI '{family}' not found")
 
     try:
-        if repo_root is not None:
-            ceiling = input_ceiling.resolve_ceiling(repo_root)
-            projection = input_ceiling.Projection.estimated(PLAN_ONLY_PREAMBLE + prompt)
-            input_ceiling.enforce_budget(projection, ceiling)
+        ceiling = input_ceiling.resolve_ceiling(repo_root)
+        projection = input_ceiling.Projection.estimated(PLAN_ONLY_PREAMBLE + prompt)
+        input_ceiling.enforce_budget(projection, ceiling)
     except input_ceiling.CeilingConfigError as e:
         return _result("ceiling_invalid", family, role, model, effort, started, error=str(e))
     except input_ceiling.InputCeilingExceeded:
@@ -434,7 +435,7 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
 
 
 async def run_planner_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, families=None, grace_sec=KILL_GRACE_SEC,
-                                    wrap=None, env_for=None, config_dir=None, scope=None, repo_root=None):
+                                    wrap=None, env_for=None, config_dir=None, scope=None, *, repo_root):
     """Try to run planner with each family in order, falling back on non-fatal errors.
 
     ``wrap``, ``env_for(family)`` and ``scope`` are passed to run_planner (the argv wrapper, the per-family environment

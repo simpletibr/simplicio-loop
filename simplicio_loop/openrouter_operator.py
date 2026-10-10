@@ -480,7 +480,12 @@ def request_mechanical_plan(*, task: Mapping[str, Any], target: str, repo_path: 
             "plan_schema": PLAN_SCHEMA,
         })
         return plan, receipt
-    except (input_ceiling.InputCeilingExceeded, input_ceiling.CeilingConfigError):
+    except (input_ceiling.InputCeilingExceeded, input_ceiling.CeilingConfigError) as exc:
+        receipt.update({
+            "status": exc.reason_code, "provider_wall_ns": time.perf_counter_ns() - started_ns,
+            "error_code": exc.reason_code, "error_detail": str(exc),
+        })
+        exc.receipt = dict(receipt)
         raise
     except OpenRouterPlanError:
         raise

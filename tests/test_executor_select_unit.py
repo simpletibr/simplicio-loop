@@ -265,7 +265,7 @@ class TestAgyAndOpencodeArgv:
 
     def test_agy_runs_through_fake_cli(self, bindir):
         fake_cli(bindir, "agy")
-        res = run(exec_planner.run_planner("agy", "execution", "x", cwd=str(bindir)))
+        res = run(exec_planner.run_planner("agy", "execution", "x", cwd=str(bindir), repo_root=bindir))
         assert res.is_ok() and res.family == "agy"
         argv = call_of(bindir, "agy")
         assert argv[argv.index("--mode") + 1] == "plan"
@@ -273,7 +273,7 @@ class TestAgyAndOpencodeArgv:
 
     def test_opencode_runs_through_fake_cli(self, bindir):
         fake_cli(bindir, "opencode")
-        res = run(exec_planner.run_planner("opencode", "execution", "x", cwd=str(bindir)))
+        res = run(exec_planner.run_planner("opencode", "execution", "x", cwd=str(bindir), repo_root=bindir))
         assert res.is_ok() and res.family == "opencode"
         assert call_of(bindir, "opencode")[0] == "run"
 

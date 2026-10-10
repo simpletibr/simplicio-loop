@@ -180,7 +180,7 @@ def _fake(bindir, name, body="", exit_code=0):
 
 
 def _run(family, tmp_path, **kwargs):
-    return asyncio.run(exec_planner.run_planner(family, "planning", "x", cwd=str(tmp_path), **kwargs))
+    return asyncio.run(exec_planner.run_planner(family, "planning", "x", cwd=str(tmp_path), repo_root=tmp_path, **kwargs))
 
 
 def test_codex_schema_file_exists_during_the_run_inside_config_dir_and_is_removed_after(bindir, tmp_path):

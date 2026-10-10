@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import json
 import subprocess
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -134,3 +135,27 @@ def test_the_loop_toml_of_the_cwd_is_not_read(repo, home, cli):
     result = run(repo, cli)
     assert result.status == "ok"
     assert len(cli.started) == 1
+
+
+def test_a_correction_above_the_ceiling_starts_no_further_round(repo, home, cli, monkeypatch):
+    """Verify keeps failing with a long output, so round 2 would resume with a correction prompt above the ceiling."""
+    async def red_verify(argv, *, cwd, **_):
+        if argv[0] == "sh":
+            return SimpleNamespace(returncode=1, stdout="7 " * 3000, stderr="")  # digits are dear: the correction outweighs the prompt
+        cli.started.append(list(argv))
+        (Path(cwd) / f"edit-{uuid.uuid4().hex}.txt").write_text("ok\n")
+        return SimpleNamespace(returncode=0, stdout=json.dumps(ENVELOPE), stderr="")
+
+    def author():
+        return asyncio.run(author_flow.run_author("fix it", repo, runner=red_verify, allow_unsandboxed=True, rounds=2,
+                                                  verify="make test"))
+
+    assert author().status == "failed" and len(cli.started) == 2
+    size = input_ceiling.Projection.estimated(cli.built[0]).tokens
+    cli.built.clear()
+    cli.started.clear()
+
+    monkeypatch.setenv(ENV_NAME, str(size))
+    refused = author()
+    assert (refused.status, refused.reason_code) == ("failed", "input_ceiling_exceeded")
+    assert len(cli.built) == 1 and len(cli.started) == 1
