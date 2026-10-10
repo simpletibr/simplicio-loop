@@ -148,6 +148,7 @@ for url; do
   exit 0
 done
 """
+_DISPLAY_ENV = ("DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS")
 _PRINTABLE_ASCII = re.compile(r"[!-~]+")  # no space, no control character, no newline, nothing above ASCII
 
 
@@ -156,6 +157,8 @@ def _can_block_browser() -> bool:
 
 
 def _install_browser_shim(child: dict) -> str:
+    for name in _DISPLAY_ENV:  # without them a Runtime that calls the opener by its absolute path opens no window
+        child.pop(name, None)
     shim_dir = tempfile.mkdtemp(prefix="simplicio-no-browser-")
     try:
         for name in _BROWSER_OPENERS:

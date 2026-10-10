@@ -212,3 +212,29 @@ def _squad_review_green(request):
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(squad_review, "evaluate", fake)
         yield
+
+
+@pytest.fixture
+def tree_operators(tmp_path, monkeypatch) -> Path:
+    """The Mapper and Dev CLI of THIS checkout lead PATH, as the flow tests do.
+
+    A standalone `simplicio-mapper` left on the host can share the version (0.26.35) and still lack the build identity, so
+    `prepare` blocks with `mapper_provenance_missing` (#1575, #1666). The environment must not decide these tests.
+    """
+    from tests.flow.conftest import write_shim
+
+    bin_dir = tmp_path / "operator-bin"
+    bin_dir.mkdir()
+    write_shim(bin_dir / "simplicio-mapper", [_REPO_ROOT / "packages" / "mapper"], "simplicio_mapper.cli")
+    write_shim(bin_dir / "simplicio-dev-cli", [_REPO_ROOT / "packages" / "dev-cli"], "simplicio.cli")
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}")
+    # The runner also imports `simplicio_mapper` in-process (the operations store location), here and in the `simplicio_loop.cli`
+    # subprocesses: a host-installed copy places that store at `<repo>/.simplicio/data`, inside the fingerprinted tree, so the
+    # run "changes the repository". Both must resolve the Mapper of this checkout, which keeps it in `.simplicio-loop/data`.
+    mapper_root = str(_REPO_ROOT / "packages" / "mapper")
+    monkeypatch.syspath_prepend(mapper_root)
+    monkeypatch.setenv("PYTHONPATH", os.pathsep.join(filter(None, [mapper_root, os.environ.get("PYTHONPATH", "")])))
+    for name, module in list(sys.modules.items()):
+        if name.split(".")[0] == "simplicio_mapper" and not str(getattr(module, "__file__", "")).startswith(mapper_root):
+            monkeypatch.delitem(sys.modules, name)
+    return bin_dir

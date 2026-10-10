@@ -262,7 +262,8 @@ def _note_step(report: dict[str, Any], *, repo: str, issue: dict, step: int, pla
     report["tasks"][-1].update(
         {"step": step, "role": planned.role, "family": planned.family, "model": planned.model,
          "effort": planned.effort, "planner": planned.reason_code,
-         "structured_output": planned.structured_output, "structured_reason": planned.structured_reason})
+         "structured_output": planned.structured_output, "structured_reason": planned.structured_reason,
+         "tool_surface": planned.tool_surface, "tool_surface_reason": planned.tool_surface_reason})
 
 
 async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str | None, executor: Executor,
@@ -295,11 +296,11 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
             await budget.record("model_calls")
             started = time.monotonic()
             planned = await exec_planner.run_planner_with_fallback(
-                ladder.current_role(), plan_prompt(request, failure, rejected), cwd=str(dest),
+                ladder.current_role(), plan_prompt(request, failure, rejected), cwd=str(dest), repo_root=str(dest),
                 timeout_sec=config.PLAN_TIMEOUT_S, families=list(executor.families),
                 wrap=planner_wrap(dest), env_for=_planner_env,
                 config_dir=config.ROOT / "opencode",  # inside the bound state dir: /tmp is a tmpfs in the sandbox
-                scope=scope)
+                scope=scope, read_tools=bool(cut))
             ladder.family = planned.family or ladder.family
             ok, failure, tokens_report, label, result, status, reason, rejected = False, "", None, "", None, "failed", "", ""
             log_path = config.LOGS / f"{repo}-{number}-{attempts}-s{step}.log"

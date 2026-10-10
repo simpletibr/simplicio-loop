@@ -234,6 +234,19 @@ async def _not_due(store: ClaimStore, ident: str, clock: float, reopen: bool, sk
     return True
 
 
+async def _open_loop_pr(repo: str, number: int) -> str | None:
+    """URL of an open PR whose head is loop/issue-<number> or one of its -rK names. A listing that fails raises: no guess."""
+    listed = await proc.run(["gh", "pr", "list", "--repo", repo, "--state", "open", "--json", "headRefName,url", "--limit", "1000"],
+                            timeout=60)
+    if listed.returncode != 0:
+        raise _fail(listed, "pr list failed")
+    for row in json.loads(listed.stdout or "[]"):
+        match = re.fullmatch(r"loop/issue-(\d+)(?:-r\d+)?", row.get("headRefName") or "")
+        if match and int(match.group(1)) == number:
+            return row.get("url")
+    return None
+
+
 async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, clock: float,
                   executor: host_mode.Executor, probe: squad_capacity.Probe | None = None) -> squad_flow.Outcome | None:
     name = work.repo
@@ -250,6 +263,10 @@ async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, c
     steps: list[dict[str, str]] = []  # the steps run_exec ran, also when it failed: a failed task counts in the metrics (#1565)
     run_failed = False
     try:
+        if not work.fix and (open_pr := await _open_loop_pr(full, number)):
+            state.log(f"open PR {open_pr} already on loop/issue-{number}: no second PR for {ident}")
+            await store.release(ident, token, "preexisting", now=clock, pr=open_pr, reason_code="open_pr_exists")
+            return
         claim = await watcher_github.claim_on_github(repo=full, issue=str(number), owner=config.OWNER, runner=runner)
         if not claim.verified:
             await store.release(ident, token, "claimed_elsewhere", now=clock, reason_code=claim.reason)

@@ -128,7 +128,7 @@ class TestOpenRouterNeverImplicit:
 
     def test_run_refuses_non_exec_modes(self, bindir):
         with pytest.raises(executor_select.ExecutorSelectError, match="exec"):
-            run(executor_select.run_with_fallback("planning", "x", env={"SIMPLICIO_EXECUTOR": "host"}))
+            run(executor_select.run_with_fallback("planning", "x", env={"SIMPLICIO_EXECUTOR": "host"}, repo_root=bindir))
         assert order_of(bindir) == []
 
 
@@ -169,7 +169,7 @@ class TestQuotaFallback:
         fake_cli(bindir, "claude", body="sys.stderr.write('quota exceeded'); sys.exit(1)")
         fake_cli(bindir, "codex")
         env = {"SIMPLICIO_EXEC_FAMILIES": "claude,codex"}
-        res = run(executor_select.run_with_fallback("planning", "x", env=env, cwd=str(bindir)))
+        res = run(executor_select.run_with_fallback("planning", "x", env=env, cwd=str(bindir), repo_root=bindir))
         assert res["status"] == "ok" and res["family"] == "codex"
         assert order_of(bindir) == ["claude", "codex"]
         assert res["attempts"][0] == {
@@ -182,14 +182,14 @@ class TestQuotaFallback:
         fake_cli(bindir, "claude", body="sys.stderr.write('rate limit'); sys.exit(1)")
         fake_cli(bindir, "codex")
         env = {"SIMPLICIO_EXEC_FAMILIES": "claude,codex"}
-        res = run(executor_select.run_with_fallback("planning", "x", env=env, cwd=str(bindir)))
+        res = run(executor_select.run_with_fallback("planning", "x", env=env, cwd=str(bindir), repo_root=bindir))
         assert res["family"] == "codex"
         assert res["attempts"][0]["reason_code"] == "rate_limited"
 
     def test_missing_cli_falls_through(self, bindir):
         fake_cli(bindir, "codex")
         env = {"SIMPLICIO_EXEC_FAMILIES": "agy,codex"}
-        res = run(executor_select.run_with_fallback("planning", "x", env=env, cwd=str(bindir)))
+        res = run(executor_select.run_with_fallback("planning", "x", env=env, cwd=str(bindir), repo_root=bindir))
         assert res["family"] == "codex"
         assert res["attempts"][0] == {"family": "agy", "reason_code": "cli_missing", "error": res["attempts"][0]["error"]}
 
@@ -197,7 +197,7 @@ class TestQuotaFallback:
         fake_cli(bindir, "claude", body="sys.stderr.write('quota'); sys.exit(1)")
         fake_cli(bindir, "codex", body="sys.stderr.write('rate limit'); sys.exit(1)")
         env = {"SIMPLICIO_EXEC_FAMILIES": "claude,codex"}
-        res = run(executor_select.run_with_fallback("planning", "x", env=env, cwd=str(bindir)))
+        res = run(executor_select.run_with_fallback("planning", "x", env=env, cwd=str(bindir), repo_root=bindir))
         assert res["status"] == "blocked"
         assert res["reason_code"] == "all_executors_exhausted"
         assert [a["reason_code"] for a in res["attempts"]] == ["quota_exhausted", "rate_limited"]
@@ -207,7 +207,7 @@ class TestQuotaFallback:
         fake_cli(bindir, "claude")
         fake_cli(bindir, "codex")
         env = {"SIMPLICIO_EXEC_FAMILIES": "claude,codex"}
-        res = run(executor_select.run_with_fallback("nope", "x", env=env, cwd=str(bindir)))
+        res = run(executor_select.run_with_fallback("nope", "x", env=env, cwd=str(bindir), repo_root=bindir))
         assert res["status"] == "blocked" and res["reason_code"] == "bad_role"
         assert order_of(bindir) == []
 
@@ -265,7 +265,7 @@ class TestAgyAndOpencodeArgv:
 
     def test_agy_runs_through_fake_cli(self, bindir):
         fake_cli(bindir, "agy")
-        res = run(exec_planner.run_planner("agy", "execution", "x", cwd=str(bindir)))
+        res = run(exec_planner.run_planner("agy", "execution", "x", cwd=str(bindir), repo_root=bindir))
         assert res.is_ok() and res.family == "agy"
         argv = call_of(bindir, "agy")
         assert argv[argv.index("--mode") + 1] == "plan"
@@ -273,7 +273,7 @@ class TestAgyAndOpencodeArgv:
 
     def test_opencode_runs_through_fake_cli(self, bindir):
         fake_cli(bindir, "opencode")
-        res = run(exec_planner.run_planner("opencode", "execution", "x", cwd=str(bindir)))
+        res = run(exec_planner.run_planner("opencode", "execution", "x", cwd=str(bindir), repo_root=bindir))
         assert res.is_ok() and res.family == "opencode"
         assert call_of(bindir, "opencode")[0] == "run"
 
@@ -283,6 +283,6 @@ class TestSelectionPerEnvValueEndToEnd:
         fake_cli(bindir, "agy")
         fake_cli(bindir, "opencode")
         env = {"SIMPLICIO_EXEC_FAMILIES": "opencode,agy"}
-        res = run(executor_select.run_with_fallback("execution", "x", env=env, cwd=str(bindir)))
+        res = run(executor_select.run_with_fallback("execution", "x", env=env, cwd=str(bindir), repo_root=bindir))
         assert res["family"] == "opencode"
         assert order_of(bindir) == ["opencode"]

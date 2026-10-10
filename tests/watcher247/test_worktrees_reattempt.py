@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
 from simplicio_loop import watcher_github
-from simplicio_loop.watcher247 import tick, worktrees
+from simplicio_loop.watcher247 import proc, tick, worktrees
 
 from .test_worktrees import REPO, commit_in, git, real_repo  # noqa: F401  (real_repo is a fixture)
 
@@ -102,6 +104,25 @@ def test_the_local_branch_cleanup_removes_the_new_head(real_repo):
 
     asyncio.run(scenario())
     assert real_repo.branches() == []
+
+
+def test_an_ls_remote_failure_other_than_no_such_ref_stops_the_checkout_and_creates_nothing(real_repo, monkeypatch):
+    real_run = proc.run
+
+    async def broken_ls_remote(argv, **kwargs):
+        if argv[:2] == ["git", "ls-remote"]:
+            return proc.Result(128, "", "fatal: could not read from remote repository")
+        return await real_run(argv, **kwargs)
+
+    monkeypatch.setattr(proc, "run", broken_ls_remote)
+
+    async def scenario():
+        async with worktrees.checkout(worktrees.Gate(1), REPO, "main", 7):
+            pass
+
+    with pytest.raises(RuntimeError, match="could not read from remote"):
+        asyncio.run(scenario())
+    assert real_repo.rows() == {} and real_repo.branches() == [] and not real_repo.wt(7).exists()
 
 
 # --- the patrol maps a reattempt PR to its issue -------------------------------------------------------------------------------
