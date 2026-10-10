@@ -18,6 +18,7 @@ from typing import Any, Callable, Mapping, Sequence
 from urllib.parse import urlparse
 
 from .evidence import redact_sensitive_text
+from .input_ceiling import CeilingConfigError, InputCeilingExceeded, Projection, enforce_budget, resolve_ceiling
 
 OPENROUTER_PROVIDER = "openrouter"
 OPENROUTER_MODEL = "deepseek/deepseek-v4.1-flash"
@@ -199,6 +200,22 @@ def _request_prompt(
     if not feedback:
         return prompt
     return prompt + "\n\nDeterministic verifier feedback for the previous proposal:\n" + feedback
+
+
+def _gate_input(prompt: str, repo_root: str | Path | None, env: Mapping[str, str] | None) -> dict[str, Any]:
+    """Refuse a request whose projected prompt is above the input-token ceiling (#1608). The worker has no provider usage
+    before its one request, so the projection is ESTIMATED and says so. The request is not sent when it is over."""
+    try:
+        ceiling = resolve_ceiling(Path.cwd() if repo_root is None else repo_root, env)
+        verdict = enforce_budget(Projection.estimated(prompt), ceiling)
+    except CeilingConfigError as exc:
+        raise ProviderWorkerError(str(exc), reason_code=exc.reason_code) from exc
+    except InputCeilingExceeded as exc:
+        raise ProviderWorkerError(
+            f"{exc}; the request was not sent, hand off to a fresh worker with a smaller context",
+            reason_code=exc.reason_code,
+        ) from exc
+    return {"status": verdict.status, "basis": verdict.basis, "tokens": verdict.tokens, "ceiling": verdict.ceiling}
 
 
 def _decode_proposal(response: Mapping[str, Any], *, max_tokens: int) -> dict[str, Any]:
@@ -391,6 +408,7 @@ class OpenRouterWorker:
         allowed_paths: Sequence[str],
         env: Mapping[str, str] | None = None,
         repair_feedback: str | None = None,
+        repo_root: str | Path | None = None,
     ) -> dict[str, Any]:
         forwarded = forwarded_environment(env)
         max_tokens = completion_max_tokens(env)
@@ -400,6 +418,7 @@ class OpenRouterWorker:
             repair_feedback,
             forbidden_literals=(forwarded["OPENROUTER_API_KEY"],),
         )
+        input_budget = _gate_input(prompt_content, repo_root, env)
         prompt_sha256 = hashlib.sha256(prompt_content.encode("utf-8")).hexdigest()
         request_payload = {
             "model": OPENROUTER_MODEL,
@@ -463,5 +482,6 @@ class OpenRouterWorker:
             "proposal": proposal,
             "response_sha256": _canonical_hash(provider_response),
             "provider_call_count": 1,
+            "input_budget": input_budget,
             **usage,
         }

@@ -1775,6 +1775,7 @@ def _provider_worker_plan(
             allowed_paths=allowed_paths,
             env=os.environ,
             repair_feedback=repair_feedback,
+            repo_root=root,
         )
         forwarded = forwarded_environment(os.environ)
         plan = proposal_to_mechanical_plan(
