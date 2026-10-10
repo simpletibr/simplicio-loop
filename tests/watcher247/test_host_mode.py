@@ -291,7 +291,7 @@ def test_plan_goes_to_turbo_stdin_and_dev_cli_applies(env, cli_dir):
     assert json.loads(fake.turbo_stdin[0]) == PLAN
     (call,) = planner_calls(cli_dir)
     assert flag(call, "--model") == resolved("execution")["model"]
-    assert flag(call, "--permission-mode") == "plan"  # the planner cannot write
+    assert flag(call, "--tools") == ""  # the planner cannot write, run a command or fetch
     assert "Issue #3: Add x" in call[1]
     assert f"MEASURED|verify_passed: `{targeted}`" in fake.ran("gh", "pr", "create")[0][-1]
     assert read_json(config.CLAIMS)[f"{REPO}#3"]["status"] == "done"
@@ -402,7 +402,7 @@ def test_planner_prompt_is_the_turbo_request_with_the_map_slice(env, cli_dir):
     (call,) = planner_calls(cli_dir)
     assert MAP_SLICE in call[1] and "Issue #3: Add x" in call[1]
     assert RUN_ID in call[1] and "x = 1" in call[1]  # the request: run, current file text
-    assert flag(call, "--permission-mode") == "plan"
+    assert flag(call, "--tools") == ""
 
 
 def test_step_2_continues_the_run_and_one_report_carries_run_id_and_roles(env, cli_dir):
@@ -593,6 +593,43 @@ def test_a_need_does_not_climb_the_ladder(env, cli_dir, monkeypatch):
     seen = _scripted_planner(monkeypatch, [NEED, PLAN])
     _run_exec(fake, role="execution")  # the ladder starts at its lowest role, where an escalation would show
     assert [role for role, _prompt in seen] == ["execution", "execution"]
+
+
+def _capturing_planner(monkeypatch, plan):
+    from simplicio_loop import exec_planner
+    seen = []
+
+    async def planner(role, prompt, **kwargs):
+        seen.append(kwargs)
+        return exec_planner.PlannerResult("ok", "claude", role, "m", "high", plan=plan)
+
+    monkeypatch.setattr(host_mode.exec_planner, "run_planner_with_fallback", planner)
+    return seen
+
+
+def test_the_planner_may_read_files_only_when_the_request_omits_lines(env, cli_dir, monkeypatch):
+    fake = env(HostRun({REPO: [issue(1)]}, [OK], request=_cut_request()))
+    baseline()
+    seen = _capturing_planner(monkeypatch, PLAN)
+    _run_exec(fake)
+    assert seen[0]["read_tools"] is True
+
+
+def test_a_step_record_carries_the_tool_surface(tmp_path):
+    from simplicio_loop import exec_planner
+    report = execution_report.new_report(tmp_path)
+    planned = exec_planner.PlannerResult("ok", "claude", "planning", "m", "high", surface=("read", "lines omitted"))
+    host_mode._note_step(report, repo=REPO, issue=issue(1), step=1, planned=planned, outcome="ok", wall_ms=5)
+    task = report["tasks"][-1]
+    assert (task["tool_surface"], task["tool_surface_reason"]) == ("read", "lines omitted")
+
+
+def test_the_planner_gets_no_read_tools_when_nothing_is_omitted(env, cli_dir, monkeypatch):
+    fake = env(HostRun({REPO: [issue(1)]}, [OK], request=_cut_request({"big.py": "x\n"})))
+    baseline()
+    seen = _capturing_planner(monkeypatch, PLAN)
+    _run_exec(fake)
+    assert seen[0]["read_tools"] is False
 
 
 def test_an_empty_plan_with_a_cut_request_stops_with_turbo_context_truncated(env, cli_dir, monkeypatch):

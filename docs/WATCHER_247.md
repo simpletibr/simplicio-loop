@@ -123,7 +123,7 @@ Fluxo de cada tick (implementado em `watcher247/tick.py` e `watcher247/host_mode
 
 O planner roda por `sandbox.wrap` (o mesmo bwrap do apply) e com `sandbox.scrubbed_env`: so a allowlist do sandbox, `HOME`
 e a chave do proprio CLI (`host_mode.FAMILY_ENV`); `OPENROUTER_API_KEY` e outros segredos do servico nunca chegam a ele.
-Cada CLI recebe apenas flags de somente-plano (ver `exec_planner.py`). A config de deny do `opencode` fica em
+Cada CLI recebe apenas flags de somente-plano (ver `exec_planner.py`). O `claude` roda com `--tools ""`, `--strict-mcp-config`, `--disable-slash-commands`, `--no-session-persistence` e `--setting-sources user` (sem `--bare`, que não lê o login): nenhuma ferramenta, MCP, skill ou sessão. Quando o pedido omite linhas (`omitted`, #1643), o `claude` ganha só `Read,Grep,Glob`. Os outros CLIs não têm flag verificada para desligar ferramentas ou MCP; o recibo de cada etapa diz `tool_surface: none|read|reduced` com o motivo (`tool_surface_reason`). A config de deny do `opencode` fica em
 `<state_dir>/opencode/` (o bwrap monta tmpfs em `/tmp` e esconderia o arquivo, rodando o CLI sem as regras de deny) e e
 removida ao fim da chamada (o sandbox só a lê: o state dir é somente leitura).
 O `HOME` do planner é um tmpfs vazio com só as pastas da própria família (`host_mode.FAMILY_HOME`, tabela em "Isolamento do

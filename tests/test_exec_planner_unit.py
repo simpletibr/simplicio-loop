@@ -10,9 +10,10 @@ from pathlib import Path
 
 import pytest
 
-from simplicio_loop import exec_planner, model_roles
+from simplicio_loop import exec_planner, model_roles, structured_output
 
 PLAN = {"operations": [{"op": "create", "file": "a.txt", "content": "x"}]}
+WRITE_BASH_WEB_TOOLS = {"Bash", "Write", "Edit", "MultiEdit", "NotebookEdit", "WebFetch", "WebSearch"}
 FORBIDDEN_FLAGS = (
     "--dangerously-bypass-approvals-and-sandbox",
     "--always-approve",
@@ -102,8 +103,23 @@ class TestBuildArgvPlanOnly:
         assert argv[:3] == ["claude", "-p", "P"]
         assert argv[argv.index("--model") + 1] == "claude-opus-5-5"
         assert argv[argv.index("--effort") + 1] == "high"
-        assert argv[argv.index("--permission-mode") + 1] == "plan"
-        assert argv[argv.index("--tools") + 1] == "Read"
+        assert "--permission-mode" not in argv
+        assert argv[argv.index("--tools") + 1] == ""
+
+    def test_claude_none_argv_is_exact(self):
+        argv = exec_planner.build_argv("claude", "planning", "P", "claude-opus-5-5", "/w", "high")
+        assert argv == [
+            "claude", "-p", "P", "--model", "claude-opus-5-5", "--effort", "high",
+            "--tools", "", "--disable-slash-commands", "--strict-mcp-config", "--no-session-persistence",
+            "--setting-sources", "user", "--output-format", "json",
+            "--json-schema", structured_output.schema_text(),
+        ]
+
+    def test_claude_read_argv_replaces_only_the_tool_list(self):
+        none = exec_planner.build_argv("claude", "planning", "P", "m", "/w", "high")
+        read = exec_planner.build_argv("claude", "planning", "P", "m", "/w", "high", read_tools=True)
+        at = none.index("--tools")
+        assert read == [*none[:at], "--tools", "Read,Grep,Glob", *none[at + 2:]]
 
     def test_codex_flags(self):
         argv = exec_planner.build_argv("codex", "planning", "P", "gpt-6-astra", "/w", "high", schema_file="/s/p.json")
@@ -380,3 +396,75 @@ def test_a_malformed_answer_is_still_bad_plan_and_falls_through(bindir, tmp_path
     scope = plan_scope.TaskScope(frozenset({"a.py"}))
     run(exec_planner.run_planner_with_fallback("planning", "x", cwd=str(tmp_path), families=["claude", "codex"], scope=scope))
     assert (bindir / "order.log").read_text().split() == ["claude", "codex"]
+
+
+class TestToolSurface:
+    @pytest.mark.parametrize("read_tools", [False, True])
+    @pytest.mark.parametrize("family", list(exec_planner.SUPPORTED_FAMILIES))
+    def test_no_argv_in_any_mode_grants_write_bash_web_or_mcp(self, family, read_tools):
+        argv = exec_planner.build_argv(family, "planning", "P", "m", "/w", "high", schema_file="/s/p.json",
+                                       read_tools=read_tools)
+        granted = {word for arg in argv for word in arg.replace(",", " ").split()}
+        assert not granted & WRITE_BASH_WEB_TOOLS
+        assert not any(arg.startswith("mcp__") or arg == "--mcp-config" for arg in argv)
+
+    @pytest.mark.parametrize("family", [f for f in exec_planner.SUPPORTED_FAMILIES if f != "claude"])
+    def test_read_mode_changes_no_argv_of_a_cli_without_a_tool_list_flag(self, family):
+        none = exec_planner.build_argv(family, "planning", "P", "m", "/w", "high", schema_file="/s/p.json")
+        read = exec_planner.build_argv(family, "planning", "P", "m", "/w", "high", schema_file="/s/p.json", read_tools=True)
+        assert read == none
+
+    @pytest.mark.parametrize("family", list(exec_planner.SUPPORTED_FAMILIES))
+    def test_every_supported_family_declares_its_minimal_surface(self, family):
+        mode, reason = exec_planner.tool_surface(family)
+        assert mode in ("none", "reduced") and reason
+
+    def test_claude_declares_read_only_when_lines_are_omitted(self):
+        assert exec_planner.tool_surface("claude", read_tools=True)[0] == "read"
+        assert exec_planner.tool_surface("claude")[0] == "none"
+
+    @pytest.mark.parametrize("family", ["codex", "grok", "agy", "opencode", "gemini"])
+    def test_cli_without_a_verified_tool_off_switch_is_reduced(self, family):
+        assert exec_planner.tool_surface(family)[0] == "reduced"
+
+    def test_codex_argv_ignores_user_config_and_rules(self):
+        argv = exec_planner.build_argv("codex", "planning", "P", "m", "/w", "high", schema_file="/s/p.json")
+        assert "--ignore-user-config" in argv and "--ignore-rules" in argv and "--ephemeral" in argv
+
+    def test_agy_argv_disables_slash_commands(self):
+        argv = exec_planner.build_argv("agy", "planning", "P", "m", "/w", "high")
+        assert "--disable-slash-commands" in argv
+
+    def test_opencode_argv_is_pure(self):
+        argv = exec_planner.build_argv("opencode", "planning", "P", "m", "/w", "high")
+        assert "--pure" in argv
+
+
+class TestToolSurfaceReceipt:
+    def test_claude_receipt_is_none_then_read_when_lines_are_omitted(self, bindir):
+        fake_cli(bindir, "claude")
+        res = run(exec_planner.run_planner("claude", "planning", "x", cwd=str(bindir)))
+        assert (res.tool_surface, bool(res.tool_surface_reason)) == ("none", True)
+        argv = call_of(bindir, "claude")["argv"]
+        assert argv[argv.index("--tools") + 1] == ""
+        res = run(exec_planner.run_planner("claude", "planning", "x", cwd=str(bindir), read_tools=True))
+        assert res.tool_surface == "read"
+        argv = call_of(bindir, "claude")["argv"]
+        assert argv[argv.index("--tools") + 1] == "Read,Grep,Glob"
+
+    @pytest.mark.parametrize("family", ["codex", "grok", "agy", "opencode", "gemini"])
+    def test_a_cli_without_a_tool_off_switch_says_reduced_with_a_reason(self, bindir, family):
+        fake_cli(bindir, family)
+        res = run(exec_planner.run_planner(family, "planning", "x", cwd=str(bindir), read_tools=True))
+        assert res.reason_code == "ok"
+        assert res.tool_surface == "reduced" and res.tool_surface_reason
+
+    def test_a_cli_that_never_ran_has_no_tool_receipt(self, bindir):
+        res = run(exec_planner.run_planner("claude", "planning", "x", cwd=str(bindir)))
+        assert res.reason_code == "cli_missing"
+        assert (res.tool_surface, res.tool_surface_reason) == ("", "")
+
+    def test_to_dict_carries_the_tool_surface(self, bindir):
+        fake_cli(bindir, "claude")
+        out = run(exec_planner.run_planner("claude", "planning", "x", cwd=str(bindir))).to_dict()
+        assert out["tool_surface"] == "none" and out["tool_surface_reason"]
