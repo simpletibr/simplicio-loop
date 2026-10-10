@@ -146,6 +146,9 @@ def save_token(state_dir: Path, token: str, login: str) -> Path:
             auth.write_login(document, path)
     except auth.LoginError as exc:
         raise _store_error(exc) from None
+    except OSError as exc:
+        raise CredError("store_invalid",
+                        f"cannot write the GitHub credential file ({exc.strerror}); fix its folder, then run `simplicio-loop setup`") from None
     return path
 
 

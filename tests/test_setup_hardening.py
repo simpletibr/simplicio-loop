@@ -43,13 +43,32 @@ def test_path_warnings_flags_world_writable_dir(tmp_path):
     assert warnings == [(str(shared), "writable_by_others")]
 
 
+def owned_by_another_user(monkeypatch, folder, uid=4242):
+    """Make `folder` look owned by `uid` to stat and lstat, without chown (which needs CAP_CHOWN and fails in some sandboxes)."""
+    target = os.path.abspath(os.fspath(folder))
+    real_stat, real_lstat = os.stat, os.lstat
+
+    def faked(real):
+        def call(path, *args, **kwargs):
+            info = real(path, *args, **kwargs)
+            if os.path.abspath(os.fspath(path)) != target:
+                return info
+            values = list(info[:10])
+            values[4] = uid  # st_uid
+            return os.stat_result(values)
+        return call
+
+    monkeypatch.setattr(os, "stat", faked(real_stat))
+    monkeypatch.setattr(os, "lstat", faked(real_lstat))
+
+
 def foreign_dir(tmp_path, monkeypatch):
     """A 755 folder whose owner is neither root nor the current user."""
     theirs = tmp_path / "theirs"
     theirs.mkdir()
     theirs.chmod(0o755)
     if os.geteuid() == 0:
-        os.chown(theirs, 4242, 4242)
+        owned_by_another_user(monkeypatch, theirs)
     else:
         monkeypatch.setattr(os, "geteuid", lambda: theirs.stat().st_uid + 1)
     return theirs
@@ -166,6 +185,23 @@ def test_read_private_text_refuses_shared_writable(tmp_path):
     target.chmod(0o666)
     with pytest.raises(sh.UnsafeFileError, match="writable"):
         sh.read_private_text(target)
+
+
+@posix_only
+def test_read_private_text_accepts_another_users_file_for_root_as_auth_does(tmp_path, monkeypatch):
+    target = tmp_path / "setup.json"
+    target.write_text("{}", encoding="utf-8")
+    target.chmod(0o600)
+    real_fstat = os.fstat
+
+    def owned_by_another_user(fd):
+        values = list(real_fstat(fd)[:10])
+        values[4] = 4242  # st_uid
+        return os.stat_result(values)
+
+    monkeypatch.setattr(os, "fstat", owned_by_another_user)
+    monkeypatch.setattr(os, "geteuid", lambda: 0)
+    assert sh.read_private_text(target) == "{}"
 
 
 @posix_only
@@ -328,9 +364,8 @@ def test_isolated_git_cwd_gives_git_a_path_without_unsafe_entries(tmp_path):
 
 
 @posix_only
-@pytest.mark.skipif(not hasattr(os, "geteuid") or os.geteuid() != 0, reason="chown to another user needs root")
-def test_a_folder_above_the_entry_that_belongs_to_a_foreign_user_makes_it_unsafe(tmp_path):
+def test_a_folder_above_the_entry_that_belongs_to_a_foreign_user_makes_it_unsafe(tmp_path, monkeypatch):
     parent = make_dir(tmp_path / "theirs", 0o755)
     child = make_dir(parent / "bin", 0o755)
-    os.chown(parent, 4242, 4242)  # the child stays root's, but its owner can rename it away and put another folder in its place
+    owned_by_another_user(monkeypatch, parent)  # the child stays root's, but its owner can rename it away and put another folder in its place
     assert sh.path_warnings(str(child), home=str(tmp_path / "h")) == [(str(child), "foreign_owner")]

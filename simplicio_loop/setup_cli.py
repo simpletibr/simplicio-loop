@@ -153,6 +153,8 @@ def _write_summary(doc: dict, directory: Path) -> bool:
         auth.write_login(stamped, path)  # atomic, mode 600 before the content, refuses a symlink or a loose folder
     except auth.LoginError as exc:
         raise Refused(f"cannot write {path} safely ({exc.reason_code}); fix the folder or file, then run `{COMMAND}`") from None
+    except OSError as exc:
+        raise Refused(f"cannot write {path} ({exc.strerror}); fix the folder or file, then run `{COMMAND}`") from None
     return True
 
 
