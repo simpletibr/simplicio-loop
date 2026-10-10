@@ -146,8 +146,13 @@ async def _post(body: Mapping[str, Any], key: str, session_id: str, timeout: flo
 
 async def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, session_id: str,
                    api_key: str | None = None, reasoning_off: bool = True, max_tokens: int | None = None,
+                   response_format: Mapping[str, Any] | None = None,
                    hedge: float | None = None, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
-    """One chat completion, hedged after `hedge` seconds. Never returns the key."""
+    """One chat completion, hedged after `hedge` seconds. Never returns the key.
+
+    `response_format` (a strict json_schema, see structured_output) is not sent with `max_tokens=1`: the one-token
+    warm-up reply cannot hold a JSON object.
+    """
     del arm
     key = require_key(api_key)
     body: dict[str, Any] = {
@@ -160,6 +165,8 @@ async def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, session_i
         body["reasoning"] = {"enabled": False}
     if max_tokens:
         body["max_tokens"] = max_tokens
+    if response_format and max_tokens != 1:
+        body["response_format"] = dict(response_format)
     wait = hedge_after() if hedge is None else hedge
     started = time.time()
     primary = asyncio.create_task(_post(body, key, session_id, timeout))
