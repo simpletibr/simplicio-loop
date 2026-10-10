@@ -44,7 +44,8 @@ def _fold(text: str) -> str:
 
 def classify_level(changes: Sequence[FileChange]) -> Level:
     production = [c for c in changes if c.kind in ("code", "other") and c.status != "D"]
-    if any(SECURITY_WORDS.intersection(re.split(r"[^a-z0-9]+", str(PurePosixPath(c.path)).lower())) for c in production):
+    scanned = [*production, *(c for c in changes if c.kind == "test" and c.status != "D")] if production else []  # a security test beside production code names the topic
+    if any(SECURITY_WORDS.intersection(re.split(r"[^a-z0-9]+", str(PurePosixPath(c.path)).lower())) for c in scanned):
         return Level.T2
     if not production and sum(len(c.added) for c in changes) <= T0_MAX_ADDED_LINES:
         return Level.T0

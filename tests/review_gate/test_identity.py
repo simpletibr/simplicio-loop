@@ -21,6 +21,14 @@ def test_security_paths_are_t2(path):
     assert identity.classify_level([_c(path)]) is Level.T2
 
 
+def test_a_security_test_beside_production_code_is_t2():
+    """#1640: the uninstall hardening changed install/planner.py, and only the test file said `uninstall`."""
+    changes = [_c("simplicio_loop/install/planner.py"), _c("tests/install/test_uninstall_receipt_hardening.py", "A")]
+    assert identity.classify_level(changes) is Level.T2
+    assert identity.classify_level([_c("simplicio_loop/install/planner.py"), _c("tests/install/test_plan.py", "A")]) is Level.T1
+    assert identity.classify_level([_c("simplicio_loop/install/planner.py"), _c("tests/test_uninstall.py", "D")]) is Level.T1
+
+
 def test_tests_of_security_modules_are_not_t2_and_names_match_by_word():
     assert identity.classify_level([_c("tests/test_sandbox.py"), _c("docs/SANDBOX.md")]) is Level.T0
     assert identity.classify_level([_c("simplicio_loop/tokenizer_cache.py")]) is Level.T1  # "tokenizer" is not "token"
