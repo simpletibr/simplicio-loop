@@ -201,6 +201,25 @@ def test_planner_runs_through_the_sandbox_wrapper(env, cli_dir, monkeypatch):
     assert fake.turbo_argv
 
 
+def test_only_the_planner_gets_the_empty_home_with_its_own_folders(env, cli_dir, monkeypatch):
+    """#1570: the planner CLI runs with HOME as a tmpfs plus the folders of its family; turbo (request, apply) keeps the layout it has."""
+    homes = []
+
+    def fake_wrap(argv, *, clone, state_dir, **kwargs):
+        homes.append((argv[0], kwargs.get("home")))
+        return list(argv)
+
+    monkeypatch.setattr(sandbox, "wrap", fake_wrap)
+    env(HostRun({REPO: [issue(1)]}))
+    baseline()
+    checkout()
+    run_tick()
+    assert [name for name, _ in homes] == ["simplicio-loop", "claude", "simplicio-loop"]
+    planner_home = homes[1][1]
+    assert planner_home == sandbox.HomeView(Path.home(), **host_mode.FAMILY_HOME["claude"])
+    assert homes[0][1] is None and homes[2][1] is None
+
+
 def test_watcher_keeps_the_planner_config_in_the_bound_state_dir(env, cli_dir, monkeypatch):
     seen = []
     real = host_mode.exec_planner.run_planner_with_fallback
