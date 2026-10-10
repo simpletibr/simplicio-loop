@@ -295,7 +295,7 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
             await budget.record("model_calls")
             started = time.monotonic()
             planned = await exec_planner.run_planner_with_fallback(
-                ladder.current_role(), plan_prompt(request, failure, rejected), cwd=str(dest),
+                ladder.current_role(), plan_prompt(request, failure, rejected), cwd=str(dest), repo_root=str(dest),
                 timeout_sec=config.PLAN_TIMEOUT_S, families=list(executor.families),
                 wrap=planner_wrap(dest), env_for=_planner_env,
                 config_dir=config.ROOT / "opencode",  # inside the bound state dir: /tmp is a tmpfs in the sandbox

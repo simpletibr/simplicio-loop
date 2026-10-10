@@ -76,14 +76,14 @@ def _outcome(status, reason_code, family, plan, attempts):
     return {"status": status, "reason_code": reason_code, "family": family, "plan": plan, "attempts": attempts}
 
 
-async def run_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, grace_sec=exec_planner.KILL_GRACE_SEC, env=None):
+async def run_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, grace_sec=exec_planner.KILL_GRACE_SEC, env=None, *, repo_root):
     """Run the exec families in env order and return the first plan, or a blocked outcome with every attempt."""
     resolved = resolve(env)
     if resolved["mode"] != "exec":
         raise ExecutorSelectError(f"run_with_fallback runs exec families only; SIMPLICIO_EXECUTOR is {resolved['mode']}")
     attempts = []
     for family in resolved["families"]:
-        result = await exec_planner.run_planner(family, role, prompt, cwd, timeout_sec, grace_sec)
+        result = await exec_planner.run_planner(family, role, prompt, cwd, timeout_sec, grace_sec, repo_root=repo_root)
         if result.is_ok():
             return _outcome("ok", "ok", family, result.plan, attempts)
         attempts.append({"family": family, "reason_code": result.reason_code, "error": result.error})

@@ -1,6 +1,7 @@
 """The exec planner does not send a request above the input-token ceiling (#1608, part C)."""
 from __future__ import annotations
 
+import ast
 import asyncio
 import json
 from pathlib import Path
@@ -114,6 +115,48 @@ def test_a_bad_ceiling_fails_loud_without_sending(repo, monkeypatch):
         assert len(calls) == 0
     
     asyncio.run(test_impl())
+
+
+def test_the_fallback_passes_the_repo_root_to_every_family(repo, monkeypatch):
+    calls = []
+
+    async def mock_run(*args, **kwargs):
+        calls.append(args)
+        return "{}", "", 0
+
+    monkeypatch.setattr("simplicio_loop.exec_planner._run_subprocess", mock_run)
+    monkeypatch.setattr("simplicio_loop.exec_planner._find_cli", lambda x: f"/usr/bin/{x}")
+    monkeypatch.setenv(ENV_NAME, "1000")
+
+    result = asyncio.run(exec_planner.run_planner_with_fallback(
+        "coordination", "word " * 5000, cwd=str(repo), families=["claude", "codex"], repo_root=repo))
+    assert result.reason_code == "input_ceiling_exceeded"
+    assert calls == []
+
+
+PRODUCTION_ROOT = Path(exec_planner.__file__).resolve().parent
+PLANNER_CALLEES = {"run_planner", "run_planner_with_fallback"}
+
+
+def _callee_name(call):
+    func = call.func
+    return func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else None
+
+
+def _names_a_repo_root(call):
+    return any(kw.arg == "repo_root" and not (isinstance(kw.value, ast.Constant) and kw.value.value is None)
+               for kw in call.keywords)
+
+
+def test_every_production_planner_call_names_the_repo_root():
+    """A call without repo_root skips the ceiling, so each caller in the package must pass the repo it works in."""
+    sites = [(path, node)
+             for path in sorted(PRODUCTION_ROOT.rglob("*.py"))
+             for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+             if isinstance(node, ast.Call) and _callee_name(node) in PLANNER_CALLEES]
+    assert len(sites) >= 3, "the scan must find the known production callers"
+    omitted = [f"{path.relative_to(PRODUCTION_ROOT)}:{node.lineno}" for path, node in sites if not _names_a_repo_root(node)]
+    assert omitted == []
 
 
 def test_the_loop_toml_of_the_cwd_is_not_the_one_read(repo, monkeypatch):
