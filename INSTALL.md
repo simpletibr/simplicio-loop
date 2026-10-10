@@ -40,6 +40,11 @@ What the installer does (all reversible — copies + a config edit):
   / `.kiro/steering/…` / `CONVENTIONS.md`) references the protocol — idempotently,
 - prints `simplicio-cli mcp register --client <runtime>` for optional native binding.
 
+Global scope: `install --global` also refreshes the `simplicio-*` skills of every host that already has the loop skill
+(11 hosts, for example `~/.codex/skills/simplicio-*` and `~/.grok/skills/simplicio-*`) and the Loop-owned global rule files
+a host already has. It creates none of them on a clean HOME. Those files are outside the ownership receipt, so they stay after
+`install --uninstall`. Remove them by hand if you want them gone.
+
 See [`adapters/MATRIX.md`](adapters/MATRIX.md) and `adapters/<runtime>/README.md` for details.
 For the exact per-OS mutation inventory (what mutates on disk, PATH, or a service, and which
 effects require an explicit flag), see [`docs/INSTALL_MUTATIONS.md`](docs/INSTALL_MUTATIONS.md).

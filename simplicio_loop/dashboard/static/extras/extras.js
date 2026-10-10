@@ -13,6 +13,9 @@ const NO_TASKS = 'task-contract.json sem tarefas';
 const NO_TOKENS = 'sem token_usage medido';
 const NO_HEARTBEAT = 'sem batimento do lease medido';
 const NO_STAGES = 'sem token_usage por etapa medido';
+const CACHE_NOTE = '; leitura de cache não entra no USD';
+// A floor USD (a prompt above the tier limit with no per-request data) reads "a partir de", never as an exact estimate.
+const moneyOf = (usd, floor) => (floor ? 'a partir de ' : '') + 'US$ ' + usd.toFixed(4) + (floor ? '' : ' estimado');
 const NO_COST = 'custo do run não estimado';
 const NO_CLAIMS = 'nenhum worker_claimed no run';
 const NO_LEASE = 'worker_claimed sem lease_id';
@@ -69,7 +72,7 @@ function runningOf(value) {
 // Model and tokens are measured; role and effort are the model-roles table default and say so; the cost of a stage is always an estimate.
 function stageText(row) {
   const usd = Number.isFinite(row.cost_usd)
-    ? 'US$ ' + row.cost_usd.toFixed(4) + ' estimado'
+    ? moneyOf(row.cost_usd, row.cost_floor === true)
     : 'custo UNVERIFIED (' + (isText(row.reason) ? row.reason : NO_COST) + ')';
   const tokens = ', entrada ' + (isCount(row.tokens_in) ? row.tokens_in : 0) + ', saída ' + (isCount(row.tokens_out) ? row.tokens_out : 0);
   if (isOthers(row)) return 'outros (' + row.others + '):' + tokens.slice(1) + ', ' + usd;
@@ -88,7 +91,13 @@ function stagesOf(stages) {
 
 function runCostOf(stages) {
   const cost = isObject(stages) && stages.schema === STAGE_SCHEMA && isObject(stages.cost) ? stages.cost : {};
-  if (Number.isFinite(cost.usd)) return { state: 'ESTIMADO', text: 'US$ ' + cost.usd.toFixed(4) + ' estimado' };
+  if (Number.isFinite(cost.usd)) {
+    const floor = cost.floor === true;
+    const why = floor && isText(cost.floor_reason) ? ' (' + cost.floor_reason + ')' : '';
+    const un = isObject(cost.unpriced_tokens) ? cost.unpriced_tokens : {};
+    const cached = (un.cached_tokens > 0 || un.cache_write_tokens > 0) ? CACHE_NOTE : '';
+    return { state: 'ESTIMADO', text: moneyOf(cost.usd, floor) + why + cached };
+  }
   return { state: 'UNVERIFIED', text: isText(cost.reason) ? cost.reason : NO_COST };
 }
 
@@ -103,7 +112,7 @@ export function pushPoint(history, value) {
   return history.concat([value]).slice(-MAX_POINTS);
 }
 
-const NONE = { phase: 'sem fase', lane: 'sem lane', model: 'sem modelo', task: 'sem tarefa', iteration: 'sem iteração' };
+const NONE = { phase: 'sem fase', lane: 'sem lane', model: 'sem modelo' };
 
 function nameOf(row, none) {
   if (isOthers(row)) return 'outros (' + row.others + ')';
@@ -146,29 +155,6 @@ function tokenWidget(label, rows, none, tokens) {
   return { label, state: 'PASS', text: total + ' tokens medidos', segments, legend: segments.map((seg) => ({ text: seg.text })) };
 }
 
-const isPriced = (row) => Number.isFinite(row.cost_usd) && row.cost_usd >= 0;
-
-function costWidget(label, rows, none) {
-  if (rows.length === 0) return { label, state: 'UNVERIFIED', text: NO_COST, segments: [], legend: [] };
-  const limited = foldRows(rows);
-  const priced = limited.filter(isPriced);
-  const total = priced.reduce((sum, row) => sum + row.cost_usd, 0);
-  const unpriced = limited.reduce((sum, row) => sum + (isPriced(row) ? 0 : countOf(row)), 0);
-  const usd = (row) => 'US$ ' + row.cost_usd.toFixed(4) + ' estimado';
-  const legend = limited.map((row) => ({
-    text: nameOf(row, none) + ': ' + (isPriced(row) ? usd(row) : 'custo UNVERIFIED (' + (isText(row.reason) ? row.reason : NO_COST) + ')'),
-  }));
-  const segments = priced.filter((row) => row.cost_usd > 0)
-    .map((row) => ({ text: nameOf(row, none) + ': ' + usd(row), pct: percentOf(row.cost_usd, total) }));
-  if (priced.length === 0) {
-    const reason = limited.find((row) => isText(row.reason));
-    return { label, state: 'UNVERIFIED', text: reason ? reason.reason : NO_COST, segments, legend };
-  }
-  // The headline sums only the priced rows, so it says how many it left out.
-  const partial = unpriced > 0 ? ' (parcial: ' + unpriced + ' sem preço)' : '';
-  return { label, state: 'ESTIMADO', text: 'US$ ' + total.toFixed(4) + ' estimado' + partial, segments, legend };
-}
-
 // "a, b (+K)": the listed values (at most MAX_ROWS) and how many more the lane has when its reply says so.
 function listOf(list, total) {
   const shown = (Array.isArray(list) ? list.filter(isText) : []).slice(0, MAX_ROWS);
@@ -208,8 +194,6 @@ export function widgetsOf(stages) {
     tokenWidget('Tokens por fase', rows('by_phase'), NONE.phase, tokens),
     tokenWidget('Tokens por lane', rows('by_lane'), NONE.lane, tokens),
     tokenWidget('Tokens por modelo', rows('by_model'), NONE.model, tokens),
-    costWidget('Custo por tarefa', rows('by_task'), NONE.task),
-    costWidget('Custo por iteração', rows('by_iteration'), NONE.iteration),
     agentMapWidget(stages.agent_map),
   ];
 }
@@ -311,4 +295,17 @@ export function startExtras(readApi, runId) {
   };
   load();
   setInterval(load, POLL_MS);
+}
+
+// The run budget and token usage are derived from the event stream, so they refresh on the tokens cadence (the caller's interval).
+// Each reply feeds the reducer, then the cost widgets (issue #1404), whose module loads on the first reply, not with the page.
+export function startBudget(readApi, runId, dispatch, intervalMs) {
+  if (!runId) return;
+  const load = async () => {
+    const response = await readApi('/api/runs/' + encodeURIComponent(runId) + '/budget');
+    dispatch({ type: 'budget', response });
+    (await import('./cost-widgets.js')).renderCostWidgets(response);
+  };
+  load();
+  setInterval(load, intervalMs);
 }

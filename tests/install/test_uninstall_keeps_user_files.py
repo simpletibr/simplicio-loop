@@ -207,3 +207,155 @@ def test_cli_uninstall_dry_run_exits_0_and_removes_nothing(
     rc, out = run(capsys, "install", "--uninstall", "--target", str(target))
     assert rc == 0 and user_skill.is_file()
     assert not (target / ".claude" / "skills" / "simplicio-loop").exists()
+
+
+# --- audit follow-up: what the receipt may name, and which directories are Loop's ---------------------------------
+
+
+def loop_skill(root: Path) -> Path:
+    return root / ".claude" / "skills" / "simplicio-loop" / "SKILL.md"
+
+
+def tamper(root: Path, **changes) -> None:
+    marker = root / ".simplicio-loop" / "install-ownership.json"
+    receipt = json.loads(marker.read_text(encoding="utf-8"))
+    receipt.update(changes)
+    marker.write_text(json.dumps(receipt), encoding="utf-8")
+
+
+def receipt_of(root: Path) -> dict:
+    return json.loads(
+        (root / ".simplicio-loop" / "install-ownership.json").read_text(encoding="utf-8")
+    )
+
+
+def test_directories_that_existed_before_install_are_not_removed(repo, bundle):
+    (repo / ".claude" / "skills").mkdir(parents=True)
+    (repo / "hooks").mkdir()
+    install(repo, bundle)
+    uninstall(repo)
+    assert (repo / ".claude" / "skills").is_dir() and (repo / "hooks").is_dir()
+    assert not loop_skill(repo).exists()
+
+
+@pytest.mark.parametrize("key", ["paths", "dirs"])
+@pytest.mark.parametrize("kind", ["absolute", "dotdot", "nested-dotdot"])
+def test_a_receipt_path_outside_the_target_is_refused_before_anything_is_removed(
+    tmp_path, repo, bundle, key, kind
+):
+    outside = tmp_path / "outside.txt"
+    outside.write_text("keep\n", encoding="utf-8")
+    install(repo, bundle)
+    bad = {
+        "absolute": str(outside),
+        "dotdot": "../outside.txt",
+        "nested-dotdot": ".claude/../../outside.txt",
+    }[kind]
+    tamper(repo, **{key: receipt_of(repo)[key] + [bad]})
+    with pytest.raises(InstallError, match="escapes"):
+        uninstall(repo)
+    assert outside.is_file() and loop_skill(repo).is_file()
+
+
+def test_a_receipt_not_owned_by_loop_is_refused(repo, bundle):
+    install(repo, bundle)
+    tamper(repo, owner="someone-else")
+    with pytest.raises(InstallError, match="not Loop-owned"):
+        uninstall(repo)
+    assert loop_skill(repo).is_file()
+
+
+@pytest.mark.parametrize("body", ["{not json", "", "[1, 2]", "null"])
+def test_a_corrupt_receipt_is_refused_and_nothing_is_removed(repo, bundle, body):
+    user_skill = write(
+        repo / ".claude" / "skills" / "minha-skill" / "SKILL.md", "mine\n"
+    )
+    install(repo, bundle)
+    (repo / ".simplicio-loop" / "install-ownership.json").write_text(
+        body, encoding="utf-8"
+    )
+    with pytest.raises(InstallError):
+        uninstall(repo)
+    assert user_skill.is_file() and loop_skill(repo).is_file()
+
+
+def test_a_missing_receipt_removes_nothing(repo, bundle):
+    install(repo, bundle)
+    (repo / ".simplicio-loop" / "install-ownership.json").unlink()
+    with pytest.raises(InstallError, match="no Loop ownership receipt"):
+        uninstall(repo)
+    assert loop_skill(repo).is_file()
+
+
+def test_a_registered_directory_is_never_removed_as_if_it_were_a_file(repo, bundle):
+    user_skill = write(
+        repo / ".claude" / "skills" / "minha-skill" / "SKILL.md", "mine\n"
+    )
+    install(repo, bundle)
+    tamper(
+        repo, paths=receipt_of(repo)["paths"] + [".claude/skills/minha-skill"]
+    )
+    result = uninstall(repo)
+    assert user_skill.is_file()
+    assert ".claude/skills/minha-skill" in result["skipped"]
+
+
+def test_a_glob_in_the_receipt_is_a_literal_name_not_a_pattern(repo, bundle):
+    user_skill = write(
+        repo / ".claude" / "skills" / "minha-skill" / "SKILL.md", "mine\n"
+    )
+    install(repo, bundle)
+    tamper(repo, paths=[".claude/skills/*", ".claude/skills/**/*.md"])
+    uninstall(repo)
+    assert user_skill.is_file() and loop_skill(repo).is_file()
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [{"paths": [1]}, {"paths": "abc"}, {"paths": None}, {"dirs": [None]}, {"dirs": "x"}],
+)
+def test_a_receipt_with_the_wrong_field_types_is_refused(repo, bundle, changes):
+    install(repo, bundle)
+    tamper(repo, **changes)
+    with pytest.raises(InstallError, match="malformed"):
+        uninstall(repo)
+    assert loop_skill(repo).is_file()
+
+
+def test_a_symlink_in_a_registered_path_never_reaches_outside_the_target(
+    tmp_path, repo, bundle
+):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    victim = write(outside / "x.txt", "keep\n")
+    install(repo, bundle)
+    (repo / "docs").symlink_to(outside, target_is_directory=True)
+    tamper(repo, paths=receipt_of(repo)["paths"] + ["docs/x.txt"])
+    with pytest.raises(InstallError, match="escapes"):
+        uninstall(repo)
+    assert victim.is_file() and loop_skill(repo).is_file()
+
+
+def test_a_registered_directory_replaced_by_a_symlink_is_refused_not_a_crash(
+    tmp_path, repo, bundle
+):
+    install(repo, bundle)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    (repo / "hooks" / "loop_stop.py").unlink()
+    (repo / "hooks").rmdir()
+    (repo / "hooks").symlink_to(elsewhere, target_is_directory=True)
+    with pytest.raises(InstallError, match="escapes"):
+        uninstall(repo)
+    assert (repo / "hooks").is_symlink() and loop_skill(repo).is_file()
+
+
+def test_a_registered_directory_that_is_a_symlink_is_left_alone(tmp_path, repo, bundle):
+    install(repo, bundle)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    (repo / "mylink").symlink_to(elsewhere, target_is_directory=True)
+    tamper(repo, dirs=receipt_of(repo)["dirs"] + ["mylink"])
+    result = uninstall(repo)
+    assert "mylink" not in result["removed_dirs"]
+    assert (repo / "mylink").is_symlink() and elsewhere.is_dir()

@@ -341,7 +341,7 @@ def test_stage_agents_route_carries_the_cost_per_task_and_iteration_and_the_agen
     assert status == 200
     data = json.loads(body)
     tasks = {row['key']: row for row in data['breakdown']['by_task']}
-    assert tasks['T1']['cost_usd'] == tasks['T2']['cost_usd'] == 0.1 and tasks['T1']['proof_kind'] == 'estimado'
+    assert data['cost']['by_task'] == {'T1': 0.1, 'T2': 0.1} and 'cost_usd' not in tasks['T1']
     assert [row['key'] for row in data['breakdown']['by_iteration']] == [1, 2]
     assert data['breakdown']['tokens']['total'] == 2_000_000 and data['breakdown']['tokens']['proof_kind'] == 'medido'
     [lane] = data['agent_map']['lanes']

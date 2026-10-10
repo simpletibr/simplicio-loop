@@ -1814,6 +1814,8 @@ def _provider_worker_plan(
             "receipt_path": str(receipt_path),
         }
         _write_json(receipt_path, receipt)
+        # The provider's measured usage is known only now: the route record was written before the call.
+        _dashboard_events.emit_token_usage(run_dir, only=receipt_path.name)
         return plan, receipt
     except ProviderWorkerError as exc:
         blocked = {

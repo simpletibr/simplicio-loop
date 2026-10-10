@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 from pathlib import Path
 from typing import Any, Iterator, Mapping
@@ -198,11 +199,22 @@ def apply_plan(
 
 
 def _receipt_path(root: Path, rel: str) -> Path:
-    """A receipt path is relative and stays under the target; anything else is a receipt that cannot be trusted."""
+    """A receipt path is relative and stays under the target, symlinks included (`root` is resolved); anything else
+    is a receipt that cannot be trusted."""
     parts = Path(rel).parts
-    if not rel or Path(rel).is_absolute() or ".." in parts:
+    if not rel or not parts or Path(rel).is_absolute() or ".." in parts:
         raise InstallError(f"ownership receipt path escapes the target: {rel}")
-    return root.joinpath(*parts)
+    path = root.joinpath(*parts)
+    if not Path(os.path.realpath(path.parent)).is_relative_to(root):
+        raise InstallError(f"ownership receipt path escapes the target through a symlink: {rel}")
+    return path
+
+
+def _listed(receipt: dict[str, Any], key: str) -> list[str]:
+    value = receipt.get(key)
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise InstallError(f"ownership receipt is malformed: `{key}` must be a list of paths")
+    return value
 
 
 def _read_receipt(root: Path) -> dict[str, Any]:
@@ -228,7 +240,7 @@ def uninstall(target: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
     """
     root = Path(target).resolve()
     receipt = _read_receipt(root)
-    files = sorted({RECEIPT.as_posix(), *(receipt.get("paths") or [])})
+    files = sorted({RECEIPT.as_posix(), *_listed(receipt, "paths")})
     gone: set[str] = set()
     removed: list[str] = []
     skipped: list[str] = []
@@ -241,9 +253,9 @@ def uninstall(target: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
             skipped.append(rel)
     removed_dirs: list[str] = []
     kept: list[str] = []
-    for rel in sorted(set(receipt.get("dirs") or []), key=lambda item: item.count("/"), reverse=True):
+    for rel in sorted(set(_listed(receipt, "dirs")), key=lambda item: item.count("/"), reverse=True):
         path = _receipt_path(root, rel)
-        if not path.is_dir():
+        if path.is_symlink() or not path.is_dir():  # a link is the user's, whatever it points at
             continue
         if all(child.relative_to(root).as_posix() in gone for child in path.iterdir()):
             removed_dirs.append(rel)

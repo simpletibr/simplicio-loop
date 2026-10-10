@@ -4,7 +4,7 @@ It combines what the earlier stages already decided, and runs none of it again:
 * verify green: the label ``verify.decide`` gave (``ctx.verify``). No label, a failed one or an unknown one blocks;
   ``UNVERIFIED|no_test_command`` is what decide lets through (the repo has no tests), and is flagged in the evidence;
 * judge ACCEPT and a clean secret scan: the verdict ``judge`` saved in ``<run_dir>/judge.json``;
-* a non-empty ``Closes #N``: the closing line the PR body carries, which needs the issue number.
+* a non-empty ``Parte de #N``: the closing line the PR body carries, which needs the issue number.
 Every failure is listed; the first is the reason_code.
 An empty diff (judge saved NO_DIFF) is skipped: the tick ends it as done_no_diff and opens no PR.
 """
@@ -30,7 +30,7 @@ def _verdict(ctx: PointContext) -> dict | None:
 
 def _closes(ctx: PointContext) -> str | None:
     number = str((ctx.issue or {}).get("number") or "").strip()
-    return f"Closes #{number}" if number.isdigit() and int(number) > 0 else None
+    return f"Parte de #{number}" if number.isdigit() and int(number) > 0 else None
 
 
 async def gate(ctx: PointContext) -> PointResult:

@@ -121,7 +121,9 @@ def test_review_on_loop_pr_becomes_queued_fix_for_the_same_issue(env):
     run_tick()
     assert len(fake.turbo_argv) == 1
     assert "troque o retorno para dict" in tasks(fake)[0] and "Issue #7" in tasks(fake)[0]
-    assert any("origin/loop/issue-7" in a for a in fake.ran("git", "checkout"))
+    # the fix starts from the open PR head (`origin/loop/issue-7`), on the same branch, in the item's own worktree: the whole argv
+    assert fake.ran("git", "worktree", "add") == [
+        ["git", "worktree", "add", "-q", "-B", "loop/issue-7", str(config.WORK / "simplicio-a.wt" / "7"), "origin/loop/issue-7"]]
     run_tick()  # the same review is never queued twice
     assert len(fake.turbo_argv) == 1
 

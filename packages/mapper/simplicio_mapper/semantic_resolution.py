@@ -74,7 +74,7 @@ def _timeout() -> float:
     return value if value > 0 else DEFAULT_TIMEOUT_S
 
 
-def _command(value: str | Sequence[str] | None) -> list[str] | None:
+def command_parts(value: str | Sequence[str] | None) -> list[str] | None:
     if value is None:
         value = os.environ.get(COMMAND_ENV, "").strip()
     if isinstance(value, str):
@@ -135,7 +135,7 @@ class RoslynSemanticAdapter:
             return None, SemanticResolutionReceipt(
                 "not_required", languages=languages, reason="language_not_supported_by_semantic_adapter"
             ).as_dict()
-        command = _command(self.command)
+        command = command_parts(self.command)
         if command is None:
             return None, SemanticResolutionReceipt(
                 "unavailable", languages=languages, reason="semantic_service_not_configured"

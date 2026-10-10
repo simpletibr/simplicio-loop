@@ -14,7 +14,7 @@ import subprocess
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Mapping, Sequence
 
-from . import operator_exec, plan_paths
+from . import operator_exec, plan_paths, turbo_window
 
 IndexFn = Callable[[Path], Awaitable[str]]
 
@@ -163,8 +163,8 @@ def mapper_reading(root: Path, focus: Sequence[str] | None = None) -> str:
     return text[:_MAPPER_READING_LIMIT]
 
 
-def _parse_operations(content: str) -> list[dict]:
-    import json
+def _payload(content: str) -> Any:
+    """The JSON a model reply holds (a fence or prose around it is tolerated)."""
     import re
     text = content.strip()
     fenced = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.S)
@@ -174,10 +174,26 @@ def _parse_operations(content: str) -> list[dict]:
     end = text.rfind("}")
     if start >= 0 and end > start:
         text = text[start:end + 1]
-    payload = json.loads(text)
+    return json.loads(text)
+
+
+def load_need(text: str) -> list[dict]:
+    """The lines a plan asks for instead of editing, ``{"operations": [], "need": [{"path","start","end"}]}``; ``[]`` for a plan."""
+    payload = _payload(text)
+    if not isinstance(payload, dict) or payload.get("operations"):
+        return []
+    return turbo_window.parse_need(payload.get("need"))
+
+
+class EmptyPlanError(ValueError):
+    """The plan holds no operations."""
+
+
+def _parse_operations(content: str) -> list[dict]:
+    payload = _payload(content)
     operations = payload.get("operations") if isinstance(payload, dict) else None
     if not isinstance(operations, list) or not operations:
-        raise ValueError("the plan has no operations")
+        raise EmptyPlanError("the plan has no operations")
     for number, operation in enumerate(operations, start=1):
         path = operation.get("path") if isinstance(operation, dict) else None
         if isinstance(path, str) and (reason := plan_paths.refusal(path)):
@@ -232,38 +248,25 @@ def header_message(reading: str) -> dict[str, str]:
     }
 
 
-FILE_CHARS = 6000
+def current_files(root: Path, tasks: Sequence[Mapping[str, Any]], windows: Sequence[Mapping[str, Any]] = ()) -> dict[str, Any]:
+    """The current text of every existing target and context file, each once, in task order (``turbo_window``).
 
-
-def current_files(root: Path, tasks: Sequence[Mapping[str, Any]]) -> dict[str, str]:
-    """The current text of every existing target and context file, each once, in task order.
-
-    A file past ``FILE_CHARS`` is cut and the last line says so, so a model that needs the rest knows to read it.
+    A file that fits is its text. A bigger one is a window object around what the tasks name, with the omitted line
+    ranges (#1643); ``windows`` are the lines the caller asked for.
     """
-    files: dict[str, str] = {}
-    for task in tasks:
-        for name in [task.get("target"), *(task.get("context") or [])]:
-            path = root / str(name) if name else None
-            if not name or str(name) in files or path is None or not path.is_file():
-                continue
-            body = path.read_text(encoding="utf-8", errors="replace")
-            cut = len(body) - FILE_CHARS
-            files[str(name)] = body if cut <= 0 else body[:FILE_CHARS] + f"\n[truncated: {cut} more characters not shown]"
-    return files
+    return turbo_window.build_files(root, tasks, windows)
 
 
 def task_message(tasks: Sequence[Mapping[str, Any]], root: Path | None = None) -> dict[str, str]:
     """Task text plus the current target bytes. This is the suffix, not the header."""
     parts = []
+    files = turbo_window.build_files(root, tasks) if root is not None else {}
     for task in tasks:
         parts.append(f"{task.get('index')}. {task.get('text')}")
-        if root is None:
-            continue
         for name in [task.get("target"), *(task.get("context") or [])]:
-            path = root / str(name) if name else None
-            if path is not None and path.is_file():
-                body = path.read_text(encoding="utf-8", errors="replace")[:FILE_CHARS]
-                parts.append(f"Current {name}:\n{body}")
+            entry = files.get(str(name)) if name else None
+            if entry is not None:
+                parts.append(f"Current {name}:\n{entry}" if isinstance(entry, str) else turbo_window.provider_text(str(name), entry))
     return {"role": "user", "content": "Tasks:\n" + "\n".join(parts)}
 
 

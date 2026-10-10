@@ -221,3 +221,16 @@ def test_handoff_path_rejects_bad_continuation_numbers(tmp_path, n):
     with pytest.raises(ah.HandoffError) as exc:
         ah.handoff_path(tmp_path, "run-1", n)
     assert exc.value.reason_code == "handoff_continuation_invalid"
+
+
+# --- reviewer additions (#1613) ------------------------------------------------------------------------------------------
+@pytest.mark.parametrize("mutate", [
+    lambda d: d.__setitem__("run_id", "abc\n"),
+    lambda d: d.__setitem__("created_at", "2026-10-09T17:00:00Z\n"),
+    lambda d: d["done"]["files"][0].__setitem__("sha256", "a" * 64 + "\n"),
+])
+def test_patterns_do_not_accept_a_trailing_newline(mutate):
+    doc = json.loads((FIXTURES / "valid-measured.json").read_text(encoding="utf-8"))
+    mutate(doc)
+    with pytest.raises(ah.HandoffError):
+        ah.validate_handoff(doc)

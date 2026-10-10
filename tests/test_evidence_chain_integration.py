@@ -109,7 +109,7 @@ def test_web_verify_artifact_is_found_and_embedded_by_pr_evidence(tmp_path):
     # the AC checklist made it through
     assert "AC1" in body and "AC2" in body
     assert "Login page renders an SSO button" in body
-    assert "Closes #12" in body
+    assert "Parte de #12" in body and "Closes #12" not in body
 
     # the EXACT file web_verify wrote is embedded as a markdown image — not a placeholder path
     shot_rel = os.path.relpath(shot, REPO).replace(os.sep, "/")

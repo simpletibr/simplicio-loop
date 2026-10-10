@@ -19,6 +19,8 @@ export const EN = {
   'Contrato': 'Contract',
   'Contrato da tarefa': 'Task contract',
   'Convergência': 'Convergence',
+  'Custo por iteração': 'Cost by iteration',
+  'Custo por tarefa': 'Cost by task',
   'Definição de pronto': 'Definition of done',
   'Detalhe': 'Detail',
   'Economia acumulada': 'Cumulative savings',
@@ -51,6 +53,7 @@ export const EN = {
   'Seções do detalhe': 'Detail sections',
   'Tempo na fase': 'Time in phase',
   'Tokens economizados': 'Tokens saved',
+  'Tokens por fase e modelo': 'Tokens by phase and model',
   'Último heartbeat': 'Last heartbeat',
 };
 

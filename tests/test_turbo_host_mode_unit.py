@@ -21,7 +21,8 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "bench" / "llm_ab" / "fixture_hard"
 SOLUTION = ROOT / "tests" / "fixtures" / "llm_ab_hard_solution"
 HIDDEN = ROOT / "bench" / "llm_ab" / "hidden" / "check_hard.py"
-RULES = ("Write the plan from the file contents above; do not open, list or read other files; "
+RULES = ("Write the plan from the file contents above; do not open, list or read other files "
+         '(a file shown in windows has more lines: answer {"operations": [], "need": [{"path", "start", "end"}]} to see them); '
          "do not run tests yourself; run the command below once.")
 FORMAT = {"operations": [{"path": "<repo-relative>", "find": "<exact text that occurs once; empty creates the file>",
                           "replace": "<new text>"}]}
@@ -147,12 +148,14 @@ def test_several_tasks_share_one_request_and_each_file_appears_once(tmp_path, ho
     assert [f["path"] for f in out["map"]["files"]] == ["inventory.py"]  # the slice follows every named file
 
 
-def test_a_file_past_the_cap_is_cut_and_says_so(tmp_path, host, capsys):
+def test_a_file_past_the_cap_is_shown_in_windows_and_says_what_is_omitted(tmp_path, host, capsys):
     repo = _seed(tmp_path)
     (repo / "big.py").write_text("x = 1\n" * 3000, encoding="utf-8")
     rc, out = _request(repo, capsys, "--task", "Edit big.py")
-    assert rc == 0 and out["files"]["big.py"].startswith("x = 1\n")
-    assert len(out["files"]["big.py"]) < 6200 and "truncated" in out["files"]["big.py"].splitlines()[-1]
+    entry = out["files"]["big.py"]
+    assert rc == 0 and entry["windows"][0]["start"] == 1 and entry["windows"][0]["text"].startswith("x = 1\n")
+    assert entry["total_lines"] == 3000 and entry["omitted"][-1]["end"] == 3000 and "need" in entry["more"]
+    assert sum(len(w["text"]) for w in entry["windows"]) <= 16_000  # the per-file ceiling (turbo_window.FILE_CHARS_MAX)
 
 
 def test_the_request_without_a_task_is_blocked(tmp_path, host, capsys):

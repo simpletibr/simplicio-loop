@@ -51,7 +51,7 @@ def test_turbo_ok_commits_opens_pr_and_comments_url(env):
     run_tick()
     argv = fake.turbo_argv[0]
     assert argv[:2] == ["simplicio-loop", "turbo"]
-    assert argv[argv.index("--repo") + 1] == str(config.WORK / "simplicio-a")
+    assert argv[argv.index("--repo") + 1] == str(config.WORK / "simplicio-a.wt" / "7")  # the item's own worktree, not the base clone
     assert argv[argv.index("--provider") + 1] == "openrouter"
     task = argv[argv.index("--task") + 1]
     assert "Issue #7: Add x" in task and "Protocolo Simplicio-Loop, nesta ordem" in task and "50 pontos" not in task
@@ -59,11 +59,12 @@ def test_turbo_ok_commits_opens_pr_and_comments_url(env):
     assert "dev-cli aplica" in task and "CLI de execucao planeja" in task, "it states what actually runs"
     assert fake.turbo_timeouts == [900]
     commit = fake.ran("git", "commit")[0]
-    assert commit[3] == "loop: Add x\n\nCloses #7\n"
+    assert commit[3] == "loop: #7 Add x\n\nParte de #7\n"
     assert fake.ran("git", "add", "-A") and fake.ran("git", "reset", "-q", "--", ".simplicio-loop")
     assert fake.ran("git", "push", "-u", "origin", "loop/issue-7")
     pr = fake.ran("gh", "pr", "create")[0]
     assert pr[pr.index("--base") + 1] == "main" and pr[pr.index("--head") + 1] == "loop/issue-7"
+    assert pr[pr.index("--title") + 1] == "loop: #7 Add x" and pr[pr.index("--body") + 1].endswith("Parte de #7\n")
     assert PR_URL in fake.marker_comments(7)[-1]["body"]
     claim = read_json(config.CLAIMS)["simplicio-a#7"]
     assert claim["status"] == "done" and claim["pr"] == PR_URL and claim["turbo_status"] == "ok"
@@ -147,32 +148,32 @@ def test_skip_labels_are_never_processed(env):
 def test_in_flight_equals_concurrency(env, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
     names = ["simplicio-a", "simplicio-b", "simplicio-c", "simplicio-d"]
-    fake = env(FakeRun({n: [issue(i)] for i, n in enumerate(names, 1)}, diff=False, delay=0.05))
+    fake = env(FakeRun({n: [issue(i)] for i, n in enumerate(names, 1)}, diff=False, delay=0.05, meet=2))
     baseline()
     run_tick()
     assert fake.max_turbo == 2
     assert len(fake.turbo_argv) == 2
     assert read_json(config.STATUS)["processed"] == ["simplicio-a#1", "simplicio-b#2"]
 
-
-def test_same_repo_issues_never_overlap(env, monkeypatch):
+def test_same_repo_issues_overlap_each_in_its_own_worktree(env, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
-    fake = env(FakeRun({"simplicio-a": [issue(1), issue(2)]}, diff=False, delay=0.05))
+    bodies = ["Ajustar `a.py` para o fluxo.", "Ajustar `b.py` para o fluxo."]
+    fake = env(FakeRun({"simplicio-a": [issue(1, body=bodies[0]), issue(2, body=bodies[1])]}, diff=False, delay=0.05, meet=2))
     baseline()
     run_tick()
     assert len(fake.turbo_argv) == 2
-    assert fake.max_turbo == 1
-    assert fake.max_repo_active == 1
+    assert fake.max_turbo == 2 and fake.max_worktrees == 2
+    assert set(fake.turbo_cwds) == {config.WORK / "simplicio-a.wt" / "1", config.WORK / "simplicio-a.wt" / "2"}
+    assert fake.worktrees == {}  # both removed
     assert set(read_json(config.CLAIMS)) == {"simplicio-a#1", "simplicio-a#2"}
 
 
 def test_different_repos_do_overlap(env, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
-    fake = env(FakeRun({"simplicio-a": [issue(1)], "simplicio-b": [issue(2)]}, diff=False, delay=0.05))
+    fake = env(FakeRun({"simplicio-a": [issue(1)], "simplicio-b": [issue(2)]}, diff=False, delay=0.05, meet=2))
     baseline()
     run_tick()
     assert fake.max_turbo == 2
-
 
 def test_dry_run_reads_but_writes_nothing(env, tmp_path):
     fake = env(FakeRun({"simplicio-a": [issue(1)]}))

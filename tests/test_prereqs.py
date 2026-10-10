@@ -405,3 +405,41 @@ def test_the_real_runner_never_uses_a_shell(tmp_path):
     marker = tmp_path / "marker"
     assert prereqs._run(["printf", "%s", f"a b; touch {marker} $HOME"], 5) == (0, f"a b; touch {marker} $HOME")  # one literal argument
     assert not marker.exists()
+
+
+def test_the_real_runner_gives_the_probe_a_minimal_environment_without_tokens(tmp_path, monkeypatch):
+    for name in ("GH_TOKEN", "GITHUB_TOKEN", "ANTHROPIC_API_KEY", "AWS_SECRET_ACCESS_KEY", "SIMPLICIO_TOKEN"):
+        monkeypatch.setenv(name, "ghp_FAKEFAKEFAKEFAKEFAKE0042")
+    dump = script(tmp_path, "dump", "env")
+    code, text = prereqs._run([dump], 5)
+    names = {line.split("=", 1)[0] for line in text.splitlines()}
+    assert code == 0 and {"PATH", "HOME"} <= names
+    assert not names & {"GH_TOKEN", "GITHUB_TOKEN", "ANTHROPIC_API_KEY", "AWS_SECRET_ACCESS_KEY", "SIMPLICIO_TOKEN"}
+    assert "ghp_FAKE" not in text
+
+
+def test_check_all_probes_a_tool_found_on_path_without_the_token_in_its_environment(tmp_path, monkeypatch):
+    monkeypatch.setenv("GH_TOKEN", "ghp_FAKEFAKEFAKEFAKEFAKE0042")
+    seen = tmp_path / "probe-env.txt"
+    (tmp_path / "bin").mkdir()
+    script(tmp_path / "bin", "gh", f"env > {seen}\necho 'gh version 2.60.0 (2024-11-01)'")
+    checks = {c.name: c for c in prereqs.check_all({"PATH": str(tmp_path / "bin")}, platform="linux")}
+    assert checks["gh"].status == "ok" and checks["gh"].version == "2.60.0"
+    assert seen.exists() and "GH_TOKEN" not in seen.read_text()
+
+
+def test_a_release_download_that_answers_3xx_without_location_is_a_failed_action_not_an_exception(tmp_path, monkeypatch):
+    import httpx
+
+    from simplicio_loop import release_fetch
+
+    def answer(request):
+        if request.url.host == "api.github.com":
+            return httpx.Response(200, json={"tag_name": "v2.60.0"})
+        return httpx.Response(302)  # no Location
+
+    monkeypatch.setattr(release_fetch, "_transport", httpx.MockTransport(answer))
+    gh = prereqs.Check(name="gh", status="missing", required=True, path=None, version=None, minimum=None, fix="", auto="user")
+    actions = prereqs.ensure([gh], environ={"HOME": str(tmp_path)}, bin_dir=tmp_path / "bin", platform="linux", machine="x86_64")
+    assert [(a.name, a.result) for a in actions] == [("gh", "failed")]
+    assert actions[0].detail.startswith("unsafe_url:") and not (tmp_path / "bin").exists()

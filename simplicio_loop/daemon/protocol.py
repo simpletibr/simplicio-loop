@@ -59,8 +59,9 @@ def supported() -> bool:
 def secure_dir(path: os.PathLike[str] | str, create: bool = True) -> str:
     """The directory at ``path``, created 0700 if missing, refused unless it is private to this user.
 
-    Refused: a symlink, a non-directory, another owner, any group or other permission bit, and a parent that
-    others can write to (unless it is sticky), because that would let them rename the directory away.
+    Refused: a symlink, a non-directory, another owner, any group or other permission bit, a parent that belongs
+    to neither this user nor root, and a parent that others can write to (unless it is sticky): both would let
+    someone else rename the directory away.
     """
     target = os.path.abspath(os.fspath(path))
     parent_path = os.path.dirname(target)
@@ -83,6 +84,8 @@ def secure_dir(path: os.PathLike[str] | str, create: bool = True) -> str:
     if stat.S_IMODE(info.st_mode) & 0o077:
         raise DaemonError("dir_mode", f"{target} must not be open to group or others (chmod 700)")
     parent = os.lstat(parent_path)
+    if parent.st_uid not in (0, os.geteuid()):
+        raise DaemonError("dir_parent_owner", f"{parent_path} belongs to another user")
     if parent.st_mode & 0o022 and not parent.st_mode & stat.S_ISVTX:
         raise DaemonError("dir_parent", f"{parent_path} can be written by others and is not sticky")
     return target
@@ -112,10 +115,47 @@ def daemon_key(environ: Optional[Mapping[str, str]] = None, exe: str | None = No
 
 
 def paths(directory: os.PathLike[str] | str, key: str) -> Paths:
+    """Socket, lock and log of the daemon of ``key``. A unix socket path holds about 100 bytes: when
+    ``<directory>/<key>.sock`` is longer, the socket is named by a hash of that path in the private directory
+    ``/tmp/simplicio-loop-<uid>``, never in ``$TMPDIR``, so every caller derives the same path (the lock and the
+    log stay in ``directory``)."""
     base = os.path.join(os.fspath(directory), key)
-    if len(os.fsencode(base + ".sock")) > MAX_SOCKET_PATH:
-        raise DaemonError("dir_long", f"{base}.sock is too long for a unix socket; set {DIR_ENV} to a shorter directory")
-    return Paths(base + ".sock", base + ".pid", base + ".log")
+    sock = base + ".sock"
+    if len(os.fsencode(sock)) > MAX_SOCKET_PATH:
+        short = secure_dir(f"/tmp/simplicio-loop-{os.geteuid()}")  # not $TMPDIR: every caller must derive the same path
+        sock = os.path.join(short, hashlib.sha256(os.fsencode(base)).hexdigest()[:16] + ".sock")
+    return Paths(sock, base + ".pid", base + ".log")
+
+
+RLIMITS = ("NOFILE", "NPROC", "AS", "CPU", "CORE")  # the limits a command takes from its caller
+
+
+def process_state() -> dict[str, Any]:
+    """Priority, resource limits and cpus of this process: what the command it asks for must run with."""
+    import resource
+
+    state: dict[str, Any] = {
+        "nice": os.getpriority(os.PRIO_PROCESS, 0),
+        "rlimits": {name: list(resource.getrlimit(getattr(resource, "RLIMIT_" + name))) for name in RLIMITS
+                    if hasattr(resource, "RLIMIT_" + name)},
+    }
+    if hasattr(os, "sched_getaffinity"):
+        state["cpus"] = sorted(os.sched_getaffinity(0))
+    return state
+
+
+def valid_process_state(proc: Any) -> bool:
+    """True when ``proc`` has the shape ``process_state`` makes. Every key is optional."""
+    def number(value: Any) -> bool:
+        return isinstance(value, int) and not isinstance(value, bool)
+
+    if not isinstance(proc, dict):
+        return False
+    limits, cpus = proc.get("rlimits", {}), proc.get("cpus", [])
+    return (number(proc.get("nice", 0)) and isinstance(limits, dict) and isinstance(cpus, list)
+            and all(name in RLIMITS and isinstance(pair, list) and len(pair) == 2 and all(map(number, pair))
+                    for name, pair in limits.items())
+            and all(map(number, cpus)))
 
 
 def peer_uid(sock: socket.socket) -> Optional[int]:
@@ -133,7 +173,7 @@ def peer_uid(sock: socket.socket) -> Optional[int]:
 
 
 def encode(message: Mapping[str, Any]) -> bytes:
-    return json.dumps(message, separators=(",", ":"), ensure_ascii=False).encode("utf-8") + b"\n"
+    return json.dumps(message, separators=(",", ":")).encode("utf-8") + b"\n"
 
 
 def send_request(sock: socket.socket, message: Mapping[str, Any], fds: Sequence[int] = ()) -> None:

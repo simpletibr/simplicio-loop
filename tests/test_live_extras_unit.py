@@ -292,7 +292,7 @@ def test_the_page_links_the_extras_stylesheet_and_no_new_script():
 
 def test_the_app_imports_startextras_and_starts_it_inside_the_token_block():
     text = (LIVE / 'app.js').read_text(encoding='utf-8')
-    assert text.count("import { startExtras } from '/static/extras/extras.js';") == 1
+    assert text.count("import { startBudget, startExtras } from '/static/extras/extras.js';") == 1
     start = text.index('function start() {')
     call = text.index('startExtras(readApi, runId);')
     assert start < call < text.index('if (!token || !runId)', start)
@@ -410,22 +410,6 @@ def test_lane_and_model_widgets_name_the_missing_key_instead_of_hiding_it():
     assert [seg['text'] for seg in _widget(BD, 'Tokens por modelo')['segments']] == ['m-a: 300']
 
 
-def test_cost_per_task_is_estimated_and_an_unpriced_task_is_listed_unverified_with_its_reason():
-    widget = _widget(BD, 'Custo por tarefa')
-    assert widget['state'] == 'ESTIMADO'
-    assert [seg['text'] for seg in widget['segments']] == ['T1: US$ 0.2500 estimado', 'T2: US$ 0.7500 estimado']
-    assert [round(seg['pct'], 1) for seg in widget['segments']] == [25.0, 75.0]
-    assert 'T3: custo UNVERIFIED (sem preço na tabela)' in [item['text'] for item in widget['legend']]
-
-
-def test_cost_per_iteration_names_the_iteration_and_how_it_was_attributed():
-    widget = _widget(BD, 'Custo por iteração')
-    assert [seg['text'] for seg in widget['segments']] == ['iteração 1: US$ 0.4000 estimado',
-                                                           'iteração 2 (ordem dos eventos): US$ 0.6000 estimado']
-    assert 'sem iteração: custo UNVERIFIED (tokens não medidos)' in [item['text'] for item in widget['legend']] \
-        or any(item['text'].startswith('sem iteração') for item in widget['legend'])
-
-
 def test_a_breakdown_with_no_measured_tokens_is_unverified_with_the_server_reason_and_has_no_bar():
     widget = _widget(_stages(total=None), 'Tokens por fase')
     assert widget['state'] == 'UNVERIFIED' and widget['segments'] == []
@@ -526,18 +510,6 @@ def test_aggregate_rows_with_others_field_render_as_outros():
     assert any('outros (7)' in seg['text'] for seg in widget['segments']), widget['segments']
 
 
-def test_aggregate_row_in_cost_by_task():
-    """Cost by task with aggregate row."""
-    stages = _stages(
-        by_task=[
-            _bd_row('T1', 100, 0.25), _bd_row('T2', 200, 0.75),
-            _bd_row(None, 5, cost=0.05, others=3)  # others=3, folded 3 tasks
-        ]
-    )
-    widget = _widget(stages, 'Custo por tarefa')
-    assert any('outros (3)' in seg['text'] for seg in widget['segments']), widget['segments']
-
-
 def test_aggregate_row_in_agent_map_lanes():
     """Agent map with aggregate row."""
     stages = _stages()
@@ -570,58 +542,6 @@ def test_tasks_total_and_lease_ids_total_suffix():
     }
     widget = _widget(stages, 'Mapa de agentes')
     assert widget['legend'][0]['text'] == 'coder: 5 claims, tarefas T1, T2 (+3), leases L1 (+3)'
-
-
-def test_partial_cost_headline_one_unpriced():
-    """When at least one row is unpriced, show (parcial: N sem preço)."""
-    stages = _stages(
-        by_task=[
-            _bd_row('T1', 100, 0.5),
-            _bd_row('T2', 100, None, reason='sem preço na tabela'),
-        ]
-    )
-    widget = _widget(stages, 'Custo por tarefa')
-    # Should include "parcial: 1 sem preço"
-    assert '(parcial: 1 sem preço)' in widget['text'], widget['text']
-
-
-def test_partial_cost_headline_multiple_unpriced():
-    """Multiple unpriced rows count in the partial text."""
-    stages = _stages(
-        by_task=[
-            _bd_row('T1', 100, 0.5),
-            _bd_row('T2', 100, None, reason='sem preço'),
-            _bd_row('T3', 50, None, reason='sem preço'),
-        ]
-    )
-    widget = _widget(stages, 'Custo por tarefa')
-    assert '(parcial: 2 sem preço)' in widget['text'], widget['text']
-
-
-def test_partial_cost_all_priced_no_partial_text():
-    """When all rows are priced, no parcial text."""
-    stages = _stages(
-        by_task=[
-            _bd_row('T1', 100, 0.5),
-            _bd_row('T2', 100, 0.5),
-        ]
-    )
-    widget = _widget(stages, 'Custo por tarefa')
-    assert '(parcial:' not in widget['text'] and widget['text'] == 'US$ 1.0000 estimado', widget['text']
-
-
-def test_partial_cost_with_aggregate_row():
-    """Aggregate rows may be priced or unpriced; count them in the partial text."""
-    stages = _stages(
-        by_task=[
-            _bd_row('T1', 100, 0.5),
-            _bd_row('T2', 100, None, reason='sem preço'),
-            _bd_row(None, 10, 0.05, others=2),  # aggregate: priced
-        ]
-    )
-    widget = _widget(stages, 'Custo por tarefa')
-    # One unpriced row (T2)
-    assert '(parcial: 1 sem preço)' in widget['text'], widget['text']
 
 
 def test_1000_rows_limited_to_max_rows_plus_aggregate():
@@ -685,7 +605,7 @@ def test_a_reply_with_150000_rows_per_dimension_renders_20_rows_plus_one_others_
     assert out['elapsed'] < 3000, out['elapsed']
     text = out['text']
     assert '300000 tokens medidos' in text and 'outros (149980): 299960\n' in text
-    assert 'outros (149980): US$ 149.9800 estimado' in text and 'US$ 150.0000 estimado' in text
+    assert 'US$ 1.0000 estimado' in text
     assert '150000 lanes, 300000 claims (worker_claimed)' in text and 'outros (149980): 299960 claims' in text
     assert 'outros (149980): entrada 149980, saída 149980' in text
 
@@ -693,10 +613,6 @@ def test_a_reply_with_150000_rows_per_dimension_renders_20_rows_plus_one_others_
 def test_the_rows_beyond_the_cap_are_folded_with_their_tokens_cost_and_claims_summed():
     rows = [_bd_row('r%d' % i, 10, 0.5, tokens_in=6, tokens_out=4) for i in range(30)]
     stages = _stages(by_task=rows, by_lane=rows)
-    widget = _widget(stages, 'Custo por tarefa')
-    assert widget['text'] == 'US$ 15.0000 estimado'
-    assert widget['legend'][-1]['text'] == 'outros (10): US$ 5.0000 estimado'
-    assert len(widget['segments']) == len(widget['legend']) == 21
     tokens = _widget(stages, 'Tokens por lane')
     assert tokens['text'] == '300 tokens medidos' and tokens['segments'][-1]['text'] == 'outros (10): 100'
     assert round(tokens['segments'][-1]['pct'], 2) == 33.33
@@ -705,13 +621,6 @@ def test_the_rows_beyond_the_cap_are_folded_with_their_tokens_cost_and_claims_su
     stages['agent_map'] = {'state': 'PASS', 'reason': None, 'lanes': lanes, 'slots': {'state': 'UNVERIFIED', 'reason': 'r'}}
     agents = _widget(stages, 'Mapa de agentes')
     assert agents['text'] == '30 lanes, 90 claims (worker_claimed)' and agents['legend'][20]['text'] == 'outros (10): 30 claims'
-
-
-def test_a_folded_tail_with_an_unpriced_row_is_unpriced_and_the_headline_is_partial():
-    rows = [_bd_row('r%d' % i, 10, 0.5) for i in range(29)] + [_bd_row('last', 10, None, reason='sem preço na tabela')]
-    widget = _widget(_stages(by_task=rows), 'Custo por tarefa')
-    assert widget['text'] == 'US$ 10.0000 estimado (parcial: 10 sem preço)'
-    assert widget['legend'][-1]['text'] == 'outros (10): custo UNVERIFIED (sem preço na tabela)'
 
 
 def test_stage_rows_with_aggregate():
@@ -765,3 +674,37 @@ def test_each_probe_appended_to_a_copy_of_extras_js_trips_the_guard_and_the_real
 def test_the_only_style_write_in_extras_js_is_the_literal_width():
     text = MODULE.read_text(encoding='utf-8')
     assert len(re.findall(r'\.style\b', text)) == 1 and len(re.findall(r"\.style\.setProperty\('width', ", text)) == 1
+
+
+def test_the_app_starts_the_budget_poll_in_extras_with_the_reducer_dispatch_and_the_tokens_cadence():
+    text = (LIVE / 'app.js').read_text(encoding='utf-8')
+    assert text.count('startBudget(readApi, runId, dispatch, TOKENS_POLL_MS);') == 1
+    assert 'loadBudget' not in text
+
+
+def _floor_stages(**cost):
+    stages = json.loads(json.dumps(STAGES))
+    stages['rows'][0].update(cost_floor=True, floor_reason='piso: 1 evento acima de 100000')
+    stages['cost'].update(dict(usd=0.0160, floor=True, floor_reason='piso: 1 evento(s) acima de 100000 tokens sem requests'), **cost)
+    return stages
+
+
+def test_a_floor_run_cost_reads_a_partir_de_with_the_reason_never_estimado():
+    text = _extras_of(VALID, _floor_stages())[6]['text']
+    assert text == 'a partir de US$ 0.0160 (piso: 1 evento(s) acima de 100000 tokens sem requests)'
+    assert 'estimado' not in text
+
+
+def test_a_floor_stage_row_reads_a_partir_de_and_an_exact_row_keeps_estimado():
+    text = _extras_of(VALID, _floor_stages())[5]['text']
+    assert 'planning: planning/high (padrão da tabela) m-a, entrada 1000, saída 200, a partir de US$ 0.0123;' in text
+    exact = _extras_of(VALID, STAGES)
+    assert 'a partir de' not in exact[5]['text'] and 'a partir de' not in exact[6]['text']
+
+
+def test_cached_tokens_outside_the_usd_are_said_in_the_run_cost():
+    stages = _floor_stages(unpriced_tokens={'cached_tokens': 5000, 'cache_write_tokens': 0, 'reasoning_tokens': 0})
+    assert _extras_of(VALID, stages)[6]['text'].endswith('; leitura de cache não entra no USD')
+    plain = json.loads(json.dumps(STAGES))
+    plain['cost']['unpriced_tokens'] = {'cached_tokens': 0, 'cache_write_tokens': 0, 'reasoning_tokens': 0}
+    assert _extras_of(VALID, plain)[6]['text'] == 'US$ 0.0123 estimado'

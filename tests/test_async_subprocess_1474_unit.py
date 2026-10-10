@@ -16,6 +16,12 @@ from pathlib import Path
 import pytest
 
 from simplicio_loop import cli_impl, map_service_mapper as msm, turbo_cli
+from simplicio_loop.turbo_run import TurboRun
+
+
+def _verify(root, command):
+    """The verify runs inside a run, so its command events have a run directory to land in."""
+    return turbo_cli._run_verify(root, command, TurboRun(root, "host"))
 
 
 async def _ticks_during(coro):
@@ -134,14 +140,14 @@ def test_a_bounded_index_over_budget_times_out_without_blocking_the_loop(tmp_pat
 
 def test_the_verify_keeps_the_event_loop_running_and_captures_both_streams(tmp_path):
     (report, output), ticks = asyncio.run(_ticks_during(
-        turbo_cli._run_verify(tmp_path, "sleep 0.5; echo out; echo err >&2; exit 3")))
+        _verify(tmp_path, "sleep 0.5; echo out; echo err >&2; exit 3")))
     assert ticks >= 10, ticks
     assert report["passed"] is False and report["returncode"] == 3
     assert output == "out\nerr" and report["output_tail"] == output
 
 
 def test_a_passing_verify_reports_passed(tmp_path):
-    (report, output), _ticks = asyncio.run(_ticks_during(turbo_cli._run_verify(tmp_path, "echo fine")))
+    (report, output), _ticks = asyncio.run(_ticks_during(_verify(tmp_path, "echo fine")))
     assert report == {"command": "echo fine", "passed": True, "returncode": 0, "output_tail": "fine"}
     assert output == "fine"
 
@@ -151,7 +157,7 @@ def test_a_verify_timeout_kills_the_whole_process_group(tmp_path, monkeypatch):
     pidfile = tmp_path / "child.pid"
 
     async def scenario():
-        result = await turbo_cli._run_verify(tmp_path, f"sleep 60 & echo $! > {pidfile}; wait")
+        result = await _verify(tmp_path, f"sleep 60 & echo $! > {pidfile}; wait")
         return result, int(pidfile.read_text())
 
     (report, output), child = asyncio.run(scenario())

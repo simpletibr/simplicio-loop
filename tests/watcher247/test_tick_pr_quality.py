@@ -4,10 +4,12 @@ import json
 from simplicio_loop.watcher247 import config
 
 from .fakes import FakeRun, baseline, issue, read_json, run_tick
+from simplicio_loop.watcher247.worktrees import state_home
 
 
 def point_statuses(name_repo, number):
-    events = (config.WORK / name_repo / ".simplicio-loop" / "orchestrator" / "points" / f"{name_repo}-{number}"
+    # State is now in state_home(repo, number)/.simplicio-loop/...
+    events = (state_home(name_repo, number) / ".simplicio-loop" / "orchestrator" / "points" / f"{name_repo}-{number}"
               / "events.jsonl")
     payloads = [json.loads(line).get("payload") or {} for line in events.read_text().splitlines()]
     return {p["point"]: (p["status"], p.get("reason_code")) for p in payloads if "point" in p}

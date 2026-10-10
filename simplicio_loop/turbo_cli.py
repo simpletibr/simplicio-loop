@@ -28,7 +28,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Sequence
 
-from . import plan_paths
+from . import plan_paths, turbo_window
 
 if TYPE_CHECKING:
     from .turbo_run import TurboRun
@@ -38,11 +38,13 @@ REQUEST_SCHEMA = "simplicio.turbo-request/v1"
 PLAN_FORMAT = {"operations": [{"path": "<repo-relative>",
                                "find": "<exact text that occurs once; empty creates the file>",
                                "replace": "<new text>"}]}
-RULES = ("Write the plan from the file contents above; do not open, list or read other files; "
+RULES = ("Write the plan from the file contents above; do not open, list or read other files "
+         '(a file shown in windows has more lines: answer {"operations": [], "need": [{"path", "start", "end"}]} to see them); '
          "do not run tests yourself; run the command below once.")
 STDIN_HINT = ("pipe the JSON plan on stdin: `simplicio-loop turbo --repo <path> --apply - <<'PLAN'`, the plan, "
               "then `PLAN`")
 _EXCERPT_CHARS = 600
+REQUEST_ARGS = "request-args.json"  # in the run directory
 _CODE_EXTENSIONS = frozenset((
     "py", "js", "jsx", "ts", "tsx", "mjs", "cjs", "html", "htm", "css", "scss", "md", "json", "yml",
     "yaml", "toml", "ini", "cfg", "txt", "go", "rs", "java", "kt", "rb", "php", "cs", "c", "h", "cpp",
@@ -97,28 +99,32 @@ def _emit(document: dict[str, Any]) -> None:
 VERIFY_TIMEOUT_S = 900
 
 
-async def _run_verify(root: Path, command: str) -> tuple[dict[str, Any], str]:
+async def _run_verify(root: Path, command: str, run_: TurboRun) -> tuple[dict[str, Any], str]:
     """Run the verify command in the repo. Returns the report and the full output.
 
     The shell runs in its own process group under ``asyncio.wait_for``: the event loop stays free while it
-    runs, and on timeout the whole group (the shell and what it started) is killed.
+    runs, and on timeout the whole group (the shell and what it started) is killed. The run's dashboard events
+    bracket the command (``command_started`` / ``command_finished``) so the panel can show it while it runs.
     """
     from .exec_planner import _kill_process_tree
 
     sh_bin = shutil.which("sh") or "/bin/sh"
-    proc = await asyncio.create_subprocess_exec(
-        sh_bin, "-c", command, cwd=root, stdin=asyncio.subprocess.DEVNULL,
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, start_new_session=True,
-    )
-    try:
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=VERIFY_TIMEOUT_S)
-    except asyncio.TimeoutError:
-        await _kill_process_tree(proc)
-        return {"command": command, "passed": False, "returncode": None,
-                "output_tail": f"verify timed out after {VERIFY_TIMEOUT_S:g}s"}, ""
-    except BaseException:
-        await _kill_process_tree(proc)
-        raise
+    with run_.command(command) as span:
+        proc = await asyncio.create_subprocess_exec(
+            sh_bin, "-c", command, cwd=root, stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, start_new_session=True,
+        )
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=VERIFY_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            await _kill_process_tree(proc)
+            span.reason = "timeout"
+            return {"command": command, "passed": False, "returncode": None,
+                    "output_tail": f"verify timed out after {VERIFY_TIMEOUT_S:g}s"}, ""
+        except BaseException:
+            await _kill_process_tree(proc)
+            raise
+        span.exit_code = proc.returncode
     output = (stdout.decode("utf-8", errors="replace") + stderr.decode("utf-8", errors="replace")).strip()
     return {"command": command, "passed": proc.returncode == 0, "returncode": proc.returncode,
             "output_tail": output[-1500:]}, output
@@ -126,19 +132,21 @@ async def _run_verify(root: Path, command: str) -> tuple[dict[str, Any], str]:
 
 def run(repo: str, texts: Sequence[str], target: str | None = None, context: Sequence[str] = (),
         tasks_file: str | None = None, verify: str | None = None, apply: str | None = None,
-        provider: str | None = None, run_id: str | None = None, leave_open: bool = False) -> int:
+        provider: str | None = None, run_id: str | None = None, leave_open: bool = False,
+        windows: Sequence[Any] = ()) -> int:
     """Host mode by default: ``apply`` applies the plan the host wrote (``-``: from stdin), otherwise print the request.
 
     ``provider="openrouter"`` is the headless engine, for automation only; only then is a key needed.
     ``run_id`` continues the run the request printed (host mode); without it an apply starts a new run. A request
     given a ``run_id`` opens (or continues) that run, so a caller can write its own stages first.
-    ``leave_open`` leaves an ok apply's run open for the caller to close.
+    ``leave_open`` leaves an ok apply's run open for the caller to close. ``windows`` (``PATH:START-END``) are extra
+    lines of a big file for the request.
     """
     if provider == "openrouter":
         return _run_provider(repo, texts, target, context, tasks_file, verify, run_id)
     if apply:
         return _apply_plan(repo, apply, verify, run_id, leave_open)
-    return _request_plan(repo, texts, target, context, tasks_file, verify, run_id)
+    return _request_plan(repo, texts, target, context, tasks_file, verify, run_id, windows)
 
 
 def _map_slice(reading: str) -> Any:
@@ -171,7 +179,8 @@ def _conclude(run_: TurboRun, document: dict[str, Any], calls: Any = None, leave
 
 
 def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
-                  tasks_file: str | None, verify: str | None, run_id: str | None = None) -> int:
+                  tasks_file: str | None, verify: str | None, run_id: str | None = None,
+                  windows: Sequence[Any] = ()) -> int:
     from .turbo import current_files, focus_paths, mapper_reading, plan_prompt, slice_enabled, survey_tasks
     from .turbo_run import TurboRun
 
@@ -182,6 +191,13 @@ def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: 
     if not tasks:
         _emit({"schema": SCHEMA, "repo": str(root), "mode": "host", "status": "blocked",
                "reason_code": "turbo_no_tasks", "detail": "pass --task or --tasks-file"})
+        return 2
+    try:
+        asked = [turbo_window.parse_window_spec(w) if isinstance(w, str) else w for w in windows]
+        files = current_files(root, tasks, asked)
+    except ValueError as exc:  # a bad --window, or a bad input-token ceiling (reason_code of its own)
+        _emit({"schema": SCHEMA, "repo": str(root), "mode": "host", "status": "blocked",
+               "reason_code": getattr(exc, "reason_code", "turbo_window_invalid"), "detail": str(exc)})
         return 2
     try:
         run_ = TurboRun(root, "host", run_id)
@@ -203,6 +219,10 @@ def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: 
                                 "detail": str(exc), "tasks": len(tasks)})
     run_.enter("plan")
     run_.await_plan()
+    # What a later `need` (turbo --apply with no operations) rebuilds the request from: the same run, more windows.
+    (run_.run_dir / REQUEST_ARGS).write_text(json.dumps({
+        "texts": list(texts), "target": target, "context": list(context), "tasks_file": tasks_file, "verify": verify,
+        "windows": asked, "truncated": turbo_window.truncated(files)}), encoding="utf-8")
     apply_command = f"simplicio-loop turbo --repo {shlex.quote(str(root))} --apply - --run-id {run_.run_id}"
     if verify:
         apply_command += f" --verify {shlex.quote(verify)}"
@@ -215,7 +235,7 @@ def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: 
         **plan_prompt(),
         "tasks": [task["text"] for task in tasks],
         "map": _map_slice(reading),
-        "files": current_files(root, tasks),
+        "files": files,
         "format": PLAN_FORMAT,
         "rules": RULES,
         "apply": apply_command,
@@ -270,13 +290,24 @@ def _plan_text(root: Path, plan: str) -> tuple[str | None, str]:
 
 
 def _apply_plan(repo: str, plan: str, verify: str | None, run_id: str | None = None, leave_open: bool = False) -> int:
-    """Wrapper to call async _apply_plan_async with asyncio.run."""
-    return asyncio.run(_apply_plan_async(repo, plan, verify, run_id, leave_open))
+    """Wrapper to call async _apply_plan_async with asyncio.run. A plan that only asks for lines (``need``) comes back
+    as the arguments of a new request, printed here outside the event loop."""
+    done = asyncio.run(_apply_plan_async(repo, plan, verify, run_id, leave_open))
+    return _request_plan(*done) if isinstance(done, tuple) else done
+
+
+def _saved_request(run_: TurboRun) -> dict[str, Any]:
+    """The arguments of the request this run printed (``request-args.json``), or ``{}``."""
+    try:
+        saved = json.loads((run_.run_dir / REQUEST_ARGS).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return saved if isinstance(saved, dict) else {}
 
 
 async def _apply_plan_async(repo: str, plan: str, verify: str | None, run_id: str | None = None,
-                            leave_open: bool = False) -> int:
-    from .turbo import NO_RECEIPT, apply_plan, load_operations, plan_prompt
+                            leave_open: bool = False) -> int | tuple[Any, ...]:
+    from .turbo import NO_RECEIPT, EmptyPlanError, apply_plan, load_need, load_operations, plan_prompt
     from .turbo_run import TurboRun
 
     started = time.time()
@@ -291,12 +322,27 @@ async def _apply_plan_async(repo: str, plan: str, verify: str | None, run_id: st
         return 2
     head = {"schema": SCHEMA, "repo": str(root), "mode": "host", "run_id": run_.run_id, **plan_prompt()}
     run_.enter("apply")
+    saved = _saved_request(run_)
     try:
         text, missing = _plan_text(root, plan)
-        operations = load_operations(text) if text is not None else []
+        need = load_need(text) if text is not None else []
+        operations = load_operations(text) if text is not None and not need else []
+    except EmptyPlanError as exc:  # no operations and no need: the planner was not shown the part it had to change
+        if saved.get("truncated"):
+            return _conclude(run_, {**head, "status": "failed", "reason_code": "turbo_context_truncated",
+                                    "detail": f"{exc}; the request showed only windows of {saved['truncated']}: "
+                                              "ask for lines with need", "format": PLAN_FORMAT})
+        return _conclude(run_, {**head, "status": "failed", "reason_code": "turbo_plan_malformed",
+                                "detail": str(exc), "format": PLAN_FORMAT})
     except ValueError as exc:  # not UTF-8, not JSON, or not a plan
         return _conclude(run_, {**head, "status": "failed", "reason_code": "turbo_plan_malformed",
                                 "detail": str(exc), "format": PLAN_FORMAT})
+    if need:  # nothing is applied: the same run prints its request again with these lines added
+        if "texts" not in saved:
+            return _conclude(run_, {**head, "status": "failed", "reason_code": "turbo_need_unavailable",
+                                    "detail": f"run {run_.run_id} has no saved request; use turbo --task T --window PATH:START-END"})
+        return (repo, saved["texts"], saved["target"], saved["context"], saved["tasks_file"],
+                verify or saved["verify"], run_.run_id, [*saved["windows"], *need])
     if text is None:
         return _conclude(run_, {**head, "status": "failed", "reason_code": "turbo_plan_missing", "detail": missing})
     try:
@@ -319,7 +365,7 @@ async def _apply_plan_async(repo: str, plan: str, verify: str | None, run_id: st
     }
     if verify and result["applied"]:
         run_.enter("verify")
-        document["verify"], _output = await _run_verify(root, verify)
+        document["verify"], _output = await _run_verify(root, verify, run_)
         if not document["verify"]["passed"]:
             document["status"] = "failed"
     document["wall_s"] = round(time.time() - started, 2)
@@ -400,7 +446,7 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
         document["reason_code"] = NO_RECEIPT
     if verify and result["applied_all"]:
         run_.enter("verify")
-        document["verify"], output = await _run_verify(root, verify)
+        document["verify"], output = await _run_verify(root, verify, run_)
         if not document["verify"]["passed"]:
             # One repair call with the test output, then the tests run again.
             repair = await repair_with_test_output(root, tasks, complete, output)
@@ -408,7 +454,7 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
             receipts.extend(run_.persist_receipts(repair["commands"]))
             retry = {"attempted": True, "applied": repair["applied"], "reason": repair["reason"], "passed": False}
             if repair["applied"]:
-                document["verify"], _output = await _run_verify(root, verify)
+                document["verify"], _output = await _run_verify(root, verify, run_)
                 retry["passed"] = document["verify"]["passed"]
             document["verify_retry"] = retry
             if not retry["passed"]:

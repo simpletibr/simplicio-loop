@@ -40,8 +40,14 @@ def view(events: Iterable[dict[str, Any]], prices: dict[str, Any] | None) -> dic
     '''The GET /api/runs/<id>/stage-agents body: the per-stage rows plus the run's own cost estimate.'''
     events = events if isinstance(events, list) else list(events)
     tally = _tally(events)
-    return {'schema': VIEW_SCHEMA, 'rows': _stage_rows(tally, prices), 'cost': _cost(tally['run'], prices),
-            'breakdown': _breakdown(tally, prices), 'agent_map': agent_map(events)}
+    return {'schema': VIEW_SCHEMA, 'rows': _stage_rows(tally, prices), 'cost': _bounded(budget.cost_estimate(events, prices)),
+            'breakdown': _breakdown(tally), 'agent_map': agent_map(events)}
+
+
+def _bounded(cost: dict[str, Any]) -> dict[str, Any]:
+    '''The cost reason can quote a model id; cut it like every other name so one huge id cannot inflate the reply.'''
+    cost['reason'] = _name(cost['reason'])
+    return cost
 
 
 def _is_event(event: Any, kind: str) -> bool:
@@ -65,7 +71,7 @@ def _iteration(value: Any) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
 
 
-def _leaves(events: list[dict[str, Any]]) -> tuple[dict[tuple, list], int]:
+def _leaves(events: list[dict[str, Any]]) -> tuple[dict[tuple, list], int, dict[Any, list]]:
     '''The token_usage events summed per (phase, lane, model, task, iteration, source): the only pass over the events.
 
     Also the number of events that carried a count the budget reading refuses (NaN, Infinity, negative, a string, above
@@ -75,6 +81,7 @@ def _leaves(events: list[dict[str, Any]]) -> tuple[dict[tuple, list], int]:
     else None: an event with no iteration known is never assigned one. Leaves keep first-seen order.
     '''
     leaves: dict[tuple, list] = {}
+    stage_events: dict[Any, list] = {}
     current = None
     ignored = 0
     for event in events:
@@ -89,6 +96,7 @@ def _leaves(events: list[dict[str, Any]]) -> tuple[dict[tuple, list], int]:
                 iteration, source = current, ('ordem dos eventos' if current is not None else None)
             key = (_text(event.get('phase')), _text(event.get('lane')), _text(payload.get('model')), _text(event.get('task_id')),
                    iteration, source)
+            stage_events.setdefault((key[0], key[2]), []).append(event)
             raw_in, raw_out = payload.get('input_tokens'), payload.get('output_tokens')
             tokens_in, tokens_out = budget._number(raw_in), budget._number(raw_out)
             if (tokens_in is None and raw_in is not None) or (tokens_out is None and raw_out is not None):
@@ -102,70 +110,53 @@ def _leaves(events: list[dict[str, Any]]) -> tuple[dict[tuple, list], int]:
                 leaf[1] += tokens_out
         if own is not None:
             current = own
-    return leaves, ignored
+    return leaves, ignored, stage_events
 
 
 _SOURCE_BITS = {None: 1, 'ordem dos eventos': 2, 'evento': 4}
 
 
-def _add(groups: dict[Any, list], key: Any, model: str, tokens_in: Any, tokens_out: Any, source: int = 0) -> None:
-    '''Add tokens to the group's accumulator [in, out, {model: [in, out]}, source bits]; only a measured count is priced.'''
+def _add(groups: dict[Any, list], key: Any, tokens_in: Any, tokens_out: Any, source: int = 0) -> None:
+    '''Add tokens to the group's accumulator [in, out, source bits].'''
     acc = groups.get(key)
     if acc is None:
-        groups[key] = [tokens_in, tokens_out, {model: [tokens_in, tokens_out]} if tokens_in + tokens_out else {}, source]
+        groups[key] = [tokens_in, tokens_out, source]
         return
     acc[0] += tokens_in
     acc[1] += tokens_out
-    if tokens_in + tokens_out:
-        per = acc[2].get(model)
-        if per is None:
-            acc[2][model] = [tokens_in, tokens_out]
-        else:
-            per[0] += tokens_in
-            per[1] += tokens_out
-    acc[3] |= source
+    acc[2] |= source
 
 
 def _tally(events: list[dict[str, Any]]) -> dict[str, Any]:
     '''Fold the leaves into one accumulator per group of every dimension and per (phase, model) stage.'''
-    leaves, ignored = _leaves(events)
+    leaves, ignored, stage_events = _leaves(events)
     dims: dict[str, dict[Any, list]] = {name: {} for name in DIMENSIONS}
     stages: dict[Any, list] = {}
     by_phase, by_lane, by_model, by_task, by_iteration = (dims[name] for name in DIMENSIONS)
     total = 0
     for (phase, lane, model, task, iteration, source), (tokens_in, tokens_out) in leaves.items():
-        name = model or ''
         total += tokens_in + tokens_out
-        _add(by_phase, phase, name, tokens_in, tokens_out)
-        _add(by_lane, lane, name, tokens_in, tokens_out)
-        _add(by_model, model, name, tokens_in, tokens_out)
-        _add(by_task, task, name, tokens_in, tokens_out)
-        _add(by_iteration, iteration, name, tokens_in, tokens_out, _SOURCE_BITS[source])
-        _add(stages, (phase, model), name, tokens_in, tokens_out)
-    return {'dims': dims, 'stages': stages, 'run': _merge(by_model, list(by_model))[2], 'total': total, 'seen': bool(leaves),
-            'ignored': ignored}
+        _add(by_phase, phase, tokens_in, tokens_out)
+        _add(by_lane, lane, tokens_in, tokens_out)
+        _add(by_model, model, tokens_in, tokens_out)
+        _add(by_task, task, tokens_in, tokens_out)
+        _add(by_iteration, iteration, tokens_in, tokens_out, _SOURCE_BITS[source])
+        _add(stages, (phase, model), tokens_in, tokens_out)
+    return {'dims': dims, 'stages': stages, 'stage_events': stage_events, 'total': total, 'seen': bool(leaves), 'ignored': ignored}
 
 
-def _cost(models: dict[str, list], prices: dict[str, Any] | None) -> dict[str, Any]:
-    '''budget.cost_estimate over one synthetic event per model bucket, so a group is priced from its sums, not its events.'''
-    return budget.cost_estimate([{'schema': SCHEMA, 'kind': 'token_usage',
-                                  'payload': {'model': _name(model), 'input_tokens': i, 'output_tokens': o}}
-                                 for model, (i, o) in models.items()], prices)
-
-
-def _row(key: Any, acc: list, prices: dict[str, Any] | None, source: str | None, others: int | None = None) -> dict[str, Any]:
+def _row(key: Any, acc: list, source: str | None, others: int | None = None) -> dict[str, Any]:
+    '''A tokens-only row: the USD of a run lives in budget.cost_estimate, so no group can disagree with it.'''
     tokens_in, tokens_out = acc[0], acc[1]
-    cost = _cost(acc[2], prices)
     row = {'key': _name(key), 'tokens_in': tokens_in, 'tokens_out': tokens_out, 'tokens': (tokens_in + tokens_out) or None,
-           'tokens_proof_kind': 'medido', 'cost_usd': cost['usd'], 'cost_state': cost['state'],
-           'proof_kind': 'estimado', 'reason': cost['reason'], 'source': source}
+           'tokens_proof_kind': 'medido', 'source': source}
     if others:
         row['others'] = others
     return row
 
 
 def _source(acc: list) -> str | None:
-    bits = acc[3]
+    bits = acc[2]
     return None if bits & _SOURCE_BITS[None] else ('ordem dos eventos' if bits & _SOURCE_BITS['ordem dos eventos'] else 'evento')
 
 
@@ -182,16 +173,7 @@ def _split(groups: dict[Any, list], recent: bool = False) -> tuple[list, list]:
 
 
 def _merge(groups: dict[Any, list], keys: list) -> list:
-    merged: list = [0, 0, {}, 0]
-    for key in keys:
-        acc = groups[key]
-        merged[0] += acc[0]
-        merged[1] += acc[1]
-        for model, (tokens_in, tokens_out) in acc[2].items():
-            per = merged[2].setdefault(model, [0, 0])
-            per[0] += tokens_in
-            per[1] += tokens_out
-    return merged
+    return [sum(groups[key][0] for key in keys), sum(groups[key][1] for key in keys), 0]
 
 
 def _tokens_summary(total: int, seen: bool, ignored: int = 0) -> dict[str, Any]:
@@ -211,24 +193,24 @@ def _tokens_summary(total: int, seen: bool, ignored: int = 0) -> dict[str, Any]:
     return row
 
 
-def _breakdown(tally: dict[str, Any], prices: dict[str, Any] | None) -> dict[str, Any]:
+def _breakdown(tally: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for name, groups in tally['dims'].items():
         iteration = name == 'by_iteration'
         kept, rest = _split(groups, recent=iteration)
         if iteration:
             kept.sort(key=lambda key: (key is None, key if key is not None else 0))
-        found = [_row(key, groups[key], prices, _source(groups[key]) if iteration else None) for key in kept]
+        found = [_row(key, groups[key], _source(groups[key]) if iteration else None) for key in kept]
         if rest:
-            found.append(_row(None, _merge(groups, rest), prices, None, others=len(rest)))
+            found.append(_row(None, _merge(groups, rest), None, others=len(rest)))
         out[name] = found
     out['tokens'] = _tokens_summary(tally['total'], tally['seen'], tally['ignored'])
     return out
 
 
-def breakdown(events: Iterable[dict[str, Any]], prices: dict[str, Any] | None) -> dict[str, Any]:
-    '''Tokens and estimated cost per phase, lane, model, task and iteration: TOP_N rows each plus one "others" row.'''
-    return _breakdown(_tally(events if isinstance(events, list) else list(events)), prices)
+def breakdown(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    '''Tokens per phase, lane, model, task and iteration: TOP_N rows each plus one "others" row.'''
+    return _breakdown(_tally(events if isinstance(events, list) else list(events)))
 
 
 NO_SLOTS = 'slots não medidos: nenhum evento de slot no stream do run'
@@ -283,6 +265,11 @@ def _split_lanes(lanes: dict[Any, dict[str, Any]]) -> tuple[list, list]:
     return [key for key in keys if key in top], [key for key in keys if key not in top]
 
 
+def _stage_cost(tally: dict[str, Any], keys: list, prices: dict[str, Any] | None) -> dict[str, Any]:
+    '''budget.cost_estimate over the stage's own events, so a stage prices (and floors) like the run.'''
+    return budget.cost_estimate([event for key in keys for event in tally['stage_events'].get(key, ())], prices)
+
+
 def _stage_rows(tally: dict[str, Any], prices: dict[str, Any] | None) -> list[dict[str, Any]]:
     stages = tally['stages']
     kept, rest = _split(stages)
@@ -290,19 +277,21 @@ def _stage_rows(tally: dict[str, Any], prices: dict[str, Any] | None) -> list[di
     for key in kept:
         phase, model = key
         acc = stages[key]
-        cost = _cost(acc[2], prices)
+        cost = _stage_cost(tally, [key], prices)
         placed = model_roles.role_of(model) if model else None
         reason = cost['reason'] or (None if placed else 'modelo sem papel na tabela de papéis')
         out.append({'phase': _name(phase), 'role': placed['role'] if placed else None,
                     'effort': placed['effort'] if placed else None, 'model': _name(model),
                     'tokens_in': acc[0], 'tokens_out': acc[1], 'cost_usd': cost['usd'],
-                    'cost_state': cost['state'], 'proof_kind': 'estimado', 'reason': reason})
+                    'cost_state': cost['state'], 'proof_kind': 'estimado', 'reason': _name(reason),
+                    'cost_floor': cost['floor'], 'floor_reason': cost['floor_reason']})
     if rest:
         merged = _merge(stages, rest)
-        cost = _cost(merged[2], prices)
+        cost = _stage_cost(tally, rest, prices)
         out.append({'phase': None, 'role': None, 'effort': None, 'model': None, 'tokens_in': merged[0],
                     'tokens_out': merged[1], 'cost_usd': cost['usd'], 'cost_state': cost['state'],
-                    'proof_kind': 'estimado', 'reason': cost['reason'], 'others': len(rest)})
+                    'proof_kind': 'estimado', 'reason': _name(cost['reason']), 'others': len(rest),
+                    'cost_floor': cost['floor'], 'floor_reason': cost['floor_reason']})
     return out
 
 

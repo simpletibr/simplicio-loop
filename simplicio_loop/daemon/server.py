@@ -14,6 +14,7 @@ import importlib
 import importlib.util
 import os
 import resource
+import select
 import signal
 import socket
 import stat
@@ -26,6 +27,8 @@ from . import protocol, runner
 
 READ_TIMEOUT_S = 10.0
 KILL_GRACE_S = 5.0
+WAIT_NOTICE_S = 5.0  # a command that has waited this long for a slot is told so on its stderr
+MAX_WAIT_S = 600.0  # and one that has waited this long is refused with the reason
 MAX_CHILDREN_CAP = 16
 NESTED_FACTOR = 4  # nested requests may run up to this many times the slots, never more
 CODE_SUFFIXES = (".py", ".so", ".pyd")
@@ -110,8 +113,9 @@ def acquire_lock(pid_path: str) -> Optional[int]:
 class Daemon:
     def __init__(self, run_dir: os.PathLike[str] | str, *, key: str, programs: Optional[Mapping[str, str]] = None,
                  roots: Optional[Iterable[str]] = None, idle_s: float = 900.0, max_children: Optional[int] = None,
-                 max_waiting: int = 256, allowed_uid: Optional[int] = None,
-                 preload: Iterable[str] = runner.PRELOAD) -> None:
+                 max_waiting: int = 256, allowed_uid: Optional[int] = None, preload: Iterable[str] = runner.PRELOAD,
+                 kill_grace_s: float = KILL_GRACE_S, wait_notice_s: float = WAIT_NOTICE_S,
+                 max_wait_s: float = MAX_WAIT_S) -> None:
         self.run_dir = os.fspath(run_dir)
         self.key = key
         self.programs = dict(runner.PROGRAMS if programs is None else programs)
@@ -121,6 +125,9 @@ class Daemon:
         self.max_waiting = max_waiting
         self.allowed_uid = os.geteuid() if allowed_uid is None else allowed_uid
         self.preload = tuple(preload)
+        self.kill_grace_s = kill_grace_s
+        self.wait_notice_s = wait_notice_s
+        self.max_wait_s = max_wait_s
         self.paths = protocol.paths(self.run_dir, key)
         self.loaded = ""
         self.active = 0
@@ -263,7 +270,7 @@ class Daemon:
         for number in (signal.SIGTERM, signal.SIGKILL):
             self._signal(pid, number)
             try:
-                await asyncio.wait_for(asyncio.shield(done), KILL_GRACE_S)
+                await asyncio.wait_for(asyncio.shield(done), self.kill_grace_s)
                 return
             except asyncio.TimeoutError:
                 continue
@@ -382,9 +389,10 @@ class Daemon:
         ok = (isinstance(request.get("program"), str) and isinstance(request.get("cwd"), str)
               and isinstance(argv, list) and all(isinstance(a, str) for a in argv)
               and isinstance(env, dict) and all(isinstance(k, str) and isinstance(v, str) for k, v in env.items())
-              and len(fds) == 3)
+              and len(fds) == 3 and protocol.valid_process_state(request.get("proc", {})))
         if not ok:
-            raise protocol.DaemonError("bad_request", "an exec request needs program, argv, cwd, env and 3 descriptors")
+            raise protocol.DaemonError("bad_request", "an exec request needs program, argv, cwd, env, 3 descriptors "
+                                                      "and, if it has one, a well formed proc")
 
     async def _exec(self, connection: socket.socket, request: dict, fds: list[int]) -> None:
         loop = asyncio.get_running_loop()
@@ -408,18 +416,31 @@ class Daemon:
                 raise protocol.DaemonError("busy", f"{self.active} running and {self.waiting} waiting; try again")
             self.waiting += 1
             try:
-                await self._slots.acquire()
+                await self._take_slot(fds[2])
             finally:
                 self.waiting -= 1
+            if self._hung_up(connection):  # the caller gave up (Ctrl-C) while it waited: its command must not run now
+                self._slots.release()
+                for fd in fds:
+                    os.close(fd)
+                fds.clear()
+                return
         started = time.monotonic()
         self.active += 1
         try:
-            pid = os.fork()
-            if pid == 0:
-                try:
-                    runner.serve_request(request, fds, self._entries[program], self.run_dir, self.key)
-                finally:
-                    os._exit(70)  # the child never goes back into the daemon's loop
+            parent = os.getpid()
+            # A SIGTERM for a child that has no handlers yet would reach this loop through the wakeup descriptor
+            # they share and stop the daemon: the child gets it blocked, and unblocks it when its program starts.
+            held = signal.pthread_sigmask(signal.SIG_BLOCK, runner.SHIELDED)
+            try:
+                pid = os.fork()
+                if pid == 0:
+                    try:
+                        runner.serve_request(request, fds, self._entries[program], self.run_dir, self.key, parent)
+                    finally:
+                        os._exit(70)  # the child never goes back into the daemon's loop
+            finally:
+                signal.pthread_sigmask(signal.SIG_SETMASK, held)  # only the daemon gets here
             done = loop.create_future()
             self._children[pid] = done
             for fd in fds:
@@ -440,6 +461,45 @@ class Daemon:
             if not nested:
                 self._slots.release()
             self._last = time.monotonic()
+
+    async def _take_slot(self, notice_fd: int) -> None:
+        """Wait for a free slot. Past ``wait_notice_s`` the caller is told on its stderr why nothing happens; past
+        ``max_wait_s`` it is refused with the reason, so a short command is never stuck silently behind long ones."""
+        if not self._slots.locked():
+            await self._slots.acquire()
+            return
+        try:
+            await asyncio.wait_for(self._slots.acquire(), self.wait_notice_s)
+            return
+        except asyncio.TimeoutError:
+            pass
+        self._tell(notice_fd, f"simplicio-loop: waiting for a free slot ({self.active} commands running, "
+                              f"{self.waiting} waiting); the wait ends after {self.max_wait_s:g}s")
+        try:
+            await asyncio.wait_for(self._slots.acquire(), max(0.0, self.max_wait_s - self.wait_notice_s))
+        except asyncio.TimeoutError:
+            raise protocol.DaemonError("busy", f"waited {self.max_wait_s:g}s for a free slot; {self.active} commands "
+                                               "are running; try again") from None
+
+    @staticmethod
+    def _hung_up(connection: socket.socket) -> bool:
+        try:
+            return connection.recv(1, socket.MSG_PEEK) == b""
+        except BlockingIOError:
+            return False
+        except OSError:
+            return True
+
+    @staticmethod
+    def _tell(fd: int, text: str) -> None:
+        """One line on the caller's descriptor, only if that cannot block the daemon."""
+        try:
+            poller = select.poll()
+            poller.register(fd, select.POLLOUT)
+            if poller.poll(0):
+                os.write(fd, (text + "\n").encode("utf-8", errors="replace"))
+        except OSError:
+            pass
 
     async def _hangup(self, connection: socket.socket) -> None:
         loop = asyncio.get_running_loop()

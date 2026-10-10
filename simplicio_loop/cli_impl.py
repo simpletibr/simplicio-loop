@@ -2829,6 +2829,8 @@ def main(argv=None) -> int:
     p_turbo.add_argument("--context", action="append", default=[],
                          help="with one --task: another file the model must see; repeatable")
     p_turbo.add_argument("--tasks-file", help="JSON list of {text, target?, context?, depends_on?}")
+    p_turbo.add_argument("--window", action="append", default=[], metavar="PATH:START-END",
+                         help="request: also show these lines of a file too big to be shown whole; repeatable")
     p_turbo.add_argument("--verify", help="shell command run in the repo after the plan is applied, e.g. tests")
     p_turbo.add_argument("--apply", metavar="PLAN",
                          help="command 2: apply this JSON find/replace plan through dev-cli, then run --verify; "
@@ -3372,7 +3374,7 @@ def main(argv=None) -> int:
         return run_turbo_cli(args.repo, args.task, target=args.target, context=args.context,
                              tasks_file=args.tasks_file, verify=args.verify, apply=args.apply,
                              provider=args.provider, run_id=args.run_id,
-                             leave_open=args.leave_open)
+                             leave_open=args.leave_open, windows=args.window)
     if command == "update":
         from .self_update import run_update, write_check
         return run_update(check=args.check, force=args.force, dry_run=args.dry_run, record=write_check)

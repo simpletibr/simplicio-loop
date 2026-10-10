@@ -8,8 +8,11 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
 import json
 import re
+import shutil
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -45,11 +48,13 @@ class FakeRun:
 
     def __init__(self, issues, *, turbo_ok=True, diff=True, delay=0.0, opted_in=None,
                  broken_gate=(), prs=(), pr_views=None, claimed_by=None, distinct_prs=False,
-                 train_ok=True, login="squad-bot", loop_toml=None):
+                 train_ok=True, login="squad-bot", loop_toml=None, meet=0):
         self.issues = issues  # repo name -> list of issue rows
         self.turbo_ok = turbo_ok
         self.diff = diff
         self.delay = delay
+        self.meet = meet  # a turbo waits until `meet` turbos run together: overlap is proven by a rendezvous, not by a short sleep
+        self._met = asyncio.Event()
         self.opted_in = set(issues) if opted_in is None else set(opted_in)
         self.loop_toml = loop_toml or {}  # repo name -> the .simplicio-loop/loop.toml text of its default branch (default LOOP_TOML)
         self.broken_gate = set(broken_gate)
@@ -69,8 +74,13 @@ class FakeRun:
         self.turbo_timeouts = []
         self.turbo_active = 0
         self.max_turbo = 0
-        self.repo_active = {}
-        self.max_repo_active = 0
+        self.worktrees = {}  # path of every live `git worktree add` -> its branch
+        self.max_worktrees = 0
+        self.worktree_log = []  # ("add" | "remove", path) in order
+        self.turbo_cwds = []  # where each turbo ran: it must be the item's own worktree
+        self.turbo_spans = []  # (start, end) of every turbo run, time.monotonic()
+        self.on_turbo = None  # async hook(cwd) awaited inside a turbo run, before its delay
+        self.push_cwds = []
 
     def ran(self, *prefix):
         return [a for a in self.calls if a[: len(prefix)] == list(prefix)]
@@ -111,10 +121,20 @@ class FakeRun:
             return self._api(argv, stdin)
         if argv[0] == "simplicio-loop" and argv[1] == "turbo":
             self.turbo_argv.append(argv)
+            self.turbo_cwds.append(Path(cwd) if cwd else None)
             self.turbo_timeouts.append(timeout)
             self.turbo_active += 1
             self.max_turbo = max(self.max_turbo, self.turbo_active)
+            if self.meet:
+                if self.turbo_active >= self.meet:
+                    self._met.set()
+                with contextlib.suppress(asyncio.TimeoutError):
+                    await asyncio.wait_for(self._met.wait(), 10)  # only a run that never overlaps waits this long, and its test fails
+            began = time.monotonic()
+            if self.on_turbo is not None:
+                await self.on_turbo(Path(cwd))
             await asyncio.sleep(self.delay)
+            self.turbo_spans.append((began, time.monotonic()))
             self.turbo_active -= 1
             if self.turbo_ok:
                 document = {"schema": "simplicio.turbo/v1", "status": "ok"}
@@ -123,7 +143,7 @@ class FakeRun:
                 return proc.Result(0, json.dumps(document))
             return proc.Result(1, json.dumps({"status": "failed", "detail": "boom"}))
         if argv[0] == "git":
-            return self._git(argv, repo)
+            return self._git(argv, cwd)
         if argv[:3] == ["python3", "-m", "pytest"]:  # the merge train's cumulative test
             self.tests_run += 1
             return proc.Result(0 if self.train_ok else 1)
@@ -182,17 +202,30 @@ class FakeRun:
             return proc.Result(0, json.dumps([]))
         raise AssertionError(f"unexpected gh api call {argv}")
 
-    def _git(self, argv, repo):
+    def _git(self, argv, cwd):
         sub = argv[1]
         if sub == "config" and argv[2:] == ["user.email"]:
             return proc.Result(1)
-        if sub == "checkout":
-            self.repo_active[repo] = self.repo_active.get(repo, 0) + 1  # tree in use until the diff check
-            self.max_repo_active = max(self.max_repo_active, self.repo_active[repo])
+        if sub == "rev-parse":
+            return proc.Result(1)  # the item's branch does not exist yet
+        if sub == "worktree" and argv[2] == "add":
+            path = Path(argv[argv.index("-B") + 2])
+            path.mkdir(parents=True)
+            (path / ".git").write_text("gitdir: fake\n")
+            self.worktrees[path] = argv[argv.index("-B") + 1]
+            self.max_worktrees = max(self.max_worktrees, len(self.worktrees))
+            self.worktree_log.append(("add", path))
+            return proc.Result(0)
+        if sub == "worktree" and argv[2] == "remove":
+            path = Path(argv[-1])
+            self.worktrees.pop(path)
+            self.worktree_log.append(("remove", path))
+            shutil.rmtree(path)  # what git does for the worktree it removes
+            return proc.Result(0)
+        if sub == "push":
+            self.push_cwds.append(Path(cwd))
             return proc.Result(0)
         if sub == "status":
-            if not self.diff:
-                self.repo_active[repo] -= 1
             return proc.Result(0, " M app.py\n?? .simplicio-loop/x\n" if self.diff else "")
         if sub == "diff":
             return proc.Result(0, "app.py\n")

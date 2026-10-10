@@ -119,17 +119,17 @@ def test_verify_ran(tick_run):
     assert "MEASURED|verify_passed" in pr_calls[0]["body"], "the PR must say how it was verified"
 
 
-def test_commit_and_pr_closes_issue(tick_run):
+def test_commit_and_pr_references_issue_without_closing_word(tick_run):
     message = subprocess.run(
         ["git", "--git-dir", str(tick_run["remote"]), "log", "-1", "--format=%B", HEAD],
         capture_output=True, text=True, check=True,
     ).stdout
-    assert f"Closes #{ISSUE_NUMBER}" in message
+    assert f"Parte de #{ISSUE_NUMBER}" in message and "Closes" not in message
     pr_calls = [c for c in tick_run["calls"] if c["argv"][:2] == ["pr", "create"]]
     assert len(pr_calls) == 1, "gh pr create was not called exactly once"
     assert pr_calls[0]["base"] == "main"
     assert pr_calls[0]["head"] == HEAD
-    assert f"Closes #{ISSUE_NUMBER}" in pr_calls[0]["body"]
+    assert f"Parte de #{ISSUE_NUMBER}" in pr_calls[0]["body"] and "Closes" not in pr_calls[0]["body"]
 
 
 def test_one_canonical_status_comment_updated_across_phases(tick_run):

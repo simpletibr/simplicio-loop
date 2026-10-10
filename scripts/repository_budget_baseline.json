@@ -1,12 +1,15 @@
 {
   "$schema_note": "simplicio-loop repository size budget baseline (#294). Regenerate with `python3 scripts/repository_budget.py --update-baseline` after a deliberate, reviewed size change -- never to silence a regression you haven't looked at.",
-  "generated_at": "2026-09-29T17:17:49Z",
-  "known_oversized_files": {
-    "assets/simplicio-loop-hero-2026.png": 2337034,
-    "packages/mapper/simplicio_mapper/store/neural/assets/seeds.sql": 5355070
+  "generated_at": "2026-10-09T20:58:49Z",
+  "known_long_files": {
+    "simplicio_loop/runner.py": 9290
   },
+  "known_oversized_files": {
+    "assets/simplicio-loop-hero-2026.png": 2337034
+  },
+  "max_lines": 9000,
   "max_single_file_bytes": 2097152,
   "threshold_growth": 0.25,
-  "total_bytes": 45284029,
-  "tracked_file_count": 3177
+  "total_bytes": 53453216,
+  "tracked_file_count": 3768
 }
