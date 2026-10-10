@@ -92,7 +92,7 @@ class TestCheckCoverage:
         """All criteria are covered by changes."""
         issue_body = "- [ ] implement foo.py\n- [ ] add tests\n"
         changes = [FileChange("src/foo.py", "A", (1,)), FileChange("tests/test_foo.py", "A", (1,))]
-        added_text = {"src/foo.py": "def foo():\n    pass\n", "tests/test_foo.py": "def test_foo():\n    pass\n"}
+        added_text = {"src/foo.py": "def foo():\n    pass\n", "tests/test_foo.py": "def test_foo():\n    assert foo() is None\n"}
 
         result = check_coverage(123, issue_body, changes, added_text, "closes #123")
         assert result.status == PASS
@@ -231,10 +231,10 @@ class TestCriterionMatching:
 
     def test_words_found_in_different_units_do_not_add_up(self):
         issue = "- [ ] cliente recebe fatura mensal pelo correio"  # 5 words: 3 needed in one unit
-        tests = ("A", "def test_a():\n    cliente.recebe()\n\ndef test_b():\n    fatura.mensal()\n")
+        tests = ("A", "def test_a():\n    assert cliente.recebe()\n\ndef test_b():\n    assert fatura.mensal()\n")
         result = _pr(issue, {"tests/test_x.py": tests})
         assert result.status == FAIL  # 2 words in test_a, 2 in test_b: 4 in total, never 3 in one
-        together = ("A", "def test_a():\n    cliente.recebe(fatura)\n")
+        together = ("A", "def test_a():\n    assert cliente.recebe(fatura)\n")
         assert _pr(issue, {"tests/test_x.py": together}).status == PASS
 
     def test_words_found_in_different_files_do_not_add_up(self):
@@ -292,7 +292,7 @@ class TestCriterionMatching:
     def test_pure_test_criterion_needs_a_test_file(self):
         prod = {"src/foo.py": ("A", "def foo():\n    pass\n")}
         assert _pr("- [ ] adicionar testes", prod).status == FAIL
-        with_test = {**prod, "tests/test_foo.py": ("A", "def test_foo():\n    pass\n")}
+        with_test = {**prod, "tests/test_foo.py": ("A", "def test_foo():\n    assert foo() is None\n")}
         result = _pr("- [ ] adicionar testes", with_test)
         assert result.status == PASS and result.measured["evidence"]["adicionar testes"] == ["test:tests/test_foo.py"]
 
@@ -305,7 +305,7 @@ class TestCriterionMatching:
         prod = {"src/clamp.py": ("A", "def clamp(value):\n    return value\n")}
         issue = "- [ ] adicionar teste para clamp"
         assert _pr(issue, prod).status == FAIL
-        assert _pr(issue, {**prod, "tests/test_clamp.py": ("A", "def test_clamp():\n    pass\n")}).status == PASS
+        assert _pr(issue, {**prod, "tests/test_clamp.py": ("A", "def test_clamp():\n    assert clamp(1) == 1\n")}).status == PASS
 
     def test_a_criterion_about_tests_does_not_take_cited_symbols_from_production(self):
         prod = {"src/clamp.py": ("A", "def clamp(value):\n    return value\n")}

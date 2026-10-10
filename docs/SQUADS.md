@@ -223,6 +223,8 @@ The approval of `squad_gate` belongs to the full 40-character oid of the head (`
 
 The gate filters pull requests that are vacuous or that add dead code. It expects an author who is honest but lazy. It does not stop an author who writes code to fool it. The human merge, the protected paths and the sandbox are the security boundary.
 
+The gate never approves an empty pull request. A pull request with tests only or docs only proves no implementation unless the new tests run and pass on the head. A test that skips, fails to collect or cannot fail is no evidence.
+
 The gate does not prove these shapes:
 
 - A test module or helper that forces its own result. The gate copies the test modules of the PR to the base tree on purpose, so this code runs on both trees.

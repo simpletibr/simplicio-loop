@@ -14,6 +14,9 @@ A criterion is COVERED when the diff gives evidence for it; the first rule that 
          `function`, `fn`, `const`, top-level `NAME =` ..., name and signature, never the bodies);
        - a changed doc: its path and its added text.
      Words never add up across units, so a generic criterion is not covered by "a little of everything".
+A test is a unit only when it runs and can fail (`vacuity.py`): a test with no assert, with only constant true asserts
+(`assert True`), with a `pass` body or with a skip / xfail marker is no evidence, whatever its name says. Its words are those
+of its name, docstring, identifiers and strings (comments are not).
 
 Content words: lowercase, accents removed, split on `_`, `-`, digits and camelCase, 3+ letters, without Portuguese
 or English stopwords and generic verbs ("add", "criar", "deve"...); a trailing plural "s" is dropped. Two words
@@ -27,16 +30,24 @@ item per uncovered criterion, and without a closing keyword for the issue (that 
 are matched by identity: each uncovered criterion needs an item of its own that holds its text or enough of its words
 ("item 1" or an empty item names nothing). Production that is not Python (js, sh, yml, toml: kind `other`) is never
 evidence, because red/green and mutation do not read it.
+
+Documentation is evidence only for a documentation criterion: one that names docs, ADR, README, CHANGELOG or documentation
+(`documentar`, `documentation`...), or cites a documentation file. A criterion that asks for behavior is not covered by a doc.
+`no_evidence` (a failed check, whatever the issue says): the PR changes non-Python production (`.sh`, `.js`, `.yml`, `.toml`...)
+and no usable test, or it changes no test and no Python production and a criterion stays uncovered. (An empty diff is `empty_diff`,
+rejected by `gate.run_gate` before any check.)
 """
 from __future__ import annotations
 
 import math
 import re
+import textwrap
 import unicodedata
 from pathlib import PurePosixPath
 from typing import Collection, Mapping, Sequence
 
-from .diffs import FileChange
+from . import vacuity
+from .diffs import FileChange, is_pytest_infra
 from .model import CheckResult, PASS, FAIL, SKIPPED
 
 _STOPWORDS_PT = frozenset("""
@@ -85,6 +96,11 @@ _CLOSING = re.compile(
     re.I,
 )
 _EVIDENCE_CAP = 5
+_DOC_CRITERION = re.compile(r"\b(?:docs?|adrs?|readme|changelog|documentation|documenta\w*|document(?:ed|ing)?)\b", re.I)
+_DOC_SUFFIXES = (".md", ".rst", ".txt", ".toon")
+# Non-Python production, which the gate cannot run. The pytest configuration (`pyproject.toml`, `tox.ini`...) is T2 and not listed here.
+_OTHER_CODE_SUFFIXES = frozenset(
+    ".sh .bash .zsh .js .jsx .mjs .cjs .ts .tsx .yml .yaml .toml .go .rs .rb .java .kt .php .cs .c .cc .cpp .h .hpp .sql".split())
 
 
 def criteria(issue_body: str) -> list[str]:
@@ -116,6 +132,7 @@ def check_coverage(
     changes: Sequence[FileChange],
     added_text: Mapping[str, str],
     pr_body: str,
+    sources: Mapping[str, str] | None = None,
 ) -> CheckResult:
     """Verify PR coverage matches issue criteria.
 
@@ -125,10 +142,19 @@ def check_coverage(
         changes: File changes from the PR.
         added_text: Mapping of path -> text of added lines.
         pr_body: Body of the PR.
+        sources: Mapping of path -> whole text (at head) of the test files; the gate passes it so a test is judged by its own
+            function. Without it a test is judged by the added lines.
 
     Returns:
         CheckResult with status PASS/FAIL/SKIPPED.
     """
+    units = _Evidence(changes, added_text, sources)
+    other = units.other_without_test()
+    if other:
+        return CheckResult("coverage", FAIL, (
+            "no_evidence: producao que nao e Python sem teste que rode e possa falhar (o portao nao le nem roda): " + ", ".join(other[:5]),
+        ), {"reason_code": "no_evidence", "other": other})
+
     if issue is None:
         return CheckResult("coverage", SKIPPED, ("PR sem issue",))
 
@@ -136,7 +162,6 @@ def check_coverage(
     if not crit:
         return CheckResult("coverage", SKIPPED, ("issue sem criterios",))
 
-    units = _Evidence(changes, added_text)
     evidence: dict[str, list[str]] = {}
     uncovered: list[str] = []
     for text in crit:
@@ -156,6 +181,9 @@ def check_coverage(
         return CheckResult("coverage", PASS, measured=measured)
 
     reasons = tuple(f"criterio sem cobertura: {text}" for text in uncovered)
+    if not units.runs_something():
+        reasons = ("no_evidence: o PR nao altera teste nem codigo Python; so teste que roda e passa, ou codigo, prova um comportamento",
+                   *reasons)
     if closes(pr_body, issue):
         return CheckResult("coverage", FAIL, (
             "PR parcial sem 'Parte de #' ou com palavra de fechamento",
@@ -288,19 +316,41 @@ def _definition_words(text: str) -> list[str]:
     return out
 
 
-def _test_units(path: str, text: str) -> list[tuple[str, str]]:
-    """(label, text) of each test in the added lines of a test file; the whole text when it has no `def test_*`."""
+def _test_units(path: str, text: str, added: Collection[int], source: str | None) -> list[tuple[str, str, bool]]:
+    """(label, words text, usable) of each test the PR adds or changes. `usable` is False for a test that cannot fail or that
+    nobody runs (`vacuity.py`). With the whole file (`source`) a test is one function that overlaps an added line; without it
+    the added lines are parsed alone, and when they do not parse, the text is split at each `def test*` (all usable: nothing to judge)."""
+    if source is not None:
+        try:
+            funcs = [f for f in vacuity.analyze(source) if set(added).intersection(range(f.first, f.last + 1))]
+        except SyntaxError:
+            funcs = None
+        if funcs is not None:
+            return [(f"{path}::{f.qualname}", f.terms, f.usable) for f in funcs]
+    try:
+        alone = textwrap.dedent(text)
+        funcs = vacuity.analyze(alone)
+        if funcs:
+            return [(f"{path}::{f.qualname}", f.terms, f.usable) for f in funcs]
+        return [(path, text, vacuity.has_check(alone))]  # lines of an existing test: no `def test*` among them
+    except SyntaxError:
+        pass
     found = list(_TEST_DEF.finditer(text))
     if not found:
-        return [(path, text)]
+        return [(path, text, True)]
     ends = [m.start() for m in found[1:]] + [len(text)]
-    return [(f"{path}::{m.group(1)}", text[m.start():end]) for m, end in zip(found, ends)]
+    return [(f"{path}::{m.group(1)}", text[m.start():end], True) for m, end in zip(found, ends)]
 
 
 def _cited_tokens(criterion: str) -> list[str]:
     tokens = [t.strip() for t in _BACKTICKED.findall(criterion)]
     tokens.extend(m.group(0) for m in _BARE_TOKEN.finditer(_BACKTICKED.sub(" ", criterion)))
     return [t for t in tokens if t]
+
+
+def _is_doc_criterion(criterion: str, cited: Sequence[str]) -> bool:
+    """Whether the criterion asks for documentation: it names docs / ADR / README / documentation, or cites a doc file."""
+    return bool(_DOC_CRITERION.search(_strip_accents(criterion))) or any(t.lower().endswith(_DOC_SUFFIXES) for t in cited)
 
 
 def _is_path(token: str) -> bool:
@@ -316,23 +366,25 @@ def _path_matches(token: str, path: str) -> bool:
 class _Evidence:
     """The units of a PR (tests, production files, docs) that a criterion can be matched against."""
 
-    def __init__(self, changes: Sequence[FileChange], added_text: Mapping[str, str]) -> None:
+    def __init__(self, changes: Sequence[FileChange], added_text: Mapping[str, str], sources: Mapping[str, str] | None = None) -> None:
         self.changes = list(changes)
         self.added = dict(added_text)
-        self.tests: list[tuple[str, set[str]]] = []  # (label, words)
+        self.tests: list[tuple[str, set[str]]] = []  # (label, words) of the tests that run and can fail
         self.code: list[tuple[str, set[str]]] = []
         self.docs: list[tuple[str, set[str]]] = []
-        self.test_files: list[str] = []  # test files with added lines
+        self.test_files: list[str] = []  # test files with at least one usable test
         for ch in self.changes:
             if ch.status == "D":
                 continue
             text = self.added.get(ch.path, "")
             path_words = set(_words(ch.path))
             if ch.kind == "test":
-                if _is_conftest(ch.path) or not text.strip():
+                if _is_conftest(ch.path) or is_pytest_infra(ch.path) or not text.strip():
                     continue
-                self.test_files.append(ch.path)
-                self.tests.extend((f"test:{label}", set(_words(body))) for label, body in _test_units(ch.path, text))
+                units = [u for u in _test_units(ch.path, text, ch.added, (sources or {}).get(ch.path)) if u[2]]
+                if units:
+                    self.test_files.append(ch.path)
+                    self.tests.extend((f"test:{label}", set(_words(body))) for label, body, _ in units)
             elif ch.kind == "docs":
                 self.docs.append((f"docs:{ch.path}", path_words | set(_words(text))))
             elif ch.kind == "code":  # production that is not Python (js, sh, yml, toml) is no evidence: nothing here reads it
@@ -341,9 +393,11 @@ class _Evidence:
     def for_criterion(self, criterion: str) -> list[str]:
         """Evidence labels for the criterion; empty when it is not covered."""
         needs_test = any(w in _TEST_WORDS for w in re.findall(r"[a-z]+", _strip_accents(criterion).lower()))
-        scope = [c for c in self.changes if c.kind == "test" and not _is_conftest(c.path)] if needs_test \
-            else [c for c in self.changes if c.kind != "other"]
         cited = _cited_tokens(criterion)
+        # documentation is evidence of a documentation criterion only; a test file with no usable test is not evidence of anything
+        docs_ok = _is_doc_criterion(criterion, cited)
+        scope = [c for c in self.changes if c.kind == "test" and c.path in self.test_files] if needs_test \
+            else [c for c in self.changes if c.kind == "code" or c.path in self.test_files or (docs_ok and c.kind == "docs")]
         if cited and all(self._in_diff(tok, scope) for tok in cited):
             return [f"{'path' if _is_path(tok) else 'symbol'}:{tok}" for tok in cited][:_EVIDENCE_CAP]
         prose = criterion
@@ -354,8 +408,19 @@ class _Evidence:
         if not words:
             return [f"test:{p}" for p in self.test_files][:_EVIDENCE_CAP] if needs_test else []
         need = _needed(len(words))
-        units = self.tests if needs_test else [*self.tests, *self.code, *self.docs]
+        units = self.tests if needs_test else [*self.tests, *self.code, *(self.docs if docs_ok else [])]
         return [label for label, pool in units if _hits(words, pool) >= need][:_EVIDENCE_CAP]
+
+    def runs_something(self) -> bool:
+        """Whether the PR changes a usable test or Python production (docs and non-Python files prove no behavior)."""
+        return bool(self.test_files) or any(c.kind == "code" and c.status in ("A", "M") for c in self.changes)
+
+    def other_without_test(self) -> list[str]:
+        """Non-Python production the PR adds or changes when it has no usable test: nothing in the gate runs or reads it."""
+        if self.test_files:
+            return []
+        return sorted(c.path for c in self.changes if c.kind == "other" and c.status in ("A", "M") and not is_pytest_infra(c.path)
+                      and PurePosixPath(c.path).suffix.lower() in _OTHER_CODE_SUFFIXES)
 
     def _in_diff(self, token: str, scope: Sequence[FileChange]) -> bool:
         tok = token.strip("\"'").removesuffix("()").removeprefix("./")

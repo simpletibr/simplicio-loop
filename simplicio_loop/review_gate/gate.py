@@ -19,7 +19,7 @@ from ..watcher247 import sandbox
 from . import coverage, diffs, docs, identity, isolation, mutation, pytest_cmd, redgreen, usage
 from .diffs import FileChange
 from .identity import Agent
-from .model import ERROR, CheckResult, GateReport
+from .model import ERROR, FAIL, CheckResult, GateReport
 
 REPORT_DIR = Path(".simplicio-loop") / "review-gate"
 DEFAULT_MUTANTS = 12
@@ -132,6 +132,18 @@ def _added_text(root: Path, changes: list[FileChange]) -> dict[str, str]:
     return out
 
 
+def _sources(root: Path, changes: list[FileChange]) -> dict[str, str]:
+    """The whole text of each test file the PR adds or changes, so coverage judges a test by its own function."""
+    out: dict[str, str] = {}
+    for c in changes:
+        if c.kind == "test" and c.status != "D":
+            try:
+                out[c.path] = (root / c.path).read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+    return out
+
+
 def _base_public(base_root: Path, changes: list[FileChange]) -> dict[str, frozenset[str]]:
     out: dict[str, frozenset[str]] = {}
     for c in changes:
@@ -148,7 +160,10 @@ def run_gate(inp: GateInput) -> GateReport:
     base_root, head_root = work / "base", work / "head"
     created: list[Path] = []
     wrap_for, home, refusal = inp.wrap_for, None, None
-    if wrap_for is None:  # the PR's code runs in the gate's own jail, or it does not run
+    if not changes:  # nothing to review: never approved, whatever the issue says, and nothing to run
+        refusal = CheckResult("diff", FAIL, ("empty_diff: o PR nao altera nenhum arquivo; um PR vazio nunca e aprovado",),
+                              {"reason_code": "empty_diff"})
+    elif wrap_for is None:  # the PR's code runs in the gate's own jail, or it does not run
         state = inp.state_dir or inp.repo / REPORT_DIR
         try:
             state.mkdir(parents=True, exist_ok=True)
@@ -176,7 +191,8 @@ def run_gate(inp: GateInput) -> GateReport:
                                                                timeout_each=inp.mutant_timeout_s, seed=inp.head,
                                                                wrap=wrap_for(head_root), env=env, home=home)),
             _timed("usage", lambda: usage.check_usage(head_root, changes, _base_public(base_root, changes))),
-            _timed("coverage", lambda: coverage.check_coverage(inp.issue, inp.issue_body, changes, added, inp.pr_body)),
+            _timed("coverage", lambda: coverage.check_coverage(inp.issue, inp.issue_body, changes, added, inp.pr_body,
+                                                               sources=_sources(head_root, changes))),
             _timed("docs", lambda: docs.check_docs(base_root, head_root, changes)),
             _timed("identity", lambda: identity.check_identity(inp.author, inp.reviewer, level, inp.independent)),
             *inp.extra,
