@@ -123,8 +123,10 @@ def test_grok_catalog_ids_are_accepted_by_grok_models() -> None:
         detail = model_probe.redact(proc.stderr.strip())[:200]
         pytest.skip(f"`grok models` exited {proc.returncode}: {detail}")
     listing = f"{proc.stdout}\n{proc.stderr}"
+    if "Available models" not in listing:  # a CLI without a login answers with exit 0 and no model list: that is not a missing id
+        pytest.skip(f"`grok models` printed no model list (not logged in?): {model_probe.redact(listing.strip())[:120]}")
     missing = []
-    for role in ("execution", "coordination"):
+    for role in ("planning", "coordination", "execution"):
         spec = _catalog()["families"]["grok"][role]
         if not model_probe.is_listed(spec["model"], listing):
             missing.append(f"{role}={spec['model']}")
