@@ -14,7 +14,7 @@ import pytest
 from simplicio_loop import exec_planner
 from simplicio_loop.watcher247 import host_mode, sandbox
 
-from .sandbox_rig import bwrap_skip_reason, run, scratch
+from .sandbox_rig import needs_bwrap, run, scratch
 
 LOGIN = {  # the file each family's login lives in, relative to HOME (measured with the real CLIs, see the PR)
     "claude": ".claude/.credentials.json",
@@ -26,7 +26,6 @@ LOGIN = {  # the file each family's login lives in, relative to HOME (measured w
 }
 OTHER_SECRETS = (".ssh/id_ed25519", ".config/gh/hosts.yml", ".aws/credentials", ".simplicio/login.json")
 PROBE = 'for p in "$@"; do if cat "$HOME/$p" >/dev/null 2>&1; then echo "$p"; fi; done'
-needs_bwrap = pytest.mark.skipif(bool(bwrap_skip_reason()), reason=bwrap_skip_reason() or "bwrap")
 
 
 def fill(home: Path, relative: str, text: str) -> Path:
