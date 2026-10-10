@@ -22,7 +22,7 @@
       "anyOf": [
         {"enum": [
           "run_started", "phase_entered", "phase_exited", "contract_frozen", "map_ready", "plan_frozen",
-          "worker_claimed", "lane_progress", "iteration_started", "iteration_finished", "apply_result",
+          "worker_claimed", "lease_heartbeat", "lane_progress", "iteration_started", "iteration_finished", "apply_result",
           "test_result", "lint_result", "coverage_result", "gate_evaluated",
           "command_started", "command_finished",
           "retry_scheduled", "stall_detected", "decision_requested",

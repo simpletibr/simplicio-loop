@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 from . import operator_exec
+from .error_truncation import truncate_error_with_cause
 
 
 class MapperUnavailableError(RuntimeError):
@@ -70,7 +71,7 @@ async def run_mapper_index(path: str, *, timeout: float = 60.0) -> dict:
     returncode, stdout, stderr = await _run_mapper([binary, "index", resolved, "--json"], timeout)
     if returncode != 0:
         raise MapperIndexError(
-            "simplicio-mapper index failed (exit %d): %s" % (returncode, stderr.strip()[-500:])
+            "simplicio-mapper index failed (exit %d): %s" % (returncode, truncate_error_with_cause(stderr.strip()))
         )
     try:
         envelope = json.loads(stdout)

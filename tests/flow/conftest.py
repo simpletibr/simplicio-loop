@@ -165,8 +165,8 @@ elif args[:2] == ["pr", "view"]:  # the squad review and the squad gate: the app
     posted = [c["body"] for c in seen_calls()
               if c.get("method") == "POST" and c.get("path", "").endswith("/issues/%d/comments" % number)]
     print(json.dumps(dict(
-        files=[dict(path="src/app.py")], headRefOid="head%d" % number,
-        commits=[dict(oid="c%d" % number, committedDate="2026-10-01T00:00:00Z", messageHeadline="loop: change")],
+        files=[dict(path="src/app.py")], headRefOid="%040x" % number,
+        commits=[dict(oid="%040x" % number, committedDate="2026-10-01T00:00:00Z", messageHeadline="loop: change")],
         comments=[dict(id=i, createdAt="2026-10-02T00:00:00Z", body=b, author=dict(login=fx.get("approval_author") or fx.get("login", "squad-bot")),
                        authorAssociation="OWNER") for i, b in enumerate(posted)])))
 elif args[:2] == ["pr", "merge"]:

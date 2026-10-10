@@ -1,10 +1,11 @@
-"""Validation of ``simplicio.agent-handoff/v1`` documents and the place they live (#1608).
+"""Validation and secret redaction of ``simplicio.agent-handoff/v1`` documents, and the place they live (#1608).
 
-This module only checks a document and computes a path. Writing, reading and the CLI belong to a later part.
-The schema is the packaged copy of ``contracts/agent-handoff/v1/schema.json``.
+This module checks a document, masks secrets in its free text and computes a path. It does no file I/O: writing and
+reading are in ``handoff_cli``. The schema is the packaged copy of ``contracts/agent-handoff/v1/schema.json``.
 """
 from __future__ import annotations
 
+import copy
 import json
 import re
 from pathlib import Path, PurePosixPath
@@ -12,6 +13,7 @@ from typing import Any
 
 import jsonschema
 
+from .dashboard.runs import redact_command
 from .input_ceiling import estimate_tokens
 
 MAX_HANDOFF_TOKENS = 6000
@@ -82,3 +84,43 @@ def handoff_path(root: str | Path, run_id: str, n: int) -> Path:
     if isinstance(n, bool) or not isinstance(n, int) or n < 1:
         raise HandoffError("handoff_continuation_invalid", "%r is not an integer >= 1" % (n,))
     return Path(root) / ".simplicio-loop" / "orchestrator" / "handoff" / run_id / ("%d.json" % n)
+
+
+def _mask(holder: Any, key: Any, pointer: str, changed: list[str]) -> None:
+    value = holder[key]
+    if isinstance(value, str):
+        masked = redact_command(value)
+        if masked != value:
+            holder[key] = masked
+            changed.append(pointer)
+
+
+def redact_handoff(doc: Any) -> tuple[dict, list[str]]:
+    """A deep copy of ``doc`` with secrets masked in its free text, and the JSON pointers that changed.
+
+    Free text is ``objective``, ``acceptance_criteria``, the ``command`` and ``summary`` of ``done.commands``,
+    ``next_steps`` and ``open_questions``, in that order. Identifiers, hashes, paths, token counts and the lease are never
+    touched. A field of the wrong shape is left alone: ``validate_handoff`` rejects it. Run this before
+    ``validate_handoff``, because a mask can be longer than the text it replaces.
+    """
+    if not isinstance(doc, dict):
+        raise HandoffError("handoff_schema_invalid", "a handoff is a JSON object, got %s" % type(doc).__name__)
+    clean = copy.deepcopy(doc)
+    changed: list[str] = []
+    if "objective" in clean:
+        _mask(clean, "objective", "/objective", changed)
+    if isinstance(clean.get("acceptance_criteria"), list):
+        for i in range(len(clean["acceptance_criteria"])):
+            _mask(clean["acceptance_criteria"], i, "/acceptance_criteria/%d" % i, changed)
+    done = clean.get("done")
+    commands = done.get("commands") if isinstance(done, dict) else None
+    for i, entry in enumerate(commands if isinstance(commands, list) else ()):
+        if isinstance(entry, dict):
+            for name in ("command", "summary"):
+                if name in entry:
+                    _mask(entry, name, "/done/commands/%d/%s" % (i, name), changed)
+    for field in ("next_steps", "open_questions"):
+        if isinstance(clean.get(field), list):
+            for i in range(len(clean[field])):
+                _mask(clean[field], i, "/%s/%d" % (field, i), changed)
+    return clean, changed

@@ -3,10 +3,8 @@ from __future__ import annotations
 
 import asyncio
 import os
-import shutil
 import stat
 import subprocess
-import sys
 import textwrap
 from pathlib import Path
 
@@ -14,6 +12,8 @@ import pytest
 
 from simplicio_loop import exec_planner
 from simplicio_loop.watcher247 import sandbox
+
+from .sandbox_rig import needs_bwrap
 
 STUB = textwrap.dedent('''\
     #!/usr/bin/env python3
@@ -23,15 +23,15 @@ STUB = textwrap.dedent('''\
         deny = json.load(open(cfg))["permission"]["bash"] == "deny"
     except Exception:
         deny = False
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "seen.txt"), "w") as handle:
-        handle.write(cfg)
+    try:  # records what it saw; the sandbox keeps the state dir (this folder) read-only, which is not what is under test
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "seen.txt"), "w") as handle:
+            handle.write(cfg)
+    except OSError:
+        pass
     if not deny:
         sys.exit(3)
     print(json.dumps({"operations": []}))
 ''')
-
-needs_bwrap = pytest.mark.skipif(
-    sys.platform != "linux" or shutil.which("bwrap") is None, reason="needs Linux with bwrap")
 
 
 @pytest.fixture

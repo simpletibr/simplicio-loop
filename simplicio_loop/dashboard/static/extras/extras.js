@@ -1,8 +1,11 @@
 // Extras panel: maps the run extras reply and the stage-agents reply to seven labelled rows and renders them into #live-extras.
 // Only a measured value earns PASS; anything else is UNVERIFIED with the reason it could not be measured.
 // The stage-agents breakdown (issue #1550) adds widgets under the seven rows: tokens by phase/lane/model as stacked bars,
-// cost per task and per iteration, the agent map and a sparkline of the polled token total. Every name is shown with
-// textContent; a bar width is a clamped percent set through the CSSOM, never a style attribute.
+// the lanes claimed by the workers and a sparkline of the run's measured token total over time (the server's series, so it
+// survives a reload). The measured instances, slots and leases are drawn by agent-map.js, loaded on the first reply.
+// Every name is shown with textContent; a bar width is a clamped percent set through the CSSOM, never a style attribute.
+import { startLangfuse } from './langfuse.js';
+
 const SCHEMA = 'simplicio.dashboard-extras/v1';
 const STAGE_SCHEMA = 'simplicio.dashboard-stage-agents/v1';
 const POLL_MS = 3000;
@@ -19,7 +22,6 @@ const moneyOf = (usd, floor) => (floor ? 'a partir de ' : '') + 'US$ ' + usd.toF
 const NO_COST = 'custo do run não estimado';
 const NO_CLAIMS = 'nenhum worker_claimed no run';
 const NO_LEASE = 'worker_claimed sem lease_id';
-const NO_SLOTS = 'slots não medidos';
 const NO_BREAKDOWN_TOKENS = 'tokens do provedor não medidos';
 const MAX_POINTS = 60;
 const SEGMENT_CLASSES = 6;
@@ -107,9 +109,11 @@ export function percentOf(part, total) {
   return Math.min(100, Math.max(0, (part / total) * 100));
 }
 
-// The polled-total history: a new array holding at most the last 60 points, so the sparkline cannot grow.
-export function pushPoint(history, value) {
-  return history.concat([value]).slice(-MAX_POINTS);
+// The token trend of the extras reply: the cumulative measured totals the server computed from the run's token_usage events
+// (at most 60), in order. A point that is not a count is dropped, and a longer series is cut to its last 60 points.
+export function seriesOf(reply) {
+  const points = isObject(reply) && Array.isArray(reply.tokens_series) ? reply.tokens_series : [];
+  return points.map((point) => (isObject(point) ? point.tokens : null)).filter(isCount).slice(-MAX_POINTS);
 }
 
 const NONE = { phase: 'sem fase', lane: 'sem lane', model: 'sem modelo' };
@@ -178,8 +182,6 @@ function agentMapWidget(map) {
       : ', leases ' + leases.text;
     return { text: head + (tasks.empty ? '' : ', tarefas ' + tasks.text) + lease };
   });
-  const slots = isObject(map.slots) ? map.slots : {};
-  legend.push({ text: 'slots ' + (slots.state === 'PASS' ? 'PASS' : 'UNVERIFIED (' + (isText(slots.reason) ? slots.reason : NO_SLOTS) + ')') });
   const claims = limited.reduce((sum, lane) => sum + (isCount(lane.claims) ? lane.claims : 0), 0);
   const count = limited.reduce((sum, lane) => sum + countOf(lane), 0);
   return { label, state: 'PASS', text: count + ' lanes, ' + claims + ' claims (worker_claimed)', segments: [], legend };
@@ -283,18 +285,20 @@ export function startExtras(readApi, runId) {
   let extras = null;
   let stages = null;
   let history = [];
+  let agentMap = null;
   const load = async () => {
     const [reply, stageReply] = await Promise.all([readApi(base + '/extras'), readApi(base + '/stage-agents')]);
     if (reply === null && stageReply === null) return;
     extras = reply === null ? extras : reply;
     stages = stageReply === null ? stages : stageReply;
-    const total = isObject(stageReply) && isObject(stageReply.breakdown) && isObject(stageReply.breakdown.tokens)
-      ? stageReply.breakdown.tokens.total : null;
-    if (Number.isFinite(total) && total > 0) history = pushPoint(history, total);
+    history = seriesOf(extras);
     render(section, extrasOf(extras, stages), widgetsOf(stages), history);
+    agentMap = agentMap || (await import('./agent-map.js'));
+    agentMap.renderAgentMap(isObject(extras) ? extras.agents : null);
   };
   load();
   setInterval(load, POLL_MS);
+  startLangfuse(readApi, runId, section);
 }
 
 // The run budget and token usage are derived from the event stream, so they refresh on the tokens cadence (the caller's interval).

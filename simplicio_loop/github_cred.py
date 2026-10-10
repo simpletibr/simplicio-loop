@@ -14,7 +14,8 @@ import os
 import re
 import subprocess
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -22,7 +23,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from . import auth
+from . import auth, setup_hardening
 
 API_URL = "https://api.github.com"
 TOKEN_ENVS = ("GH_TOKEN", "GITHUB_TOKEN")
@@ -39,7 +40,8 @@ _CHILD_ENV = ("PATH", "HOME", "USERPROFILE", "LANG", "SYSTEMROOT", "APPDATA", "X
 _STORE_CODES = {"login_symlink": "store_symlink", "login_permissions": "store_permissions",
                 "login_lock_timeout": "store_locked", "login_missing": "store_missing"}
 
-Run = Callable[[list[str], dict[str, str], Optional[str]], tuple[Optional[int], str]]
+Run = Callable[[list[str], dict[str, str], Optional[str], Optional[str]], tuple[Optional[int], str]]
+Which = Callable[[str], Optional[str]]
 
 
 class CredError(Exception):
@@ -162,9 +164,9 @@ def load_token(state_dir: Path) -> Optional[str]:
 # --- the sources ----------------------------------------------------------------------------------------------------
 
 
-def _run(argv: list[str], env: dict[str, str], input_text: Optional[str]) -> tuple[Optional[int], str]:
+def _run(argv: list[str], env: dict[str, str], input_text: Optional[str], cwd: Optional[str] = None) -> tuple[Optional[int], str]:
     try:
-        done = subprocess.run(argv, env=env, input=input_text, stdin=None if input_text is not None else subprocess.DEVNULL,
+        done = subprocess.run(argv, env=env, input=input_text, cwd=cwd, stdin=None if input_text is not None else subprocess.DEVNULL,
                               capture_output=True, text=True, errors="replace", timeout=10, shell=False)
     except (OSError, subprocess.TimeoutExpired):
         return None, ""
@@ -172,20 +174,41 @@ def _run(argv: list[str], env: dict[str, str], input_text: Optional[str]) -> tup
 
 
 def _child_env(environ: Mapping[str, str], **extra: str) -> dict[str, str]:
-    return {**{name: environ[name] for name in _CHILD_ENV if name in environ}, **extra}
+    env = {name: environ[name] for name in _CHILD_ENV if name in environ}
+    if "PATH" in env:
+        env["PATH"] = setup_hardening.probe_env(environ)["PATH"]  # no relative, other-writable or ~/.local/bin entry
+    return {**env, **extra}
 
 
-def _from_gh(environ: Mapping[str, str], run: Run) -> Optional[str]:
-    """The token of the logged-in GitHub CLI. The env is an allowlist, so GH_TOKEN cannot answer in its place."""
-    code, out = run(["gh", "auth", "token", "--hostname", "github.com"],
-                    _child_env(environ, GH_PROMPT_DISABLED="1", NO_COLOR="1"), None)
+@contextmanager
+def _isolated(environ: Mapping[str, str], **extra: str) -> Iterator[tuple[str, dict[str, str]]]:
+    """(empty folder outside any repository, child env): where `gh` and `git` run, so no cwd or local config reaches them."""
+    with setup_hardening.isolated_git_cwd(environ) as (workdir, isolated):
+        yield workdir, {**isolated, **_child_env(environ, **extra)}
+
+
+def _from_gh(environ: Mapping[str, str], run: Run, which: Which) -> Optional[str]:
+    """The token of the logged-in GitHub CLI. The env is an allowlist, so GH_TOKEN cannot answer in its place.
+
+    `gh` is the file `which` finds on the PATH without its unsafe entries; there is none to run when it finds nothing."""
+    gh = which("gh")
+    if gh is None:
+        return None
+    with _isolated(environ, GH_PROMPT_DISABLED="1", NO_COLOR="1") as (workdir, env):
+        code, out = run([gh, "auth", "token", "--hostname", "github.com"], env, None, workdir)
     return out.strip() if code == 0 else None
 
 
-def _from_git(environ: Mapping[str, str], run: Run) -> Optional[str]:
-    """The password the git credential helper holds for github.com; a reply for another host is refused."""
-    code, out = run(["git", "credential", "fill"], _child_env(environ, GIT_TERMINAL_PROMPT="0", GCM_INTERACTIVE="never"),
-                    "protocol=https\nhost=github.com\n\n")
+def _from_git(environ: Mapping[str, str], run: Run, which: Which) -> Optional[str]:
+    """The password the git credential helper holds for github.com; a reply for another host is refused.
+
+    It runs in an empty folder outside any repository, so the `credential.helper` of a local `.git/config` cannot run code.
+    The global and system helpers still answer. `git` comes from the PATH without its unsafe entries."""
+    git = which("git")
+    if git is None:
+        return None
+    with _isolated(environ, GCM_INTERACTIVE="never") as (workdir, env):
+        code, out = run([git, "credential", "fill"], env, "protocol=https\nhost=github.com\n\n", workdir)
     if code != 0:
         return None
     reply = dict(line.split("=", 1) for line in out.splitlines() if "=" in line)
@@ -193,21 +216,23 @@ def _from_git(environ: Mapping[str, str], run: Run) -> Optional[str]:
 
 
 def resolve(environ: Optional[Mapping[str, str]] = None, *, state_dir: Path, provided: Optional[str] = None,
-            ask: Optional[Callable[[], str]] = None, run: Optional[Run] = None,
-            base_url: str = API_URL, timeout: float = 15.0) -> Resolution:
+            ask: Optional[Callable[[], str]] = None, run: Optional[Run] = None, which: Optional[Which] = None,
+            trusted: Optional[Mapping[str, str]] = None, base_url: str = API_URL, timeout: float = 15.0) -> Resolution:
     """Walk the sources in order; the first token GitHub accepts wins. Nothing is stored here.
 
     A rejected token moves on to the next source. When GitHub cannot be reached nothing can be judged, so the walk stops.
     A token the user piped (`provided`) is final: if it fails, no other source is tried in its place.
+    `gh` and `git` are found on the PATH without its unsafe entries; `trusted` names exact files the setup verified.
     """
     environ = os.environ if environ is None else environ
     run = run or _run
+    which = which or setup_hardening.safe_which(environ, trusted)
     _check_base(base_url)
     sources: list[tuple[str, Callable[[], Optional[str]]]] = []
     if provided is not None:
         sources.append(("provided", lambda: provided))
     sources += [(f"env:{name}", lambda name=name: environ.get(name)) for name in TOKEN_ENVS]
-    sources += [("gh", lambda: _from_gh(environ, run)), ("git-credential", lambda: _from_git(environ, run)),
+    sources += [("gh", lambda: _from_gh(environ, run, which)), ("git-credential", lambda: _from_git(environ, run, which)),
                 ("stored", lambda: load_token(state_dir))]
     if ask is not None:
         sources.append(("prompt", ask))

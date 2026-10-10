@@ -93,8 +93,8 @@ Probe inside the unit's directives (`User=nobody`, a fake secret in the unit's e
 As root (bwrap without a user namespace) `/proc/<watcher>/environ` is readable without the flag (the reviewer's repro, and
 `test_sandbox_proc.py::test_control_without_unshare_pid_the_child_reads_the_watcher_environ`); with it, it is not found.
 
-What stays visible by design: the service user's `HOME` (the exec CLIs read their own logins from it, e.g. `~/.claude`,
-`~/.codex`, `~/.simplicio/login.json`; the sandbox does not split `HOME` per CLI), the shared network namespace
+What stays visible by design: the service user's `HOME` for `turbo` and the test commands (read-only; a planner CLI sees an
+empty `HOME` plus the folders of its own family, see `host_mode.FAMILY_HOME`), the shared network namespace
 (`/proc/net`, localhost), host facts in `/proc/self/mountinfo`, `cpuinfo`, `meminfo`, and `/run`. Keep
 `/etc/simplicio-loop-247.env` owned by root with mode 600: `--ro-bind / /` exposes any file the service user can read.
 

@@ -69,6 +69,7 @@ namespaced kind; each namespace owns its own catalog.
 | lifecycle | `map_ready` | runner (Mapper context persisted) | `step` = `mapper_fresh` or `mapper_degraded` (`warning`) |
 | lifecycle | `plan_frozen` | runner | `step`, `message` |
 | lanes and tasks | `worker_claimed` | worker | `step`, `branch`, `lease_id`, `ac_ids`; `lane` = branch |
+| lanes and tasks | `lease_heartbeat` | runner (watcher: `_heartbeat` in `simplicio_loop/watcher247/tick.py`, every renewal of the issue lease) | `lease_key` (`repo#number`), `status` (`renewed`, or `lost` with `severity: warning`), `beats` (renewals since the loop began), `ttl_s` (the lease ttl). Collection scope. The owner token is never written. |
 | lanes and tasks | `lane_progress` | worker / runner / operator | `step` = the runner step that has no dedicated kind (`worktree_created`, `stack_lock_frozen`, `storage_route_frozen`, `handoff`, `technical_debt` with `debt_*` fields, or any future step) |
 | lanes and tasks | `iteration_started` | hook (`loop_stop` re-feed, `trigger: refeed`), operator (`user_prompt_submit`, `trigger: user_prompt`, `decision`, `prompt_chars`) | as listed |
 | lanes and tasks | `iteration_finished` | hook (`loop_stop`) | `outcome` (`refeed`, `pass`, `blocked`), `reason`, `has_evidence` |
@@ -84,7 +85,7 @@ namespaced kind; each namespace owns its own catalog.
 | recovery | `decision_requested` | runner (entering `awaiting_decision`) | `reason` |
 | delivery and cost | `delivery_reconciled` | runner | `current_state`, `blocker` |
 | delivery and cost | `pr_opened` | reserved for the delivery step | `url`, `number` |
-| delivery and cost | `token_usage` | runner (`execution-route*.json` of the run) | `input_tokens`, `output_tokens`, optional `model`, `reason`; `lane` = route |
+| delivery and cost | `token_usage` | runner (`execution-route*.json` and `provider-worker-*.json` of the run) | `input_tokens`, `output_tokens`, optional `model`, `reason`; `lane` = route; a provider receipt adds `source` (`provider`), `requests`, `cached_tokens`, `cache_write_tokens`, `reasoning_tokens`, `cost`, and sets `task_id`, `lane` and `iteration` |
 | delivery and cost | `cost_sample` | reserved for agent/model producers | `model`, `usd` |
 | end | `run_finished` | runner (entering `done`, `partial` or `cancelled`) | `outcome`, `reason` |
 
@@ -92,7 +93,7 @@ namespaced kind; each namespace owns its own catalog.
 that need them (#1404 agents and cost). Their payload fields above are the expected
 shape, not yet emitted.
 
-`token_usage` is produced from the run's own `execution-route*.json` records: only integer counts the run recorded become events (the live emit happens when the fan-out route is written; runs without a live stream get the same events in `derive_events`). A deterministic-worker route records 0 tokens (`deterministic_worker_no_llm`); a route decided before any provider call records null counts and produces no event. The run records carry NO provider token counts today, so a real provider run stays UNVERIFIED for tokens and cost until a provider flow records them. Counts are never invented. `cost_sample` stays reserved. `dashboard/budget.py` sums the events for the budget panel and alerts, and `cost_estimate` prices measured tokens with `dashboard/prices.json`: `GET /api/runs/<id>/budget` returns `cost` with `state: ESTIMADO`, `proof_kind: estimado`, `as_of` and `source_url` of the table, or UNVERIFIED with the reason (no measured tokens, no table, model without price).
+`token_usage` is produced from the run's own `execution-route*.json` records: only integer counts the run recorded become events (the live emit happens when the fan-out route is written; runs without a live stream get the same events in `derive_events`). A deterministic-worker route records 0 tokens (`deterministic_worker_no_llm`); a route decided before any provider call records null counts and produces no event. The provider receipt `provider-worker-<task>-attempt-<n>.json` (usage status `measured`) gives the measured counts of a real provider call. The producer takes `task_id` and `lane` from the `execution-route-<task_index>.json` of the same task, `iteration` from the receipt `attempt`, `payload.requests` from its `provider_call_count` and marks `payload.source` as `provider`. Every event takes `phase` from the run `state.json`. A run with no provider receipt stays UNVERIFIED for tokens and cost. Counts are never invented. `cost_sample` stays reserved. `dashboard/budget.py` sums the events for the budget panel and alerts, and `cost_estimate` prices measured tokens with `dashboard/prices.json`: `GET /api/runs/<id>/budget` returns `cost` with `state: ESTIMADO`, `proof_kind: estimado`, `as_of` and `source_url` of the table, or UNVERIFIED with the reason (no measured tokens, no table, model without price).
 
 ## Producers
 
@@ -139,6 +140,19 @@ shape, not yet emitted.
   no `command_finished` with the same `command_id` ("em execução há N s", age against the clock of the request). A start
   older than 600 s with no finish is flagged with its age, never hidden. A start before the last `run_finished` is
   not running. With no `command_started` in the run the row is UNVERIFIED with the reason.
+
+### Lease heartbeat producer
+
+- **Lease events** (`simplicio_loop/watcher247/events.py` `lease_beat`, called by `_heartbeat` in `simplicio_loop/watcher247/tick.py`):
+  while turbo runs, the watcher renews the issue lease every `HEARTBEAT_S` (60 s). Each renewal appends one `lease_heartbeat` to the
+  run that the watcher opened at intake. Source `runner`, collection scope, `task_id`, `phase` and `lane` null.
+- The payload holds `lease_key` (`repo#number`), `status`, `beats` (renewals since the loop began) and `ttl_s` (180 s). A renewal that
+  the claim store refuses writes one `lost` event with `severity: warning` and ends the loop. The owner token is the secret of the
+  lease and never goes in an event.
+- Writing is fail-open. A lease with no open run writes nothing, and a closed run gets no event after `run_finished`.
+- **Reading**: `GET /api/runs/<id>/extras` adds to `heartbeat` one row for each `lease_key`: its latest beat by `seq`. The age is the
+  `ts` of the event against the clock of the request. The row is stale when the age passes its own `ttl_s`, and at any age after
+  `lost` ("lease perdido"). A beat with no readable `ts` or `ttl_s` reads UNVERIFIED, with the reason.
 
 **UNVERIFIED:**
 

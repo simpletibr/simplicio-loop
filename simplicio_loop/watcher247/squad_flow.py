@@ -2,8 +2,8 @@
 
 * general coordinator (planning): `squads.plan_squads` over the tick's admitted issues of a repo, up to 4 workers per squad;
 * workers: `process()` per issue, started at the role `squad_routing.route` picks (the escalation ladder is unchanged);
-* squad coordinator (coordination): reviews the squad's PRs (measured tests, file ownership) and posts APROVADO PELO SQUAD
-  with `pr_evidence.publish_comment`;
+* squad coordinator (coordination): reviews the squad's PRs (measured tests, file ownership) and runs the automatic review gate (`review_gate`) and posts its verdict
+  (REVISÃO AUTOMÁTICA: APROVADA (nível N), or REPROVADA with the cause) with `pr_evidence.publish_comment`;
 * merge: only with SIMPLICIO_247_AUTO_MERGE=1 (#1434): `squads.squad_gate` (the approval must be written by the watcher's own
   gh login, #1534), then `merge_train` (cumulative test, bisect).
 
@@ -41,13 +41,15 @@ from pathlib import Path
 from typing import Any
 
 from .. import execution_report, merge_train, model_roles, pr_evidence, squad_capacity, squad_metrics, squad_routing, squads
-from . import config, proc, sandbox, state
+from ..review_gate import comment as review_comment, identity
+from . import config, proc, sandbox, squad_review, state
 
 AUTO_MERGE_ENV = "SIMPLICIO_247_AUTO_MERGE"
 PR_DRAFT_ENV = "SIMPLICIO_247_PR_DRAFT"
 BASELINE_ENV = "SIMPLICIO_247_SQUADS_BASELINE"
 V2, BASELINE = "v2", "baseline"  # the two modes; the report and the status carry one of them
 APPROVAL_MARKER = "<!-- simplicio-loop:squad-approval:{oid} -->"  # one comment per head commit, so createdAt stays fresh
+REVIEW_MARKER = "<!-- simplicio-loop:squad-review:{oid} -->"  # the rejected verdict of the automatic review, updated in place
 _PATH = re.compile(r"`([\w./-]+\.\w{1,6})`")
 _PR_NUMBER = re.compile(r"/pull/(\d+)")
 TRAIN_FETCH_DEPTH = "100"  # the clone is shallow: enough history for the train's merges
@@ -178,7 +180,15 @@ def _pr_number(url: str | None) -> int | None:
     return int(found.group(1)) if found else None
 
 
-async def _review(repo: str, repo_plan: RepoPlan, squad: squads.Squad, issue: int, outcome: Outcome, runner) -> dict:
+async def _post(repo: str, number: int, head: str, runner, body: str, marker: str) -> bool:
+    try:
+        await asyncio.to_thread(pr_evidence.publish_comment, config.ORG, repo, number, body, marker=marker.format(oid=head), runner=runner)
+    except pr_evidence.PublishError:  # a verdict that was not posted is not a verdict
+        return False
+    return True
+
+
+async def _review(repo: str, repo_plan: RepoPlan, squad: squads.Squad, issue: int, outcome: Outcome, runner, gate) -> dict:
     """The squad coordinator's review of one PR: tests measured by the worker's verify, and file ownership."""
     number = _pr_number(outcome.pr)
     if not outcome.verify.startswith("MEASURED|verify_passed"):
@@ -203,13 +213,21 @@ async def _review(repo: str, repo_plan: RepoPlan, squad: squads.Squad, issue: in
         reasons.append("files owned elsewhere: " + ", ".join(sorted(foreign)[:5]))
     if reasons:
         return {"pr": number, "issue": issue, "approved": False, "reasons": reasons}
-    body = (f"{squads.APPROVAL_PHRASE}\n\nSquad {squad.id} ({squad.coordinator.role}, {squad.coordinator.model}, "
-            f"{squad.coordinator.effort}) revisou o PR da issue #{issue}.\n- testes: {outcome.verify}\n- posse de arquivos: ok")
+    author = identity.Agent(f"{squad.id}/worker-{issue}", "worker", repo_plan.routed.get(issue, "execution"), "watcher247")
     try:
-        await asyncio.to_thread(pr_evidence.publish_comment, config.ORG, repo, number, body,
-                                marker=APPROVAL_MARKER.format(oid=head), runner=runner)
-    except pr_evidence.PublishError:  # an approval that was not posted is not an approval
-        return {"pr": number, "issue": issue, "approved": False, "reasons": ["approval comment not posted"]}
+        report, independent = await squad_review.evaluate(repo, number, issue, head, author, gate.repo_lock(repo))
+    except squad_review.ReviewError as exc:  # the review that could not run is shown, never skipped
+        await _post(repo, number, head, runner, f"{review_comment.REJECTED} (nível ?)\n\nA revisao automatica nao pode rodar: {exc}\n",
+                    REVIEW_MARKER)
+        return {"pr": number, "issue": issue, "approved": False, "reasons": [f"review gate could not run: {exc}"]}
+    body = review_comment.render(report, author, identity.AUTO_REVIEWER, independent,
+                                 [f"squad {squad.id} ({squad.coordinator.role}, {squad.coordinator.model}, {squad.coordinator.effort})",
+                                  f"testes do worker: {outcome.verify}"])
+    if not await _post(repo, number, head, runner, body, APPROVAL_MARKER if report.approved else REVIEW_MARKER):
+        return {"pr": number, "issue": issue, "approved": False, "reasons": ["review comment not posted"]}
+    if not report.approved:
+        return {"pr": number, "issue": issue, "approved": False,
+                "reasons": [r for check in report.blockers for r in check.reasons]}
     return {"pr": number, "issue": issue, "approved": True, "reasons": [], "head": head}
 
 
@@ -278,7 +296,7 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
                 outcome = done.get((repo_plan.repo, issue))
                 if outcome is None or _pr_number(outcome.pr) is None:
                     continue
-                review = await _review(repo_plan.repo, repo_plan, squad, issue, outcome, runner)
+                review = await _review(repo_plan.repo, repo_plan, squad, issue, outcome, runner, gate)
                 reviews[(repo_plan.repo, issue)] = review
                 if review["approved"]:
                     approved[issue] = review["pr"]

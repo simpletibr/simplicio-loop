@@ -2,8 +2,9 @@
 
 Three layers, all decided here so tick.py only makes one call:
 - scrubbed_env(): an allowlist of variables; a token leaves the env only when named in `keep`.
-- wrap(): on Linux, the argv runs under bwrap, with the filesystem read-only except the clone and the
-  state dir. Detected, never installed.
+- wrap(): on Linux, the argv runs under bwrap, with the filesystem read-only except the item's own worktree, admin dir,
+  shared objects and mapper base; the state dir is read-only too. A planner CLI also gets an empty HOME plus its own folders
+  (HomeView). Detected, never installed.
 - no engine: SandboxUnavailable (reason_code "sandbox_unavailable") unless the operator sets
   SIMPLICIO_247_ALLOW_UNSANDBOXED=1 explicitly.
 """
@@ -13,16 +14,32 @@ import os
 import shutil
 import sys
 from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 
 ALLOWED_ENV = ("PATH", "LANG", "LC_ALL", "TERM", "TZ")
 DEFAULT_PATH = "/usr/local/bin:/usr/bin:/bin"
 OPT_OUT = "SIMPLICIO_247_ALLOW_UNSANDBOXED"
-CONTROL_FILES = ("claims.json", "budget.json", "STOP")  # the watcher's own files in the state dir
 
 
 class SandboxUnavailable(RuntimeError):
     reason_code = "sandbox_unavailable"
+
+
+@dataclass(frozen=True)
+class HomeView:
+    """What a planner CLI sees of the service user's HOME (#1570): an empty tmpfs plus these paths, relative to `home`.
+
+    `rw`: the folders its CLI writes (login, token renewal, logs). Folders only: a bound single file breaks the CLI's atomic
+    rename (EBUSY). `ro`: its binary and install tree; a symlink is recreated as a symlink, so list its target as well.
+    `hide`: folders inside an `rw` folder that belong to another CLI (an empty tmpfs goes over them).
+    Whatever is missing on the host is skipped: a family without a login yet still runs.
+    """
+
+    home: Path
+    rw: tuple[str, ...] = ()
+    ro: tuple[str, ...] = ()
+    hide: tuple[str, ...] = ()
 
 
 def scrubbed_env(environ: Mapping[str, str], *, home: Path, keep: Iterable[str] = ()) -> dict[str, str]:
@@ -91,21 +108,37 @@ def item_git_env(cwd: str | Path | None) -> dict[str, str]:
     return {"GIT_DIR": str(common / "worktrees" / number), "GIT_COMMON_DIR": str(common), "GIT_WORK_TREE": str(cwd)}
 
 
-def _work_ro(clone: str) -> list[str]:
-    """Read-only bind of the whole work dir of an item's clone: the other items' worktrees and the base clones inside it."""
-    layout = _layout(clone)
-    return [] if layout is None else ["--ro-bind", str(layout[0]), str(layout[0])]
-
-
-def _control_ro(state_dir: str) -> list[str]:
-    """The watcher's own control files in the state dir, read-only: an item must not edit its claims, budget or STOP (those that exist)."""
-    return [arg for name in CONTROL_FILES if (Path(state_dir) / name).is_file()
-            for arg in ("--ro-bind", str(Path(state_dir) / name), str(Path(state_dir) / name))]
+def _home_args(view: HomeView) -> list[str]:
+    """bwrap args for a planner's HOME: an empty tmpfs, then the family's folders and binary. Fails closed (SandboxUnavailable)
+    when HOME is not an absolute directory other than `/`: without the tmpfs the whole HOME would stay readable."""
+    home = view.home
+    if not home.is_absolute() or home == Path("/") or not home.is_dir():
+        raise SandboxUnavailable(f"cannot mount an empty HOME over {home}: not an absolute directory")
+    args = ["--tmpfs", str(home)]
+    for name in view.rw:
+        if (home / name).is_dir():
+            args += ["--bind-try", str(home / name), str(home / name)]
+    for name in view.hide:
+        if (home / name).is_dir():
+            args += ["--tmpfs", str(home / name)]
+    for name in view.ro:
+        path = home / name
+        if path.is_symlink():
+            args += ["--symlink", os.readlink(path), str(path)]
+        else:
+            args += ["--ro-bind-try", str(path), str(path)]
+    return args
 
 
 def wrap(argv: list[str], *, clone: Path, state_dir: Path, platform: str | None = None,
-         environ: Mapping[str, str] | None = None, which: Callable[[str], str | None] | None = None) -> list[str]:
-    """Return argv run inside the sandbox; raise SandboxUnavailable when none is possible."""
+         environ: Mapping[str, str] | None = None, which: Callable[[str], str | None] | None = None,
+         home: HomeView | None = None) -> list[str]:
+    """Return argv run inside the sandbox; raise SandboxUnavailable when none is possible.
+
+    Writable from inside: the item's own worktree, its admin dir, the shared objects, the mapper base, the family folders of
+    `home` and the private /tmp and /dev. Everything else, the whole state dir included, is read-only. Without `home` the
+    HOME stays visible read-only (turbo and the test commands, until step 2 of #1570 measures what they read from it).
+    """
     env = os.environ if environ is None else environ
     kind = engine(which, platform)
     if kind is None:
@@ -117,16 +150,17 @@ def wrap(argv: list[str], *, clone: Path, state_dir: Path, platform: str | None 
     if kind == "bwrap":
         return [
             "bwrap",
-            "--ro-bind", "/", "/",          # whole filesystem read-only...
+            "--ro-bind", "/", "/",          # whole filesystem read-only,
             # Own pid namespace + a /proc mounted for it: the watcher's pid (and its environ, which holds the
             # EnvironmentFile secrets, same uid) is neither listed nor readable. scrubbed_env cannot hide that.
             "--unshare-pid",
             "--dev", "/dev", "--proc", "/proc",
             "--tmpfs", "/tmp",
-            "--bind", state_dir, state_dir,  # ...except the state dir,
-            *_control_ro(state_dir),         # minus the watcher's control files,
-            *_work_ro(clone),                # minus the work dir of the item layout (other items and the base clones),
-            "--bind", clone, clone,          # plus this item's own clone
+            *([] if home is None else _home_args(home)),  # a planner: empty HOME + its own folders, before any bind under HOME
+            # The state dir stays read-only (#1656): claims, budget, STOP, status, fixes, baseline, issues-disabled, work/, logs/.
+            # The host writes them; the item writes none, so it cannot queue fixes, hide issues or create STOP.
+            "--ro-bind", state_dir, state_dir,
+            "--bind", clone, clone,          # ...except this item's own clone
             *worktree_binds(clone),          # and its own admin dir
             "--chdir", clone,
             "--die-with-parent", "--new-session",

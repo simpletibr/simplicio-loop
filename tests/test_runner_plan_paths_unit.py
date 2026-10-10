@@ -40,8 +40,11 @@ def _minimal(path: str, find: str = "") -> dict:
     return {"operations": [{"path": path, "find": find, "replace": "planted\n"}]}
 
 
-def _full(schema: str, *operations: dict) -> dict:
-    return {"schema": schema, "operations": list(operations)}
+def _full(schema: str, *operations: dict, **extra) -> dict:
+    return {"schema": schema, "operations": list(operations), **extra}
+
+
+VALIDATION = [{"cmd": ["sh", "-c", "echo PWNED >> .github/workflows/ci.yml; echo 'enabled = false' > .simplicio-loop/loop.toml"]}]
 
 
 UNSAFE_PLANS = [
@@ -61,15 +64,29 @@ UNSAFE_PLANS = [
     pytest.param(_full(MECHANICAL, {"op": "delete_file", "path": "link/HEAD"}), id="mech-delete-symlink"),
     pytest.param(_full(MECHANICAL, {"op": "move_file", "path": "app.py", "dest": "hk/pre-commit"}), id="mech-move-symlink"),
     pytest.param(_full(EDIT_PLAN, {"op": "replace_anchor", "path": ".git/config", "anchor": "a", "replacement": "b"}), id="edit-plan"),
+    # protected paths (issue #1567): the reason is still plan_path_unsafe here, its message says protected_path
+    pytest.param(_minimal(".github/workflows/x.yml"), id="minimal-protected-workflow"),
+    pytest.param(_minimal(".simplicio-loop/loop.toml", "enabled"), id="minimal-protected-loop-toml"),
+    pytest.param(_full(MECHANICAL, {"op": "move_file", "path": "app.py", "dest": ".GitHub/CODEOWNERS"}), id="mech-move-protected"),
+    pytest.param(_full(MECHANICAL, {"op": "delete_file", "path": "scripts/check.py"}), id="mech-delete-protected"),
+    pytest.param(_full(MECHANICAL, {"op": "create_file", "path": "simplicio_loop/intake_gate/__init__.py", "text": "x"}),
+                 id="mech-shadow-of-a-gate"),
+    # validation commands run after the apply, through the dev-cli, and write anywhere (review of #1684, MAJOR-1)
+    pytest.param(_full(MECHANICAL, {"op": "create_file", "path": "src/n.py", "text": "ok = 1\n"}, validation=VALIDATION),
+                 id="mech-validation-command"),
+    pytest.param(_full(EDIT_PLAN, {"op": "create_file", "path": "src/n.py", "text": "ok = 1\n"}, validation=VALIDATION),
+                 id="edit-plan-validation-command"),
+    pytest.param({**_minimal("src/n.py"), "validation": VALIDATION}, id="minimal-validation-command"),
 ]
 ORDINARY_PLANS = [
     pytest.param(_minimal("app.py", "old"), id="minimal"),
     pytest.param(_minimal("srcln/new.py"), id="minimal-through-an-ordinary-symlink"),
     pytest.param(_minimal(".gitignore"), id="minimal-gitignore"),
-    pytest.param(_minimal(".github/workflows/x.yml"), id="minimal-github"),
+    pytest.param(_minimal(".githubx/workflows/x.yml"), id="minimal-github-lookalike"),
     pytest.param(_full(MECHANICAL, {"op": "create_file", "path": "src/new.py", "text": "x"}), id="mech-create"),
     pytest.param(_full(MECHANICAL, {"op": "move_file", "path": "app.py", "dest": "src/app.py"}), id="mech-move"),
     pytest.param(_full(EDIT_PLAN), id="edit-plan-without-operations"),
+    pytest.param(_full(MECHANICAL, {"op": "create_file", "path": "src/new.py", "text": "x"}, validation=[]), id="mech-empty-validation"),
 ]
 
 
@@ -129,6 +146,23 @@ def test_compile_refuses_what_a_stale_dev_cli_compiled_into_git(repo, tmp_path, 
     compiled, reason_code, message = runner._compile_minimal_host_plan(repo, plan_path)
     assert compiled is None and reason_code == "plan_path_unsafe" and ".git" in message
     assert json.loads(plan_path.read_text(encoding="utf-8")) == _minimal("app.py", "old"), "the unsafe plan must not replace the host plan"
+
+
+def test_compile_refuses_a_compiled_plan_that_carries_validation_commands(repo, tmp_path, monkeypatch):
+    """Whatever dev-cli compiled (or a host rewrote with a fresh digest), the plan that gets applied runs no command."""
+    plan_path = tmp_path / "edit-plan-1.json"
+    plan_path.write_text(json.dumps(_minimal("app.py", "old")), encoding="utf-8")
+    compiled_path = plan_path.with_name(plan_path.stem + ".compiled.json")
+
+    def compile_with_validation(argv, cwd, **kwargs):
+        compiled_path.write_text(json.dumps(_full(EDIT_PLAN, {"op": "create_file", "path": "src/n.py", "text": "x"},
+                                                  validation=VALIDATION)), encoding="utf-8")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(runner, "_run_cmd", compile_with_validation)
+    compiled, reason_code, message = runner._compile_minimal_host_plan(repo, plan_path)
+    assert compiled is None and reason_code == "plan_path_unsafe" and message.startswith("protected_path: validation")
+    assert json.loads(plan_path.read_text(encoding="utf-8")) == _minimal("app.py", "old")
 
 
 @pytest.mark.parametrize("plan", [_full(EDIT_PLAN), _full(MECHANICAL, {"op": "create_file", "path": "src/new.py", "text": "x"})])

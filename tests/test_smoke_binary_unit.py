@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import socket
+import subprocess
 import sys
 import tempfile
 import threading
@@ -186,3 +187,83 @@ class TestServersOf:
         root.mkdir()
         self._proc(root, 10, "mine -m simplicio_loop.dashboard.server", tmp_path / "gone")  # exe link is dangling
         assert sb.servers_of(mine, str(root)) == []
+
+
+# --- the install step follows the contract of `install --check` (issue #1634) -----------------
+
+
+class FakeInstallBinary:
+    """Stands in for ``Smoke.run`` and answers ``install`` the way the contract of #1575 says.
+
+    ``install --check`` writes nothing and exits 0 when the target is up to date and 10 when changes are pending.
+    """
+
+    def __init__(self, *, empty_check=10, settled_check=0, check_writes=False, install_writes=True):
+        self.empty_check, self.settled_check = empty_check, settled_check
+        self.check_writes, self.install_writes = check_writes, install_writes
+        self.calls: list[str] = []
+        self.installed = False
+
+    def __call__(self, command, **_):
+        arguments = list(command)[1:]
+        assert arguments[0] == "install", arguments
+        if "--target" not in arguments:
+            self.calls.append("help")
+            return subprocess.CompletedProcess(command, 0, "usage: install [--check] [--target T]", "")
+        target = Path(arguments[arguments.index("--target") + 1])
+        done = subprocess.CompletedProcess(command, 0, "", "")
+        if "--check" in arguments:
+            self.calls.append("check")
+            if self.check_writes:
+                (target / "written-by-check").write_text("x")
+            done.returncode = self.settled_check if self.installed else self.empty_check
+            done.stdout = "check: up to date" if done.returncode == 0 else "check: changes pending"
+            return done
+        self.calls.append("install")
+        if self.install_writes:
+            skill = target / ".claude" / "skills" / "simplicio-loop" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text("skill")
+            (target / "install-ownership.json").write_text("{}")
+        self.installed = True
+        return done
+
+
+def install_step(tmp_path, fake):
+    smoke = sb.Smoke.__new__(sb.Smoke)
+    smoke.work, smoke.exe, smoke.reference_bin = tmp_path, tmp_path / "simplicio-loop", None
+    smoke.run = fake
+    return smoke.install()
+
+
+def test_install_step_accepts_pending_before_and_demands_up_to_date_after(tmp_path):
+    fake = FakeInstallBinary()
+    detail = install_step(tmp_path, fake)
+    assert fake.calls == ["check", "install", "check"]
+    assert detail.startswith("1 files installed") and "exited 10" in detail and "0 after" in detail
+
+
+def test_install_step_fails_when_an_empty_target_is_reported_up_to_date(tmp_path):
+    with pytest.raises(AssertionError, match="exited 0 on an empty target"):
+        install_step(tmp_path, FakeInstallBinary(empty_check=0))
+
+
+def test_install_step_fails_when_the_check_after_the_install_still_finds_changes(tmp_path):
+    with pytest.raises(AssertionError, match="exited 10 on the installed target"):
+        install_step(tmp_path, FakeInstallBinary(settled_check=10))
+
+
+def test_install_step_fails_when_check_writes_files(tmp_path):
+    with pytest.raises(AssertionError, match="wrote"):
+        install_step(tmp_path, FakeInstallBinary(check_writes=True))
+
+
+@pytest.mark.parametrize("code", [1, 2, 69])
+def test_install_step_fails_on_any_other_exit_code_of_the_check(tmp_path, code):
+    with pytest.raises(AssertionError, match=f"exited {code} on an empty target"):
+        install_step(tmp_path, FakeInstallBinary(empty_check=code))
+
+
+def test_install_step_fails_when_nothing_was_installed(tmp_path):
+    with pytest.raises(AssertionError, match="no skill"):
+        install_step(tmp_path, FakeInstallBinary(install_writes=False))

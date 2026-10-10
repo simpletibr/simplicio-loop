@@ -54,6 +54,28 @@ NO_STAGES = {'schema': 'simplicio.dashboard-stage-agents/v1', 'rows': [],
 NO_DATA = {'schema': 'simplicio.dashboard-extras/v1', 'last_command': None, 'running_command': None, 'tasks': [], 'models': [], 'heartbeat': None}
 
 
+# A DOM stand-in shared by the scripts that start the panel: elements remember their attributes and ids, so the agent map
+# (agent-map.js, loaded on the first reply) can build and find its own section.
+DOM_STUB = '''
+const made = [];
+const byId = {};
+function element(tag) {
+  const node = { tag, children: [], dataset: {}, textContent: '', className: '', attrs: {}, props: {}, hidden: false,
+    style: { setProperty(name, value) { node.props[name] = value; } },
+    setAttribute(name, value) { node.attrs[name] = String(value); if (name === 'id') byId[String(value)] = node; },
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; },
+    after() {},
+    get firstElementChild() { return this.children[0] || null; } };
+  made.push(node);
+  return node;
+}
+const section = element('section');
+byId['live-extras'] = section;
+globalThis.document = { getElementById: (id) => byId[id] || null, createElement: element };
+'''
+
+
 def _node():
     for candidate in (shutil.which('node'), '/opt/node22/bin/node'):
         if candidate and Path(candidate).exists():
@@ -79,18 +101,16 @@ START_SCRIPT = '''
 import fs from 'node:fs';
 import { startExtras } from %s;
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
-const calls = { paths: [], intervals: [] };
+const calls = { paths: [], langfuse: [], intervals: [] };
 let tick = null;
-globalThis.setInterval = (fn, ms) => { calls.intervals.push(ms); tick = fn; return 1; };
-function element(tag) {
-  return { tag, children: [], dataset: {}, textContent: '',
-    append(...items) { this.children.push(...items); },
-    replaceChildren(...items) { this.children = items; } };
-}
-const section = element('section');
-globalThis.document = { getElementById: (id) => (id === 'live-extras' ? section : null), createElement: element };
+globalThis.setInterval = (fn, ms) => { calls.intervals.push(ms); if (ms === 3000) tick = fn; return 1; };
+__STUB__
 const replies = input.replies.slice();
 const readApi = async (path) => {
+  if (path.endsWith('/langfuse')) {
+    calls.langfuse.push(path);
+    return null;
+  }
   calls.paths.push(path);
   const next = replies.shift();
   return next === undefined ? null : next;
@@ -106,8 +126,8 @@ for (let i = 0; i < input.ticks; i += 1) {
   await tick();
   renders.push(flat(section));
 }
-process.stdout.write(JSON.stringify({ paths: calls.paths, intervals: calls.intervals, renders, tags }));
-'''
+process.stdout.write(JSON.stringify({ paths: calls.paths, langfuse: calls.langfuse, intervals: calls.intervals, renders, tags }));
+'''.replace('__STUB__', DOM_STUB)
 
 
 def _extras_of(reply, stages=None):
@@ -204,7 +224,8 @@ def test_start_polls_the_run_extras_and_stage_agents_every_3000_ms():
     out = _start('run-1', [VALID, STAGES])
     assert out['paths'] == ['/api/runs/run-1/extras', '/api/runs/run-1/stage-agents']
     assert 'planning: planning/high (padrão da tabela) m-a' in out['renders'][1] and 'US$ 0.0123 estimado' in out['renders'][1]
-    assert out['intervals'] == [3000]
+    assert out['intervals'] == [3000, 10000]
+    assert out['langfuse'] == ['/api/runs/run-1/langfuse']
 
 
 def test_the_run_id_is_encoded_in_the_path():
@@ -317,8 +338,7 @@ def _stages(total=300, **breakdown):
     tokens = {'total': total, 'state': 'PASS' if total else 'UNVERIFIED', 'proof_kind': 'medido',
               'reason': None if total else 'tokens do provedor não medidos: nenhum token_usage no run'}
     return dict(STAGES, breakdown=dict(empty, tokens=tokens, **breakdown),
-                agent_map={'state': 'UNVERIFIED', 'reason': 'nenhum worker_claimed no run', 'lanes': [],
-                           'slots': {'state': 'UNVERIFIED', 'reason': 'slots não medidos'}})
+                agent_map={'state': 'UNVERIFIED', 'reason': 'nenhum worker_claimed no run', 'lanes': []})
 
 
 BD = _stages(
@@ -338,10 +358,10 @@ process.stdout.write(JSON.stringify(widgetsOf(input.stages)));
 
 HELPERS_SCRIPT = '''
 import fs from 'node:fs';
-import { percentOf, pushPoint } from %s;
+import { percentOf, seriesOf } from %s;
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify({ pct: input.pairs.map(([a, b]) => percentOf(a, b)),
-  history: input.series.reduce((h, v) => pushPoint(h, v), []) }));
+  series: input.replies.map((reply) => seriesOf(reply)) }));
 '''
 
 DOM_SCRIPT = '''
@@ -349,28 +369,17 @@ import fs from 'node:fs';
 import { startExtras } from %s;
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 let tick = null;
-globalThis.setInterval = (fn) => { tick = fn; return 1; };
-const made = [];
-function element(tag) {
-  const node = { tag, children: [], dataset: {}, textContent: '', className: '', attrs: {}, props: {},
-    style: { setProperty(name, value) { node.props[name] = value; } },
-    setAttribute(name, value) { node.attrs[name] = String(value); },
-    append(...items) { this.children.push(...items); },
-    replaceChildren(...items) { this.children = items; } };
-  made.push(node);
-  return node;
-}
-const section = element('section');
-globalThis.document = { getElementById: (id) => (id === 'live-extras' ? section : null), createElement: element };
+globalThis.setInterval = (fn, ms) => { if (ms === 3000) tick = fn; return 1; };
+__STUB__
 const replies = input.replies.slice();
-const readApi = async () => { const next = replies.shift(); return next === undefined ? null : next; };
+const readApi = async (path) => { if (path && path.endsWith('/langfuse')) return null; const next = replies.shift(); return next === undefined ? null : next; };
 startExtras(readApi, 'run-1');
 await new Promise((resolve) => setImmediate(resolve));
 for (let i = 0; i < input.ticks; i += 1) await tick();
 const plain = (node) => ({ tag: node.tag, className: node.className, text: node.textContent, attrs: node.attrs,
   props: node.props, state: node.dataset.state, children: node.children.map(plain) });
 process.stdout.write(JSON.stringify(plain(section)));
-'''
+'''.replace('__STUB__', DOM_STUB)
 
 
 def _widgets(stages):
@@ -416,9 +425,9 @@ def test_a_breakdown_with_no_measured_tokens_is_unverified_with_the_server_reaso
     assert widget['text'] == 'tokens do provedor não medidos: nenhum token_usage no run'
 
 
-def test_the_agent_map_lists_lanes_claims_tasks_and_leases_and_flags_slots_unverified():
+def test_the_agent_map_lists_lanes_claims_tasks_and_leases():
     stages = _stages()
-    stages['agent_map'] = {'state': 'PASS', 'reason': None, 'slots': {'state': 'UNVERIFIED', 'reason': 'slots não medidos'},
+    stages['agent_map'] = {'state': 'PASS', 'reason': None,
                            'lanes': [{'key': 'coder', 'claims': 2, 'tasks': ['T1', 'T2'], 'lease_ids': ['L1'], 'branches': [],
                                       'state': 'PASS', 'proof_kind': 'medido', 'lease_reason': None},
                                      {'key': None, 'claims': 1, 'tasks': ['T3'], 'lease_ids': [], 'branches': [],
@@ -427,8 +436,7 @@ def test_the_agent_map_lists_lanes_claims_tasks_and_leases_and_flags_slots_unver
     assert widget['state'] == 'PASS'
     assert [item['text'] for item in widget['legend']] == [
         'coder: 2 claims, tarefas T1, T2, leases L1',
-        'sem lane: 1 claims, tarefas T3, lease UNVERIFIED (worker_claimed sem lease_id)',
-        'slots UNVERIFIED (slots não medidos)']
+        'sem lane: 1 claims, tarefas T3, lease UNVERIFIED (worker_claimed sem lease_id)']
 
 
 def test_an_agent_map_without_claims_is_unverified_with_the_reason():
@@ -438,13 +446,31 @@ def test_an_agent_map_without_claims_is_unverified_with_the_reason():
 
 def test_percent_is_clamped_between_0_and_100():
     out = _run(HELPERS_SCRIPT % json.dumps(MODULE.as_uri()), {
-        'pairs': [[5, 2], [-3, 10], [1, 0], [None, 4], [1, 4], [4, 4], ['a', 4]], 'series': []})
+        'pairs': [[5, 2], [-3, 10], [1, 0], [None, 4], [1, 4], [4, 4], ['a', 4]], 'replies': []})
     assert out['pct'] == [100, 0, 0, 0, 25, 100, 0]
 
 
-def test_the_sparkline_history_is_bounded_to_60_points():
-    out = _run(HELPERS_SCRIPT % json.dumps(MODULE.as_uri()), {'pairs': [], 'series': list(range(100))})
-    assert out['history'] == list(range(40, 100)) and len(out['history']) == 60
+def _series_of(*replies):
+    return _run(HELPERS_SCRIPT % json.dumps(MODULE.as_uri()), {'pairs': [], 'replies': list(replies)})['series']
+
+
+def _points(values):
+    return [{'ts': '2026-10-10T00:00:%02d.000Z' % (i % 60), 'tokens': value} for i, value in enumerate(values)]
+
+
+def test_the_sparkline_series_is_the_cumulative_totals_the_server_measured_in_order():
+    [series] = _series_of({'tokens_series': _points([120, 150, 200])})
+    assert series == [120, 150, 200]
+
+
+def test_the_sparkline_series_is_bounded_to_the_last_60_points():
+    [series] = _series_of({'tokens_series': _points(list(range(100)))})
+    assert series == list(range(40, 100)) and len(series) == 60
+
+
+def test_a_point_that_is_not_a_count_is_dropped_and_a_reply_without_a_series_has_none():
+    hostile = [{'tokens': '5'}, {'tokens': -1}, {'tokens': None}, None, 'x', {'ts': 'a'}, {'tokens': 7}]
+    assert _series_of({'tokens_series': hostile}, {'tokens_series': 'nope'}, {}, None) == [[7], [], [], []]
 
 
 def test_bars_set_only_a_percent_width_and_the_legend_text_is_text_content():
@@ -458,16 +484,32 @@ def test_bars_set_only_a_percent_width_and_the_legend_text_is_text_content():
     assert 'planning: 100' in [n['text'] for n in _walk(tree)]
 
 
-def test_the_sparkline_is_fed_the_polled_token_totals_and_never_grows_past_60_points():
-    totals = [_stages(total=value, by_phase=[_bd_row('planning', value)]) for value in range(1, 80)]
-    replies = []
-    for stages in totals:
-        replies += [VALID, stages]
-    tree = _dom(replies, ticks=78)
+def test_the_sparkline_is_fed_the_server_series_and_never_draws_more_than_60_points():
+    tree = _dom([dict(VALID, tokens_series=_points(list(range(1, 80)))), BD])
     [spark] = [n for n in _walk(tree) if n['tag'] == 'sl-sparkline']
     values = spark['attrs']['values'].split(',')
     assert len(values) == 60 and values[-1] == '79' and values[0] == '20'
     assert set(spark['attrs']) == {'values', 'label'}
+    assert 'últimos 60 pontos, atual 79' in [n['text'] for n in _walk(tree)]
+
+
+def test_a_reload_redraws_the_same_sparkline_because_the_series_is_the_servers_and_not_the_pages():
+    series = dict(VALID, tokens_series=_points([100, 400, 900]))
+    first = _dom([series, BD])
+    again = _dom([series, BD])
+    spark = lambda tree: [n for n in _walk(tree) if n['tag'] == 'sl-sparkline'][0]['attrs']['values']
+    assert spark(first) == spark(again) == '100,400,900'
+
+
+def test_a_run_with_no_measured_token_series_draws_no_sparkline():
+    tree = _dom([dict(VALID, tokens_series=[]), BD])
+    assert [n for n in _walk(tree) if n['tag'] == 'sl-sparkline'] == []
+
+
+def test_a_failed_extras_read_keeps_the_last_series():
+    tree = _dom([dict(VALID, tokens_series=_points([5, 6])), BD, None, BD], ticks=1)
+    [spark] = [n for n in _walk(tree) if n['tag'] == 'sl-sparkline']
+    assert spark['attrs']['values'] == '5,6'
 
 
 def test_hostile_model_phase_lane_and_task_names_stay_inert_text():
@@ -563,16 +605,8 @@ HUGE_SCRIPT = '''
 import fs from 'node:fs';
 import { startExtras } from %s;
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
-let made = 0;
 globalThis.setInterval = () => 1;
-function element(tag) {
-  made += 1;
-  return { tag, children: [], dataset: {}, textContent: '', className: '', style: { setProperty() {} }, setAttribute() {},
-    append(...items) { for (const item of items) this.children.push(item); },
-    replaceChildren(...items) { this.children = items; } };
-}
-const section = element('section');
-globalThis.document = { getElementById: () => section, createElement: element };
+__STUB__
 const n = input.count;
 const row = (key) => ({ key, tokens_in: 1, tokens_out: 1, tokens: 2, tokens_proof_kind: 'medido', cost_usd: 0.001,
   cost_state: 'ESTIMADO', proof_kind: 'estimado', reason: null, source: null });
@@ -585,7 +619,7 @@ const stages = {
   breakdown: { by_phase: many('p'), by_lane: many('l'), by_model: many('m'), by_task: many('t'),
     by_iteration: Array.from({ length: n }, (_, i) => row(i)),
     tokens: { total: 2 * n, state: 'PASS', proof_kind: 'medido', reason: null } },
-  agent_map: { state: 'PASS', reason: null, slots: { state: 'UNVERIFIED', reason: 'slots não medidos' },
+  agent_map: { state: 'PASS', reason: null,
     lanes: Array.from({ length: n }, (_, i) => ({ key: 'l' + i, claims: 2, tasks: ['t' + i], lease_ids: [], branches: [],
       lease_reason: 'sem lease' })) },
 };
@@ -595,8 +629,8 @@ startExtras(async () => (replies.shift() ?? null), 'run-1');
 await new Promise((resolve) => setImmediate(resolve));
 const elapsed = performance.now() - started;
 const flat = (node) => (node.children.length ? node.children.map(flat).join('\\n') : node.textContent);
-process.stdout.write(JSON.stringify({ made, elapsed, text: flat(section) }));
-'''
+process.stdout.write(JSON.stringify({ made: made.length, elapsed, text: flat(section) }));
+'''.replace('__STUB__', DOM_STUB)
 
 
 def test_a_reply_with_150000_rows_per_dimension_renders_20_rows_plus_one_others_row_without_throwing():

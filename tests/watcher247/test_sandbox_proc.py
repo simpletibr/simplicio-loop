@@ -13,7 +13,6 @@ import asyncio
 import json
 import os
 import secrets
-import shutil
 import signal
 import subprocess
 import sys
@@ -25,9 +24,9 @@ import pytest
 from simplicio_loop import exec_planner
 from simplicio_loop.watcher247 import proc, sandbox
 
-pytestmark = pytest.mark.skipif(
-    sys.platform != "linux" or shutil.which("bwrap") is None, reason="needs Linux with bwrap")
+from .sandbox_rig import bwrap_skip_reason
 
+pytestmark = pytest.mark.skipif(bool(bwrap_skip_reason()), reason=bwrap_skip_reason() or "bwrap")
 
 
 def _interpreter_under_tmp() -> bool:
@@ -40,18 +39,6 @@ needs_visible_interpreter = pytest.mark.skipif(
     _interpreter_under_tmp(),
     reason="sandbox.wrap mounts a tmpfs on /tmp, which hides a Python interpreter or venv located under /tmp "
            "(test-environment limit, not a product bug; run the gate from a venv outside /tmp)")
-
-BARE = ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp", "true"]
-
-
-@pytest.fixture(scope="module", autouse=True)
-def user_namespaces_work():
-    if sys.platform != "linux" or shutil.which("bwrap") is None:
-        return  # the module-level skip applies
-    result = subprocess.run(BARE, capture_output=True, text=True, timeout=60)
-    if result.returncode != 0:
-        pytest.skip(f"bwrap cannot create its namespaces on this host (rc={result.returncode}): {result.stderr.strip()}")
-
 
 # What the watcher does, minus the package: fill {pid} with its own pid, run argv with the scrubbed env, report.
 WATCHER = """

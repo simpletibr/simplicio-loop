@@ -125,13 +125,92 @@ O planner roda por `sandbox.wrap` (o mesmo bwrap do apply) e com `sandbox.scrubb
 e a chave do proprio CLI (`host_mode.FAMILY_ENV`); `OPENROUTER_API_KEY` e outros segredos do servico nunca chegam a ele.
 Cada CLI recebe apenas flags de somente-plano (ver `exec_planner.py`). A config de deny do `opencode` fica em
 `<state_dir>/opencode/` (o bwrap monta tmpfs em `/tmp` e esconderia o arquivo, rodando o CLI sem as regras de deny) e e
-removida ao fim da chamada.
+removida ao fim da chamada (o sandbox só a lê: o state dir é somente leitura).
+O `HOME` do planner é um tmpfs vazio com só as pastas da própria família (`host_mode.FAMILY_HOME`, tabela em "Isolamento do
+sandbox"): o login de outro CLI, `~/.ssh`, `~/.config/gh`, `~/.aws` e `~/.simplicio/login.json` não existem para ele.
 
 ### Login dos CLIs (`watch247 login-check`)
 
 `simplicio-loop watch247 login-check` roda `exec_auth.check_all` nas familias habilitadas e imprime, por CLI, `ok` ou o
 comando exato que corrige, por exemplo `sudo -u simplicio-loop -H codex login`. Exit 0 quando todos estao ok, 1 caso
 contrario. Nao le nem imprime token. O mesmo estado derruba o tick com `login_missing:<cli>`.
+
+## Executor autor (`SIMPLICIO_247_EXECUTOR=author`, issue #1669)
+
+O executor padrao e o fluxo de plano. Para tarefas que um plano JSON nao cobre, ligue o fluxo autor. Veja `docs/AUTHOR_FLOW.md`.
+
+| Variavel | Valores | Padrao |
+|---|---|---|
+| `SIMPLICIO_247_EXECUTOR` | `plan` ou `author` | sem a variavel: `plan` |
+| `SIMPLICIO_247_AUTHOR_ROUNDS` | numero inteiro de 1 a 10 | `3` |
+| `SIMPLICIO_247_AUTHOR_TIMEOUT_S` | segundos de uma rodada da CLI, inteiro de 60 a 3600. Outro valor e ignorado | `900` |
+| `SIMPLICIO_247_AUTHOR_RUN_TESTS` | `1` deixa a CLI rodar pytest | sem a variavel: a CLI so le e edita arquivos |
+| `SIMPLICIO_247_AUTHOR_HOME_BASE` | caminho absoluto dentro do HOME | `~/.cache/simplicio-loop-author` |
+| `SIMPLICIO_247_ALLOW_UNSANDBOXED` | `1` roda a CLI sem sandbox | sem a variavel: sem sandbox nao roda |
+
+- Outro valor para o servico na partida. O log mostra a variavel e os valores aceitos. `status.json` mostra `reason_code=executor_env_invalid`.
+- O fluxo autor exige `SIMPLICIO_EXECUTOR` sem valor ou `exec`. Com `openrouter` o tick bloqueia com `author_needs_exec`.
+- O watcher usa a primeira familia com login que o fluxo autor aceita. Hoje so `claude`. Outra familia falha com `unsupported_family`.
+- A CLI do LLM edita o worktree do proprio item (`<repo>.wt/<n>`). Nunca edita o clone base. Outro caminho falha com `worktree_mismatch`.
+- O watcher roda o `verify` do `loop.toml`. Um verify vermelho volta para a mesma sessao da CLI, ate o numero de rounds.
+- O watcher nao faz commit nem push antes do resultado `ok`. Com `ok`, a entrega e a mesma do fluxo de plano: commit, push, PR com `Parte de #N`, revisao do squad, eventos, orcamento e claim.
+- Sem `ok`, o claim e liberado como em um run de plano que falhou. A regra de retry e de fila morta nao muda. O `reason_code` do claim e o do fluxo autor, por exemplo `verify_failed`.
+- O log e o `error` do claim trazem o `reason_code`, os rounds, os tipos de falha e o uso medido. Sem contador da CLI, o uso e `none`. O loop nao estima numero.
+- O orcamento `model_calls` soma um por round que rodou.
+- A CLI nao recebe `GH_TOKEN`, `GITHUB_TOKEN` nem chave de API. O watcher nao passa env nenhum ao fluxo autor.
+- Os caminhos protegidos valem para o fluxo autor. Um round que muda um deles falha com `protected_path`. A unica excecao e `.simplicio-loop/orchestrator/runs/`: o host grava telemetria ali durante o run (o heartbeat do lease), e o snapshot ignora os arquivos regulares dali. Um symlink, hard link, fifo ou socket nessa pasta e mudanca (`protected_path`), porque o host anexaria uma linha ao alvo do link. `.simplicio-loop/loop.toml` e os outros caminhos de `.simplicio-loop` continuam protegidos.
+- Por padrao a CLI nao recebe nenhuma ferramenta Bash: so le, busca e edita arquivos. O prompt avisa que ela nao roda testes. O host roda o `verify` e devolve as falhas. Com `SIMPLICIO_247_AUTHOR_RUN_TESTS=1` a CLI roda `pytest` no sandbox dela, onde o HOME privado (copia do login) esta montado e a rede esta aberta. **Aviso:** um conftest do autor pode ler o login e enviar para fora, entao um vazamento de credencial e possivel. Ligue so para repositorios confiaveis.
+- Com o HOME protegido (`ProtectHome=read-only`) a unit nao grava em `~/.cache`. Aponte `SIMPLICIO_247_AUTHOR_HOME_BASE` para uma pasta dentro do HOME e inclua essa pasta em `ReadWritePaths=` da unit, por exemplo `ReadWritePaths=/home/simplicio-loop/.simplicio /home/simplicio-loop/.simplicio/authors`. O operador edita a unit. Um caminho relativo, o proprio HOME ou um caminho fora do HOME falha com `home_unavailable`.
+- A CLI nao le o HOME privado nem o arquivo de login: as regras `--disallowedTools` `Read`, `Grep`, `Glob`, `Edit` e `Write` negam `//<home privado>/**` e o `.credentials.json` pelo caminho. Um arquivo mudado que contem o arquivo de login ou um `accessToken`/`refreshToken` falha o round com `secret_in_diff`. O detalhe cita o arquivo e nunca o segredo. A sintaxe das regras (`Tool(//caminho/absoluto/**)`) segue a documentacao de permissoes do Claude Code e nao foi provada contra a CLI real (UNVERIFIED): prove com a CLI antes de confiar nela. Mesmo assim a varredura `secret_in_diff` vale.
+- UNVERIFIED: o bind do HOME privado dentro do jail aninhado nao foi provado sob a unit empacotada (`packaging/systemd`, com `ProtectHome=read-only`). Rode um item de teste na unit real antes de ligar `SIMPLICIO_247_EXECUTOR=author`.
+- Um erro permanente de configuracao devolve a tentativa, mesmo quando rounds anteriores ja rodaram. O item nao perde a tentativa por uma falha do host.
+- Antes do commit, o watcher confere com `git symbolic-ref HEAD` que o worktree ainda esta no branch do item. Outro HEAD falha com `head_moved` e nada e commitado.
+- Falha de configuracao do host nao gasta tentativa do item: `unsupported_family`, `sandbox_unavailable`, `claude_login_missing`, `cli_unavailable` e `home_unavailable`. O claim volta para `retry` e espera o backoff. O item nunca vira morto por isso.
+- `SIMPLICIO_247_EXECUTOR` vazio vale como sem a variavel (`plan`). A CLI sem sandbox so roda com `SIMPLICIO_247_ALLOW_UNSANDBOXED=1`.
+- O relatorio de execucao traz `cache_read_tokens` ao lado de `input_tokens` e `output_tokens`, quando a CLI os mede. Se o relatorio nao grava, o resultado do autor continua valendo.
+
+## Caminhos protegidos (`plan_paths.PROTECTED_PATHS`, issue #1567)
+
+Alguns arquivos controlam o próprio watcher, a esteira de entrega ou o que o host executa sozinho. Um plano que os edite deixa o
+passo seguinte aprovar a própria mudança. Por isso nenhum plano cria, edita, move ou apaga um deles. O portão fica em
+`plan_paths.operations_refusal`, que `turbo.apply_plan`, o `apply` e o runner chamam antes do dev-cli. O `apply` também recusa o
+`ops.json` inteiro (`BLOCKED`) antes de gravar a primeira tarefa. A razão é sempre `protected_path: '<caminho>' touches protected
+'<entrada>'`.
+
+| entrada | por que |
+|---|---|
+| `.github` (workflows, templates, `CODEOWNERS`), `CODEOWNERS`, `docs/CODEOWNERS` | a esteira e quem revisa |
+| `.simplicio-loop` | `loop.toml` (opt-in, autores, `verify`) e o estado do loop |
+| `packaging/systemd`, `scripts/check.py` | a unidade do serviço e o CI local |
+| `hooks`, `plugin/hooks`, `simplicio_loop/_bundle/hooks` | os hooks que o host roda (portão de ação, parada, pre-commit) |
+| `.githooks`, `.husky`, `.pre-commit-config.yaml`, `.vscode/tasks.json` | o que o git, o pre-commit e o editor rodam sozinhos |
+| `.codex/hooks.json`, `.codex/config.toml`, `.claude/settings.json`, `.claude/settings.local.json`, `.claude/hooks`, `.cursor/hooks.json`, `.kiro/hooks` | hooks e comandos dos hosts |
+| `simplicio_loop/plan_paths.py`, `intake_gate.py` | este portão e o opt-in do repo |
+| `watcher247/sandbox.py`, `secret_scan.py`, `prompt_guard.py`, `env_guard.py`, `squad_flow.py`, `verify.py` | isolamento, segredos, injeção, revisão do squad e o comando `verify` |
+| `watcher247/points/judge.py`, `points/delivery_gate.py` | o juiz e o portão de entrega |
+
+- Uma entrada vale para ela mesma e para tudo abaixo dela. Um diretório que contém uma entrada (`packaging`, `plugin`,
+  `simplicio_loop`) também conta, porque mover ou apagar o pai levaria o arquivo junto.
+- Uma entrada `.py` vale também para os irmãos que o Python importa no lugar dela: o pacote `nome/`, `nome.so`, `nome.pyc` e
+  `__pycache__/nome.*`. Sem isso, criar `simplicio_loop/intake_gate/__init__.py` trocaria o portão sem tocar nele.
+- O caminho é comparado como o sistema de arquivos o lê: caixa, `\`, `.`, `..`, pontos e espaços no fim, caracteres de largura
+  zero e formas de compatibilidade (ponto de largura total). Os symlinks são seguidos antes: `ln -s .github x` não abre
+  `x/workflows/ci.yml`, nem como origem nem como `dest` de um `move_file`. Um caminho sem componente (`./`, `.//`, `.\`) é a
+  raiz e é recusado como `unsafe_path`.
+- Um plano completo (`simplicio.mechanical-edit/v1` ou `simplicio.dev-cli.edit-plan/v1`) com `validation` não vazio é recusado
+  inteiro. O dev-cli roda esses comandos depois do apply, a partir da raiz, e eles escrevem em qualquer lugar. O loop roda o
+  `--verify` por conta própria, fora do plano.
+- Só a escrita é recusada. Um plano ainda pode pedir um trecho (`need`) de um arquivo protegido.
+- A lista vale a partir da raiz de **qualquer** repo que o watcher atende, sem rótulo de liberação. Um `hooks/use-x.ts` de um app
+  Next.js, um `scripts/check.py` ou um `docs/CODEOWNERS` seriam recusados. Hoje só o simplicio-loop tem `loop.toml`, e o
+  portão de plano corre para todo repo que o runner toca.
+- Neste repo, os planos do próprio watcher sobre os portões listados também são bloqueados. Um humano edita esses arquivos com
+  um commit e um PR dele, revisados como os demais. Não existe rótulo nem variável de ambiente que libere um plano.
+  `.claude/skills`, `AGENTS.md`, `tick.py` e `host_mode.py` ficam fora da lista de propósito, porque o loop se constrói por plano
+  neles.
+- Um link físico para um arquivo protegido não é visto (o dev-cli troca o arquivo em vez de escrever através dele, medido).
+- Um teste falha se uma entrada deixar de existir no repo, para que um rename não tire a proteção em silêncio. As entradas que
+  este repo ainda não tem estão listadas no teste.
 
 ## Isolamento do sandbox (`watcher247/sandbox.py`, issue #1563)
 
@@ -148,7 +227,46 @@ coberto pelo namespace de pid.
   inteira. Antes, o comando ficava em outra sessão/grupo que o `killpg` do watcher não alcança (`--die-with-parent` não o
   derrubava) e os netos sobreviviam como órfãos; como o `Process.wait()` do Python 3.14 só retorna quando os pipes fecham (medido), o
   `proc.run` com timeout ficava preso enquanto um neto vivo segurasse o pipe.
-- Filesystem somente leitura (exceto o worktree do item, o admin dir dele e o state dir), `/tmp` privado, `--die-with-parent`, `--new-session`. Dentro do state dir, `work/` e os arquivos de controle voltam a somente leitura.
+- Filesystem somente leitura, state dir inteiro incluído (#1656). O item escreve só o que a lista "O que o item pode escrever" abaixo traz. `/tmp` privado, `--die-with-parent`, `--new-session`.
+
+**O que o item pode escrever (lista exata)**
+
+O item é tudo que roda em `sandbox.wrap` por conta de uma issue (planner, `turbo`, testes). Dentro do sandbox ele escreve só estes caminhos:
+
+| Caminho | Escrita | Motivo |
+|---------|---------|--------|
+| `<WORK>/<repo>.wt/<issue>` (o worktree do próprio item) | sim | o dev-cli aplica o plano aqui |
+| `<git-dir>/worktrees/<issue>` (o admin dir do próprio item) | sim | commit e status do próprio item |
+| `<git-dir>/objects` | sim, compartilhado entre os itens do repo | limite conhecido (#1656 item 3, desenho à parte) |
+| `<git-dir>/simplicio` | sim | base central do mapper |
+| `<HOME>/<pasta da família>` (só o planner) | sim | login, renovação de token, log e sessão do CLI. Tabela abaixo |
+| `/tmp`, `/dev` e o `HOME` do planner fora das pastas da família | tmpfs privado | some ao fim da chamada. Nada chega ao host |
+
+Todo o resto é somente leitura. Isso inclui o state dir inteiro: `claims.json`, `budget.json`, `STOP`, `status.json`, `fixes.json`,
+`baseline.json`, `issues-disabled.json`, `work/`, `logs/` e `opencode/`. Então o item não cria `STOP` (nem para o watcher), não
+enfileira fix com texto livre, não esconde issue e não reescreve o status. Também são somente leitura `config`, `hooks`, `refs` e
+`packed-refs` do `<git-dir>` e o worktree e o admin dir dos outros itens. O host continua escrevendo o state dir (a
+restrição vale só para a visão do sandbox). A config de deny do `opencode` é escrita pelo host em `<state_dir>/opencode/` e o
+sandbox só a lê.
+
+**`HOME` do planner por família** (`host_mode.FAMILY_HOME`, #1570)
+
+O `HOME` é um tmpfs vazio e gravável (some ao fim) e cada família recebe de volta só estas pastas. Pastas, nunca um arquivo
+(`~/.claude.json` não é ligado: o `rename` atômico do CLI falharia com EBUSY. Sem ele o `claude` segue logado pelo
+`~/.claude/.credentials.json`). `-try`: a pasta que não existe é pulada, e uma família sem login ainda roda (e falha com o erro
+de login do próprio CLI). Se o `HOME` não for um diretório absoluto (ou for `/`), `sandbox.wrap` levanta `SandboxUnavailable`.
+
+| Família | Pastas (grava / lê) | Medido com o CLI real |
+|---------|---------------------|-----------------------|
+| `claude` | grava `~/.claude`. Lê `~/.local/share/claude` e o link `~/.local/bin/claude` | `claude -p` ok. Sem `~/.claude`: "Not logged in" |
+| `codex` | grava `~/.codex`. Lê o link `~/.local/bin/codex` | antes: `failed to initialize ... Read-only file system`. Depois inicia e autentica |
+| `grok` | grava `~/.grok`. Lê o link `~/.local/bin/grok` | antes: `Couldn't create session ... Read-only file system`. Depois responde |
+| `agy` | grava `~/.gemini/antigravity-cli`. Lê `~/.local/bin/agy` | `agy -p` ok só com essa pasta |
+| `opencode` | grava `~/.local/share/opencode`. Lê `~/.config/opencode` | antes: `FileSystem.open (...opencode.log)`. Depois inicia (o binário fica em `/usr/local`) |
+| `gemini` | grava `~/.gemini`, menos `~/.gemini/antigravity-cli` (escondida) | DOC-BASED: o CLI não está instalado onde se mediu |
+
+Binário fora do `HOME` (`/usr`, `/usr/local`) não precisa de linha. Um link em `~/.local/bin` é recriado como link, então o alvo
+entra na tabela (para o `claude`, `~/.local/share/claude`. Para o `codex` e o `grok`, a própria pasta de login).
 
 **Continua visível (decisão e limites conhecidos)**
 
@@ -156,7 +274,9 @@ coberto pelo namespace de pid.
 |-------|--------|--------|
 | `/proc/<pid do watcher>/environ`, `cmdline`, `maps`, `status` | oculto | namespace de pid |
 | `/proc/self/*`, `/proc/1/*` (o bwrap) | legível | é o env filtrado do próprio filho |
-| `HOME` do usuário do serviço (`~/.claude`, `~/.codex`, `~/.simplicio/login.json`, ...) | **legível** | os CLIs exec leem o próprio login; o `--ro-bind / /` não separa `HOME` por família, então um planner pode ler o login de outro CLI |
+| `HOME` do usuário do serviço, no **planner** | só as pastas da família | tmpfs vazio + as pastas da tabela abaixo (#1570). O login de outro CLI, `~/.ssh`, `~/.config/gh`, `~/.aws` e `~/.simplicio/login.json` não aparecem |
+| `HOME` do usuário do serviço, no `turbo` e nos testes (`verify`) | **legível**, somente leitura | ainda não medido o que leem do `HOME` (`~/.cargo`, `~/.cache/uv`), passo 2 do #1570 |
+| Pasta da família no `HOME` do planner (`~/.claude`, `~/.codex`, ...) | **gravável e persiste** | o CLI renova o token e grava log e sessão ali. Um planner comprometido pode alterar a config ou os hooks do próprio CLI. O `login-check` ou o operador roda esse CLI fora do sandbox (UNVERIFIED que o `login-check` execute hooks) |
 | `/etc/simplicio-loop-247.env` | legível só se o usuário do serviço for o dono | o `setup` grava modo 600; mantenha `root:root` (o systemd lê como root) |
 | rede (`/proc/net/*`, localhost, sockets abstratos) | compartilhada | sem `--unshare-net`: o planner precisa da rede do provedor |
 | `/proc/self/mountinfo`, `cpuinfo`, `meminfo` | legível | informação do host sem segredo |
@@ -197,13 +317,12 @@ teto diario (`budget.py`). Os itens de um mesmo repo rodam ao mesmo tempo, cada 
 - **Arquivo em comum.** Itens do lote que citam o mesmo arquivo-alvo (`squad_flow.target_paths`) rodam em serie, na ordem do lote.
   Os outros rodam em paralelo. Um arquivo que o corpo da issue nao cita so aparece no review ou no merge train.
 - **Disco e limite.** No maximo o tamanho do lote em worktrees vivos (o plano de capacidade, ou `SIMPLICIO_247_CONCURRENCY` quando fixado). Com menos de 2 GiB livres o item e adiado sem gastar tentativa.
-- **Sandbox.** O bwrap liga o state dir como gravavel e, por cima, deixa somente leitura o diretorio `work/` inteiro (os worktrees dos
-  outros itens, os admin dirs deles e os clones base, com `config`, `hooks` e `refs`) e os arquivos de controle do watcher que
-  existem (`claims.json`, `budget.json`, `STOP`). Depois liga como gravavel so o worktree do proprio item, o admin dir dele,
-  `<git-dir>/objects` e `<git-dir>/simplicio` (base central do mapper). Os caminhos vem do layout fixo, nao do arquivo `.git` do
-  worktree. O `git` do host (status, commit, push do tick) roda no item com `GIT_DIR`, `GIT_COMMON_DIR` e `GIT_WORK_TREE` do layout fixo:
-  reescrever o `.git` ou o `commondir` do proprio item nao leva o git do host ao admin dir de outro. Limites que ficam: `STOP` ainda
-  pode ser criado quando nao existe, e `objects/` e compartilhado entre os itens do repo (gravavel por todos).
+- **Sandbox.** O bwrap liga o state dir inteiro como somente leitura (#1656): os arquivos de controle, `work/` (os worktrees dos
+  outros itens, os admin dirs deles e os clones base, com `config`, `hooks` e `refs`), `logs/` e `opencode/`. Por cima liga como
+  gravavel so o worktree do proprio item, o admin dir dele, `<git-dir>/objects` e `<git-dir>/simplicio` (base central do mapper). Os caminhos vem do layout
+  fixo, nao do arquivo `.git` do worktree. O `git` do host (status, commit, push do tick) roda no item com `GIT_DIR`, `GIT_COMMON_DIR` e
+  `GIT_WORK_TREE` do layout fixo: reescrever o `.git` ou o `commondir` do proprio item nao leva o git do host ao admin dir de outro.
+  Limite que fica: `objects/` e compartilhado entre os itens do repo (gravavel por todos). A lista exata do que o item escreve esta em "Isolamento do sandbox".
 
 1. **Coordenador geral** (`planning`). As issues novas admitidas de cada repo viram `squads.plan_squads`: squads de ate 4
    workers e 1 coordenador (`coordination`) cada, dono de arquivo por caminho citado na issue, ordem de merge por
@@ -211,9 +330,11 @@ teto diario (`budget.py`). Os itens de um mesmo repo rodam ao mesmo tempo, cada 
 2. **Workers.** Cada issue segue o fluxo de host mode acima, comecando no papel de `squad_routing.route`. Sandbox,
    `scrubbed_env` e a escada de escalonamento (2 falhas sobem um papel) valem para todos, sem mudanca.
 3. **Revisao do squad.** Para cada PR aberto o coordenador do squad confere (a) o verify do worker foi
-   `MEASURED|verify_passed` e (b) nenhum arquivo alterado e compartilhado ou de outro squad. Aprovado: posta
-   `APROVADO PELO SQUAD` no PR com `pr_evidence.publish_comment` (um comentario por commit de head, para o horario do
-   comentario ser sempre mais novo que o commit). Reprovado: nada e postado e o motivo vai para `status.json`.
+   `MEASURED|verify_passed` e (b) nenhum arquivo alterado e compartilhado ou de outro squad. Depois roda o portao automatico de revisao
+   (`review_gate`, ver `docs/SQUADS.md`, secao 4a) sobre o clone e posta o veredito no PR com `pr_evidence.publish_comment`:
+   `REVISÃO AUTOMÁTICA: APROVADA (nível N)` (um comentario por commit de head, para o horario do comentario ser sempre mais
+   novo que o commit) ou `REVISÃO AUTOMÁTICA: REPROVADA` com a causa. Reprovado por (a) ou (b): nada e postado e o motivo
+   vai para `status.json`.
 4. **Merge: desligado por padrao.** Sem `SIMPLICIO_247_AUTO_MERGE=1` o watcher para em "aprovado" e nunca faz merge
    (#1434). Com a variavel, cada PR aprovado passa por `squads.squad_gate` (aprovacao mais nova que o ultimo commit) e os
    que passam entram em `merge_train` em lotes de ate 4, na ordem do plano: uma branch temporaria `loop/merge-train`
@@ -233,7 +354,7 @@ teto diario (`budget.py`). Os itens de um mesmo repo rodam ao mesmo tempo, cada 
    coordenador de cada squad, cada worker) com `agent.role`, `agent.model` e `agent.effort`; o worker mostra o ultimo
    papel que realmente rodou (apos escalada). `consolidated.tasks_by_role` conta por papel.
 
-Limites de seguranca: `squad_gate` so aceita `APROVADO PELO SQUAD` escrito por um autor autorizado (#1534): o `author.login` do
+Limites de seguranca: `squad_gate` so aceita `REVISÃO AUTOMÁTICA: APROVADA (nível N)` escrito por um autor autorizado (#1534): o `author.login` do
 comentario (de `gh pr view --json comments`) precisa ser o login `gh` do proprio watcher (`gh api user --jq .login`, uma
 chamada por tick e so quando o merge esta ligado). Sem login conhecido o gate nega tudo (fail closed), e o comentario de
 qualquer outra pessoa, mesmo com a frase exata, e ignorado e nao esconde a aprovacao real. Alem disso so entram no merge os

@@ -84,7 +84,7 @@ def _run(argv: Sequence[str], timeout: float = TIMEOUT_S) -> tuple[Optional[int]
     """(exit code, stdout + stderr cut at 4 KiB); the code is None when the command timed out or could not start."""
     try:
         done = subprocess.run(list(argv), capture_output=True, text=True, errors="replace", stdin=subprocess.DEVNULL,
-                              timeout=timeout, shell=False, env=setup_hardening.minimal_env())
+                              timeout=timeout, shell=False, env=setup_hardening.probe_env())
     except (OSError, subprocess.TimeoutExpired):
         return None, ""
     return done.returncode, (done.stdout + done.stderr)[:4096]
@@ -170,12 +170,15 @@ def _tool(name: str, which: Which, run: Run, *, required: bool = True, auto: str
 
 
 def check_all(environ: Optional[Mapping[str, str]] = None, *, which: Optional[Which] = None, run: Optional[Run] = None,
-              platform: Optional[str] = None, interpreter: object = _UNSET, node_for: Sequence[str] = ()) -> list[Check]:
+              platform: Optional[str] = None, interpreter: object = _UNSET, node_for: Sequence[str] = (),
+              trusted: Optional[Mapping[str, str]] = None) -> list[Check]:
     """Look at python, pip, venv, git, gh, bwrap (Linux), uv, and node (only when `node_for` names hosts that need it).
 
-    `interpreter` is the Python that runs this program (None in the standalone binary, which has none to offer)."""
+    `interpreter` is the Python that runs this program (None in the standalone binary, which has none to offer).
+    Tools are looked up on PATH without its unsafe entries (relative, writable by others, `~/.local/bin`): nothing there is run.
+    `trusted` maps a tool name to the exact file the setup installed and verified; that file is used even in `~/.local/bin`."""
     env = os.environ if environ is None else environ
-    which = which or (lambda name: shutil.which(name, path=env.get("PATH")))
+    which = which or setup_hardening.safe_which(env, trusted)
     run, platform = run or _run, platform or sys.platform
     if interpreter is _UNSET:
         interpreter = None if getattr(sys, "frozen", False) else sys.executable
@@ -244,7 +247,8 @@ def _install_release(tool: str, where: _Where, dry_run: bool) -> Action:
         return Action(tool, "skipped", f"no official {tool} release for {where.platform} {where.machine}; install {tool} yourself")
     dest = where.exe(tool)
     if os.path.lexists(dest):
-        return Action(tool, "unchanged", f"{dest} exists; it is not on PATH")
+        return Action(tool, "unchanged", f"{dest} exists but is not verified (this setup did not install it), so it is not used; "
+                                         f"remove it to let setup install {tool}")
     if dry_run:
         return Action(tool, "would-install", f"{dest} from the official {tool} release (SHA256 checked)")
     repo = "cli/cli" if tool == "gh" else "astral-sh/uv"
@@ -269,7 +273,10 @@ def _install_python(uv: Optional[Check], where: _Where, run: Run, dry_run: bool)
     actions, uv_path = [], uv.path if uv else None
     if uv_path is None:
         actions.append(_install_release("uv", where, dry_run=False))
-        if actions[-1].result not in ("installed", "unchanged"):
+        if actions[-1].result == "unchanged":  # a file nobody verified: it is not run
+            return actions + [Action("python", "skipped", f"uv is not verified, so `{command}` did not run; "
+                                     f"remove {where.exe('uv')} and run `simplicio-loop setup`")]
+        if actions[-1].result != "installed":
             return actions
         uv_path = str(where.exe("uv"))
     code, _ = run([uv_path, "python", "install", PY_TARGET], INSTALL_TIMEOUT_S)
@@ -305,7 +312,7 @@ def ensure(checks: Sequence[Check], *, yes: bool = False, dry_run: bool = False,
            bin_dir: Optional[Path] = None, platform: Optional[str] = None, machine: Optional[str] = None) -> list[Action]:
     """One Action per required check that is not ok. `dry_run` runs and downloads nothing."""
     env = os.environ if environ is None else environ
-    which = which or (lambda name: shutil.which(name, path=env.get("PATH")))
+    which = which or setup_hardening.safe_which(env)
     run, platform = run or _run, platform or sys.platform
     home = Path(env.get("HOME") or env.get("USERPROFILE") or Path.home())
     where = _Where(bin_dir or home / ".local" / "bin", platform, machine or platform_module.machine(), get)

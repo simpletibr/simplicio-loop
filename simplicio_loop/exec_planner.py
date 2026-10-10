@@ -16,7 +16,7 @@ import signal
 import tempfile
 import time
 
-from . import model_roles
+from . import model_roles, structured_output
 
 DEFAULT_FAMILIES = ["claude", "codex", "grok", "gemini"]
 KILL_GRACE_SEC = 3.0
@@ -39,7 +39,8 @@ class ExecPlannerError(Exception):
 class PlannerResult:
     """Result of running a planner via CLI exec."""
 
-    def __init__(self, reason_code, family, role, model, effort, plan=None, error=None, execution_ms=0.0, raw=None):
+    def __init__(self, reason_code, family, role, model, effort, plan=None, error=None, execution_ms=0.0, raw=None,
+                 structured=("", "")):
         self.reason_code = reason_code
         self.family = family
         self.role = role
@@ -49,6 +50,7 @@ class PlannerResult:
         self.error = error
         self.execution_ms = execution_ms
         self.raw = raw  # the CLI text before the plan is cut out of it, NOT redacted (None: it never answered); redact before it is stored
+        self.structured_output, self.structured_reason = structured  # what the argv asked of the CLI; ("", "") when none ran
 
     def is_ok(self):
         return self.reason_code == "ok"
@@ -64,6 +66,8 @@ class PlannerResult:
             "error": self.error,
             "execution_ms": self.execution_ms,
             "raw": self.raw,
+            "structured_output": self.structured_output,
+            "structured_reason": self.structured_reason,
         }
 
 
@@ -180,12 +184,23 @@ def classify_failure(returncode, stderr, stdout):
     return None
 
 
-def build_argv(family, role, prompt, model, cwd, effort=""):
-    """Build the plan-only command-line argv for a specific family's CLI exec."""
+def build_argv(family, role, prompt, model, cwd, effort="", schema_file=""):
+    """Build the plan-only command-line argv for a specific family's CLI exec.
+
+    The CLI's own schema flag (``structured_output.cli_flags``) goes last, before a trailing ``-`` stdin marker.
+    ``schema_file`` is the plan schema on disk, for a CLI that reads it from a file (codex).
+    """
     builder = _ARGV_BUILDERS.get(family)
     if not builder:
         raise ExecPlannerError(f"unsupported family: {family}")
-    return builder(prompt, role, model, effort, cwd)
+    argv = builder(prompt, role, model, effort, cwd)
+    try:
+        flags = structured_output.cli_flags(family, schema_file)
+    except ValueError as e:
+        raise ExecPlannerError(str(e)) from e
+    at = len(argv) - 1 if argv[-1] == "-" else len(argv)
+    argv[at:at] = flags
+    return argv
 
 
 def _group_alive(pgid):
@@ -243,14 +258,23 @@ async def _run_subprocess(argv, stdin_text=None, timeout_sec=60.0, cwd=None, gra
     return stdout_bytes.decode("utf-8", errors="replace"), stderr_bytes.decode("utf-8", errors="replace"), proc.returncode
 
 
+# `--output-format json` wraps the answer in an envelope. Measured on this host (claude 2.1.292, grok 1.0.46, agy 1.3.2):
+# the model text is `result` (claude), `text` (grok) or `response` (agy, prose around the JSON), and with a schema flag
+# the parsed object is `structured_output` (claude, agy) or `structuredOutput` (grok).
+_OBJECT_KEYS = ("structured_output", "structuredOutput")
+_TEXT_KEYS = ("result", "text", "response")
+
+
 def _plan_from(obj):
     if isinstance(obj, dict):
         if "operations" in obj or "need" in obj:  # `need`: lines the planner could not see (turbo_window)
             return obj
-        # claude/grok `--output-format json` wrap the model text in an envelope: {"result": "<text>"}
-        inner = obj.get("result")
-        if isinstance(inner, str):
-            return _find_plan(inner)
+        for key in _OBJECT_KEYS:
+            if isinstance(obj.get(key), dict):
+                return _plan_from(obj[key])
+        for key in _TEXT_KEYS:
+            if isinstance(obj.get(key), str):
+                return _find_plan(obj[key])
     return None
 
 
@@ -279,9 +303,19 @@ def _extract_plan_json(output):
     return plan
 
 
-def _result(code, family, role, model, effort, started, plan=None, error=None, raw=None):
+def _result(code, family, role, model, effort, started, plan=None, error=None, raw=None, structured=("", "")):
     return PlannerResult(code, family, role, model, effort, plan=plan, error=error, execution_ms=(time.monotonic() - started) * 1000,
-                         raw=raw)
+                         raw=raw, structured=structured)
+
+
+def _temp_file(prefix, text, directory):
+    """Write ``text`` to a new temp file in ``directory`` (default: the system temp dir) and return its path."""
+    if directory is not None:
+        os.makedirs(directory, exist_ok=True)
+    fd, path = tempfile.mkstemp(prefix=prefix, suffix=".json", dir=directory)
+    with os.fdopen(fd, "w") as handle:
+        handle.write(text)
+    return path
 
 
 async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_sec=KILL_GRACE_SEC, wrap=None, env=None,
@@ -290,8 +324,9 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
 
     ``wrap`` maps the argv to the argv actually spawned (the watcher passes its sandbox); the default is the identity.
     ``env`` is the whole environment of the subprocess; the default inherits the caller's.
-    ``config_dir`` is where the opencode deny config is written (default: the system temp dir). A sandbox that mounts a
-    tmpfs on /tmp hides that file, so opencode would then run WITHOUT the deny rules: pass a directory the sandbox binds.
+    ``config_dir`` is where the opencode deny config and the codex schema file are written (default: the system temp
+    dir). A sandbox that mounts a tmpfs on /tmp hides them, so opencode would then run WITHOUT the deny rules: pass a
+    directory the sandbox binds. Both files are removed when the run ends.
     """
     started = time.monotonic()
     try:
@@ -304,47 +339,50 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
         return _result("cli_missing", family, role, model, effort, started, error=f"CLI '{family}' not found")
 
     full_prompt = PLAN_ONLY_PREAMBLE + prompt
+    temp_files = []
     try:
-        argv = build_argv(family, role, full_prompt, model, cwd or ".", effort)
-    except ExecPlannerError as e:
-        return _result("bad_argv", family, role, model, effort, started, error=str(e))
+        schema_file = ""
+        if structured_output.cli_needs_file(family):
+            schema_file = _temp_file("simplicio-schema-", structured_output.schema_text(), config_dir)
+            temp_files.append(schema_file)
+        try:
+            argv = build_argv(family, role, full_prompt, model, cwd or ".", effort, schema_file)
+        except ExecPlannerError as e:
+            return _result("bad_argv", family, role, model, effort, started, error=str(e))
+        receipt = structured_output.cli_receipt(family)
 
-    if wrap is not None:
-        argv = wrap(argv)  # before any temp file exists: a refusing wrapper must not leave one behind
-    stdin_text = full_prompt if family == "codex" else None
-    config_path = None
-    if family == "opencode":
-        if config_dir is not None:
-            os.makedirs(config_dir, exist_ok=True)
-        fd, config_path = tempfile.mkstemp(prefix="simplicio-opencode-", suffix=".json", dir=config_dir)
-        with os.fdopen(fd, "w") as handle:
-            json.dump(OPENCODE_DENY_CONFIG, handle)
-        env = {**(os.environ if env is None else env), "OPENCODE_CONFIG": config_path}
-    try:
-        stdout, stderr, returncode = await _run_subprocess(
-            argv, stdin_text=stdin_text, timeout_sec=timeout_sec, cwd=cwd, grace_sec=grace_sec, env=env
-        )
-    except asyncio.TimeoutError:
-        return _result("timeout", family, role, model, effort, started, error="timeout")
+        if wrap is not None:
+            argv = wrap(argv)  # a refusing wrapper must not leave a temp file behind: the finally below removes them
+        stdin_text = full_prompt if family == "codex" else None
+        if family == "opencode":
+            config_path = _temp_file("simplicio-opencode-", json.dumps(OPENCODE_DENY_CONFIG), config_dir)
+            temp_files.append(config_path)
+            env = {**(os.environ if env is None else env), "OPENCODE_CONFIG": config_path}
+        try:
+            stdout, stderr, returncode = await _run_subprocess(
+                argv, stdin_text=stdin_text, timeout_sec=timeout_sec, cwd=cwd, grace_sec=grace_sec, env=env
+            )
+        except asyncio.TimeoutError:
+            return _result("timeout", family, role, model, effort, started, error="timeout", structured=receipt)
     finally:
-        if config_path:
+        for path in temp_files:
             try:
-                os.unlink(config_path)
+                os.unlink(path)
             except OSError:
                 pass
 
     failure = classify_failure(returncode, stderr, stdout)
     if failure:
         return _result(failure, family, role, model, effort, started, error=f"exit {returncode}: {failure}",
-                       raw=f"{stdout}\n--- stderr ---\n{stderr}")
+                       raw=f"{stdout}\n--- stderr ---\n{stderr}", structured=receipt)
     if returncode != 0:
         return _result("process_error", family, role, model, effort, started, error=f"exit {returncode}",
-                       raw=f"{stdout}\n--- stderr ---\n{stderr}")
+                       raw=f"{stdout}\n--- stderr ---\n{stderr}", structured=receipt)
     try:
         plan = _extract_plan_json(stdout)
     except ValueError as e:
-        return _result("bad_plan", family, role, model, effort, started, error=str(e), raw=stdout)
-    return _result("ok", family, role, model, effort, started, plan=plan, raw=stdout)
+        return _result("bad_plan", family, role, model, effort, started, error=str(e), raw=stdout, structured=receipt)
+    return _result("ok", family, role, model, effort, started, plan=plan, raw=stdout, structured=receipt)
 
 
 async def run_planner_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, families=None, grace_sec=KILL_GRACE_SEC,

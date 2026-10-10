@@ -76,6 +76,11 @@ It never removes a base.
 * A change in worktree A stays invisible in worktree B and in the base. An overlay run does not change
   one byte of the base store.
 * N concurrent worktrees trigger one base build. A counter test proves it.
+* Disk budget (#1672): on a synthetic repository with 3 worktrees and 2 edited files each, every
+  overlay holds at most 50 % of the bytes of a full index of the same worktree, and the base plus the
+  3 overlays hold at most 60 % of 3 full indexes. A second overlay run without changes adds no file
+  and no bytes. Mutants that copy `call-graph` or `retrieval-index` into a worktree, or that build a
+  second base, break the test (`packages/mapper/tests/python/test_central_map_disk_budget.py`).
 * Failing, interrupted and SIGTERM builds leave no scratch, no staging directory and no
   `git worktree` entry.
 * `map gc` removes only what is safe. It keeps a scratch directory that has a live lock, a process

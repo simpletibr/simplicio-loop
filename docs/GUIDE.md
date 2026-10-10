@@ -95,7 +95,7 @@ flowchart TD
     TURBO -. "2 failures: escalate the role" .-> PLAN
   end
   WK --> PLAN
-  PR --> REV["Squad review posts APROVADO PELO SQUAD. In progress: #1502"]
+  PR --> REV["Squad review runs the review gate and posts REVISÃO AUTOMÁTICA: APROVADA or REPROVADA. In progress: #1502"]
   REV --> MT["General coordinator merge train: squads gate, one test per batch, bisect on red. In progress: #1504"]
   MT --> MAIN["main"]
   WLOOP -.-> EVT[("events.jsonl")]

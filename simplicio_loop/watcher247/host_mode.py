@@ -20,6 +20,7 @@ import json
 import os
 import re
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -84,6 +85,32 @@ FAMILY_ENV = {
 }
 
 
+# What each planner CLI sees of the service user's HOME inside the sandbox (#1570; see sandbox.HomeView): an empty tmpfs plus
+# these paths, relative to HOME. `rw` is the login and state folder the CLI writes (token renewal, logs, sessions); `ro` is its
+# binary and install tree when they live in HOME (a binary under /usr or /usr/local needs nothing). Each set is the smallest
+# one that kept a real planner call working (MEASURED with the real CLIs; see the PR): codex and grok fail to start when HOME
+# is read-only, claude answers "Not logged in" without ~/.claude, opencode needs its data folder for the log and the login.
+# `gemini` is DOC-BASED (not installed where this was measured) and hides the folder of agy that lives inside ~/.gemini.
+FAMILY_HOME: dict[str, dict[str, tuple[str, ...]]] = {
+    "claude": {"rw": (".claude",), "ro": (".local/share/claude", ".local/bin/claude")},
+    "codex": {"rw": (".codex",), "ro": (".local/bin/codex",)},
+    "grok": {"rw": (".grok",), "ro": (".local/bin/grok",)},
+    "agy": {"rw": (".gemini/antigravity-cli",), "ro": (".local/bin/agy",)},
+    "opencode": {"rw": (".local/share/opencode",), "ro": (".config/opencode",)},
+    "gemini": {"rw": (".gemini",), "hide": (".gemini/antigravity-cli",)},
+}
+
+
+def home_view(family: str) -> sandbox.HomeView:
+    """The HOME a planner of `family` sees. KeyError for a family without a row: no row, no HOME, never the whole HOME."""
+    return sandbox.HomeView(Path.home(), **FAMILY_HOME[family])
+
+
+def planner_wrap(dest: Path) -> Callable[[list[str]], list[str]]:
+    """The sandbox of a planner CLI. exec_planner hands the wrapper only the argv, and build_argv always starts with the family name."""
+    return lambda argv: sandbox.wrap(argv, clone=dest, state_dir=config.ROOT, home=home_view(argv[0]))
+
+
 def _planner_env(family: str) -> dict[str, str]:
     return sandbox.scrubbed_env(os.environ, home=Path.home(), keep=FAMILY_ENV.get(family, ()))
 
@@ -92,7 +119,9 @@ def plan_prompt(request: str, failure: str = "") -> str:
     """The planner prompt: turbo's request (it already holds the task, map slice, files and format) plus the failure."""
     text = (f"{request}\n\nReply with the plan only: one JSON object in the `format` above, nothing else. "
             "If a file is shown in windows and the lines you must change are in `omitted`, reply "
-            '`{"operations": [], "need": [{"path": "<file>", "start": N, "end": M}]}` instead of guessing. '
+            '`{"operations": [], "need": [{"path": "<file>", "start": N, "end": M}]}` instead of guessing, e.g. '
+            '`{"operations": [], "need": [{"path": "tests/test_x.py", "start": 147, "end": 190}]}`; '
+            "the watcher then shows those lines (the same as `--window tests/test_x.py:147-190`) and asks again. "
             "The watcher applies it with dev-cli; do not run the `apply` command.")
     if failure:
         text += ("\n\nThe previous plan was applied and failed. Write a corrected plan for the original task. "
@@ -227,7 +256,8 @@ def _note_step(report: dict[str, Any], *, repo: str, issue: dict, step: int, pla
         issue=str(issue["number"]), wall_ms=wall_ms, outcome=outcome, operators=["exec-planner", "dev-cli"])
     report["tasks"][-1].update(
         {"step": step, "role": planned.role, "family": planned.family, "model": planned.model,
-         "effort": planned.effort, "planner": planned.reason_code})
+         "effort": planned.effort, "planner": planned.reason_code,
+         "structured_output": planned.structured_output, "structured_reason": planned.structured_reason})
 
 
 async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str | None, executor: Executor,
@@ -260,7 +290,7 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
             planned = await exec_planner.run_planner_with_fallback(
                 ladder.current_role(), plan_prompt(request, failure), cwd=str(dest),
                 timeout_sec=config.PLAN_TIMEOUT_S, families=list(executor.families),
-                wrap=lambda argv: sandbox.wrap(argv, clone=dest, state_dir=config.ROOT), env_for=_planner_env,
+                wrap=planner_wrap(dest), env_for=_planner_env,
                 config_dir=config.ROOT / "opencode")  # inside the bound state dir: /tmp is a tmpfs in the sandbox
             ladder.family = planned.family or ladder.family
             ok, failure, tokens_report, label, result, status, reason = False, "", None, "", None, "failed", ""

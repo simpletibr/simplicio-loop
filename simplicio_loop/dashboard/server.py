@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from simplicio_loop import __version__, dashboard_events, stage_agents
-from simplicio_loop.dashboard import STATIC_DIR, alerts, budget, config, history, lane_extras, runs, trends, webhook
+from simplicio_loop.dashboard import STATIC_DIR, agent_map, alerts, budget, config, history, lane_extras, langfuse_view, runs, trends, webhook
 from simplicio_loop.dashboard import stage_agents as stage_costs
 from simplicio_loop.dashboard.tail import EventTail
 
@@ -51,6 +51,7 @@ _ARTIFACT_RE = re.compile(r'/api/runs/([^/]+)/artifacts/(.+)')
 _BUDGET_RE = re.compile(r'/api/runs/([^/]+)/budget')
 _EXTRAS_RE = re.compile(r'/api/runs/([^/]+)/extras')
 _STAGE_AGENTS_RE = re.compile(r'/api/runs/([^/]+)/stage-agents')
+_LANGFUSE_RE = re.compile(r'/api/runs/([^/]+)/langfuse')
 _DETAIL_RE = re.compile(r'/api/runs/([^/]+)')
 STATIC_TYPES = {
     '.js': 'text/javascript; charset=utf-8',
@@ -293,7 +294,7 @@ def _tokens() -> dict[str, Any]:
 
 
 def _agents() -> dict[str, Any]:
-    '''The roles the stage-agents contract declares, with the stages each one runs. No instance is measured yet.'''
+    '''The roles the stage-agents contract declares, with the stages each one runs. Instances are per run: see GET /api/runs/<id>/extras.'''
     try:
         graph = stage_agents.load_graph(STAGES_FILE)
     except Exception as exc:  # fail open: the panel keeps serving
@@ -305,7 +306,7 @@ def _agents() -> dict[str, Any]:
     roles = [{'role_id': role['role_id'], 'title': role['title'], 'stages': stages.get(role['role_id'], [])}
              for role in graph['roles']]
     return {'status': 'UNVERIFIED', 'roles': roles,
-            'reason': 'instâncias ativas não medidas: nenhum produtor de agentes escreve estado ainda'}
+            'reason': 'papéis do contrato; instâncias, slots e leases medidos de cada run ficam no painel "Instâncias, slots e leases"'}
 
 
 def _queue(server: Any) -> dict[str, Any]:
@@ -455,7 +456,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         extras_route = _EXTRAS_RE.fullmatch(raw_path)
         if extras_route:
             ref = _find_run(self.server, urllib.parse.unquote(extras_route.group(1)))
-            self._send_json(200, lane_extras.extras(ref['run_dir'], dashboard_events.read_events(ref['run_dir'])))
+            reply = lane_extras.extras(ref['run_dir'], dashboard_events.read_events(ref['run_dir']))
+            reply['agents'] = agent_map.view(ref['run_dir'])
+            self._send_json(200, reply)
+            return
+        langfuse_route = _LANGFUSE_RE.fullmatch(raw_path)
+        if langfuse_route:  # local files only: no request to Langfuse, no key read (#1610)
+            ref = _find_run(self.server, urllib.parse.unquote(langfuse_route.group(1)))
+            self._send_json(200, langfuse_view.panel(ref))
             return
         stage_route = _STAGE_AGENTS_RE.fullmatch(raw_path)
         if stage_route:

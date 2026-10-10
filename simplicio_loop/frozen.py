@@ -108,6 +108,33 @@ def dispatch(argv: Sequence[str], scripts: Optional[Mapping[str, str]] = None) -
     return _call(resolve_entry(name, console_scripts() if scripts is None else scripts))
 
 
+DAEMON_VERBS = ("serve", "status", "stop")
+DAEMON_NOT_USED = "simplicio-loop: the daemon is not used on this platform (frozen build or Windows); commands run in this process"
+
+
+def daemon_command(arguments: Sequence[str]) -> int:
+    """``simplicio-loop daemon serve|status|stop`` when ``cli.main`` gets the verb (issue #1633).
+
+    The frozen binary and Windows have no daemon client, so the verb reaches ``cli.main``, and the parser would
+    take ``daemon status`` for the prose of a task and survey the current directory. Where the platform has a
+    daemon (``SIMPLICIO_LOOP_DAEMON=0`` also lands here) the verb goes to the daemon control. Elsewhere one line
+    says that no daemon runs: ``status`` exits 3 (not running), ``stop`` 0 (nothing to stop) and ``serve`` 69
+    (it cannot serve). Any other verb is refused with the valid ones.
+    """
+    from .daemon import protocol
+
+    verb = arguments[0] if arguments else ""
+    if verb not in DAEMON_VERBS:
+        print(f"usage: simplicio-loop daemon {'|'.join(DAEMON_VERBS)}", file=sys.stderr)
+        return 2
+    if protocol.supported():
+        from .daemon.control import main as control
+
+        return control(list(arguments))
+    print(DAEMON_NOT_USED, file=sys.stderr if verb == "serve" else sys.stdout)
+    return {"status": 3, "stop": 0}.get(verb, protocol.EX_UNAVAILABLE)
+
+
 def _same_file(link: Path, executable: Path) -> bool:
     try:
         if os.path.samefile(link, executable):

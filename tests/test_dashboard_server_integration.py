@@ -346,7 +346,7 @@ def test_stage_agents_route_carries_the_cost_per_task_and_iteration_and_the_agen
     assert data['breakdown']['tokens']['total'] == 2_000_000 and data['breakdown']['tokens']['proof_kind'] == 'medido'
     [lane] = data['agent_map']['lanes']
     assert (lane['key'], lane['claims'], lane['lease_ids']) == ('coder', 1, ['L1'])
-    assert data['agent_map']['slots']['state'] == 'UNVERIFIED'
+    assert 'slots' not in data['agent_map']  # the slots are the extras reply's, read from the Mapper store
 
 
 def test_stage_agents_route_without_token_usage_is_empty_and_unverified(server_handle):
