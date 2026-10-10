@@ -375,6 +375,20 @@ def _write_index_state(
         handle.write("\n")
 
 
+def _record_overlay_freshness(root: str, out: str, receipt: dict) -> None:
+    """Record that the worktree's overlay matches the tree as it is now (#1673).
+
+    The overlay serves ``project-map``, ``symbol-index`` and ``precedent-index``; this is the
+    index state that lets ``scan`` and ``inspect`` call it fresh without a full index.
+    """
+    counts = {
+        "files": int(receipt.get("files_total") or 0),
+        "reused": int(receipt.get("files_reused") or 0),
+        "remapped": int(receipt.get("files_remapped") or 0),
+    }
+    _write_index_state(root, out, _freshness_signature(root, out), counts)
+
+
 def _artifacts_exist(paths: dict[str, str]) -> bool:
     return all(os.path.exists(path) for path in paths.values())
 

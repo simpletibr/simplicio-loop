@@ -41,6 +41,7 @@ from ._index_engine import (
     _process_is_alive,
     _process_start_token,
     _read_index_state,
+    _record_overlay_freshness,
     _state_path,
     _write_index_state,
 )
@@ -419,16 +420,101 @@ def _handoff_context_cache_key(
     )
 
 
+#: What the worktree overlay (#1574) serves, and what it leaves to an on-demand query (#1673).
+OVERLAY_SERVED_ARTIFACTS = ("project_map", "symbol_index", "precedent_index")
+OVERLAY_UNSERVED_ARTIFACTS = ("call_graph", "architecture_inventory", "retrieval_index")
+OVERLAY_ON_DEMAND_VERBS = ("callers", "callees", "reaches", "impact")
+
+
+def _overlay_state(root: str, out: str) -> dict | None:
+    """The worktree's ``overlay.json`` when it and the three artifacts it serves are on disk."""
+    abs_out = os.path.abspath(os.path.join(root, out))
+    if not os.path.exists(os.path.join(abs_out, "overlay.json")):
+        return None
+    from ..mapper.central_overlay import OVERLAY_ARTIFACT_FILES, OVERLAY_STATE_FILE, OVERLAY_STATE_SCHEMA
+
+    state = _read_json_safe(os.path.join(abs_out, OVERLAY_STATE_FILE))
+    if state.get("schema") != OVERLAY_STATE_SCHEMA:
+        return None
+    if not all(os.path.exists(os.path.join(abs_out, name)) for name in OVERLAY_ARTIFACT_FILES.values()):
+        return None
+    return state
+
+
+def _overlay_base_present(root: str, state: Mapping[str, object]) -> bool:
+    """True when the central base that ``overlay.json`` names is still in the cache."""
+    digest = state.get("base_digest")
+    if not isinstance(digest, str) or not digest or digest != os.path.basename(digest) or digest == "..":
+        return False
+    try:
+        from ..mapper.canonical_identity import resolve_common_git_dir
+        from ..mapper.canonical_storage import canonical_manifest_dir, resolve_canonical_cache_root
+
+        common_git_dir = resolve_common_git_dir(root)
+        if not common_git_dir:
+            return False
+        return os.path.isdir(canonical_manifest_dir(resolve_canonical_cache_root(common_git_dir), digest))
+    except Exception:  # noqa: BLE001 - an unreadable base is "not present", never a crash
+        return False
+
+
+def _overlay_serves(root: str, out: str) -> dict | None:
+    """The overlay state when it is valid: well-formed, with its central base still in the cache."""
+    state = _overlay_state(root, out)
+    if state is None or not _overlay_base_present(root, state):
+        return None
+    return state
+
+
+def _artifacts_available(root: str, out: str) -> bool:
+    """A full set is on disk, or a valid overlay serves the artifacts it can serve."""
+    return _artifacts_exist(_artifact_paths(root, out)) or _overlay_serves(root, out) is not None
+
+
+def _artifact_service(root: str, out: str) -> dict:
+    """Which artifacts the worktree has, and which it leaves to an on-demand query."""
+    state = _overlay_state(root, out)
+    if state is None:
+        return {"mode": "full" if _artifacts_exist(_artifact_paths(root, out)) else "none"}
+    return {
+        "mode": "overlay",
+        "base_digest": state.get("base_digest"),
+        "base_present": _overlay_base_present(root, state),
+        "served_by_overlay": list(OVERLAY_SERVED_ARTIFACTS),
+        "not_served_by_overlay": list(OVERLAY_UNSERVED_ARTIFACTS),
+        "on_demand": {
+            "verbs": [f"ask {verb}" for verb in OVERLAY_ON_DEMAND_VERBS],
+            "never_built_by": ["scan", "inspect", "handoff"],
+            "cost": "an in-memory build of the full artifact set, declared in the answer (on_demand_cost)",
+        },
+    }
+
+
 def _index_is_fresh(root: str, out: str) -> bool:
-    """True when the on-disk artifacts match the current freshness signature."""
+    """True when the on-disk artifacts match the current freshness signature.
+
+    A valid overlay (#1673) counts as the artifacts: it serves project-map, symbol-index and
+    precedent-index, and ``not_served_by_overlay`` is not a reason for ``fresh=false``.
+    """
     state = _read_index_state(root, out)
     if state.get("schema") != INDEX_STATE_SCHEMA:
         return False
     if state.get("completeness", "complete") != "complete":
         return False
-    if not _artifacts_exist(_artifact_paths(root, out)):
+    if not _artifacts_available(root, out):
         return False
     return state.get("signature") == _freshness_signature(root, out)
+
+
+def _refresh_overlay(root: str, out: str) -> dict | None:
+    """Bring the worktree's overlay up to date over the central base; ``None`` when it cannot serve."""
+    from ..mapper.central_overlay import apply_overlay
+
+    outcome = apply_overlay(root, out=out)
+    if outcome.artifacts is None:
+        return None
+    _record_overlay_freshness(root, out, outcome.receipt)
+    return outcome.receipt
 
 
 def _job_process_is_owner(deep: dict, lock_status: dict) -> bool:
@@ -498,7 +584,7 @@ def _deep_phase(root: str, out: str) -> str:
             if _job_process_is_owner(deep, lock_status):
                 return "deep_running"
             return _reconcile_nonterminal_job(root, out, job)
-        if not _artifacts_exist(_artifact_paths(root, out)):
+        if not _artifacts_available(root, out):
             return "failed"
     if lock_status.get("active"):
         return "deep_running"
@@ -662,7 +748,15 @@ def _artifact_evidence(root: str, out: str) -> dict[str, dict]:
         "map_job": _map_job_path(root, out),
         "context_cache": _context_cache_path(root, out),
     }
-    return {key: _path_evidence(path) for key, path in paths.items()}
+    evidence = {key: _path_evidence(path) for key, path in paths.items()}
+    if _overlay_serves(root, out) is not None:
+        abs_out = os.path.abspath(os.path.join(root, out))
+        evidence["retrieval_index"] = _path_evidence(os.path.join(abs_out, "retrieval-index.json"))
+        for key in OVERLAY_SERVED_ARTIFACTS:
+            evidence[key]["state"] = "served_by_overlay"
+        for key in OVERLAY_UNSERVED_ARTIFACTS:
+            evidence[key]["state"] = "not_served_by_overlay"
+    return evidence
 
 
 def _status_warnings(
@@ -689,7 +783,7 @@ def _status_payload(root: str, out: str, *, phase: str | None = None) -> dict:
     worker_failure = _worker_failure_reason(root, out)
     state = _read_index_state(root, out)
     counts = state.get("counts") if isinstance(state.get("counts"), dict) else {}
-    artifacts_present = _artifacts_exist(_artifact_paths(root, out))
+    artifacts_present = _artifacts_available(root, out)
     fresh = _index_is_fresh(root, out)
     return {
         "schema": MAP_STATUS_SCHEMA,
@@ -717,6 +811,7 @@ def _status_payload(root: str, out: str, *, phase: str | None = None) -> dict:
         ),
         "fresh": fresh,
         "artifacts_present": artifacts_present,
+        "artifact_service": _artifact_service(root, out),
         "state_path": _state_path(root, out).replace(os.sep, "/"),
         "updated_at": state.get("updated_at"),
         "lock_path": _lock_path(root, out).replace(os.sep, "/"),
@@ -1291,7 +1386,16 @@ def _run_scan(opts: dict) -> int:
         meta["product_name"] = opts["product_name"]
     macro = build_macro_map(root, meta)
     created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    if _index_is_fresh(root, out):
+    # A worktree that already holds an overlay over the central base (#1574) stays on it: refresh the
+    # overlay and answer fresh. The full index (call-graph, architecture-inventory, retrieval-index)
+    # is never started here; `ask` builds those on demand (#1673).
+    overlay_receipt = None
+    fresh = _index_is_fresh(root, out)
+    on_overlay = _overlay_state(root, out) is not None
+    if not fresh and on_overlay:
+        overlay_receipt = _refresh_overlay(root, out)
+        fresh = overlay_receipt is not None
+    if fresh:
         envelope = {
             "schema": MAP_JOB_SCHEMA,
             "phase": "complete",
@@ -1299,13 +1403,20 @@ def _run_scan(opts: dict) -> int:
             "created_at": created_at,
             "macro": macro,
             "deep": {
-                "skipped_reason": "already_fresh",
+                "skipped_reason": "served_by_overlay" if on_overlay else "already_fresh",
                 "poll": "simplicio-mapper status " + root,
                 "exit_code": 0,
                 "failure_reason": None,
                 "finished_at": created_at,
             },
         }
+        if on_overlay:
+            envelope["artifact_service"] = _artifact_service(root, out)
+            if overlay_receipt is not None:
+                envelope["overlay"] = {
+                    key: overlay_receipt.get(key)
+                    for key in ("status", "base_digest", "files_total", "files_reused", "files_remapped", "duration_s")
+                }
         _write_map_job(root, out, envelope)
         envelope = _attach_fast_route(opts, envelope, artifacts_fresh=True)
         if opts["json"]:
