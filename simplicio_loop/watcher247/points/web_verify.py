@@ -42,7 +42,7 @@ async def run(ctx: PointContext) -> PointResult:
     out_dir.mkdir(parents=True, exist_ok=True)
     issue = str((ctx.issue or {}).get("number", "x"))
     argv = [sys.executable, str(script), "run", "--url", url, "--issue", issue, "--out", str(out_dir)]
-    done = await _scripts.sandboxed(argv, clone=ctx.clone, writable=out_dir, timeout=TIMEOUT_S)
+    done = await _scripts.sandboxed(argv, clone=ctx.clone, state_dir=out_dir, timeout=TIMEOUT_S)
     if done.returncode != 0:
         code = _ERROR_CODE.get(done.returncode, "web_verify_error")
         return PointResult(NAME, "error", {"return_code": done.returncode, "output": _scripts.tail(done)}, code)

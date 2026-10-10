@@ -10,9 +10,11 @@ from __future__ import annotations
 import ast
 import asyncio
 import os
+import shlex
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -934,6 +936,47 @@ def test_a_rewritten_commondir_of_the_items_own_admin_dir_does_not_redirect_the_
     assert done.returncode == 0, done.stderr
     top = asyncio.run(proc.run(["git", "rev-parse", "--git-common-dir"], cwd=a.path)).stdout.strip()
     assert top == str(r.common)
+
+
+# --- #1680 item 7: the base seeds `.simplicio-loop/` into its info/exclude (read-only inside the item's sandbox) --------------------
+
+EXCLUDE_LINE = ".simplicio-loop/"
+ENSURE = ("import sys; sys.path.insert(0, {root!r}); from pathlib import Path; "
+          "from simplicio_loop.state_dir import ensure_state_dir; ensure_state_dir(Path({clone!r}))")
+
+
+def exclude_file(r: Repo) -> Path:
+    return r.common / "info" / "exclude"
+
+
+def test_update_base_seeds_the_state_dir_line_once_and_keeps_the_existing_content(real_repo):
+    r = real_repo
+    exclude_file(r).write_text("*.log")  # no final newline
+    asyncio.run(worktrees._update_base(REPO, "main", 1, False))
+    asyncio.run(worktrees._update_base(REPO, "main", 2, False))
+    assert exclude_file(r).read_text().splitlines().count(EXCLUDE_LINE) == 1
+    assert exclude_file(r).read_text() == f"*.log\n{EXCLUDE_LINE}\n"
+
+
+def test_update_base_seeds_a_base_whose_exclude_file_is_missing(real_repo):
+    r = real_repo
+    exclude_file(r).unlink()
+    asyncio.run(worktrees._update_base(REPO, "main", 1, False))
+    assert exclude_file(r).read_text().splitlines() == [EXCLUDE_LINE]
+
+
+@needs_bwrap
+def test_ensure_state_dir_in_the_items_sandbox_fails_with_erofs_before_the_seed_and_runs_after_it(two_live_items):
+    r, a, _b = two_live_items
+    code = ENSURE.format(root=str(Path(__file__).resolve().parents[2]), clone=str(a.path))
+    script = f"{shlex.quote(sys.executable)} -c {shlex.quote(code)}"
+    exclude_file(r).write_text("*.log\n")  # a base the host never seeded
+    before = in_sandbox(a.path, script)
+    assert before.returncode != 0 and "Errno 30" in before.stderr and "exclude" in before.stderr, before.stderr
+    asyncio.run(worktrees._update_base(REPO, "main", 31, False))  # the host seeds the line
+    after = in_sandbox(a.path, script)
+    assert after.returncode == 0 and "Errno 30" not in after.stderr, after.stderr
+    assert exclude_file(r).read_text().splitlines().count(EXCLUDE_LINE) == 1
 
 
 def test_drop_never_follows_a_symlink_planted_at_the_items_path(real_repo, tmp_path):
