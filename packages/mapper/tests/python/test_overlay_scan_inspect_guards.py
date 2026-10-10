@@ -57,9 +57,10 @@ class M10UnsafeBasedigests(unittest.TestCase):
         self.real_digest = self.valid_state["base_digest"]
         
         # Create directories that match unsafe paths
-        (self.cache_dir / "a").mkdir(exist_ok=True)
-        (self.cache_dir / "a" / "b").mkdir(exist_ok=True)
-        (self.cache_dir / "x").mkdir(exist_ok=True)
+        # The lookup is <cache>/canonical/<digest>/: the decoys must sit under `canonical`, or the guard is never the only reason.
+        canonical = self.cache_dir / "canonical"
+        (canonical / "a" / "b").mkdir(parents=True, exist_ok=True)
+        (canonical / "x").mkdir(parents=True, exist_ok=True)
 
     def _test_m10_guard_rejects(self, unsafe_value: str) -> None:
         """Test that M10 guard rejects unsafe base_digest via _deep_phase (inspect)."""
