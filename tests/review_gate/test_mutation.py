@@ -1,352 +1,155 @@
-"""Mutation gate: check that code changes are well-tested via mutation score."""
+"""Mutation sample of the review gate: AST mutants (never strings, comments or docstrings), run against the PR's tests."""
 from __future__ import annotations
 
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
-import pytest
+from simplicio_loop.review_gate.diffs import FileChange
+from simplicio_loop.review_gate.model import ERROR, FAIL, PASS, SKIPPED
+from simplicio_loop.review_gate.mutation import KILLED, SURVIVED, TIMEOUT, Mutant, check_mutation, generate, run_mutants, sample
 
-from simplicio_loop.review_gate import diffs
-from simplicio_loop.review_gate.mutation import (
-    Mutant,
-    check_mutation,
-    generate,
-    run_mutants,
-    sample,
-)
-from simplicio_loop.review_gate.model import FAIL, PASS, SKIPPED, CheckResult
+PYTEST = [sys.executable, "-m", "pytest", "-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", "tests"]
 
 
-class TestMutantBasic:
-    """Mutant dataclass basics."""
-
-    def test_mutant_has_required_fields(self):
-        m = Mutant(path="a.py", line=5, kind="flip_cmp", original="x == y", mutated="x != y")
-        assert m.path == "a.py" and m.line == 5 and m.kind == "flip_cmp"
-        assert m.original == "x == y" and m.mutated == "x != y"
-
-    def test_mutant_id_is_stable(self):
-        m1 = Mutant(path="a.py", line=5, kind="flip_cmp", original="x == y", mutated="x != y")
-        m2 = Mutant(path="a.py", line=5, kind="flip_cmp", original="x == y", mutated="x != y")
-        assert m1.id == m2.id
-
-    def test_mutant_id_differs_by_kind_line_or_path(self):
-        base = Mutant(path="a.py", line=5, kind="flip_cmp", original="x == y", mutated="x != y")
-        diff_kind = Mutant(path="a.py", line=5, kind="other", original="x == y", mutated="x != y")
-        diff_line = Mutant(path="a.py", line=6, kind="flip_cmp", original="x == y", mutated="x != y")
-        diff_path = Mutant(path="b.py", line=5, kind="flip_cmp", original="x == y", mutated="x != y")
-        assert base.id != diff_kind.id and base.id != diff_line.id and base.id != diff_path.id
-
-    def test_mutant_describe_is_short(self):
-        m = Mutant(path="pkg/a.py", line=5, kind="flip_cmp", original="x == y", mutated="full source")
-        desc = m.describe()
-        assert "pkg/a.py" in desc and "5" in desc and "flip_cmp" in desc
-        assert len(desc) < 100
+def kinds(source: str, lines) -> set[str]:
+    return {m.kind for m in generate("a.py", source, lines)}
 
 
-class TestGenerate:
-    """generate() produces mutants deterministically from AST."""
-
-    def test_generate_empty_when_no_lines_match(self):
-        source = "def f():\n    x = 1\n    return x\n"
-        assert generate("a.py", source, []) == []
-
-    def test_generate_flip_comparison(self):
-        source = "def f(x, y):\n    if x == y:\n        return 1\n    return 0\n"
-        mutants = generate("a.py", source, [2])
-        assert any(m.kind == "flip_cmp" for m in mutants)
-        assert any("==" in m.original and "!=" in m.original.replace("==", "!=") for m in mutants)
-
-    def test_generate_and_or_flip(self):
-        source = "def f(a, b):\n    return a and b\n"
-        mutants = generate("a.py", source, [2])
-        assert any(m.kind == "and_or" for m in mutants)
-
-    def test_generate_bool_flip(self):
-        source = "def f():\n    return True\n"
-        mutants = generate("a.py", source, [2])
-        assert any(m.kind == "bool_flip" for m in mutants)
-
-    def test_generate_mutated_is_valid_python(self):
-        source = "def f(x):\n    if x > 0:\n        return 1\n    return 0\n"
-        mutants = generate("a.py", source, [2])
-        for m in mutants:
-            compile(m.mutated, m.path, "exec")  # Must not raise
-
-    def test_generate_skips_invalid_mutants(self):
-        source = "def f(x):\n    if x == 2:\n        pass\n"
-        mutants = generate("a.py", source, [2])
-        for m in mutants:
-            try:
-                compile(m.mutated, m.path, "exec")
-            except SyntaxError:
-                pytest.fail(f"Mutant {m.id} does not compile")
+def test_every_operator_has_a_mutant():
+    source = ("def f(x, y):\n    if x == y and y:\n        return x + 1\n    flag = True\n    log(x)\n    return y if x else 0\n")
+    assert kinds(source, range(1, 7)) == {"flip_cmp", "and_or", "negate_cond", "return_none", "arith_flip", "int_const", "bool_flip", "drop_call"}
 
 
-class TestSample:
-    """sample() is stable and deterministic."""
-
-    def test_sample_stable_seed(self):
-        mutants = [
-            Mutant("a.py", i, "kind", f"orig{i}", f"mut{i}")
-            for i in range(1, 11)
-        ]
-        sample1 = sample(mutants, 5, "seed123")
-        sample2 = sample(mutants, 5, "seed123")
-        assert [m.id for m in sample1] == [m.id for m in sample2]
-
-    def test_sample_different_seed_different_order(self):
-        mutants = [
-            Mutant("a.py", i, "kind", f"orig{i}", f"mut{i}")
-            for i in range(1, 11)
-        ]
-        sample1 = sample(mutants, 5, "seed1")
-        sample2 = sample(mutants, 5, "seed2")
-        assert [m.id for m in sample1] != [m.id for m in sample2]
-
-    def test_sample_n_greater_than_list_returns_all(self):
-        mutants = [
-            Mutant("a.py", i, "kind", f"orig{i}", f"mut{i}")
-            for i in range(1, 6)
-        ]
-        result = sample(mutants, 100, "seed")
-        assert len(result) == 5
-
-    def test_sample_returns_ordered_by_id(self):
-        mutants = [
-            Mutant("a.py", i, "kind", f"orig{i}", f"mut{i}")
-            for i in range(1, 11)
-        ]
-        result = sample(mutants, 5, "seed123")
-        ids = [m.id for m in result]
-        assert ids == sorted(ids)
+def test_the_mutated_text_is_in_the_description():
+    (m,) = [m for m in generate("pkg/a.py", "def f(x):\n    return x == 3\n", [2]) if m.kind == "flip_cmp"]
+    assert (m.original, m.replacement, m.line) == ("x == 3", "x != 3", 2) and "pkg/a.py:2 flip_cmp" in m.describe()
+    assert "x != 3" in m.source and "x == 3" not in m.source
 
 
-class TestRunMutants:
-    """run_mutants() applies, tests, and restores."""
-
-    def test_run_mutants_kills_and_restores(self, tmp_path):
-        """A mutant is killed if the test fails."""
-        root = tmp_path / "code"
-        root.mkdir()
-        (root / "app.py").write_text("def f(x):\n    return x == 0\n")
-        (root / "tests").mkdir()
-        (root / "tests" / "test_app.py").write_text(
-            "from app import f\ndef test_f():\n    assert f(0)\n    assert not f(1)\n"
-        )
-        mutant = Mutant(
-            path="app.py",
-            line=2,
-            kind="flip_cmp",
-            original="return x == 0",
-            mutated="def f(x):\n    return x != 0\n",
-        )
-        results = run_mutants(
-            root,
-            [mutant],
-            [sys.executable, "-m", "pytest", "-q", "-x", "tests"],
-            timeout_each=30,
-        )
-        assert len(results) == 1
-        m, status = results[0]
-        assert m.id == mutant.id and status == "killed"
-        assert (root / "app.py").read_text() == "def f(x):\n    return x == 0\n"
-
-    def test_run_mutants_survives_if_test_passes(self, tmp_path):
-        """A mutant survives if the test still passes."""
-        root = tmp_path / "code"
-        root.mkdir()
-        (root / "app.py").write_text("def f(x):\n    return x + 0\n")
-        (root / "tests").mkdir()
-        (root / "tests" / "test_app.py").write_text(
-            "from app import f\ndef test_f():\n    assert f(5) == 5\n"
-        )
-        mutant = Mutant(
-            path="app.py",
-            line=2,
-            kind="arith_flip",
-            original="return x + 0",
-            mutated="def f(x):\n    return x - 0\n",
-        )
-        results = run_mutants(
-            root,
-            [mutant],
-            [sys.executable, "-m", "pytest", "-q", "-x", "tests"],
-            timeout_each=30,
-        )
-        assert len(results) == 1
-        m, status = results[0]
-        assert status == "survived"
-
-    def test_run_mutants_timeout_counts_as_killed(self, tmp_path):
-        """Timeout counts as killed."""
-        root = tmp_path / "code"
-        root.mkdir()
-        (root / "app.py").write_text("def f(x):\n    return x == 0\n")
-        (root / "tests").mkdir()
-        (root / "tests" / "test_app.py").write_text(
-            "import time\nfrom app import f\ndef test_slow():\n    time.sleep(10)\n    assert f(0)\n"
-        )
-        mutant = Mutant(
-            path="app.py",
-            line=2,
-            kind="flip_cmp",
-            original="return x == 0",
-            mutated="def f(x):\n    return x != 0\n",
-        )
-        results = run_mutants(
-            root,
-            [mutant],
-            [sys.executable, "-m", "pytest", "-q", "-x", "tests"],
-            timeout_each=1,
-        )
-        assert len(results) == 1
-        m, status = results[0]
-        assert status == "timeout"
-
-    def test_run_mutants_restores_on_exception(self, tmp_path):
-        """Original is restored even on exception."""
-        root = tmp_path / "code"
-        root.mkdir()
-        (root / "app.py").write_text("def f(x):\n    return x == 0\n")
-        (root / "bad.sh").write_text("exit 1\n")
-        mutant = Mutant(
-            path="app.py",
-            line=2,
-            kind="flip_cmp",
-            original="return x == 0",
-            mutated="def f(x):\n    return x != 0\n",
-        )
-        results = run_mutants(
-            root,
-            [mutant],
-            ["bash", "bad.sh"],
-            timeout_each=1,
-        )
-        # Even if the test command doesn't exist or raises, original must be restored
-        assert (root / "app.py").read_text() == "def f(x):\n    return x == 0\n"
-
-    def test_run_mutants_returncode_5_is_survived(self, tmp_path):
-        """returncode 5 (no tests collected) is survived."""
-        root = tmp_path / "code"
-        root.mkdir()
-        (root / "app.py").write_text("def f(x):\n    return x == 0\n")
-        (root / "tests").mkdir()
-        (root / "tests" / "__init__.py").write_text("")
-        mutant = Mutant(
-            path="app.py",
-            line=2,
-            kind="flip_cmp",
-            original="return x == 0",
-            mutated="def f(x):\n    return x != 0\n",
-        )
-        # pytest returns 5 if no tests are collected
-        results = run_mutants(
-            root,
-            [mutant],
-            [sys.executable, "-m", "pytest", "-q", "-x", "tests"],
-            timeout_each=30,
-        )
-        assert len(results) == 1
-        m, status = results[0]
-        assert status == "survived"
+def test_strings_comments_and_docstrings_are_never_mutated():
+    source = ('def f(x):\n    """Return x == 1 and True; 7 or 3"""\n    # if x == 1 and True: return 5\n'
+              '    return "x == 1 and True or 7"\n')
+    assert [m.kind for m in generate("a.py", source, range(1, 5))] == ["return_none"]
 
 
-class TestCheckMutation:
-    """check_mutation() generates, samples, runs, and reports."""
+def test_a_comparison_inside_a_string_on_a_target_line_gives_no_flip():
+    assert kinds('def f(x):\n    msg = "a == b and 5"  # x == 2\n    return msg\n', [2]) == set()
 
-    def test_check_mutation_skipped_no_code_changes(self):
-        """No code changes => SKIPPED."""
-        changes = [
-            diffs.FileChange("docs/a.md", "A", (1, 2)),
-            diffs.FileChange("tests/test_a.py", "A", (1, 2)),
-        ]
-        result = check_mutation(Path("/tmp"), changes, [sys.executable, "-m", "pytest"], n=5)
-        assert result.name == "mutation"
-        assert result.status == SKIPPED
-        assert "sem linha de producao mutavel" in " ".join(result.reasons)
 
-    def test_check_mutation_pass_when_sufficient_kill_ratio(self, tmp_path):
-        """Kill ratio >= min_kill => PASS."""
-        root = tmp_path / "code"
-        root.mkdir()
-        (root / "app.py").write_text("def f(x, y):\n    return x == y and x > 0\n")
-        (root / "tests").mkdir()
-        (root / "tests" / "test_app.py").write_text(
-            "from app import f\ndef test_true():\n    assert f(1, 1)\ndef test_false():\n    assert not f(1, 2)\n"
-        )
-        changes = [diffs.FileChange("app.py", "A", (2,))]
-        result = check_mutation(
-            root, changes, [sys.executable, "-m", "pytest", "-q", "-x", "tests"],
-            n=2, min_kill=0.4
-        )
-        assert result.status == PASS
-        assert result.measured["killed"] >= 1
+def test_every_mutant_compiles_and_differs_from_the_source():
+    source = "import os\n\ndef f(a, b):\n    while a < b and not os.path.exists('x'):\n        a += 1\n    return a if b else -1\n"
+    mutants = generate("a.py", source, range(1, 7))
+    assert len(mutants) >= 6
+    for m in mutants:
+        compile(m.source, "a.py", "exec")
+        assert m.source != "" and m.original != m.replacement
 
-    def test_check_mutation_fail_when_low_kill_ratio(self, tmp_path):
-        """Kill ratio < min_kill => FAIL."""
-        root = tmp_path / "code"
-        root.mkdir()
-        (root / "app.py").write_text("def f(x):\n    return x + 0\n")
-        (root / "tests").mkdir()
-        (root / "tests" / "test_app.py").write_text(
-            "from app import f\ndef test_f():\n    pass\n"  # test does nothing
-        )
-        changes = [diffs.FileChange("app.py", "A", (2,))]
-        result = check_mutation(
-            root, changes, [sys.executable, "-m", "pytest", "-q", "-x", "tests"],
-            n=3, min_kill=0.5
-        )
-        assert result.status == FAIL
-        assert result.measured["killed"] < 2
-        assert "sobreviventes" in " ".join(result.reasons).lower()
 
-    def test_check_mutation_measured_has_required_fields(self, tmp_path):
-        """measured dict has total, killed, survived, ratio, n, seed."""
-        root = tmp_path / "code"
-        root.mkdir()
-        (root / "app.py").write_text("def f(x):\n    return x == 0\n")
-        (root / "tests").mkdir()
-        (root / "tests" / "test_app.py").write_text(
-            "from app import f\ndef test_f():\n    assert f(0) and not f(1)\n"
-        )
-        changes = [diffs.FileChange("app.py", "A", (2,))]
-        result = check_mutation(
-            root, changes, [sys.executable, "-m", "pytest", "-q", "-x", "tests"],
-            n=3, seed="test"
-        )
-        m = result.measured
-        assert "total" in m and "killed" in m
-        assert "survived" in m and isinstance(m["survived"], list)
-        assert m["ratio"] == m["killed"] / m["total"] if m["total"] else 0
-        assert m["n"] == 3 and m["seed"] == "test"
+def test_only_the_target_lines_are_mutated():
+    source = "def f(x):\n    a = x == 1\n    b = x == 2\n    return a, b\n"
+    assert {m.line for m in generate("a.py", source, [3])} == {3}
+    assert generate("a.py", source, []) == []
+    assert generate("a.py", source, [99]) == []
 
-    def test_check_mutation_only_checks_added_lines(self, tmp_path):
-        """Only added lines are mutated, not removed or unchanged."""
-        root = tmp_path / "code"
-        root.mkdir()
-        (root / "app.py").write_text(
-            "def f(x):\n    return x == 0 and x > -1\n    # removed line\n"
-        )
-        (root / "tests").mkdir()
-        (root / "tests" / "test_app.py").write_text(
-            "from app import f\ndef test_f():\n    assert f(0)\n"
-        )
-        changes = [diffs.FileChange("app.py", "M", (2,))]  # Only line 2 was added
-        result = check_mutation(
-            root, changes, [sys.executable, "-m", "pytest", "-q", "-x", "tests"],
-            n=5
-        )
-        # All mutants should be from line 2 only
-        if result.measured["survived"]:
-            for desc in result.measured["survived"]:
-                # Line number should be present in describe()
-                assert "app.py:2" in desc
 
-    def test_check_mutation_deleted_files_skipped(self, tmp_path):
-        """Deleted (D) files are skipped."""
-        changes = [diffs.FileChange("old.py", "D", ())]
-        result = check_mutation(Path("/tmp"), changes, [sys.executable, "-m", "pytest"], n=1)
-        assert result.status == SKIPPED
+def test_chained_comparison_mutates_each_operator_apart():
+    flips = [m for m in generate("a.py", "def f(a, b, c):\n    return a < b <= c\n", [2]) if m.kind == "flip_cmp"]
+    assert sorted(m.replacement for m in flips) == ["a < b > c", "a >= b <= c"]
+
+
+def test_unparsable_source_has_no_mutants():
+    assert generate("a.py", "def f(:\n", [1]) == []
+
+
+def test_generate_is_deterministic():
+    source = "def f(x):\n    return x + 1 if x > 2 else 0\n"
+    assert generate("a.py", source, [2]) == generate("a.py", source, [2])
+
+
+def test_none_returns_and_bare_names_have_no_return_mutant():
+    assert "return_none" not in kinds("def f():\n    return None\n", [2])
+    assert "return_none" not in kinds("def f():\n    return\n", [2])
+
+
+def test_sample_is_stable_and_bounded():
+    pool = [Mutant("a.py", i, "k", f"o{i}", f"r{i}", f"s{i}") for i in range(30)]
+    first = sample(pool, 7, "seed")
+    assert len(first) == 7 and first == sample(list(reversed(pool)), 7, "seed")
+    assert first != sample(pool, 7, "other") and sample(pool, 0, "seed") == [] and len(sample(pool, 99, "seed")) == 30
+
+
+def make_project(tmp_path: Path, app: str, test: str) -> Path:
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "app.py").write_text(app)
+    (tmp_path / "tests" / "test_app.py").write_text(test)
+    return tmp_path
+
+
+def test_run_mutants_kills_survives_and_restores(tmp_path):
+    root = make_project(tmp_path, "def f(x):\n    return x == 0\n", "from app import f\n\ndef test_f():\n    assert f(0) and not f(1)\n")
+    killer = generate("app.py", (root / "app.py").read_text(), [2])
+    assert [s for _, s in run_mutants(root, killer, PYTEST, 60)] == [KILLED] * len(killer)
+    assert (root / "app.py").read_text() == "def f(x):\n    return x == 0\n"
+    (root / "tests" / "test_app.py").write_text("from app import f\n\ndef test_f():\n    assert True\n")
+    assert {s for _, s in run_mutants(root, killer, PYTEST, 60)} == {SURVIVED}
+
+
+def test_a_same_size_mutant_is_not_masked_by_a_stale_bytecode(tmp_path):
+    root = make_project(tmp_path, "def f(x):\n    return x == 0\n", "from app import f\n\ndef test_f():\n    assert f(0)\n")
+    assert subprocess.run(PYTEST, cwd=root, capture_output=True, check=False).returncode == 0  # writes the .pyc of the plain file
+    flip = [m for m in generate("app.py", (root / "app.py").read_text(), [2]) if m.kind == "flip_cmp"]
+    assert len(flip) == 1 and len(flip[0].source) == len((root / "app.py").read_text())
+    assert [s for _, s in run_mutants(root, flip, PYTEST, 60)] == [KILLED]
+
+
+def test_a_timeout_is_reported_and_is_not_a_kill(tmp_path):
+    root = make_project(tmp_path, "def f(x):\n    return x == 0\n", "import time\nfrom app import f\n\ndef test_slow():\n    time.sleep(10)\n    assert f(0)\n")
+    ((_, status),) = run_mutants(root, generate("app.py", (root / "app.py").read_text(), [2])[:1], PYTEST, 1)
+    assert status == TIMEOUT
+
+
+def test_the_file_is_restored_when_the_run_fails(tmp_path):
+    root = make_project(tmp_path, "def f(x):\n    return x == 0\n", "")
+    mutant = generate("app.py", (root / "app.py").read_text(), [2])[0]
+    try:
+        run_mutants(root, [mutant], ["/no/such/python", "-m", "pytest"], 5)
+    except RuntimeError:
+        pass
+    assert (root / "app.py").read_text() == "def f(x):\n    return x == 0\n"
+
+
+def test_no_tests_collected_is_a_survivor(tmp_path):
+    root = make_project(tmp_path, "def f(x):\n    return x == 0\n", "x = 1\n")
+    assert {s for _, s in run_mutants(root, generate("app.py", (root / "app.py").read_text(), [2]), PYTEST, 60)} == {SURVIVED}
+
+
+def test_no_mutable_production_line_is_skipped(tmp_path):
+    root = make_project(tmp_path, "X = 'a'\n", "")
+    assert check_mutation(root, [FileChange("app.py", "A", (1,))], PYTEST).status == SKIPPED
+    assert check_mutation(root, [FileChange("docs/a.md", "A", (1,)), FileChange("app.py", "D", ())], PYTEST).status == SKIPPED
+
+
+def test_a_suite_that_does_not_pass_unmutated_is_an_error_not_a_pass(tmp_path):
+    root = make_project(tmp_path, "def f(x):\n    return x == 0\n", "def test_f():\n    assert False\n")
+    result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST)
+    assert result.status == ERROR and "sem mutante" in result.reasons[0]
+
+
+def test_tests_that_kill_the_mutants_pass_the_gate_with_the_count(tmp_path):
+    root = make_project(tmp_path, "def f(x, y):\n    return x == y\n", "from app import f\n\ndef test_f():\n    assert f(1, 1)\n    assert not f(1, 2)\n")
+    result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, seed="s")
+    assert result.status == PASS and result.measured["killed"] == result.measured["total"] >= 2 and result.measured["ratio"] == 1.0
+
+
+def test_vacuous_tests_fail_the_gate_and_name_the_survivors(tmp_path):
+    root = make_project(tmp_path, "def f(x, y):\n    return x == y\n", "from app import f\n\ndef test_f():\n    f(1, 1)\n")
+    result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, seed="s")
+    assert result.status == FAIL and "app.py:2 flip_cmp" in result.reasons[0] and result.measured["killed"] == 0
+
+
+def test_only_the_added_lines_are_mutated(tmp_path):
+    root = make_project(tmp_path, "def f(x):\n    return x == 0\n\ndef g(x):\n    return x == 5\n",
+                        "from app import f\n\ndef test_f():\n    assert f(0)\n    assert not f(1)\n")
+    result = check_mutation(root, [FileChange("app.py", "M", (2,))], PYTEST, seed="s")
+    assert result.status == PASS and all("app.py:2 " in line for line in result.measured["survived"]) and result.measured["candidates"] == 3

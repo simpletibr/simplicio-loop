@@ -1,428 +1,195 @@
-"""Mutation gate: check that code changes are well-tested via mutation score."""
+"""Mutation sample of the review gate (#1649): small deterministic mutants of the production lines a PR added or changed.
+
+The mutants come from the AST, never from the text of a line: a string, a comment or a docstring is never mutated
+(they are not nodes the operators below visit), and a mutant that does not compile is dropped. Each mutant is the whole
+mutated file (`ast.unparse`), applied to the head tree, run against the PR's tests and restored. A mutant the tests
+do not fail on is a survivor; the gate fails when too few mutants die.
+"""
 from __future__ import annotations
 
 import ast
 import hashlib
-import re
+import os
 import subprocess
-import sys
 import time
 from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
-from simplicio_loop.review_gate.diffs import FileChange
-from simplicio_loop.review_gate.model import FAIL, PASS, SKIPPED, CheckResult
+from .diffs import FileChange
+from .model import ERROR, FAIL, PASS, SKIPPED, CheckResult
+
+KILLED, SURVIVED, TIMEOUT = "killed", "survived", "timeout"  # a timeout is not a kill: a slow test must not pass a PR
+NO_TESTS_COLLECTED = 5  # pytest exit code
+_FLIPS: dict[type, type] = {
+    ast.Eq: ast.NotEq, ast.NotEq: ast.Eq, ast.Lt: ast.GtE, ast.GtE: ast.Lt, ast.Gt: ast.LtE, ast.LtE: ast.Gt,
+    ast.Is: ast.IsNot, ast.IsNot: ast.Is, ast.In: ast.NotIn, ast.NotIn: ast.In,
+}
+_ARITH: dict[type, type] = {ast.Add: ast.Sub, ast.Sub: ast.Add}
 
 
 @dataclass(frozen=True)
 class Mutant:
-    """A single mutant: a line mutation in a file."""
-
     path: str
     line: int
     kind: str
-    original: str  # Original line text
-    mutated: str  # Original full source (yes, confusing name for backward compat)
+    original: str  # the node before the mutation, as `ast.unparse` prints it
+    replacement: str  # the same node after it
+    source: str  # the whole mutated file
 
     @property
     def id(self) -> str:
-        """Stable, deterministic ID of this mutant."""
-        parts = f"{self.path}:{self.line}:{self.kind}:{self.original}"
-        return hashlib.sha256(parts.encode()).hexdigest()[:12]
+        return hashlib.sha256(f"{self.path}:{self.line}:{self.kind}:{self.original}:{self.replacement}".encode()).hexdigest()[:12]
 
     def describe(self) -> str:
-        """Short human-readable description of the mutant."""
-        orig_snippet = self.original[:20] if len(self.original) <= 20 else self.original[:17] + "..."
-        # Find the mutated line in mutated source
-        mutated_lines = self.mutated.splitlines(keepends=True)
-        if self.line <= len(mutated_lines):
-            mut_line = mutated_lines[self.line - 1].strip()
-            mut_snippet = mut_line[:20] if len(mut_line) <= 20 else mut_line[:17] + "..."
-        else:
-            mut_snippet = "?"
-        return f"{self.path}:{self.line} {self.kind}: `{orig_snippet}` -> `{mut_snippet}`"
+        def short(text: str) -> str:
+            text = " ".join(text.split())
+            return text if len(text) <= 24 else text[:21] + "..."
+        return f"{self.path}:{self.line} {self.kind}: `{short(self.original)}` -> `{short(self.replacement)}`"
+
+
+def _candidates(tree: ast.AST, lines: Collection[int]) -> list[tuple[int, str, int]]:
+    """(index in `ast.walk` order, kind, sub-index) of every node on the target lines an operator applies to."""
+    found: list[tuple[int, str, int]] = []
+    for index, node in enumerate(ast.walk(tree)):
+        if getattr(node, "lineno", None) not in lines:
+            continue
+        if isinstance(node, ast.Compare):
+            found += [(index, "flip_cmp", i) for i, op in enumerate(node.ops) if type(op) in _FLIPS]
+        elif isinstance(node, ast.BoolOp):
+            found.append((index, "and_or", 0))
+        elif isinstance(node, ast.Constant) and isinstance(node.value, bool):
+            found.append((index, "bool_flip", 0))
+        elif isinstance(node, ast.Constant) and type(node.value) is int:
+            found.append((index, "int_const", 0))
+        elif isinstance(node, (ast.BinOp, ast.AugAssign)) and type(node.op) in _ARITH:
+            found.append((index, "arith_flip", 0))
+        elif isinstance(node, ast.Return) and node.value is not None and not (isinstance(node.value, ast.Constant) and node.value.value is None):
+            found.append((index, "return_none", 0))
+        elif isinstance(node, (ast.If, ast.IfExp, ast.While)):
+            found.append((index, "negate_cond", 0))
+        elif isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
+            found.append((index, "drop_call", 0))
+    return found
+
+
+def _text(node: ast.AST, kind: str) -> str:
+    return ast.unparse(node.test if kind == "negate_cond" else node)  # type: ignore[attr-defined]
+
+
+def _apply(node: ast.AST, kind: str, sub: int) -> None:
+    if kind == "flip_cmp":
+        node.ops[sub] = _FLIPS[type(node.ops[sub])]()  # type: ignore[attr-defined]
+    elif kind == "and_or":
+        node.op = ast.Or() if isinstance(node.op, ast.And) else ast.And()  # type: ignore[attr-defined]
+    elif kind == "bool_flip":
+        node.value = not node.value  # type: ignore[attr-defined]
+    elif kind == "int_const":
+        node.value = node.value + 1  # type: ignore[attr-defined]
+    elif kind == "arith_flip":
+        node.op = _ARITH[type(node.op)]()  # type: ignore[attr-defined]
+    elif kind == "negate_cond":
+        node.test = ast.UnaryOp(ast.Not(), node.test)  # type: ignore[attr-defined]
+    else:  # return_none, drop_call: the value becomes None
+        node.value = ast.Constant(None)  # type: ignore[attr-defined]
 
 
 def generate(path: str, source: str, lines: Collection[int]) -> list[Mutant]:
-    """Generate mutants for a source file.
-
-    Deterministic, via regex patterns. Only mutants on nodes whose lineno is in `lines`.
-    Operators: flip de comparacao, and <-> or, return expr -> return None,
-    constante numerica int ±1, True<->False, x += k <-> x -= k.
-
-    Generated mutants are valid Python (compile() succeeds).
-    """
+    """Every mutant of `source` on `lines` (1-based), in a stable order. A source that does not parse has none."""
     if not lines:
         return []
-
     try:
-        tree = ast.parse(source)
-    except SyntaxError:
+        plain = ast.unparse(ast.parse(source))
+        picks = _candidates(ast.parse(source), set(lines))
+    except (SyntaxError, ValueError):
         return []
-
-    lines_set = set(lines)
     mutants: list[Mutant] = []
-    source_lines = source.splitlines(keepends=True)
-
-    # For each target line, collect relevant text patterns and create mutants
-    for line_no in lines_set:
-        if line_no > len(source_lines) or line_no < 1:
-            continue
-
-        line_text = source_lines[line_no - 1]
-        line_content = line_text.rstrip('\n\r')
-        indent = len(line_content) - len(line_content.lstrip())
-
-        # Try flips: ==, !=, <, >, <=, >=, in, not in, is, is not
-        flips = [
-            ("==", "!="),
-            ("!=", "=="),
-            ("<=", ">"),
-            (">=", "<"),
-            ("<", ">="),
-            (">", "<="),
-            (" in ", " not in "),
-            (" not in ", " in "),
-            (" is not ", " is "),
-            (" is ", " is not "),
-        ]
-
-        for old, new in flips:
-            if old in line_content:
-                mutated_content = line_content.replace(old, new, 1)
-                if mutated_content != line_content:
-                    mutated_lines = source_lines[:line_no - 1] + [mutated_content + ('\n' if line_text.endswith('\n') else '')] + source_lines[line_no:]
-                    mutated_source = ''.join(mutated_lines)
-                    if _is_valid_python(mutated_source):
-                        mutants.append(Mutant(
-                            path=path,
-                            line=line_no,
-                            kind="flip_cmp",
-                            original=line_content,
-                            mutated=mutated_source,
-                        ))
-
-        # Flip and <-> or
-        if " and " in line_content:
-            mutated_content = line_content.replace(" and ", " or ", 1)
-            if mutated_content != line_content:
-                mutated_lines = source_lines[:line_no - 1] + [mutated_content + ('\n' if line_text.endswith('\n') else '')] + source_lines[line_no:]
-                mutated_source = ''.join(mutated_lines)
-                if _is_valid_python(mutated_source):
-                    mutants.append(Mutant(
-                        path=path,
-                        line=line_no,
-                        kind="and_or",
-                        original=line_content,
-                        mutated=mutated_source,
-                    ))
-
-        if " or " in line_content:
-            mutated_content = line_content.replace(" or ", " and ", 1)
-            if mutated_content != line_content:
-                mutated_lines = source_lines[:line_no - 1] + [mutated_content + ('\n' if line_text.endswith('\n') else '')] + source_lines[line_no:]
-                mutated_source = ''.join(mutated_lines)
-                if _is_valid_python(mutated_source):
-                    mutants.append(Mutant(
-                        path=path,
-                        line=line_no,
-                        kind="and_or",
-                        original=line_content,
-                        mutated=mutated_source,
-                    ))
-
-        # Flip True <-> False
-        if "True" in line_content:
-            mutated_content = line_content.replace("True", "False", 1)
-            if mutated_content != line_content:
-                mutated_lines = source_lines[:line_no - 1] + [mutated_content + ('\n' if line_text.endswith('\n') else '')] + source_lines[line_no:]
-                mutated_source = ''.join(mutated_lines)
-                if _is_valid_python(mutated_source):
-                    mutants.append(Mutant(
-                        path=path,
-                        line=line_no,
-                        kind="bool_flip",
-                        original=line_content,
-                        mutated=mutated_source,
-                    ))
-
-        if "False" in line_content:
-            mutated_content = line_content.replace("False", "True", 1)
-            if mutated_content != line_content:
-                mutated_lines = source_lines[:line_no - 1] + [mutated_content + ('\n' if line_text.endswith('\n') else '')] + source_lines[line_no:]
-                mutated_source = ''.join(mutated_lines)
-                if _is_valid_python(mutated_source):
-                    mutants.append(Mutant(
-                        path=path,
-                        line=line_no,
-                        kind="bool_flip",
-                        original=line_content,
-                        mutated=mutated_source,
-                    ))
-
-        # Return expr -> return None
-        if "return " in line_content and "return None" not in line_content:
-            match = re.search(r"return\s+(.+?)(?:\s*#|$)", line_content)
-            if match:
-                mutated_content = re.sub(r"(return\s+).+?(\s*#|$)", r"return None\2", line_content)
-                if mutated_content != line_content:
-                    mutated_lines = source_lines[:line_no - 1] + [mutated_content + ('\n' if line_text.endswith('\n') else '')] + source_lines[line_no:]
-                    mutated_source = ''.join(mutated_lines)
-                    if _is_valid_python(mutated_source):
-                        mutants.append(Mutant(
-                            path=path,
-                            line=line_no,
-                            kind="return_none",
-                            original=line_content,
-                            mutated=mutated_source,
-                        ))
-
-        # Int constant ±1
-        int_matches = list(re.finditer(r"\b(\d+)\b", line_content))
-        for match in int_matches:
-            num = int(match.group(1))
-            for delta in (1, -1):
-                new_num = num + delta
-                mutated_content = line_content[:match.start(1)] + str(new_num) + line_content[match.end(1):]
-                if mutated_content != line_content:
-                    mutated_lines = source_lines[:line_no - 1] + [mutated_content + ('\n' if line_text.endswith('\n') else '')] + source_lines[line_no:]
-                    mutated_source = ''.join(mutated_lines)
-                    if _is_valid_python(mutated_source):
-                        mutants.append(Mutant(
-                            path=path,
-                            line=line_no,
-                            kind=f"int_{'inc' if delta > 0 else 'dec'}",
-                            original=line_content,
-                            mutated=mutated_source,
-                        ))
-
-        # x += k <-> x -= k
-        if "+=" in line_content:
-            mutated_content = line_content.replace("+=", "-=", 1)
-            if mutated_content != line_content:
-                mutated_lines = source_lines[:line_no - 1] + [mutated_content + ('\n' if line_text.endswith('\n') else '')] + source_lines[line_no:]
-                mutated_source = ''.join(mutated_lines)
-                if _is_valid_python(mutated_source):
-                    mutants.append(Mutant(
-                        path=path,
-                        line=line_no,
-                        kind="arith_flip",
-                        original=line_content,
-                        mutated=mutated_source,
-                    ))
-
-        if "-=" in line_content:
-            mutated_content = line_content.replace("-=", "+=", 1)
-            if mutated_content != line_content:
-                mutated_lines = source_lines[:line_no - 1] + [mutated_content + ('\n' if line_text.endswith('\n') else '')] + source_lines[line_no:]
-                mutated_source = ''.join(mutated_lines)
-                if _is_valid_python(mutated_source):
-                    mutants.append(Mutant(
-                        path=path,
-                        line=line_no,
-                        kind="arith_flip",
-                        original=line_content,
-                        mutated=mutated_source,
-                    ))
-
-    # Remove duplicates
-    seen = set()
-    unique = []
-    for m in mutants:
-        if m.id not in seen:
-            seen.add(m.id)
-            unique.append(m)
-
-    return unique
-
-
-def _is_valid_python(source: str) -> bool:
-    """Check if source is valid Python."""
-    try:
-        compile(source, "<string>", "exec")
-        return True
-    except SyntaxError:
-        return False
-
-
-def sample(mutants: list[Mutant], n: int, seed: str) -> list[Mutant]:
-    """Sample n mutants stably.
-
-    Deterministic: same input => same output.
-    Orders by sha256(seed + mutant.id), takes n first, returns ordered by id.
-    """
-    if not mutants:
-        return []
-
-    # Create stable order based on seed + mutant.id
-    scored = [
-        (hashlib.sha256((seed + m.id).encode()).hexdigest(), m)
-        for m in mutants
-    ]
-    scored.sort(key=lambda x: x[0])
-
-    # Take first n
-    selected = [m for _, m in scored[:n]]
-
-    # Return ordered by id
-    return sorted(selected, key=lambda m: m.id)
-
-
-def run_mutants(
-    root: Path,
-    mutants: Sequence[Mutant],
-    test_argv: Sequence[str],
-    timeout_each: float,
-    wrap: Callable[[list[str]], list[str]] = lambda argv: argv,
-    env: dict[str, str] | None = None,
-) -> list[tuple[Mutant, str]]:
-    """Run tests on each mutant. Apply, test, restore.
-
-    Returns list of (Mutant, status) where status is "killed", "survived", or "timeout".
-    - killed: returncode != 0 and returncode != 5
-    - survived: returncode == 0 or returncode == 5
-    - timeout: subprocess timeout
-    """
-    results: list[tuple[Mutant, str]] = []
-
-    for mutant in mutants:
-        fpath = root / mutant.path
-        original_content = fpath.read_text(encoding="utf-8")
-
+    for index, kind, sub in picks:
+        tree = ast.parse(source)
+        node = list(ast.walk(tree))[index]
+        before = _text(node, kind)
+        _apply(node, kind, sub)
+        ast.fix_missing_locations(tree)
+        mutated = ast.unparse(tree)
         try:
-            # Apply mutant - write full mutated source
-            fpath.write_text(mutant.mutated, encoding="utf-8")
+            compile(mutated, path, "exec")  # the mutant has to compile, or it dies for the wrong reason
+        except (SyntaxError, ValueError):
+            continue
+        if mutated != plain:
+            mutants.append(Mutant(path, node.lineno, kind, before, _text(node, kind), mutated))  # type: ignore[attr-defined]
+    return sorted(mutants, key=lambda m: (m.path, m.line, m.kind, m.id))
 
-            # Run tests
-            try:
-                cmd = wrap(list(test_argv))
-                done = subprocess.run(
-                    cmd,
-                    cwd=root,
-                    timeout=timeout_each,
-                    capture_output=True,
-                    env=env or {},
-                )
-                returncode = done.returncode
-            except subprocess.TimeoutExpired:
-                results.append((mutant, "timeout"))
-                continue
-            except FileNotFoundError as exc:
-                raise RuntimeError(f"test command not found: {exc}") from exc
 
-            # Determine kill status
-            if returncode == 5:
-                # No tests collected = survived
-                status = "survived"
-            elif returncode == 0:
-                # Tests passed = survived
-                status = "survived"
-            else:
-                # Tests failed = killed
-                status = "killed"
+def sample(mutants: Sequence[Mutant], n: int, seed: str) -> list[Mutant]:
+    """n mutants chosen by hash(seed + id): the same seed picks the same ones, whatever the order of `mutants`."""
+    ranked = sorted(mutants, key=lambda m: hashlib.sha256((seed + m.id).encode()).hexdigest())
+    return sorted(ranked[:max(n, 0)], key=lambda m: m.id)
 
-            results.append((mutant, status))
+
+class _Stamp:
+    """Every write moves the mtime forward by whole seconds: the .pyc of a same-size source is never mistaken for the new one."""
+
+    def __init__(self) -> None:
+        self.at = int(time.time()) + 2
+
+    def write(self, path: Path, text: str) -> None:
+        path.write_text(text, encoding="utf-8")
+        self.at += 2
+        os.utime(path, (self.at, self.at))
+
+
+def _run(root: Path, argv: Sequence[str], timeout: float, wrap: Callable[[list[str]], list[str]], env: dict[str, str] | None) -> int | None:
+    """The exit code of one test run, or None on timeout."""
+    try:
+        return subprocess.run(wrap(list(argv)), cwd=root, timeout=timeout, capture_output=True, env=env, check=False).returncode
+    except subprocess.TimeoutExpired:
+        return None
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"test command not found: {exc}") from exc
+
+
+def run_mutants(root: Path, mutants: Sequence[Mutant], test_argv: Sequence[str], timeout_each: float,
+                wrap: Callable[[list[str]], list[str]] = lambda argv: argv, env: dict[str, str] | None = None) -> list[tuple[Mutant, str]]:
+    """Apply each mutant to `root`, run the tests, restore the file. Status: killed (tests failed), survived (passed or collected nothing), timeout."""
+    results: list[tuple[Mutant, str]] = []
+    stamp = _Stamp()
+    for mutant in mutants:
+        target = root / mutant.path
+        original = target.read_text(encoding="utf-8")
+        try:
+            stamp.write(target, mutant.source)
+            code = _run(root, test_argv, timeout_each, wrap, env)
         finally:
-            # Always restore original
-            fpath.write_text(original_content, encoding="utf-8")
-
+            stamp.write(target, original)
+        results.append((mutant, TIMEOUT if code is None else SURVIVED if code in (0, NO_TESTS_COLLECTED) else KILLED))
     return results
 
 
-def check_mutation(
-    root: Path,
-    changes: Sequence[FileChange],
-    test_argv: Sequence[str],
-    n: int = 12,
-    min_kill: float = 0.6,
-    timeout_each: float = 120.0,
-    seed: str = "",
-    wrap: Callable[[list[str]], list[str]] = lambda argv: argv,
-    env: dict[str, str] | None = None,
-) -> CheckResult:
-    """Check mutation testing gate.
-
-    For each FileChange with kind=="code" and status A/M:
-    - Read source, generate mutants on added lines
-    - Sample n mutants
-    - Run mutants
-    - If killed/total < min_kill => FAIL
-    - Else => PASS
-    - No code changes => SKIPPED
-    """
-    # Collect code changes
-    code_changes = [
-        c for c in changes
-        if c.kind == "code" and c.status in ("A", "M")
-    ]
-
-    if not code_changes:
-        return CheckResult(
-            name="mutation",
-            status=SKIPPED,
-            reasons=("sem linha de producao mutavel",),
-        )
-
-    # Generate mutants on added lines
-    all_mutants: list[Mutant] = []
-    for change in code_changes:
-        fpath = root / change.path
-        if not fpath.exists():
+def check_mutation(root: Path, changes: Sequence[FileChange], test_argv: Sequence[str], n: int = 12, min_kill: float = 0.6,
+                   timeout_each: float = 120.0, seed: str = "", wrap: Callable[[list[str]], list[str]] = lambda argv: argv,
+                   env: dict[str, str] | None = None) -> CheckResult:
+    """Fail when fewer than `min_kill` of a sample of n mutants of the PR's added production lines die under the PR's tests."""
+    mutants: list[Mutant] = []
+    for change in changes:
+        if change.kind != "code" or change.status not in ("A", "M") or not (root / change.path).is_file():
             continue
         try:
-            source = fpath.read_text(encoding="utf-8")
-        except Exception:
+            mutants += generate(change.path, (root / change.path).read_text(encoding="utf-8"), change.added)
+        except (OSError, UnicodeDecodeError):
             continue
-
-        mutants = generate(change.path, source, change.added)
-        all_mutants.extend(mutants)
-
-    if not all_mutants:
-        return CheckResult(
-            name="mutation",
-            status=SKIPPED,
-            reasons=("sem linha de producao mutavel",),
-        )
-
-    # Sample
-    sampled = sample(all_mutants, n, seed)
-
-    # Run
-    start = time.time()
-    results = run_mutants(root, sampled, test_argv, timeout_each, wrap=wrap, env=env)
-    elapsed = time.time() - start
-
-    # Analyze
-    total = len(results)
-    killed = sum(1 for _, status in results if status == "killed")
-    survived = [m for m, status in results if status == "survived"]
-    timeout = sum(1 for _, status in results if status == "timeout")
-    ratio = killed / total if total > 0 else 0.0
-
-    measured = {
-        "total": total,
-        "killed": killed,
-        "survived": [m.describe() for m in survived[:8]],
-        "timeout": timeout,
-        "ratio": round(ratio, 3),
-        "n": n,
-        "seed": seed,
-    }
-
+    if not mutants:
+        return CheckResult("mutation", SKIPPED, ("sem linha de producao mutavel",))
+    code = _run(root, test_argv, timeout_each * 2, wrap, env)  # the tests have to pass on the unmutated tree, or every mutant "dies"
+    if code != 0:
+        return CheckResult("mutation", ERROR, (f"os testes nao passam sem mutante (saida {code}): a amostra nao diz nada",))
+    results = run_mutants(root, sample(mutants, n, seed), test_argv, timeout_each, wrap=wrap, env=env)
+    killed = sum(1 for _, status in results if status == KILLED)
+    survivors = [m for m, status in results if status == SURVIVED]
+    ratio = killed / len(results)
+    measured = {"total": len(results), "killed": killed, "timeout": sum(1 for _, s in results if s == TIMEOUT),
+                "survived": [m.describe() for m in survivors[:8]], "ratio": round(ratio, 3), "n": n, "seed": seed,
+                "candidates": len(mutants)}
     if ratio < min_kill:
-        survived_desc = ", ".join(m.describe() for m in survived[:8])
-        reason = f"mutantes mortos {killed}/{total} (<{int(min_kill*100)}%): sobreviventes: {survived_desc}"
-        return CheckResult(
-            name="mutation",
-            status=FAIL,
-            reasons=(reason,),
-            measured=measured,
-        )
-
-    return CheckResult(
-        name="mutation",
-        status=PASS,
-        measured=measured,
-    )
+        reason = f"mutantes mortos {killed}/{len(results)} (<{int(min_kill * 100)}%): sobreviventes: " + ", ".join(m.describe() for m in survivors[:8])
+        return CheckResult("mutation", FAIL, (reason,), measured)
+    return CheckResult("mutation", PASS, (), measured)

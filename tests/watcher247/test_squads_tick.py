@@ -76,7 +76,7 @@ def test_without_auto_merge_squad_approves_but_nothing_merges(six):
 
 def test_review_rejects_a_pr_whose_verify_did_not_measure_tests():
     outcome = squad_flow.Outcome("https://github.com/simpletibr/simplicio-a/pull/101", "UNVERIFIED|no_test_command", [])
-    review = asyncio.run(squad_flow._review(REPO, None, None, 1, outcome, None))  # it answers before any gh call
+    review = asyncio.run(squad_flow._review(REPO, None, None, 1, outcome, None, None))  # it answers before any gh call
     assert review == {"pr": 101, "issue": 1, "approved": False, "reasons": ["tests not measured green"]}
 
 
