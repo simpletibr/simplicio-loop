@@ -117,21 +117,35 @@ def _home_entry(home: Path, name: str) -> Path:
     return home / name
 
 
-def _absolute_link_in(path: Path) -> Path | None:
+def _absolute_link_in(path: Path) -> tuple[Path, str] | None:
     """The first symbolic link on the way to `path` whose target is absolute, else None. Followed one component at a time, so a
     relative link that leads to an absolute one counts. bwrap mounts a tmpfs fine behind a RELATIVE link (`/home -> var/home` on
-    ostree hosts, measured) and fails with `Can't mkdir` / `Can't mount tmpfs` behind an absolute one."""
+    ostree hosts, measured) and fails with `Can't mkdir` / `Can't mount tmpfs` behind an absolute one.
+
+    Returns tuple of (link, reason) where reason is "absolute target" or "loop of symbolic links", or None if no problem found.
+    """
     pending, resolved, hops = list(path.parts[1:]), Path(path.anchor), 0
     while pending:
         part = pending.pop(0)
         candidate = resolved / part
-        if not candidate.is_symlink():
+        try:
+            is_link = candidate.is_symlink()
+        except OSError as e:
+            # PermissionError on is_symlink (Python 3.11-3.13) or other OSErrors: fail closed
+            raise SandboxUnavailable(f"cannot traverse {path}: {str(e)[:100]}") from e
+        if not is_link:
             resolved = candidate
             continue
         hops += 1
-        target = os.readlink(candidate)
-        if os.path.isabs(target) or hops > 40:  # more than 40 hops: a loop, refused like an absolute link
-            return candidate
+        try:
+            target = os.readlink(candidate)
+        except OSError as e:
+            # OSError (FileNotFoundError, PermissionError, etc.) during symlink traversal: fail closed
+            raise SandboxUnavailable(f"cannot traverse {path}: {str(e)[:100]}") from e
+        if os.path.isabs(target):
+            return (candidate, "absolute target")
+        if hops > 40:  # more than 40 hops: a loop, refused with distinct reason
+            return (candidate, "loop of symbolic links")
         pending = list(PurePosixPath(target).parts) + pending
     return None
 
@@ -145,8 +159,9 @@ def _home_args(view: HomeView) -> list[str]:
         raise SandboxUnavailable(f"cannot mount an empty HOME over {home}: not an absolute directory")
     if ".." in home.parts:
         raise SandboxUnavailable(f"cannot mount an empty HOME over {home}: the path holds a '..'")
-    if (link := _absolute_link_in(home)) is not None:
-        raise SandboxUnavailable(f"cannot mount an empty HOME over {home}: {link} is a symbolic link with an absolute target")
+    if (result := _absolute_link_in(home)) is not None:
+        link, reason = result
+        raise SandboxUnavailable(f"cannot mount an empty HOME over {home}: {link} is a symbolic link with {reason}")
     if not home.is_dir():
         raise SandboxUnavailable(f"cannot mount an empty HOME over {home}: not an absolute directory")
     entries = {name: _home_entry(home, name) for name in (*view.rw, *view.ro, *view.hide)}  # every name checked before any arg is built

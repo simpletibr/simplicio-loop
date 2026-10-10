@@ -538,8 +538,14 @@ class GitHubDeliveryAdapter:
         return {**observed, "body_integrity": verification}
 
     def create_or_update_pr(self, *, branch: str, base: str, title: str, body: str) -> Dict[str, Any]:
-        title = sanitize(title, "PR title")  # both `pr create` and `pr edit` leave through here (#1644)
-        body = sanitize(body, "PR body")
+        try:
+            title = sanitize(title, "PR title")  # both `pr create` and `pr edit` leave through here (#1644)
+            body = sanitize(body, "PR body")
+        except RuntimeError as e:
+            raise DeliveryAgentError(
+                str(e),
+                reason_code="CLOSING_WORD_REFUSED",
+            ) from e
         expected = build_pr_body_integrity(body)
         existing = self.find_existing_pr(branch=branch)
         if existing is not None and existing.get("state") == "OPEN":

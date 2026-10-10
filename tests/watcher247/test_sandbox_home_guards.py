@@ -189,3 +189,77 @@ def test_a_clean_home_view_still_binds_its_folders(tmp_path):
     assert ["--bind-try", str(home / ".claude"), str(home / ".claude")] == argv[argv.index("--bind-try"):][:3]
     assert ["--ro-bind-try", str(home / ".local/bin/claude"), str(home / ".local/bin/claude")] == argv[argv.index("--ro-bind-try"):][:3]
     assert os.path.realpath(home) == str(home)
+
+
+def test_task1_oserror_on_readlink_is_converted_to_sandbox_unavailable(tmp_path, monkeypatch):
+    """#1680 task 1: OSError during _absolute_link_in walk is caught and converted to SandboxUnavailable."""
+    (tmp_path / "real").mkdir()
+    (tmp_path / "link").symlink_to("real")  # relative link
+
+
+    def broken_readlink(path):
+        # Raise FileNotFoundError on any readlink call
+        raise FileNotFoundError(f"disappeared: {path}")
+
+    monkeypatch.setattr(os, "readlink", broken_readlink)
+    with pytest.raises(sandbox.SandboxUnavailable, match="disappeared"):
+        sandbox._absolute_link_in(tmp_path / "link")
+
+
+def test_task2_absolute_link_inside_relative_target_is_refused(tmp_path):
+    """#1680 task 2: A relative link whose target contains an absolute link is refused.
+
+    Mutant A6: putting the target parts at the end of pending instead of the front.
+    Correct code: walks entry -> hop2 (absolute) and refuses.
+    Mutant: walks remaining 'user' first (not a link), then hop2 as user/hop2 (not a link) and accepts.
+    Structure: real/user/ exists, hop2 = absolute symlink to real, entry = relative symlink to hop2, HOME = tmp_path/entry/user
+    """
+    (tmp_path / "real" / "user").mkdir(parents=True)  # real directory
+    (tmp_path / "hop2").symlink_to(str(tmp_path / "real"))  # absolute symlink to real
+    (tmp_path / "entry").symlink_to("hop2")  # relative symlink to hop2
+    with pytest.raises(sandbox.SandboxUnavailable, match="absolute target"):
+        wrap(tmp_path, sandbox.HomeView(tmp_path / "entry" / "user"), tmp_path / "state")
+
+
+def test_task3_loop_of_links_has_distinct_error_message(tmp_path):
+    """#1680 task 3: Error message for loops says 'loop of symbolic links', not 'absolute target'."""
+    (tmp_path / "a").symlink_to("b")
+    (tmp_path / "b").symlink_to("a")
+
+    def stuck(signum, frame):
+        raise AssertionError("guard followed loop without limit")
+
+    previous = signal.signal(signal.SIGALRM, stuck)
+    signal.alarm(10)
+    try:
+        with pytest.raises(sandbox.SandboxUnavailable, match="loop of symbolic links"):
+            wrap(tmp_path, sandbox.HomeView(tmp_path / "a" / "user"), tmp_path / "state")
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, previous)
+
+
+def test_task3_absolute_link_has_correct_error_message(tmp_path):
+    """#1680 task 3: Error message for absolute link says 'absolute target'."""
+    (tmp_path / "hop").symlink_to("/tmp")
+    with pytest.raises(sandbox.SandboxUnavailable, match="absolute target"):
+        wrap(tmp_path, sandbox.HomeView(tmp_path / "hop" / "user"), tmp_path / "state")
+
+
+def test_task1_permission_error_on_is_symlink_is_converted_to_sandbox_unavailable(tmp_path, monkeypatch):
+    """#1680 task 1: PermissionError on is_symlink (Python 3.11-3.13) is caught and converted to SandboxUnavailable."""
+    (tmp_path / "real").mkdir()
+    (tmp_path / "link").symlink_to("real")
+
+    original_is_symlink = sandbox.Path.is_symlink
+    calls = [0]
+
+    def broken_is_symlink(self):
+        calls[0] += 1
+        if calls[0] == 1:  # First call to is_symlink raises PermissionError
+            raise PermissionError(f"access denied: {self}")
+        return original_is_symlink(self)
+
+    monkeypatch.setattr(sandbox.Path, "is_symlink", broken_is_symlink)
+    with pytest.raises(sandbox.SandboxUnavailable, match="access denied"):
+        sandbox._absolute_link_in(tmp_path / "link")

@@ -123,8 +123,14 @@ class MergeExecutor:
         existing = self.find_existing_pr(branch)
         if existing is not None and existing.get("state") == "OPEN":
             return existing
-        title = sanitize(title, "PR title")  # a closing word in a PR closes the issue on merge (#1644)
-        body = sanitize(body, "PR body")
+        try:
+            title = sanitize(title, "PR title")  # a closing word in a PR closes the issue on merge (#1644)
+            body = sanitize(body, "PR body")
+        except RuntimeError as e:
+            raise MergeExecutorError(
+                "CLOSING_WORD_REFUSED",
+                str(e),
+            ) from e
         completed = self._gh([
             "pr", "create", "--repo", self.repo, "--head", branch, "--base", base,
             "--title", title, "--body", body,

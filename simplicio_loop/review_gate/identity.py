@@ -133,6 +133,11 @@ def classify_level(changes: Sequence[FileChange], read: Callable[[str], str | No
     scanned = [*production, *(c for c in changes if c.kind == "test" and c.status != "D")] if production else []  # a security test beside production code names the topic
     if any(SECURITY_WORDS.intersection(re.split(r"[^a-z0-9]+", str(PurePosixPath(c.path)).lower())) for c in scanned):
         return Level.T2
+    # Non-Python production files (M2, #1649) cannot be checked by the automatic gate (redgreen, mutation, usage):
+    # the gate runs Python tests, so non-Python behavior changes need human review. But test files are not production code.
+    non_python_production = [c for c in production if c.kind == "other" and PurePosixPath(c.path).parts[0] != "tests"]
+    if any(non_python_production):
+        return Level.T2
     if not production and sum(len(c.added) for c in changes) <= T0_MAX_ADDED_LINES:
         return Level.T0
     return Level.T1

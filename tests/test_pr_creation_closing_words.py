@@ -99,3 +99,58 @@ def test_pr_evidence_build_writes_a_body_and_title_without_closing_words(tmp_pat
     assert not has_closing(body.splitlines()[0])
     for number in ("#7", "#5", "#9"):
         assert "Parte de " + number in body, body
+
+
+
+
+def test_pr_evidence_build_verifies_template_sanitize_is_called(tmp_path):
+    """pr_evidence.py build with a template file containing a closing word should sanitize it."""
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    anchor = tmp_path / "anchor.json"
+    anchor.write_text(json.dumps({
+        "item": "7", "goal": "Add feature",
+        "criteria": [{"id": "AC1", "text": "Works correctly", "status": "open"}],
+    }), encoding="utf-8")
+    
+    # Create a template file with a closing word
+    template_file = tmp_path / "template.md"
+    template_file.write_text("## Summary\nCloses #99\n", encoding="utf-8")
+    
+    out = tmp_path / "body.md"
+    result = subprocess.run(
+        [sys.executable, os.path.join(repo, "scripts", "pr_evidence.py"), "build",
+         "--anchor", str(anchor), "--template", str(template_file),
+         "--out", str(out), "--shots-dir", str(tmp_path / "none"),
+         "--video-dir", str(tmp_path / "none")],
+        capture_output=True, text=True, cwd=repo, stdin=subprocess.DEVNULL)
+    assert result.returncode == 0, result.stdout + result.stderr
+    body = out.read_text(encoding="utf-8")
+    # The template had "Closes #99" which should be rewritten to "Parte de #99"
+    assert not has_closing(body), body
+    assert "Parte de #99" in body, body
+
+
+def test_delivery_agent_converts_sanitize_runtime_error_to_delivery_agent_error():
+    """When sanitize raises RuntimeError (closing word survived), convert it to DeliveryAgentError."""
+    import simplicio_loop.delivery_agent as da_module
+    
+    runner = _Runner()
+    adapter = GitHubDeliveryAdapter(repo="o/r", runner=runner)
+    
+    # Monkeypatch sanitize to raise RuntimeError
+    original_sanitize = da_module.sanitize
+    def failing_sanitize(text, what):
+        raise RuntimeError(f"{what} still has a GitHub closing word after rewrite: refusing to publish")
+    
+    da_module.sanitize = failing_sanitize
+    try:
+        try:
+            adapter.create_or_update_pr(branch="b", base="main", title="Fixes #5", body="Closes #6")
+            raise AssertionError("expected DeliveryAgentError")
+        except da_module.DeliveryAgentError as exc:
+            assert exc.reason_code == "CLOSING_WORD_REFUSED", f"got {exc.reason_code}"
+            assert "PR title" in str(exc) or "PR body" in str(exc)
+        except RuntimeError as e:
+            raise AssertionError(f"should convert RuntimeError to DeliveryAgentError, got: {e}")
+    finally:
+        da_module.sanitize = original_sanitize
