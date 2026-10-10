@@ -26,12 +26,15 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import os
 import time
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 import httpx
+
+from .input_ceiling import CeilingConfigError, InputCeilingExceeded, Projection, enforce_budget, resolve_ceiling
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash"
@@ -144,17 +147,39 @@ async def _post(body: Mapping[str, Any], key: str, session_id: str, timeout: flo
     }
 
 
+def _gate_input(messages: Sequence[Mapping[str, Any]], response_format: Mapping[str, Any] | None,
+                repo_root: str | os.PathLike[str] | None) -> None:
+    """Refuse a request whose projected prompt is above the input-token ceiling (#1608). No usage exists before the
+    request, so the projection is ESTIMATED. Nothing is sent when it is over; a bad ceiling setting fails loud too."""
+    prompt = json.dumps(list(messages), ensure_ascii=False, default=str)
+    if response_format:
+        prompt += json.dumps(dict(response_format), ensure_ascii=False, default=str)
+    try:
+        ceiling = resolve_ceiling(Path.cwd() if repo_root is None else repo_root)
+        enforce_budget(Projection.estimated(prompt), ceiling)
+    except CeilingConfigError as exc:
+        raise TurboProviderError(exc.reason_code, str(exc)) from exc
+    except InputCeilingExceeded as exc:
+        raise TurboProviderError(
+            exc.reason_code, f"{exc}; the request was not sent, split the task or hand off to a fresh agent") from exc
+
+
 async def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, session_id: str,
                    api_key: str | None = None, reasoning_off: bool = True, max_tokens: int | None = None,
                    response_format: Mapping[str, Any] | None = None,
-                   hedge: float | None = None, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
+                   hedge: float | None = None, timeout: int = DEFAULT_TIMEOUT,
+                   repo_root: str | os.PathLike[str] | None = None) -> dict[str, Any]:
     """One chat completion, hedged after `hedge` seconds. Never returns the key.
 
     `response_format` (a strict json_schema, see structured_output) is not sent with `max_tokens=1`: the one-token
     warm-up reply cannot hold a JSON object.
+
+    The projected prompt must fit the input-token ceiling of `input_ceiling`; otherwise `TurboProviderError`
+    (`input_ceiling_exceeded`) is raised before any request leaves the process.
     """
     del arm
     key = require_key(api_key)
+    _gate_input(messages, response_format if max_tokens != 1 else None, repo_root)
     body: dict[str, Any] = {
         "model": model_name(),
         "messages": list(messages),
