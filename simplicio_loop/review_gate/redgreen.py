@@ -93,9 +93,14 @@ def _pytest(root: Path, ids: Sequence[str], python: str, timeout: float, wrap: C
         raise RuntimeError(f"cannot run tests on {where}: interpreter or command not found: {argv[0]} ({exc})") from exc
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError(f"timeout of {timeout:g}s running the new tests on {where}") from exc
+    outcomes = parse_outcomes(done.stdout)
+    if done.returncode != 0 and not outcomes and "No such file" in done.stderr + done.stdout:  # bwrap exits 1 when execvp fails
+        raise RuntimeError(f"the interpreter {python} is not visible inside the sandbox on {where}: the sandbox binds / read-only and hides "
+                           f"what the clone cannot reach; use an interpreter under /usr or /opt, or the venv of the clone "
+                           f"({(done.stderr or done.stdout)[-200:].strip()})")
     if done.returncode not in (0, 1, 2) or (done.returncode == 2 and "ERROR" not in done.stdout):
         raise RuntimeError(f"pytest on {where} exited {done.returncode}: {(done.stderr or done.stdout)[-300:].strip()}")
-    return parse_outcomes(done.stdout)
+    return outcomes
 
 
 def _verdict(outcomes: Mapping[str, str], ref: TestRef) -> str:

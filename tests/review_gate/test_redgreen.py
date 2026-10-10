@@ -115,3 +115,17 @@ def test_timeout_is_an_error_with_the_cause(tmp_path):
     changes = [diffs.FileChange("tests/test_mod.py", "A", (1, 2, 3, 4, 5)), diffs.FileChange("mod.py", "M", (2,))]
     result = redgreen.check_redgreen(base, head, changes, python=sys.executable, timeout=2, env={"PYTHONPATH": "."})
     assert result.status == ERROR and "timeout" in result.reasons[0]
+
+
+def test_an_interpreter_the_sandbox_hides_is_named_with_the_cause(tmp_path):
+    def hidden(argv):  # what bwrap does when the interpreter is outside its binds
+        return ["sh", "-c", f"echo 'bwrap: execvp {argv[0]}: No such file or directory' >&2; exit 1"]
+
+    result = _run(tmp_path, OLD, NEW, TEST, python="/tmp/venv/bin/python", wrap=hidden)
+    assert result.status == ERROR
+    assert "/tmp/venv/bin/python is not visible inside the sandbox" in result.reasons[0] and "/usr or /opt" in result.reasons[0]
+
+
+def test_other_pytest_crashes_keep_their_own_message(tmp_path):
+    result = _run(tmp_path, OLD, NEW, TEST, wrap=lambda argv: ["sh", "-c", "echo boom >&2; exit 3"])
+    assert result.status == ERROR and "exited 3" in result.reasons[0] and "sandbox" not in result.reasons[0]
