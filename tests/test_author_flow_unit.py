@@ -91,6 +91,7 @@ def real_home(tmp_path, monkeypatch):
     (home / ".ssh").mkdir()
     (home / ".ssh" / "id_rsa").write_text("ssh-secret")
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.delenv(author_isolation.HOME_BASE_ENV, raising=False)
     return home
 
 
@@ -917,3 +918,391 @@ def test_cli_usage_errors_exit_2(monkeypatch, tmp_path, capsys):
     assert cli_impl.main(["author", "--repo", str(tmp_path), "--task-file", str(tmp_path / "missing.md")]) == 2
     assert cli_impl.main(["author", "--repo", str(tmp_path)]) == 2
     capsys.readouterr()
+
+
+# --- the host-owned run telemetry is not the author's (BLOCKER 1) -----------------------------------------------------------------
+
+RUNS = ".simplicio-loop/orchestrator/runs/run-1/events.jsonl"
+
+
+def test_the_snapshot_leaves_out_the_run_telemetry_and_nothing_else_of_the_loop_folder(tmp_path):
+    for name in (RUNS, ".simplicio-loop/loop.toml", ".simplicio-loop/orchestrator/other/x", ".simplicio-loop/orchestrator/runs.txt"):
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text("1")
+    first = author_isolation.snapshot(tmp_path)
+    assert RUNS not in first
+    assert {".simplicio-loop/loop.toml", ".simplicio-loop/orchestrator/other/x", ".simplicio-loop/orchestrator/runs.txt"} <= set(first)
+    (tmp_path / RUNS).write_text("2")
+    (tmp_path / ".simplicio-loop/orchestrator/runs/run-2").mkdir()
+    (tmp_path / ".simplicio-loop/orchestrator/runs/run-2/new.jsonl").write_text("3")
+    assert author_isolation.diff(first, author_isolation.snapshot(tmp_path)) == []
+
+
+def test_a_runs_folder_elsewhere_is_still_in_the_snapshot(tmp_path):
+    (tmp_path / "orchestrator/runs").mkdir(parents=True)
+    (tmp_path / "orchestrator/runs/x").write_text("1")
+    (tmp_path / ".simplicio-loop/runs").mkdir(parents=True)
+    (tmp_path / ".simplicio-loop/runs/y").write_text("1")
+    assert {"orchestrator/runs/x", ".simplicio-loop/runs/y"} <= set(author_isolation.snapshot(tmp_path))
+
+
+def test_a_runs_link_in_place_of_the_folder_is_a_change(tmp_path):
+    (tmp_path / ".simplicio-loop/orchestrator").mkdir(parents=True)
+    first = author_isolation.snapshot(tmp_path)
+    (tmp_path / ".simplicio-loop/orchestrator/runs").symlink_to("/etc")
+    assert author_isolation.diff(first, author_isolation.snapshot(tmp_path)) == [".simplicio-loop/orchestrator/runs"]
+
+
+def test_a_round_that_the_host_telemetry_grew_in_is_ok_with_the_authors_file(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n", RUNS: "{}\n"}})
+    result = go(repo, runner, verify="test -f done.txt")
+    assert (result.status, result.reason_code, result.changed) == ("ok", "ok", ["done.txt"])
+
+
+def test_telemetry_alone_is_not_a_change(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {RUNS: "{}\n"}})
+    result = go(repo, runner, rounds=1)
+    assert (result.reason_code, result.changed) == ("empty_diff", [])
+
+
+@pytest.mark.parametrize("path", [".simplicio-loop/loop.toml", ".simplicio-loop/orchestrator/other/x", ".simplicio-loop/orchestrator/runs.txt"])
+def test_an_author_file_in_the_loop_folder_outside_the_telemetry_is_still_protected(repo, fake, path):
+    scenario, _calls, runner = fake
+    scenario({"write": {path: "x\n", "done.txt": "ok\n"}})
+    result = go(repo, runner, rounds=1)
+    assert (result.status, result.reason_code) == ("failed", "protected_path") and path in result.changed
+
+
+def test_the_telemetry_the_host_writes_while_verify_runs_is_not_protected_path(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    result = go(repo, runner, verify=f"mkdir -p {Path(RUNS).parent} && echo x >> {RUNS}; test -f done.txt")
+    assert (result.status, result.reason_code) == ("ok", "ok")
+
+
+# --- run_tests: the CLI cannot run the author's code (MAJOR 3) ---------------------------------------------------------------------
+
+def test_run_tests_defaults_to_true_and_keeps_every_bash_entry():
+    argv = author_flow.author_argv("claude", "x", session=SESSION, resume=False, model="", effort="")
+    assert flag_values(argv, "--allowedTools") == list(author_flow.ALLOWED_TOOLS)
+    assert author_flow.author_argv("claude", "x", session=SESSION, resume=False, model="", effort="", run_tests=True) == argv
+
+
+def test_without_run_tests_the_cli_can_only_read_and_edit_files():
+    argv = author_flow.author_argv("claude", "x", session=SESSION, resume=False, model="", effort="", run_tests=False)
+    tools = flag_values(argv, "--allowedTools")
+    assert tools == ["Read", "Grep", "Glob", "Edit", "Write"]
+    assert not any("Bash" in tool or "pytest" in tool or "python" in tool or "git" in tool for tool in tools)  # git runs a configured program too
+
+
+def test_run_author_hands_run_tests_to_every_round(repo, fake):
+    scenario, calls, runner = fake
+    scenario({"write": {"wrong.txt": "x\n"}}, {"write": {"done.txt": "ok\n"}})
+    result = go(repo, runner, verify="test -f done.txt", run_tests=False)
+    assert result.status == "ok" and result.rounds == 2
+    assert [flag_values(call["argv"], "--allowedTools") for call in calls()] == [["Read", "Grep", "Glob", "Edit", "Write"]] * 2
+    assert "cannot run" in prompt_of(calls()[0]).lower()
+
+
+def test_run_author_keeps_the_bash_entries_by_default(repo, fake):
+    scenario, calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    go(repo, runner)
+    assert flag_values(calls()[0]["argv"], "--allowedTools") == list(author_flow.ALLOWED_TOOLS)
+    assert "cannot run" not in prompt_of(calls()[0]).lower()
+
+
+def test_verify_still_runs_with_the_real_home_view_when_the_cli_cannot_run_tests(repo, fake, real_home):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    checks = []
+
+    async def spy(argv, **kwargs):
+        if argv[0] == "sh":
+            checks.append(kwargs["env"]["HOME"])
+        return await runner(argv, **kwargs)
+
+    assert go(repo, spy, verify="true", run_tests=False).status == "ok"
+    assert checks == [str(real_home)]  # under the sandbox the real HOME is an empty tmpfs: the private one is not there
+
+
+# --- the base of the private HOMEs (MAJOR 2) ----------------------------------------------------------------------------------------
+
+def test_the_base_of_the_homes_comes_from_the_environment(real_home, monkeypatch):
+    assert author_isolation.homes_dir(real_home) == real_home / author_isolation.HOMES
+    monkeypatch.setenv(author_isolation.HOME_BASE_ENV, str(real_home / "state" / "authors"))
+    assert author_isolation.homes_dir(real_home) == real_home / "state" / "authors"
+    home = author_isolation.make_home(real_home, "one")
+    assert home == real_home / "state" / "authors" / "one" and (home / author_isolation.LOGIN).is_file()
+    assert not (real_home / author_isolation.HOMES).exists()
+
+
+def test_the_sweep_works_on_the_configured_base(real_home, monkeypatch):
+    monkeypatch.setenv(author_isolation.HOME_BASE_ENV, str(real_home / "base"))
+    gone = subprocess.Popen(["true"])
+    gone.wait()
+    stale = real_home / "base" / "dead"
+    stale.mkdir(parents=True)
+    (stale / ".owner").write_text(str(gone.pid))
+    other = real_home / author_isolation.HOMES / "dead"
+    other.mkdir(parents=True)
+    (other / ".owner").write_text(str(gone.pid))
+    author_isolation.make_home(real_home, "one")
+    assert not stale.exists() and other.exists()  # only the configured base is swept
+
+
+@pytest.mark.parametrize("value", ["relative/dir", "~/x", "../up", "/etc", "/tmp/elsewhere"])
+def test_a_base_that_is_not_an_absolute_path_inside_the_home_is_home_unavailable(repo, fake, real_home, monkeypatch, value):
+    _scenario, _calls, runner = fake
+    monkeypatch.setenv(author_isolation.HOME_BASE_ENV, value)
+    result = go(repo, runner, verify="true")
+    assert (result.status, result.reason_code, result.rounds) == ("failed", "home_unavailable", 0) and runner.seen == []
+    assert author_isolation.HOME_BASE_ENV in result.failures[0]["detail"] and value in result.failures[0]["detail"]
+
+
+def test_a_base_with_a_dotdot_that_leaves_the_home_is_refused(real_home, monkeypatch):
+    monkeypatch.setenv(author_isolation.HOME_BASE_ENV, str(real_home / ".." / "out"))
+    with pytest.raises(OSError):
+        author_isolation.make_home(real_home, "one")
+
+
+def test_the_empty_base_is_the_default(real_home, monkeypatch):
+    monkeypatch.setenv(author_isolation.HOME_BASE_ENV, "")
+    assert author_isolation.homes_dir(real_home) == real_home / author_isolation.HOMES
+
+
+def test_a_read_only_base_is_home_unavailable_with_the_path_and_the_os_error(repo, fake, real_home, monkeypatch):
+    _scenario, _calls, runner = fake
+    base = real_home / "ro"
+    base.mkdir()
+    monkeypatch.setenv(author_isolation.HOME_BASE_ENV, str(base / "inner"))
+    real_mkdir = Path.mkdir
+
+    def mkdir(self, *args, **kwargs):
+        if self == base / "inner":
+            raise OSError(30, "Read-only file system", str(self))
+        return real_mkdir(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", mkdir)
+    result = go(repo, runner, verify="true")
+    detail = result.failures[0]["detail"]
+    assert result.reason_code == "home_unavailable" and str(base / "inner") in detail and "Read-only file system" in detail
+
+
+def test_the_cli_view_binds_the_private_home_of_the_configured_base(repo, fake, real_home, monkeypatch):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    monkeypatch.setenv(author_isolation.HOME_BASE_ENV, str(real_home / "state" / "authors"))
+    views = []
+    monkeypatch.setattr(sandbox, "engine", lambda *a, **k: "bwrap")
+    monkeypatch.setattr(author_flow.shutil, "which", lambda name, path=None: "/bin/" + name)
+    monkeypatch.setattr(sandbox, "wrap", lambda argv, **kwargs: (views.append(kwargs["home"]), argv)[1])
+    result = go(repo, runner, verify="true", allow_unsandboxed=False)
+    assert result.status == "ok"
+    assert views[0].rw == (f"state/authors/{result.session_id}",)
+
+
+# --- the login never reaches a file the host commits (MAJOR, round 3) ---------------------------------------------------------------
+
+ACCESS = "sk-ant-oat01-ACCESSTOKENVALUE0123456789"
+REFRESH = "sk-ant-ort01-REFRESHTOKENVALUE987654321"
+LOGIN_JSON = json.dumps({"claudeAiOauth": {"accessToken": ACCESS, "refreshToken": REFRESH, "expiresAt": 1}})
+FILE_TOOLS = ("Read", "Grep", "Glob", "Edit", "Write")
+
+
+@pytest.fixture
+def token_login(real_home):
+    (real_home / ".claude" / ".credentials.json").write_text(LOGIN_JSON)
+    return LOGIN_JSON
+
+
+def test_deny_rules_pin_the_exact_strings_for_an_absolute_path():
+    rules = author_flow.deny_rules(Path("/h/priv/run-1"), Path("/h/user"))
+    paths = ("//h/priv/run-1/**", "//h/priv/run-1/.claude/**", "//h/priv/run-1/.claude/.credentials.json",
+             "//h/user/.claude/**", "//h/user/.claude/.credentials.json")
+    assert rules == [f"{tool}({path})" for tool in FILE_TOOLS for path in paths]
+
+
+def test_the_credential_file_is_denied_by_its_own_path_for_every_file_tool():
+    rules = author_flow.deny_rules(Path("/h/priv/run-1"), Path("/h/user"))
+    for tool in FILE_TOOLS:
+        assert f"{tool}(//h/priv/run-1/.claude/.credentials.json)" in rules
+        assert f"{tool}(//h/user/.claude/.credentials.json)" in rules
+        assert f"{tool}(//h/priv/run-1/**)" in rules  # the whole private home too
+
+
+def test_author_argv_hands_the_deny_rules_to_disallowed_tools_one_argument_each():
+    rules = author_flow.deny_rules(Path("/h/priv/run-1"), Path("/h/user"))
+    argv = author_flow.author_argv("claude", "x", session=SESSION, resume=False, model="", effort="", deny=rules)
+    assert flag_values(argv, "--disallowedTools") == ["WebFetch,WebSearch", *rules]
+    assert flag_values(argv, "--allowedTools") == list(author_flow.ALLOWED_TOOLS)  # an allow entry does not beat a deny rule, and stays
+
+
+def test_the_cli_of_a_run_is_denied_its_private_home_and_the_credential_file(repo, fake, real_home):
+    scenario, calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    assert go(repo, runner).status == "ok"
+    argv = calls()[0]["argv"]
+    private = calls()[0]["home"].lstrip("/")
+    real = str(real_home).lstrip("/")
+    denied = flag_values(argv, "--disallowedTools")
+    for tool in FILE_TOOLS:
+        assert f"{tool}(//{private}/**)" in denied
+        assert f"{tool}(//{private}/.claude/.credentials.json)" in denied
+        assert f"{tool}(//{real}/.claude/.credentials.json)" in denied
+    assert "WebFetch,WebSearch" in denied
+
+
+def test_every_round_keeps_the_deny_rules(repo, fake):
+    scenario, calls, runner = fake
+    scenario({"write": {"a.txt": "1\n"}}, {"write": {"done.txt": "ok\n"}})
+    assert go(repo, runner, verify="test -f done.txt").rounds == 2
+    first, second = (flag_values(call["argv"], "--disallowedTools") for call in calls())
+    assert first == second and len(first) == 1 + 5 * len(FILE_TOOLS)
+
+
+def test_a_cli_that_copies_the_login_file_fails_the_round_with_secret_in_diff(repo, fake, token_login, real_home):
+    scenario, _calls, runner = fake
+    scenario({"run": [["cp", str(real_home / ".claude/.credentials.json"), "notes.txt"]]})
+    result = go(repo, runner, rounds=1)
+    assert (result.status, result.reason_code) == ("failed", "secret_in_diff")
+    assert result.changed == ["notes.txt"]
+    assert "notes.txt" in result.failures[0]["detail"]
+    assert ACCESS not in repr(result) and REFRESH not in repr(result) and "accessToken" not in repr(result)
+
+
+@pytest.mark.parametrize("secret", [ACCESS, REFRESH])
+def test_a_token_value_inside_other_text_is_a_leak_too(repo, fake, token_login, secret):
+    scenario, _calls, runner = fake
+    scenario({"write": {"docs/notes.md": f"# notes\ntoken = {secret}\n", "done.txt": "ok\n"}})
+    result = go(repo, runner, verify="test -f done.txt", rounds=1)
+    assert (result.status, result.reason_code) == ("failed", "secret_in_diff")
+    assert "docs/notes.md" in result.failures[-1]["detail"] and secret not in repr(result)
+
+
+def test_the_leak_stops_the_round_before_verify_runs(repo, fake, token_login, tmp_path):
+    scenario, _calls, runner = fake
+    marker = tmp_path / "verify-ran"
+    scenario({"write": {"notes.txt": ACCESS, "done.txt": "ok\n"}})
+    result = go(repo, runner, verify=f"touch {marker}", rounds=1)
+    assert result.reason_code == "secret_in_diff" and not marker.exists()
+
+
+def test_a_secret_that_verify_writes_into_the_tree_is_a_leak(repo, fake, token_login):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    verify = f"printf %s '{ACCESS}' > leaked.txt; test -f done.txt"
+    result = go(repo, runner, verify=verify, rounds=1)
+    assert result.reason_code == "secret_in_diff" and "leaked.txt" in result.failures[-1]["detail"]
+    assert ACCESS not in repr(result)
+
+
+def test_the_author_can_remove_the_leak_in_the_next_round_and_the_prompt_has_no_secret(repo, fake, token_login):
+    scenario, calls, runner = fake
+    scenario({"write": {"notes.txt": ACCESS, "done.txt": "ok\n"}}, {"delete": ["notes.txt"]})
+    result = go(repo, runner, verify="test -f done.txt")
+    assert (result.status, result.rounds) == ("ok", 2)
+    second = prompt_of(calls()[1])
+    assert "notes.txt" in second and "secret" in second.lower() and ACCESS not in second and REFRESH not in second
+
+
+def test_a_token_the_cli_refreshed_in_its_home_during_the_round_is_a_leak_too(repo, fake, token_login):
+    scenario, _calls, runner = fake
+    fresh = "sk-ant-oat01-FRESHLYROTATEDTOKEN0000"
+    new = json.dumps({"claudeAiOauth": {"accessToken": fresh, "refreshToken": "sk-ant-ort01-FRESHREFRESH000000"}})
+    scenario({"home_write": {".claude/.credentials.json": new}, "write": {"notes.txt": fresh}})
+    result = go(repo, runner, rounds=1)
+    assert result.reason_code == "secret_in_diff" and fresh not in repr(result)
+
+
+def test_nothing_the_run_prints_or_logs_holds_the_secret(repo, fake, token_login, capfd, caplog):
+    scenario, _calls, runner = fake
+    caplog.set_level("DEBUG")
+    scenario({"write": {"notes.txt": f"{ACCESS}{REFRESH}"}})
+    result = go(repo, runner, rounds=1)
+    out = capfd.readouterr()
+    for text in (out.out, out.err, caplog.text, json.dumps(result.failures), json.dumps(result.changed), repr(result)):
+        assert ACCESS not in text and REFRESH not in text
+
+
+def test_a_changed_file_without_the_secret_is_not_a_leak(repo, fake, token_login):
+    scenario, _calls, runner = fake
+    scenario({"write": {"notes.txt": "sk-ant-oat01-SOMEOTHERTOKEN\n", "done.txt": "ok\n"}})
+    assert go(repo, runner, verify="test -f done.txt").status == "ok"
+
+
+def test_a_login_file_of_a_short_or_odd_shape_never_flags_every_file(repo, fake, real_home):
+    scenario, _calls, runner = fake
+    (real_home / ".claude/.credentials.json").write_text('{"claudeAiOauth": {"accessToken": "ab", "refreshToken": 7}}')
+    scenario({"write": {"notes.txt": "ab 7 abab\n", "done.txt": "ok\n"}})
+    assert go(repo, runner, verify="test -f done.txt").status == "ok"
+
+
+def test_login_secrets_are_the_whole_file_and_both_token_values_and_nothing_shorter(tmp_path):
+    path = tmp_path / "c.json"
+    path.write_text(LOGIN_JSON)
+    secrets = author_isolation.login_secrets(path, tmp_path / "missing.json")
+    assert LOGIN_JSON.encode() in secrets and ACCESS.encode() in secrets and REFRESH.encode() in secrets
+    assert all(len(secret) >= author_isolation.MIN_SECRET for secret in secrets)
+    path.write_text("not json at all, but a long enough credential blob")
+    assert author_isolation.login_secrets(path) == {b"not json at all, but a long enough credential blob"}
+
+
+def test_the_scan_finds_a_secret_that_straddles_two_chunks(tmp_path, monkeypatch):
+    monkeypatch.setattr(author_isolation, "SCAN_CHUNK", 16)
+    (tmp_path / "big.txt").write_text("x" * 13 + ACCESS + "y" * 40)
+    (tmp_path / "clean.txt").write_text("z" * 100)
+    found = author_isolation.leaks(tmp_path, ["big.txt", "clean.txt", "gone.txt"], {ACCESS.encode()})
+    assert found == ["big.txt"]
+
+
+def test_the_scan_does_not_read_through_a_symlink(tmp_path):
+    (tmp_path / "secret").write_text(ACCESS)
+    (tmp_path / "link").symlink_to("secret")
+    assert author_isolation.leaks(tmp_path, ["link"], {ACCESS.encode()}) == []
+
+
+# --- inside the telemetry folder a link or a special file is still a change (MINOR 2) -----------------------------------------------
+
+TELEMETRY = ".simplicio-loop/orchestrator/runs/run-1"
+
+
+def test_a_symlink_in_the_telemetry_folder_is_a_change_and_a_regular_file_is_not(tmp_path):
+    (tmp_path / TELEMETRY).mkdir(parents=True)
+    (tmp_path / TELEMETRY / "events.jsonl").write_text("1\n")
+    first = author_isolation.snapshot(tmp_path)
+    assert f"{TELEMETRY}/events.jsonl" not in first
+    (tmp_path / TELEMETRY / "events.jsonl").write_text("2\n")
+    assert author_isolation.diff(first, author_isolation.snapshot(tmp_path)) == []
+    (tmp_path / TELEMETRY / "events.jsonl").unlink()
+    (tmp_path / TELEMETRY / "events.jsonl").symlink_to("../../../../.git/config")
+    assert author_isolation.diff(first, author_isolation.snapshot(tmp_path)) == [f"{TELEMETRY}/events.jsonl"]
+
+
+def test_a_link_to_a_folder_a_fifo_and_a_hard_link_in_the_telemetry_folder_are_changes(tmp_path):
+    (tmp_path / TELEMETRY).mkdir(parents=True)
+    (tmp_path / "target").write_text("t")
+    first = author_isolation.snapshot(tmp_path)
+    (tmp_path / TELEMETRY / "dirlink").symlink_to("/etc")
+    os.mkfifo(tmp_path / TELEMETRY / "pipe")
+    os.link(tmp_path / "target", tmp_path / TELEMETRY / "hard")
+    assert author_isolation.diff(first, author_isolation.snapshot(tmp_path)) == sorted(
+        [f"{TELEMETRY}/dirlink", f"{TELEMETRY}/pipe", f"{TELEMETRY}/hard"])
+
+
+def test_a_symlink_a_conftest_plants_in_the_telemetry_folder_is_protected_path(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n", RUNS: "{}\n"}})
+    plant = f"rm {RUNS} && ln -s ../../../../.git/config {RUNS}; test -f done.txt"
+    result = go(repo, runner, verify=plant)
+    assert (result.status, result.reason_code) == ("failed", "protected_path")
+    assert RUNS in result.changed
+
+
+def test_a_symlink_the_cli_plants_in_the_telemetry_folder_is_protected_path(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"run": [["mkdir", "-p", str(Path(RUNS).parent)], ["ln", "-s", "../../../../.git/config", RUNS]], "write": {"done.txt": "ok\n"}})
+    result = go(repo, runner, rounds=1)
+    assert (result.status, result.reason_code) == ("failed", "protected_path") and RUNS in result.changed
