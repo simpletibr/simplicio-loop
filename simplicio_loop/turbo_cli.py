@@ -39,7 +39,9 @@ PLAN_FORMAT = {"operations": [{"path": "<repo-relative>",
                                "find": "<exact text that occurs once; empty creates the file>",
                                "replace": "<new text>"}]}
 RULES = ("Write the plan from the file contents above; do not open, list or read other files "
-         '(a file shown in windows has more lines: answer {"operations": [], "need": [{"path", "start", "end"}]} to see them); '
+         '(a file shown in windows has more lines in `omitted`: answer {"operations": [], "need": [{"path", "start", "end"}]} '
+         'to see them, e.g. {"operations": [], "need": [{"path": "tests/test_x.py", "start": 147, "end": 190}]}; '
+         "the same lines come with `--window tests/test_x.py:147-190` on the turbo command); "
          "do not run tests yourself; run the command below once.")
 STDIN_HINT = ("pipe the JSON plan on stdin: `simplicio-loop turbo --repo <path> --apply - <<'PLAN'`, the plan, "
               "then `PLAN`")

@@ -66,6 +66,22 @@ def test_a_big_file_with_the_symbol_at_the_end_shows_the_whole_body_and_the_line
     assert entry["windows"][0]["start"] == 1 and entry["windows"][0]["end"] == turbo_window.HEADER_LINES  # the header
 
 
+def test_the_1582_request_shows_the_flaky_test_in_a_window(tmp_path):
+    """The #1582 shape: a test file past the limit, the target function from line 147 on, the issue text as the task."""
+    head = "".join(f"def test_case_{i}(tmp_path):\n    value = {i}\n    assert value == {i}, 'case {i} of the tick suite'\n\n"
+                   for i in range(36))
+    function = ("def test_in_flight_equals_concurrency(tmp_path):\n    seen = []\n    run_tick(seen, concurrency=3)\n"
+                "    assert max(seen) == 3\n")
+    tail = "".join(f"def test_tail_{i}():\n    assert {i} == {i}\n\n\n" for i in range(900))
+    body = "import pytest\n" * 3 + head + "\n" + function + "\n\n" + tail
+    assert len(body) > turbo_window.FILE_CHARS_MAX
+    _write(tmp_path, "tests/watcher247/test_tick.py", body)
+    issue = "test_in_flight_equals_concurrency é flaky sob carga\n\nO alvo é tests/watcher247/test_tick.py."
+    entry = turbo_window.build_files(tmp_path, [_task(issue, "tests/watcher247/test_tick.py")])["tests/watcher247/test_tick.py"]
+    assert isinstance(entry, dict) and entry["omitted"]
+    assert any(function in w["text"] for w in entry["windows"])  # the whole body of the target is in a window
+
+
 def _with_function(body_lines: int) -> tuple[str, int]:
     """900 filler functions, then ``def long_target_fn`` with ``body_lines`` body lines; returns (text, def line)."""
     head = _py(900)
