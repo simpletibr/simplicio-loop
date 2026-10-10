@@ -14,11 +14,17 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import shutil
+import signal
 import subprocess
 import sys
+import tempfile
+import threading
 import time
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
+from urllib.parse import parse_qs, urlsplit
 
 from . import auth
 
@@ -125,6 +131,85 @@ def _run_runtime(command: list, env: dict, stdout: Optional[int]) -> int:
     return subprocess.call(command, env=env, stdout=stdout)
 
 
+# --no-browser: Runtime 3.10.0 ignores BROWSER and runs the system opener, so the child gets opener stand-ins first on its
+# PATH. They open nothing: they keep the sign-in address and print it, so the user can open it by hand.
+_BROWSER_OPENERS = ("xdg-open", "open", "gio", "gnome-open", "kde-open", "sensible-browser", "x-www-browser", "wslview")
+# The stand-in records only an http(s) address made of printable ASCII, and only the FIRST one: `gio trash` or `gio mount -l`
+# must not become the sign-in address. It runs no external program (`${0%/*}`, not `dirname`).
+_OPENER_SHIM = r"""#!/bin/sh
+LC_ALL=C
+for url; do
+  case $url in http://*|https://*) ;; *) continue ;; esac
+  case $url in *[![:graph:]]*) continue ;; esac
+  file=${0%/*}/sign-in-url
+  [ -e "$file" ] && exit 0
+  printf '%s\n' "$url" > "$file"
+  printf 'Open this address in a browser to sign in:\n  %s\n' "$url" >&2
+  exit 0
+done
+"""
+_PRINTABLE_ASCII = re.compile(r"[!-~]+")  # no space, no control character, no newline, nothing above ASCII
+
+
+def _can_block_browser() -> bool:
+    return os.name != "nt"  # Windows opens the address with no program on PATH that could stand in
+
+
+def _install_browser_shim(child: dict) -> str:
+    shim_dir = tempfile.mkdtemp(prefix="simplicio-no-browser-")
+    try:
+        for name in _BROWSER_OPENERS:
+            opener = os.path.join(shim_dir, name)
+            with open(opener, "w", encoding="utf-8") as handle:
+                handle.write(_OPENER_SHIM)
+            os.chmod(opener, 0o755)
+    except BaseException:
+        shutil.rmtree(shim_dir, ignore_errors=True)
+        raise
+    inherited = child.get("PATH", "")
+    child["PATH"] = shim_dir + (os.pathsep + inherited if inherited else "")  # an empty entry would mean the cwd
+    child["BROWSER"] = "true"
+    return shim_dir
+
+
+def _printable(text: str) -> bool:
+    return _PRINTABLE_ASCII.fullmatch(text) is not None
+
+
+def _read_sign_in(shim_dir: Optional[str]) -> dict:
+    if shim_dir is None:
+        return {}
+    try:
+        with open(os.path.join(shim_dir, "sign-in-url"), encoding="utf-8", errors="replace") as handle:
+            url = handle.read().strip()
+        if not url.startswith(("http://", "https://")) or not _printable(url):
+            return {}  # it is printed on the terminal: no escape sequence, no newline
+        codes = [code for code in parse_qs(urlsplit(url).query).get("user_code", []) if _printable(code)]
+    except (OSError, ValueError):  # an address like http://[::1/ is a ValueError (so is UnicodeDecodeError)
+        return {}
+    return {"sign_in_url": url, **({"user_code": codes[0]} if codes else {})}
+
+
+# SIGTERM and SIGHUP end the login like Ctrl-C does, so the `finally` of login() removes the temp dir (it holds the user code).
+def _stop_on_signal(signum: int, frame: Any) -> None:
+    raise SystemExit(128 + signum)
+
+
+def _trap_signals() -> dict:
+    if threading.current_thread() is not threading.main_thread():
+        return {}  # signal.signal() works in the main thread only
+    return {sig: signal.signal(sig, _stop_on_signal) for sig in (signal.SIGTERM, signal.SIGHUP)}
+
+
+def _sign_in_lines(sign_in: dict) -> list:
+    if not sign_in:
+        return []
+    lines = ["", f"Open this address in a browser to sign in: {sign_in['sign_in_url']}"]
+    if sign_in.get("user_code"):
+        lines.append(f"Code: {sign_in['user_code']}")
+    return lines
+
+
 def login(*, as_json: bool = False, no_browser: bool = False, environ: Optional[dict] = None,
           run: Callable[[list, dict, Optional[int]], int] = _run_runtime) -> int:
     env = dict(os.environ if environ is None else environ)
@@ -144,21 +229,40 @@ def login(*, as_json: bool = False, no_browser: bool = False, environ: Optional[
     child = _runtime_env(env)
     if path != runtime_path:  # for this run the Runtime must write where the loop reads
         child[auth.RUNTIME_ENV] = str(path)
-    if no_browser and os.name != "nt":
-        child["BROWSER"] = "true"  # UNVERIFIED: the Runtime may ignore it and print its sign-in address anyway
+    if no_browser and not _can_block_browser():
+        doc = auth.describe(env)
+        version = doc["runtime"]["version"] or "unknown"
+        detail = (f"--no-browser is not supported on this system: Simplicio Runtime {version} opens the browser by "
+                  "itself and has no option to stop it. Run: simplicio-loop login")
+        doc.update(schema="simplicio.login/v1", status="REFUSED", reason_code="no_browser_unsupported", detail=detail)
+        _print(doc, as_json, [f"login: {detail}"])
+        return 2
+    shim_dir = None
+    previous = _trap_signals() if no_browser else {}
     sys.stdout.flush()
-    code = run([str(runtime), "login", "google"], child, 2 if as_json else None)  # --json: its output goes to stderr
+    try:
+        if no_browser:
+            shim_dir = _install_browser_shim(child)
+        code = run([str(runtime), "login", "google"], child, 2 if as_json else None)  # --json: its output goes to stderr
+        sign_in = _read_sign_in(shim_dir)
+    finally:
+        if shim_dir is not None:
+            shutil.rmtree(shim_dir, ignore_errors=True)
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
     doc = auth.describe(env)
     doc.update(schema="simplicio.login/v1", runtime_exit_code=code)
+    doc.update(sign_in)
     if code != 0:
         doc.update(status="NOT_VERIFIED", reason_code="runtime_login_failed", logged_in=False,
                    fix="simplicio-loop login")
-        _print(doc, as_json, [f"login: the Runtime login ended with exit code {code}; the login is not verified"])
+        _print(doc, as_json, [f"login: the Runtime login ended with exit code {code}; the login is not verified"]
+               + _sign_in_lines(sign_in))
         return 1
     if not doc["logged_in"]:
         doc["status"] = "NOT_VERIFIED"
         _print(doc, as_json, ["login: the Runtime finished, but the shared login file is not usable"]
-               + _status_lines(doc, time.time()))
+               + _status_lines(doc, time.time()) + _sign_in_lines(sign_in))
         return 1
     doc["status"] = "VERIFIED"
     _print(doc, as_json, ["login: verified in the shared login file"] + _status_lines(doc, time.time())[1:])
