@@ -3,6 +3,7 @@ never retried across the retry budget -- see AGENTS.md item B."""
 from __future__ import annotations
 
 from simplicio_loop import runner as runner_mod
+from tests.runner_patch import patch_runner
 
 
 def _bad_find_record(**overrides):
@@ -28,7 +29,7 @@ def test_deterministic_failure_stops_after_one_attempt(monkeypatch):
         calls.append(dispatch_item)
         return dict(_bad_find_record())
 
-    monkeypatch.setattr(runner_mod, "_operator_dispatch_attempt", fake_dispatch_attempt)
+    patch_runner(monkeypatch, "_operator_dispatch_attempt", fake_dispatch_attempt)
 
     item = {
         "repo": "/repo", "run_id": "run-1", "task_index": 1,
@@ -55,7 +56,7 @@ def test_transient_failure_still_retries_up_to_budget(monkeypatch):
             "failure_fingerprint": f"fp-{len(calls)}",
         }
 
-    monkeypatch.setattr(runner_mod, "_operator_dispatch_attempt", fake_dispatch_attempt)
+    patch_runner(monkeypatch, "_operator_dispatch_attempt", fake_dispatch_attempt)
 
     item = {
         "repo": "/repo", "run_id": "run-1", "task_index": 1,

@@ -5,7 +5,8 @@ import argparse
 import asyncio
 
 from ..claim_lease import ClaimStore
-from . import config, env_guard, state, tick, worktrees
+from ..error_truncation import truncate_error_with_cause
+from . import author_executor, config, env_guard, state, tick, worktrees
 
 
 async def main(once: bool = False, dry_run: bool = False) -> int:
@@ -18,6 +19,11 @@ async def main(once: bool = False, dry_run: bool = False) -> int:
 
 
 async def _serve(once: bool, dry_run: bool) -> int:
+    if invalid := author_executor.refusal():  # a typo must not fall back to the plan flow in silence
+        state.log(f"refusing to start: {invalid}")
+        if not dry_run:
+            await state.write_status(phase="blocked", reason_code=author_executor.INVALID, detail=invalid)
+        return 1
     if not dry_run:
         await asyncio.to_thread(config.WORK.mkdir, parents=True, exist_ok=True)
         if refused := env_guard.refusal():
@@ -32,7 +38,7 @@ async def _serve(once: bool, dry_run: bool) -> int:
         except Exception as exc:
             state.log(f"tick error: {exc}")
             if not dry_run:
-                await state.write_status(phase="error", error=str(exc)[:500])
+                await state.write_status(phase="error", error=truncate_error_with_cause(str(exc)))
         if once:
             return 0
         await asyncio.sleep(config.INTERVAL_S)  # STOP keeps the process alive and idle

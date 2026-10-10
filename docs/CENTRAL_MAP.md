@@ -76,6 +76,11 @@ It never removes a base.
 * A change in worktree A stays invisible in worktree B and in the base. An overlay run does not change
   one byte of the base store.
 * N concurrent worktrees trigger one base build. A counter test proves it.
+* Disk budget (#1672): on a synthetic repository with 3 worktrees and 2 edited files each, every
+  overlay holds at most 50 % of the bytes of a full index of the same worktree, and the base plus the
+  3 overlays hold at most 60 % of 3 full indexes. A second overlay run without changes adds no file
+  and no bytes. Mutants that copy `call-graph` or `retrieval-index` into a worktree, or that build a
+  second base, break the test (`packages/mapper/tests/python/test_central_map_disk_budget.py`).
 * Failing, interrupted and SIGTERM builds leave no scratch, no staging directory and no
   `git worktree` entry.
 * `map gc` removes only what is safe. It keeps a scratch directory that has a live lock, a process
@@ -153,8 +158,23 @@ simplicio-mapper canonical build|status|verify|gc <path>               # same su
   has no disk number yet.
 * **`call-graph`, `architecture-inventory`, `retrieval-index` and `project.sfast` do not come from the
   base.** A worktree that needs them runs `simplicio-mapper index` or the Fast build and pays the full
-  cost. The runner path (`scan`, `inspect`, `handoff`) also builds a full set. `inspect` reports a
-  worktree that has only the overlay state as not fresh.
+  cost. Since #1673 the search path (`scan`, `inspect`, `handoff`) stays on the overlay:
+  * `scan` on a worktree with a valid `overlay.json` refreshes the overlay and answers `fresh`
+    (`deep.skipped_reason = served_by_overlay`). It starts no full index and keeps `overlay.json`.
+    If the overlay cannot serve (fallback), `scan` runs the full index as before.
+  * `inspect` treats the overlay as valid for `project-map`, `symbol-index` and `precedent-index`
+    (`evidence.artifacts.<name>.state = served_by_overlay`). `call-graph`, `architecture-inventory` and
+    `retrieval-index` are `not_served_by_overlay`; that is not a reason for `fresh=false`.
+    `status.artifact_service` lists both groups. A worktree whose `overlay.json` names a base that is
+    no longer in the cache is not valid: `artifacts_present` is `false`.
+  * `canonical overlay` and `scan` write `index-state.json` with the freshness signature of the tree,
+    so `inspect` can tell a refreshed overlay from a stale one.
+  * `ask callers|callees|reaches|impact` build the unserved artifacts in memory when the query needs
+    them, and the answer declares the cost in `on_demand_cost` (`seconds`, `built`, `persisted: false`).
+    `scan`, `inspect` and `handoff` never build them.
+  * UNVERIFIED: time and disk of `scan` + `inspect` + `handoff` in a second worktree of the real
+    repository. The tests count full indexes (0) on a synthetic repository; the real measurement
+    (the full index cost 114.7 s and 89 MB there) is still to be taken.
 * **The assembly in `central_overlay._project_map` mirrors `emit._build_artifacts_sync`.** The oracle
   test fails if they drift. Folding the sync, async and overlay copies into one is a follow-up.
 * **A file stays unchanged only when git reports no delta, git does not hide it, and its size matches

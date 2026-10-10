@@ -72,6 +72,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `ledger` | Replay or validate the operational event ledger. |
 | `findings` | List, report, reconcile, diagnose, or import routed findings. |
 | `learn retrospective` | Derive durable lessons from completed runs. |
+| `author` | `author --repo WORKTREE --task-file FILE [--verify CMD] [--rounds 1-10] [--family claude]` opens the LLM CLI with tools in a worktree, runs `--verify` after each round and sends failures back to the same session. Prints the result as JSON (exit 0 ok, 3 failed, 69 unsupported, 2 usage). See `docs/AUTHOR_FLOW.md`. |
 | `hub-drain-plan` | Read-only GitHub drain intake. |
 | `intake` | Normalize any tracker export (JSON/CSV/Markdown, or an http(s) URL returning JSON) into `tasks.md`, auto-detecting GitHub/Jira/Linear/ClickUp/GitLab/Azure DevOps field shapes. |
 | `handoff` | `handoff write` stores a `simplicio.agent-handoff/v1` document in `.simplicio-loop/orchestrator/handoff/<run>/<n>.json` (mode 0600). It masks secrets in the free text first. `handoff read --run R [--n N]` prints one document. `handoff check` takes `--input-tokens`, `--cache-read` and `--cache-write` of the last request, and `--added-file` for the text that the next request adds. It prints `ok`, `handoff` or `over` for the next request (exit 0, 3 or 4). The ceiling is the `agent_input_token_ceiling` key of `.simplicio-loop/loop.toml` on the default branch. The variable `SIMPLICIO_AGENT_INPUT_TOKEN_CEILING` wins. |

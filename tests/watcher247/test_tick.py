@@ -13,7 +13,7 @@ import pytest
 from simplicio_loop.watcher247 import config, proc, state, subscription, tick, verify
 from simplicio_loop.watcher247.__main__ import main as watcher_main
 
-from .fakes import FIXED, PR_URL, FakeRun, baseline, issue, read_json, run_tick, write_json
+from .fakes import FIXED, PR_URL, FakeRun, baseline, issue, pr_row, read_json, run_tick, write_json
 
 
 def test_first_tick_writes_baseline_only(env):
@@ -182,6 +182,112 @@ def test_dry_run_reads_but_writes_nothing(env, tmp_path):
     asyncio.run(watcher_main(once=True, dry_run=True))
     assert fake.turbo_argv == [] and fake.api_writes == []
     assert sorted(p.name for p in tmp_path.iterdir()) == before
+
+
+def test_a_real_tick_runs_the_map_gc_once_and_a_dry_run_never_does(env, monkeypatch):
+    """#1671: the automatic `map gc` is wired into the real tick and is housekeeping that a dry run must not do."""
+    calls = []
+    monkeypatch.setattr(tick, "_map_gc_bases", lambda: calls.append("gc"))
+    env(FakeRun({"simplicio-a": [issue(1)]}))
+    baseline("simplicio-a#1")
+    run_tick(dry_run=True)
+    assert calls == []
+    run_tick()
+    assert calls == ["gc"]
+
+
+# --- a claim that cannot be taken never takes a slot of the batch ---------------------------------------------------
+
+def _claim(status, **extra):
+    return {"attempts": 1, "status": status, **extra}
+
+
+def _backoff():
+    return _claim("retry", next_try_at=state.iso(FIXED + timedelta(hours=1)))
+
+
+def test_backoff_issues_do_not_starve_the_fresh_ones(env, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
+    fake = env(FakeRun({"simplicio-a": [issue(1), issue(2), issue(3), issue(4)]}, diff=False))
+    baseline()
+    write_json(config.CLAIMS, {"simplicio-a#1": _backoff(), "simplicio-a#2": _backoff()})
+    run_tick()
+    assert len(fake.turbo_argv) == 2
+    status = read_json(config.STATUS)
+    assert status["processed"] == ["simplicio-a#3", "simplicio-a#4"]
+    assert status["skipped_issues"] == {"simplicio-a#1": "claim_retry", "simplicio-a#2": "claim_retry"}
+    claims = read_json(config.CLAIMS)
+    assert claims["simplicio-a#1"]["attempts"] == 1 and claims["simplicio-a#2"]["attempts"] == 1  # untouched
+
+
+def test_a_retry_whose_next_try_is_past_is_taken(env):
+    fake = env(FakeRun({"simplicio-a": [issue(1)]}, diff=False))
+    baseline()
+    write_json(config.CLAIMS, {"simplicio-a#1": _claim("retry", next_try_at=state.iso(FIXED - timedelta(minutes=1)))})
+    run_tick()
+    assert len(fake.turbo_argv) == 1
+    status = read_json(config.STATUS)
+    assert status["processed"] == ["simplicio-a#1"] and "simplicio-a#1" not in status["skipped_issues"]
+
+
+def test_a_final_issue_is_skipped_but_its_review_fix_is_taken(env, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
+    review = {"author": {"login": "reviewer"}, "state": "CHANGES_REQUESTED", "body": "troque o retorno para dict"}
+    prs = dict(prs=[pr_row(9, "loop/issue-7", review="CHANGES_REQUESTED")],
+               pr_views={9: {"reviews": [review], "files": [{"path": "app.py"}], "statusCheckRollup": []}})
+    toml = 'enabled = true\nverify = "pytest -q tests/x.py"\n'
+    fake = env(FakeRun({"simplicio-a": [issue(7), issue(8)]}, loop_toml={"simplicio-a": toml}, diff=False, **prs))
+    baseline("simplicio-a#7")  # #7 is old (its review is the new work); #8 is new but its claim is final
+    write_json(config.CLAIMS, {"simplicio-a#7": _claim("done"), "simplicio-a#8": _claim("done")})
+    run_tick()
+    assert len(fake.turbo_argv) == 1 and "troque o retorno para dict" in fake.turbo_argv[0][fake.turbo_argv[0].index("--task") + 1]
+    status = read_json(config.STATUS)
+    assert status["processed"] == ["simplicio-a#7"]
+    assert status["skipped_issues"] == {"simplicio-a#8": "claim_done"}
+
+
+def test_a_review_fix_for_a_live_lease_stays_queued(env, monkeypatch):
+    review = {"author": {"login": "reviewer"}, "state": "CHANGES_REQUESTED", "body": "troque o retorno para dict"}
+    prs = dict(prs=[pr_row(9, "loop/issue-7", review="CHANGES_REQUESTED")],
+               pr_views={9: {"reviews": [review], "files": [{"path": "app.py"}], "statusCheckRollup": []}})
+    toml = 'enabled = true\nverify = "pytest -q tests/x.py"\n'
+    fake = env(FakeRun({"simplicio-a": [issue(7)]}, loop_toml={"simplicio-a": toml}, diff=False, **prs))
+    baseline("simplicio-a#7")
+    write_json(config.CLAIMS, {"simplicio-a#7": _claim("running", lease_expires_at=FIXED.timestamp() + 600)})
+    run_tick()
+    assert fake.turbo_argv == []
+    assert read_json(config.STATUS)["skipped_issues"] == {"simplicio-a#7": "claim_running"}
+    assert "simplicio-a#7" in read_json(config.FIXES)["queued"]  # not lost: it waits for the lease
+
+
+def test_a_running_claim_is_taken_only_when_its_lease_expired(env, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
+    fake = env(FakeRun({"simplicio-a": [issue(1), issue(2)]}, diff=False))
+    baseline()
+    now = FIXED.timestamp()
+    write_json(config.CLAIMS, {"simplicio-a#1": _claim("running", lease_expires_at=now + 600),
+                               "simplicio-a#2": _claim("running", lease_expires_at=now - 600)})
+    run_tick()
+    assert len(fake.turbo_argv) == 1
+    status = read_json(config.STATUS)
+    assert status["processed"] == ["simplicio-a#2"]
+    assert status["skipped_issues"] == {"simplicio-a#1": "claim_running"}
+
+
+def test_dry_run_lists_the_same_set_as_the_real_tick(env, monkeypatch, capsys):
+    monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
+    fake = env(FakeRun({"simplicio-a": [issue(1), issue(2), issue(3), issue(4)]}, diff=False))
+    baseline()
+    write_json(config.CLAIMS, {"simplicio-a#1": _backoff(), "simplicio-a#2": _backoff()})
+    before = config.CLAIMS.read_text()
+    files = sorted(p.name for p in config.CLAIMS.parent.iterdir())
+    asyncio.run(watcher_main(once=True, dry_run=True))
+    assert sorted(p.name for p in config.CLAIMS.parent.iterdir()) == files  # not even a lock file
+    out = capsys.readouterr().out
+    assert "[dry-run] would process simplicio-a#3" in out and "[dry-run] would process simplicio-a#4" in out
+    assert "would process simplicio-a#1" not in out and "would process simplicio-a#2" not in out
+    assert "not due simplicio-a#1: retry" in out
+    assert fake.turbo_argv == [] and config.CLAIMS.read_text() == before
 
 
 def test_tick_error_is_recorded_in_status(env, monkeypatch):

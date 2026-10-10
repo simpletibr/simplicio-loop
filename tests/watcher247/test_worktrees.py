@@ -13,7 +13,6 @@ import os
 import shutil
 import signal
 import subprocess
-import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,6 +24,7 @@ from simplicio_loop.watcher247 import __main__ as watcher_main
 from simplicio_loop.watcher247 import config, points, proc, sandbox, squad_flow, tick, worktrees
 
 from .fakes import issue
+from .sandbox_rig import needs_bwrap
 
 REPO = "demo"
 WAIT = 20  # seconds: the ceiling of every wait on an Event; a healthy run is far below it
@@ -836,7 +836,6 @@ def test_worktree_binds_are_empty_for_a_plain_clone_and_for_unknown_layouts(real
 
 # --- sandbox isolation between items (REAL bwrap + REAL git) ----------------------------------------------------------------------
 
-needs_bwrap = pytest.mark.skipif(sys.platform != "linux" or shutil.which("bwrap") is None, reason="needs Linux with bwrap")
 CONTROL_FILES = ("claims.json", "budget.json", "STOP")
 
 

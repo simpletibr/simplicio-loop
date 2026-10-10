@@ -11,9 +11,9 @@ import subprocess
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from .. import escalation, intake_gate, squad_capacity, watcher_github
+from .. import escalation, intake_gate, map_gc_auto, squad_capacity, watcher_github
 from ..claim_lease import ClaimStore
-from . import budget, config, events, github, host_mode, onboarding, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify, worktrees
+from . import author_executor, budget, config, events, github, host_mode, onboarding, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify, worktrees
 from .closing_words import sanitize
 from .pr_text import pr_title
 
@@ -127,13 +127,16 @@ async def commit_and_pr(gate: worktrees.Gate, dest: Path, repo: str, branch: str
 
 async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str,
                      executor: host_mode.Executor, test_cmd: str, task: str | None = None, role: str = "",
-                     run_id: str | None = None) -> dict:
+                     run_id: str | None = None, head: str = "") -> dict:
     """Run the item with the selected executor; return the claim fields, raise when it did not finish ok.
 
     exec (the default): an exec CLI plans, turbo --apply - applies (host_mode) inside the run ``run_id`` that the caller
-    opened at intake. openrouter: the opt-in headless turbo, which has its own run.
+    opened at intake. With ``SIMPLICIO_247_EXECUTOR=author`` an LLM CLI with tools edits the worktree instead (author_executor).
+    openrouter: the opt-in headless turbo, which has its own run.
     """
     task = task or task_text(repo, issue, fix)
+    if executor.mode == "exec" and author_executor.selected() == "author":
+        return await author_executor.run(dest, repo, issue, task, test_cmd, executor, head, run_id=run_id)
     if executor.mode == "exec":
         return await host_mode.run_exec(dest, repo, issue, task, test_cmd, executor,
                                         attempts, fix=bool(fix), role=role, run_id=run_id)
@@ -152,6 +155,13 @@ async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str
     if decision.action != "pr":
         raise RuntimeError(decision.reason)
     return {"turbo_status": status, "exit_code": result.returncode, "verify": decision.label}
+
+
+def _family(executor: host_mode.Executor) -> str | None:
+    """The family the points see: the one that really runs. The author executor skips a family it cannot drive; the plan flow uses the first."""
+    if executor.mode == "exec" and author_executor.selected() == "author":
+        return author_executor.family_of(executor) or None
+    return (executor.families or (None,))[0]
 
 
 async def _heartbeat(store: ClaimStore, key: str, token: str) -> None:
@@ -212,6 +222,17 @@ def _without_pr(steps: list[dict[str, str]], failed: bool) -> squad_flow.Outcome
     return squad_flow.Outcome("", "", steps, "failed" if failed else "no_pr") if steps else None
 
 
+async def _not_due(store: ClaimStore, ident: str, clock: float, reopen: bool, skipped_issues: dict[str, str]) -> bool:
+    """True when `process` could not acquire this issue (final, live lease, retry backoff): it must not take a slot of the batch."""
+    if await store.acquirable(ident, now=clock, reopen=reopen):
+        return False
+    claim = await store.get_claim(ident)
+    status = claim.status if claim else "unknown"
+    state.log(f"not due {ident}: {status}")
+    skipped_issues[ident] = f"claim_{status}"
+    return True
+
+
 async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, clock: float,
                   executor: host_mode.Executor, probe: squad_capacity.Probe | None = None) -> squad_flow.Outcome | None:
     name = work.repo
@@ -251,7 +272,7 @@ async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, c
                 dest, head = item.path, item.head
                 try:
                     ctx = points.PointContext(
-                        repo=name, issue=work.issue, clone=dest, state_dir=config.ROOT, family=(executor.families or (None,))[0],
+                        repo=name, issue=work.issue, clone=dest, state_dir=config.ROOT, family=_family(executor),
                         capacity=probe, test_command=work.verify,
                         run_dir=dest / ".simplicio-loop" / "orchestrator" / "points" / f"{name}-{number}")
                     await points.run("intake", ctx)
@@ -260,7 +281,7 @@ async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, c
                     ctx = replace(ctx, task_text=task_text(name, work.issue, work.fix, retry))
                     task = ctx.task_text + plan_hints(await points.run("plan", ctx))  # one text: retry reasons + hints
                     turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor, work.verify, task=task,
-                                              role=work.role, run_id=run_id)
+                                              role=work.role, run_id=run_id, head=head)
                     steps = turbo.get("steps") or []
                     ctx = replace(ctx, turbo_json=turbo, verify=turbo["verify"])
                     await points.run("apply", ctx)
@@ -268,7 +289,7 @@ async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, c
                     await points.run("verify", ctx)
                     points.raise_if_blocked("pr", await points.run("pr", ctx))  # a blocked result stops the PR
                     url = await commit_and_pr(gate, dest, name, work.branch, head, work.issue, pr=work.pr,
-                                              label=turbo["verify"], executor=executor.mode)
+                                              label=turbo["verify"], executor=turbo.get("executor", executor.mode))
                     item.published = bool(url)
                     if url:
                         await budget.record("prs")
@@ -322,12 +343,21 @@ async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, c
         return _without_pr(steps, run_failed)
     except Exception as exc:
         attempts = (await store.get_claim(ident)).attempts
-        final = verify.retry_or_dead(attempts, config.MAX_ATTEMPTS)
         error = str(exc)[:500]
+        if isinstance(exc, author_executor.AuthorFailed) and exc.configuration:
+            # the host is set up wrong (login, sandbox, CLI, HOME), not the item: like a deferred point the attempt is given back, and the
+            # item waits out the retry backoff, so a missing login never makes it dead
+            await _phase(runner, name, number, "BLOCKED", detail=f"configuracao do host ({exc.reason_code}): {error}")
+            await store.release(ident, token, "retry", now=clock, attempts=max(attempts - 1, 0), reason_code=exc.reason_code, error=error,
+                                blocked_by="", next_try_at=state.iso(state.now() + config.RETRY_AFTER))
+            state.log(f"host configuration {ident} {exc.reason_code}: {error}")
+            return _without_pr(steps, run_failed)
+        final = verify.retry_or_dead(attempts, config.MAX_ATTEMPTS)
         detail = (f"parou depois de {config.MAX_ATTEMPTS} tentativas; fica na fila morta ate reabrir"
                   if final == "dead" else f"tentativa {attempts} falhou: {error}")
         await _phase(runner, name, number, "BLOCKED", detail=detail)
-        await store.release(ident, token, final, now=clock, reason_code="turbo_failed", error=error, blocked_by="",
+        reason = exc.reason_code if isinstance(exc, author_executor.AuthorFailed) else "turbo_failed"  # the author flow names why it failed
+        await store.release(ident, token, final, now=clock, reason_code=reason, error=error, blocked_by="",
                             next_try_at=state.iso(state.now() + config.RETRY_AFTER))
         state.log(f"fail {ident} {final}: {error}")
         return _without_pr(steps, run_failed)
@@ -355,6 +385,16 @@ async def _enqueue_fixes(runner, name: str, fixes: dict) -> None:
         fixes["seen"].append(fingerprint)
         entry = fixes["queued"].setdefault(ident, {"pr": task.pr, "texts": []})
         entry["texts"].append(task.text)
+
+
+def _map_gc_bases() -> None:
+    """`map gc` (default policy) for each base clone under config.WORK, at most once an hour per repo (#1671). Never raises."""
+    try:
+        bases = sorted(p for p in config.WORK.iterdir() if p.is_dir() and not p.name.endswith((".wt", ".state")) and (p / ".git").exists())
+    except OSError:
+        return
+    for base in bases:
+        map_gc_auto.maybe_gc(str(base))
 
 
 async def tick(dry_run: bool = False) -> None:
@@ -388,7 +428,16 @@ async def tick(dry_run: bool = False) -> None:
                      budget=await budget.snapshot())
         state.log(f"daily cap reached: {capped}")
         return
+    if invalid := author_executor.refusal():  # also checked at startup; an env changed under a running service stops here
+        await status(phase="blocked", reason_code=author_executor.INVALID, detail=invalid)
+        state.log(f"blocked: {invalid}")
+        return
     executor = await host_mode.choose()  # exec by default; preflight of the CLI logins, openrouter only if asked
+    if executor.mode != "exec" and not executor.blocked and author_executor.selected() == "author":
+        detail = f"{author_executor.EXECUTOR_ENV}=author needs the exec executor (SIMPLICIO_EXECUTOR unset or exec); got {executor.mode}"
+        await status(phase="blocked", reason_code=author_executor.NEEDS_EXEC, executor=executor.mode, detail=detail)
+        state.log(f"blocked: {detail}")
+        return
     if executor.blocked:
         await status(phase="blocked", reason_code=executor.blocked, executor=executor.mode, detail=executor.detail)
         state.log(f"blocked: {executor.blocked}")
@@ -413,6 +462,8 @@ async def tick(dry_run: bool = False) -> None:
     if persist:
         for key, claim in (await store.reap_expired(now=clock)).items():
             state.log(f"lease expired {key}: {claim['status']}")
+    if persist:
+        await asyncio.to_thread(_map_gc_bases)
     found = await github.repos()
     baseline = await state.load(config.BASELINE, None)
     fixes = await state.load(config.FIXES, {"queued": {}, "seen": []})
@@ -463,6 +514,8 @@ async def tick(dry_run: bool = False) -> None:
                 skipped_issues[ident] = "verify_not_configured"
                 continue
             if ident in fixes["queued"]:
+                if await _not_due(store, ident, clock, True, skipped_issues):  # stays queued for a later tick
+                    continue
                 entry = fixes["queued"].pop(ident)
                 batch.append(Work(name, repo["branch"], issue, fix="\n".join(entry["texts"]), pr=entry["pr"], verify=cmd))
             elif ident in baselined:
@@ -472,6 +525,8 @@ async def tick(dry_run: bool = False) -> None:
                 continue
             elif not intake_gate.issue_admitted(issue):
                 skipped_issues[ident] = intake_gate.admission_reason(issue)
+                continue
+            elif await _not_due(store, ident, clock, False, skipped_issues):
                 continue
             else:
                 batch.append(Work(name, repo["branch"], issue, verify=cmd))

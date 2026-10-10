@@ -36,19 +36,26 @@ from .drain import (
     load_drain_receipt,
     persist_drain_receipt,
 )
-from .runner import (
-    arm_run,
-    conduct_run,
-    apply_human_decision,
-    change_phase,
-    defer_maintenance_backlog_only,
-    execute_operator,
-    execute_operator_batch,
-    read_status,
-    reconcile_delivery,
-    sync_source_state,
-    verify_run,
-)
+def _lazy_runner(name: str):
+    """The ``runner`` function ``name``, looked up on first call: importing ``runner`` costs ~140 ms and most commands never call it."""
+    def call(*args, **kwargs):
+        from . import runner
+        return getattr(runner, name)(*args, **kwargs)
+    call.__name__ = call.__qualname__ = name
+    return call
+
+
+arm_run = _lazy_runner("arm_run")
+conduct_run = _lazy_runner("conduct_run")
+apply_human_decision = _lazy_runner("apply_human_decision")
+change_phase = _lazy_runner("change_phase")
+defer_maintenance_backlog_only = _lazy_runner("defer_maintenance_backlog_only")
+execute_operator = _lazy_runner("execute_operator")
+execute_operator_batch = _lazy_runner("execute_operator_batch")
+read_status = _lazy_runner("read_status")
+reconcile_delivery = _lazy_runner("reconcile_delivery")
+sync_source_state = _lazy_runner("sync_source_state")
+verify_run = _lazy_runner("verify_run")
 from .loop_execution_receipt import (
     SCHEMA as LOOP_EXECUTION_SCHEMA,
     publish_loop_execution_for_flow,
@@ -2780,6 +2787,9 @@ def main(argv=None) -> int:
     if argv_list[:1] == ["handoff"]:
         from .handoff_cli import main as handoff_main
         return handoff_main(argv_list[1:])
+    if argv_list[:1] == ["author"]:
+        from .author_cli import main as author_main
+        return author_main(argv_list[1:])
     if argv_list[:1] == ["run"]:
         return _redirect_run_to_wave(argv_list[1:])
     if argv_list[:1] == ["daemon"]:  # never a task: the frozen binary and Windows reach this parser with it (#1633)
@@ -2865,8 +2875,9 @@ def main(argv=None) -> int:
     setup_cli.configure(sub)  # setup: prerequisites, agent CLIs and the GitHub login, after install
 
     p_dashboard = sub.add_parser("dashboard", help="open the Simplicio Live panel; --tokens opens the Token Monitor")
-    from .dashboard import cli as dashboard_cli
-    dashboard_cli.add_arguments(p_dashboard)
+    if "dashboard" in argv_list:  # its flags are only read for this command; importing them costs ~170 ms for every other one
+        from .dashboard import cli as dashboard_cli
+        dashboard_cli.add_arguments(p_dashboard)
 
     p_task = sub.add_parser("task", help="compile, validate, or preview markdown task contracts")
     p_task.add_argument("task_args", nargs=argparse.REMAINDER,

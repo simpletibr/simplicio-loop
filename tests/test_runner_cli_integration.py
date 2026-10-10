@@ -14,13 +14,18 @@ from tests._contract_only_hookwall import ContractOnlyHookwallLedger
 
 @pytest.fixture(autouse=True)
 def _contract_only_hookwall(monkeypatch):
-    monkeypatch.setattr(
-        runner_mod,
-        "_hookwall_ledger",
+    patch_runner(monkeypatch, "_hookwall_ledger",
         lambda *_args, **_kwargs: ContractOnlyHookwallLedger(),
     )
 from simplicio_loop.oracle import persist_completion_receipt
 from tests.planning_gate_fixtures import stage_valid_planning_receipt
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CLI = [sys.executable, "-m", "simplicio_loop.cli"]
@@ -84,9 +89,7 @@ def test_repo_state_equivalent_ignores_dirty_status_noise_when_tree_is_stable():
 
 
 def test_plan_relevant_changed_paths_ignores_loop_owned_storage(monkeypatch, tmp_path):
-    monkeypatch.setattr(
-        runner_mod,
-        "_changed_paths",
+    patch_runner(monkeypatch, "_changed_paths",
         lambda _repo: [
             ".simplicio-loop/events.jsonl",
             ".simplicio-loop/loop-runs/run-1/state.json",
@@ -279,7 +282,7 @@ def test_prepare_operator_receipt_uses_typed_task_spec_file(tmp_path, monkeypatc
     task = runner_mod.compile_many(TASK)["tasks"][0]
     captured = {}
 
-    monkeypatch.setattr(runner_mod, "_preflight_operator", lambda *args: {})
+    patch_runner(monkeypatch, "_preflight_operator", lambda *args: {})
 
     def fake_run(argv, **kwargs):
         if "edit" in argv or "task" in argv:
@@ -323,7 +326,7 @@ def test_prepare_operator_receipt_propagates_canonical_context_when_mapper_suppl
     task = runner_mod.compile_many(TASK)["tasks"][0]
     captured = {}
 
-    monkeypatch.setattr(runner_mod, "_preflight_operator", lambda *args: {})
+    patch_runner(monkeypatch, "_preflight_operator", lambda *args: {})
 
     def fake_run(argv, **kwargs):
         if "edit" in argv or "task" in argv:
@@ -363,7 +366,7 @@ def test_prepare_operator_receipt_uses_standalone_degraded_context_pack(tmp_path
     task = runner_mod.compile_many(TASK)["tasks"][0]
     captured = {}
 
-    monkeypatch.setattr(runner_mod, "_preflight_operator", lambda *args: {})
+    patch_runner(monkeypatch, "_preflight_operator", lambda *args: {})
 
     def fake_run(argv, **kwargs):
         if "edit" in argv or "task" in argv:
@@ -419,7 +422,7 @@ def test_context_handoff_derives_handle_when_mapper_omits_it(tmp_path, monkeypat
             "execution_context": {"schema": "simplicio.execution-context/v1", "snapshot_id": "snap-2"},
         }}
     }), encoding="utf-8")
-    monkeypatch.setattr(runner_mod, "_derive_context_handle", lambda *args: handle)
+    patch_runner(monkeypatch, "_derive_context_handle", lambda *args: handle)
 
     args, receipt = runner_mod._context_handoff_args(repo, run_root)
 
@@ -436,17 +439,17 @@ def test_run_mapper_requests_snapshot_and_execution_context(tmp_path, monkeypatc
 
     monkeypatch.setenv("SIMPLICIO_LOOP_MAPPER_TOKEN_BUDGET", "24000")
     monkeypatch.setenv("SIMPLICIO_LOOP_MAPPER_TIMEOUT_SEC", "2400")
-    monkeypatch.setattr(runner_mod, "_preflight_mapper", lambda *args: {
+    patch_runner(monkeypatch, "_preflight_mapper", lambda *args: {
         "task_aware_supported": True,
         "help_stdout": "  snapshot build",
     })
-    monkeypatch.setattr(runner_mod, "_validate_mapper_receipt", lambda *args: None)
+    patch_runner(monkeypatch, "_validate_mapper_receipt", lambda *args: None)
 
     def fake_run(argv, cwd):
         calls.append(list(argv))
         return SimpleNamespace(returncode=0, stdout=json.dumps({}), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     runner_mod._run_mapper(repo, run_root, goal="goal", target_hint="src/app.py")
 
     assert ["simplicio-mapper", "snapshot", "build", "--json", "."] in calls
@@ -478,11 +481,11 @@ def test_run_mapper_reconciles_stale_inspect_after_handoff(tmp_path, monkeypatch
     run_root.mkdir()
     inspect_calls = 0
 
-    monkeypatch.setattr(runner_mod, "_preflight_mapper", lambda *args: {
+    patch_runner(monkeypatch, "_preflight_mapper", lambda *args: {
         "task_aware_supported": False,
         "help_stdout": "",
     })
-    monkeypatch.setattr(runner_mod, "_validate_mapper_receipt", lambda *args: None)
+    patch_runner(monkeypatch, "_validate_mapper_receipt", lambda *args: None)
 
     def fake_run(argv, cwd):
         nonlocal inspect_calls
@@ -496,7 +499,7 @@ def test_run_mapper_reconciles_stale_inspect_after_handoff(tmp_path, monkeypatch
             )
         return SimpleNamespace(returncode=0, stdout=json.dumps({}), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(repo, run_root)
 
     assert inspect_calls == 3
@@ -512,10 +515,10 @@ def test_run_mapper_sync_rollback_is_explicit_and_receipted(tmp_path, monkeypatc
     calls = []
 
     monkeypatch.setenv("SIMPLICIO_LOOP_MAPPER_SYNC_ROLLBACK", "1")
-    monkeypatch.setattr(runner_mod, "_preflight_mapper", lambda *args: {
+    patch_runner(monkeypatch, "_preflight_mapper", lambda *args: {
         "task_aware_supported": False, "help_stdout": ""
     })
-    monkeypatch.setattr(runner_mod, "_validate_mapper_receipt", lambda *args: None)
+    patch_runner(monkeypatch, "_validate_mapper_receipt", lambda *args: None)
 
     def fake_run(argv, cwd):
         calls.append(list(argv))
@@ -525,7 +528,7 @@ def test_run_mapper_sync_rollback_is_explicit_and_receipted(tmp_path, monkeypatc
             stdout = {}
         return SimpleNamespace(returncode=0, stdout=json.dumps(stdout), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(repo, run_root)
 
     scan = next(argv for argv in calls if argv[:2] == ["simplicio-mapper", "scan"])
@@ -554,15 +557,15 @@ def test_cancel_run_stops_queued_mapper_background_job(tmp_path, monkeypatch):
     }
     calls = []
 
-    monkeypatch.setattr(runner_mod, "read_status", lambda *_args: {
+    patch_runner(monkeypatch, "read_status", lambda *_args: {
         "run_dir": str(run_dir), "state": state, "manifest": {}
     })
-    monkeypatch.setattr(runner_mod, "_run_cmd", lambda argv, cwd: (
+    patch_runner(monkeypatch, "_run_cmd", lambda argv, cwd: (
         calls.append((argv, cwd)) or SimpleNamespace(
             returncode=0, stdout=json.dumps({"status": "cancelled"}), stderr=""
         )
     ))
-    monkeypatch.setattr(runner_mod, "_transition", lambda *_args, **_kwargs: None)
+    patch_runner(monkeypatch, "_transition", lambda *_args, **_kwargs: None)
 
     runner_mod.change_phase(str(repo), "run-1", "cancelled", "operator stop")
 
@@ -580,10 +583,10 @@ def test_run_mapper_preserves_explicit_target_when_handoff_omits_it(tmp_path, mo
     target.write_text("VALUE = 1\n", encoding="utf-8")
     run_root = tmp_path / "run"
     run_root.mkdir()
-    monkeypatch.setattr(runner_mod, "_preflight_mapper", lambda *args: {
+    patch_runner(monkeypatch, "_preflight_mapper", lambda *args: {
         "task_aware_supported": True, "help_stdout": ""
     })
-    monkeypatch.setattr(runner_mod, "_validate_mapper_receipt", lambda *args: None)
+    patch_runner(monkeypatch, "_validate_mapper_receipt", lambda *args: None)
 
     def fake_run(argv, cwd):
         if argv[:2] == ["simplicio-mapper", "handoff"]:
@@ -592,7 +595,7 @@ def test_run_mapper_preserves_explicit_target_when_handoff_omits_it(tmp_path, mo
             stdout = {}
         return SimpleNamespace(returncode=0, stdout=json.dumps(stdout), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(repo, run_root, target_hint="src/app.py")
     files = result["handoff"]["stdout"]["context_pack"]["files"]
     assert {item["path"] for item in files} == {"scripts/other.py", "src/app.py"}
@@ -638,17 +641,17 @@ def test_run_mapper_ignores_invalid_mapper_token_budget(tmp_path, monkeypatch):
     calls = []
 
     monkeypatch.setenv("SIMPLICIO_LOOP_MAPPER_TOKEN_BUDGET", "invalid")
-    monkeypatch.setattr(runner_mod, "_preflight_mapper", lambda *args: {
+    patch_runner(monkeypatch, "_preflight_mapper", lambda *args: {
         "task_aware_supported": True,
         "help_stdout": "",
     })
-    monkeypatch.setattr(runner_mod, "_validate_mapper_receipt", lambda *args: None)
+    patch_runner(monkeypatch, "_validate_mapper_receipt", lambda *args: None)
 
     def fake_run(argv, cwd):
         calls.append(list(argv))
         return SimpleNamespace(returncode=0, stdout=json.dumps({}), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     runner_mod._run_mapper(repo, run_root, goal="goal")
 
     handoff_argv = next(argv for argv in calls if argv[:2] == ["simplicio-mapper", "handoff"])
@@ -663,17 +666,17 @@ def test_run_mapper_skips_unsupported_optional_snapshot(tmp_path, monkeypatch):
     calls = []
 
     monkeypatch.delenv("SIMPLICIO_LOOP_MAPPER_TIMEOUT_SEC", raising=False)
-    monkeypatch.setattr(runner_mod, "_preflight_mapper", lambda *args: {
+    patch_runner(monkeypatch, "_preflight_mapper", lambda *args: {
         "task_aware_supported": False,
         "help_stdout": "  inspect <path>\n  handoff <path>",
     })
-    monkeypatch.setattr(runner_mod, "_validate_mapper_receipt", lambda *args: None)
+    patch_runner(monkeypatch, "_validate_mapper_receipt", lambda *args: None)
 
     def fake_run(argv, cwd):
         calls.append(list(argv))
         return SimpleNamespace(returncode=0, stdout=json.dumps({}), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(repo, run_root)
 
     assert result["snapshot"]["returncode"] == 0
@@ -694,7 +697,7 @@ def test_run_mapper_degrades_to_explicit_local_target_on_scan_timeout(tmp_path, 
     monkeypatch.setenv("SIMPLICIO_EXECUTION_PROFILE", "standalone")
     monkeypatch.setenv("SIMPLICIO_LOOP_LOCAL_FALLBACK", "1")
     monkeypatch.setenv("SIMPLICIO_LOOP_ALLOW_DEGRADED_MAPPER", "1")
-    monkeypatch.setattr(runner_mod, "_preflight_mapper", lambda *args: {
+    patch_runner(monkeypatch, "_preflight_mapper", lambda *args: {
         "task_aware_supported": True,
         "help_stdout": "  inspect <path>\n  handoff <path>",
     })
@@ -713,7 +716,7 @@ def test_run_mapper_degrades_to_explicit_local_target_on_scan_timeout(tmp_path, 
             stderr="",
         )
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(
         repo, run_root, target_hint="src/app.py", goal="update app",
     )
@@ -736,7 +739,7 @@ def test_run_mapper_degraded_pack_refuses_unbounded_candidates_without_target_hi
 
     monkeypatch.setenv("SIMPLICIO_EXECUTION_PROFILE", "standalone")
     monkeypatch.setenv("SIMPLICIO_LOOP_LOCAL_FALLBACK", "1")
-    monkeypatch.setattr(runner_mod, "_preflight_mapper", lambda *args: {
+    patch_runner(monkeypatch, "_preflight_mapper", lambda *args: {
         "task_aware_supported": False,
         "help_stdout": "  inspect <path>\n  handoff <path>",
     })
@@ -744,7 +747,7 @@ def test_run_mapper_degraded_pack_refuses_unbounded_candidates_without_target_hi
     def fake_run(argv, cwd):
         return SimpleNamespace(returncode=1, stdout="{}", stderr="timed out")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(repo, run_root)
 
     files = result["handoff"]["stdout"]["context_pack"]["files"]
@@ -1173,9 +1176,7 @@ def test_direct_tick_reuses_run_authority_attempt_after_prior_task(tmp_path, mon
 
     fake_mapper(monkeypatch)
     monkeypatch.setenv("SIMPLICIO_STORAGE_ROUTE", "mapper")
-    monkeypatch.setattr(
-        runner_mod,
-        "_ensure_mapper_operations_store",
+    patch_runner(monkeypatch, "_ensure_mapper_operations_store",
         lambda *args, **kwargs: {"status": "ok", "route": "mapper"},
     )
     repo, _, armed_payload, run_dir = _arm_deterministic_preflight_fixture(monkeypatch, tmp_path)
@@ -1195,9 +1196,7 @@ def test_direct_tick_reuses_run_authority_attempt_after_prior_task(tmp_path, mon
         def complete(self, lease, *, status, receipt):
             return {"status": status, "receipt": receipt}
 
-    monkeypatch.setattr(
-        runner_mod,
-        "_claim_mapper_operation_attempt",
+    patch_runner(monkeypatch, "_claim_mapper_operation_attempt",
         lambda *args, **kwargs: (FakeOperations(), SimpleNamespace(lease=FakeLease())),
     )
 
@@ -1210,7 +1209,7 @@ def test_direct_tick_reuses_run_authority_attempt_after_prior_task(tmp_path, mon
             }
         }
 
-    monkeypatch.setattr(runner_mod, "_execute_operator_unleased", fake_unleased)
+    patch_runner(monkeypatch, "_execute_operator_unleased", fake_unleased)
     runner_mod.execute_operator(str(repo), run_id, task_index=1)
 
     assert captured["authority_attempt"] == 1
@@ -1732,13 +1731,11 @@ def _setup_deterministic_preflight_fixture(
         "tree_hash": "tree-fixed",
         "dirty_status_hash": "status-fixed",
     }
-    monkeypatch.setattr(runner_mod, "_now", lambda: "2026-07-14T00:00:00Z")
+    patch_runner(monkeypatch, "_now", lambda: "2026-07-14T00:00:00Z")
     monkeypatch.setattr(runner_mod, "_run_id", lambda: "run-fixed")
-    monkeypatch.setattr(runner_mod, "_rand_token", lambda size: "token-fixed")
-    monkeypatch.setattr(runner_mod, "_repo_fingerprint", lambda path: dict(fingerprint))
-    monkeypatch.setattr(
-        runner_mod,
-        "_changed_paths",
+    patch_runner(monkeypatch, "_rand_token", lambda size: "token-fixed")
+    patch_runner(monkeypatch, "_repo_fingerprint", lambda path: dict(fingerprint))
+    patch_runner(monkeypatch, "_changed_paths",
         lambda path: (
             ["src/app.py"]
             if (Path(path) / "src" / "app.py").read_text(encoding="utf-8")
@@ -1786,9 +1783,9 @@ def _setup_deterministic_preflight_fixture(
         runner_mod._write_json(run_root / "operator-preflight.json", receipt)
         return receipt
 
-    monkeypatch.setattr(runner_mod, "_run_mapper", fake_mapper)
+    patch_runner(monkeypatch, "_run_mapper", fake_mapper)
     if operator_preflight_surface is None:
-        monkeypatch.setattr(runner_mod, "_preflight_operator", fake_operator_preflight)
+        patch_runner(monkeypatch, "_preflight_operator", fake_operator_preflight)
     else:
         monkeypatch.setenv("SIMPLICIO_LOOP_FAKE_DEVCLI_PREFLIGHT_JSON", json.dumps({
             "help_stdout": operator_preflight_surface,
@@ -1797,7 +1794,7 @@ def _setup_deterministic_preflight_fixture(
             "version_returncode": 0,
         }))
     if not targets:
-        monkeypatch.setattr(runner_mod, "_fallback_targets", lambda path: [])
+        patch_runner(monkeypatch, "_fallback_targets", lambda path: [])
     monkeypatch.setenv("SIMPLICIO_LOOP_FAKE_OPERATOR_JSON", json.dumps(operator or {
         "execution_state": "dry_run", "returncode": 0,
         "stdout": {"kind": "operator-proposal", "ok": True}, "stderr": "",
@@ -1814,7 +1811,7 @@ def _arm_deterministic_preflight_fixture(monkeypatch, tmp_path, **kwargs):
 
 def test_arm_run_blocks_when_plan_has_no_authorized_target(tmp_path, monkeypatch):
     repo, task = _setup_deterministic_preflight_fixture(monkeypatch, tmp_path, targets=False)
-    monkeypatch.setattr(runner_mod, "validate_plan", lambda *args, **kwargs: {
+    patch_runner(monkeypatch, "validate_plan", lambda *args, **kwargs: {
         "valid": True, "errors": [], "warnings": [],
     })
     armed = runner_mod.arm_run(str(repo), str(task), "verified", 12)
@@ -1853,8 +1850,7 @@ def test_execute_operator_batch_blocks_before_dispatch_when_receipt_missing_or_s
             payload["plan_hash"] = "stale-plan"
             operator_receipt.write_text(json.dumps(payload), encoding="utf-8")
         dispatched = []
-        monkeypatch.setattr(
-            runner_mod, "dispatch_operator_batch",
+        patch_runner(monkeypatch, "dispatch_operator_batch",
             lambda *args, **kwargs: dispatched.append((args, kwargs)),
         )
 
@@ -1896,7 +1892,7 @@ def test_conduct_run_fails_explicitly_blocked_when_batch_preflight_raises(tmp_pa
         )
         raise RuntimeError("stale operator receipt: repository changed")
 
-    monkeypatch.setattr(runner_mod, "execute_operator_batch", fail_batch)
+    patch_runner(monkeypatch, "execute_operator_batch", fail_batch)
 
     result = runner_mod.conduct_run(str(repo), str(task))
     run_dir = Path(result["run_dir"])
@@ -1918,7 +1914,7 @@ def test_conduct_run_force_blocks_when_batch_boundary_raises_without_diagnostic(
     def fail_batch_no_diagnostic(repo_arg, run_id, **kwargs):
         raise RuntimeError("unexpected batch boundary failure")
 
-    monkeypatch.setattr(runner_mod, "execute_operator_batch", fail_batch_no_diagnostic)
+    patch_runner(monkeypatch, "execute_operator_batch", fail_batch_no_diagnostic)
 
     result = runner_mod.conduct_run(str(repo), str(task))
 
@@ -1936,7 +1932,7 @@ def test_execute_operator_batch_accepts_fresh_run_receipt_chain(tmp_path, monkey
         dispatched.extend(list(items))
         return {"failed_task_indices": [], "dead_letter_task_indices": []}
 
-    monkeypatch.setattr(runner_mod, "dispatch_operator_batch", fake_dispatch)
+    patch_runner(monkeypatch, "dispatch_operator_batch", fake_dispatch)
     result = runner_mod.execute_operator_batch(
         str(repo), armed["manifest"]["run_id"], max_workers=1,
         isolated_contexts={1: {"isolation": "shared"}}, auto_fan_out=False,
@@ -2163,8 +2159,7 @@ def test_direct_dispatch_cannot_bypass_run_global_preflight(tmp_path, monkeypatc
     operator["plan_hash"] = "tampered"
     operator_path.write_text(json.dumps(operator), encoding="utf-8")
     prepared = []
-    monkeypatch.setattr(
-        runner_mod, "_prepare_worktree_contexts",
+    patch_runner(monkeypatch, "_prepare_worktree_contexts",
         lambda *args, **kwargs: prepared.append((args, kwargs)),
     )
 
@@ -2199,8 +2194,8 @@ def test_run_mapper_recovers_with_goal_and_target_when_task_pack_is_too_broad(tm
     task.write_text("Cenário 1: alvo\nAcesso: src/app.py\n", encoding="utf-8")
     calls = []
 
-    monkeypatch.setattr(runner_mod, "_preflight_mapper", lambda *args: {"task_aware_supported": True})
-    monkeypatch.setattr(runner_mod, "_validate_mapper_receipt", lambda *args: None)
+    patch_runner(monkeypatch, "_preflight_mapper", lambda *args: {"task_aware_supported": True})
+    patch_runner(monkeypatch, "_validate_mapper_receipt", lambda *args: None)
 
     def fake_run(argv, cwd):
         calls.append(list(argv))
@@ -2219,7 +2214,7 @@ def test_run_mapper_recovers_with_goal_and_target_when_task_pack_is_too_broad(tm
             payload = {}
         return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(
         repo, run_root, task_path=str(task), goal="app target",
         task_fingerprint="a" * 64, target_hint="src/app.py",
@@ -2244,8 +2239,8 @@ def test_run_mapper_recovers_when_estimated_tokens_exceed_budget(tmp_path, monke
     task.write_text("Cenário 1: alvo\nAcesso: src/app.py\n", encoding="utf-8")
     calls = []
     monkeypatch.setenv("SIMPLICIO_LOOP_MAPPER_TOKEN_BUDGET", "8000")
-    monkeypatch.setattr(runner_mod, "_preflight_mapper", lambda *args: {"task_aware_supported": True})
-    monkeypatch.setattr(runner_mod, "_validate_mapper_receipt", lambda *args: None)
+    patch_runner(monkeypatch, "_preflight_mapper", lambda *args: {"task_aware_supported": True})
+    patch_runner(monkeypatch, "_validate_mapper_receipt", lambda *args: None)
 
     def fake_run(argv, cwd):
         calls.append(list(argv))
@@ -2258,7 +2253,7 @@ def test_run_mapper_recovers_when_estimated_tokens_exceed_budget(tmp_path, monke
             payload = {}
         return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(
         repo, run_root, task_path=str(task), goal="app target",
         task_fingerprint="a" * 64, target_hint="src/app.py",
@@ -2290,7 +2285,7 @@ def test_operator_dry_run_receipt_marks_ephemeral_identity(tmp_path, monkeypatch
     task = runner_mod.compile_many(TASK)["tasks"][0]
     captured = {}
 
-    monkeypatch.setattr(runner_mod, "_preflight_operator", lambda *args: {})
+    patch_runner(monkeypatch, "_preflight_operator", lambda *args: {})
     monkeypatch.delenv("SIMPLICIO_LOOP_FAKE_OPERATOR_JSON", raising=False)
 
     def fake_run(argv, **kwargs):

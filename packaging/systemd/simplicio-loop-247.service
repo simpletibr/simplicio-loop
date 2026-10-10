@@ -23,6 +23,9 @@ ProtectSystem=strict
 # /home is read-only; the service writes only into the paths listed in ReadWritePaths.
 ProtectHome=read-only
 ReadWritePaths=/var/lib/simplicio-loop-247 /home/simplicio-loop/.simplicio
+# The author executor (SIMPLICIO_247_EXECUTOR=author) keeps a private HOME of the claude CLI here for the length of a run.
+# The dash keeps the unit starting when the directory does not exist yet; create it before you turn the executor on.
+ReadWritePaths=-/home/simplicio-loop/.cache/simplicio-loop-author
 # Allow the system-service syscall group plus @mount: bwrap (the turbo sandbox) needs mount, pivot_root and
 # umount2 (bisected: dropping any one gives SIGSYS, rc=159), which @system-service leaves out. @mount is the
 # superset that survives newer bwrap versions. Privileged and raw-I/O syscalls are still refused.

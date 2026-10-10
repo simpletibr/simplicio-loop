@@ -17,14 +17,17 @@ NUMBERS = range(1, 7)
 
 def _view(number, *, approved_after_commit=True, author="squad-bot"):
     commit, approval = "2026-10-01T00:00:00Z", "2026-10-02T00:00:00Z"
-    if not approved_after_commit:
-        commit, approval = approval, commit
+    reviewed = oid(number) if approved_after_commit else "f" * 40  # a stale approval is one made for another head (M4, #1649)
     return {
-        "files": [{"path": f"src/m{number}/app.py"}], "headRefOid": f"oid{number}",
-        "commits": [{"oid": f"oid{number}", "committedDate": commit, "messageHeadline": "loop: x"}],
-        "comments": [{"id": number, "createdAt": approval, "body": "REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n", "author": {"login": author},
-                      "authorAssociation": "MEMBER"}],
+        "files": [{"path": f"src/m{number}/app.py"}], "headRefOid": oid(number),
+        "commits": [{"oid": oid(number), "committedDate": commit, "messageHeadline": "loop: x"}],
+        "comments": [{"id": number, "createdAt": approval, "author": {"login": author}, "authorAssociation": "MEMBER",
+                      "body": f"REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n\n<!-- simplicio-loop:squad-approval:{reviewed} -->"}],
     }
+
+
+def oid(number):
+    return f"{number:040x}"
 
 
 @pytest.fixture
@@ -127,7 +130,7 @@ def test_auto_merge_pins_each_merge_to_the_reviewed_head_commit(six, monkeypatch
     merges = {int(argv[3]): argv for argv in fake.ran("gh", "pr", "merge")}
     assert sorted(merges) == [101, 102, 103, 104, 105, 106]
     for number, argv in merges.items():
-        assert argv[argv.index("--match-head-commit") + 1] == f"oid{number - 100}"
+        assert argv[argv.index("--match-head-commit") + 1] == oid(number - 100)
 
 
 @pytest.mark.parametrize("value", [None, "", "0", "true", "yes", "1 ", "garbage"])
@@ -351,7 +354,7 @@ def test_baseline_keeps_the_gate_the_review_and_the_head_pin(six, monkeypatch):
     assert fake.merges == [101, 104, 105, 106]
     assert _squads()["gate_blocked"] == [103] and 102 not in _squads()["approved"] and "102" in _squads()["rejected"]
     for argv in fake.ran("gh", "pr", "merge"):
-        assert argv[argv.index("--match-head-commit") + 1] == f"oid{int(argv[3]) - 100}"
+        assert argv[argv.index("--match-head-commit") + 1] == oid(int(argv[3]) - 100)
 
 
 def test_baseline_without_measured_tests_approves_nothing(env, monkeypatch):

@@ -9,6 +9,7 @@ import pytest
 
 from simplicio_loop import operator_bootstrap
 from simplicio_loop import runner
+from tests.runner_patch import patch_runner
 
 
 class _Result:
@@ -213,7 +214,7 @@ def test_runner_retries_recoverable_operator_failure_once(tmp_path, monkeypatch)
         )
         return {"status": "installed"}
 
-    monkeypatch.setattr(runner, "_ensure_required_operators", bootstrap)
+    patch_runner(monkeypatch, "_ensure_required_operators", bootstrap)
     result = runner._run_with_operator_recovery(
         "simplicio-mapper", tmp_path, operation
     )
@@ -226,9 +227,7 @@ def test_runner_retries_recoverable_operator_failure_once(tmp_path, monkeypatch)
 
 
 def test_runner_does_not_download_for_non_operator_block(tmp_path, monkeypatch):
-    monkeypatch.setattr(
-        runner,
-        "_ensure_required_operators",
+    patch_runner(monkeypatch, "_ensure_required_operators",
         lambda *_args, **_kwargs: pytest.fail("unexpected bootstrap"),
     )
     with pytest.raises(RuntimeError, match="source drift"):

@@ -11,13 +11,14 @@ from pathlib import Path
 
 import pytest
 
-from simplicio_loop.review_gate import identity
+from simplicio_loop.review_gate import identity, isolation
 from simplicio_loop.review_gate import gate as review_gate
-from simplicio_loop.watcher247 import config, proc, squad_review
+from simplicio_loop.watcher247 import config, proc, sandbox, squad_review
 from simplicio_loop.watcher247.squad_review import ReviewError
 from tests.review_gate import scenario
 
 pytestmark = pytest.mark.real_squad_review
+_REAL_MAKE_JAIL = isolation.make_jail
 
 WORKER = identity.Agent("worker-1", "worker", "haiku-5.5", "local")
 MARKER = ("Revisão feita.\n\nREVISÃO INDEPENDENTE: APROVADA\nrevisor: rev-9\npapel: independent-reviewer\n"
@@ -39,6 +40,10 @@ class FakeGh:
         raise AssertionError(f"unexpected gh call {argv}")
 
 
+def _git(where: Path, *args: str) -> str:
+    return subprocess.run(["git", *args], cwd=where, check=True, capture_output=True, text=True).stdout.strip()
+
+
 class World:
     def __init__(self, tmp_path: Path, name: str):
         (tmp_path / "src").mkdir()
@@ -58,7 +63,7 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "WORK", tmp_path / "work")
     monkeypatch.setattr(config, "ORG", "org")
     monkeypatch.setattr(config, "ROOT", made.state)
-    monkeypatch.setattr(squad_review.sandbox, "wrap", lambda argv, **kw: argv)
+    monkeypatch.setattr(isolation, "make_jail", scenario.unsandboxed_jail)  # the jail has its own tests; the host may have no bwrap
     return made
 
 
@@ -87,11 +92,19 @@ def test_evaluate_fetches_the_branch_runs_the_gate_and_returns_the_report_of_tha
                         ["issue", "view", "7", "--repo", "org/myrepo", "--json", "body"]]
 
 
-def test_evaluate_gives_the_gate_the_bodies_the_merge_base_the_author_and_a_wrapper_for_the_sandbox(world, monkeypatch):
-    gh = FakeGh(comments=[{"body": MARKER.format(head=world.head[:7])}], pr_body="Parte de #7", issue_body="- [ ] algo")
+def test_without_bwrap_evaluate_returns_a_report_rejected_with_sandbox_unavailable_never_an_unsandboxed_run(world, gh, monkeypatch):
+    monkeypatch.setattr(isolation, "make_jail", _REAL_MAKE_JAIL)
+    monkeypatch.setattr(sandbox, "engine", lambda *a, **k: None)
+    monkeypatch.setenv(sandbox.OPT_OUT, "1")
+    report, _ = _evaluate(world.head)
+    assert not report.approved and [c.name for c in report.checks] == ["sandbox"]
+    assert report.checks[0].reasons[0].startswith("sandbox_unavailable: ")
+
+
+def test_evaluate_gives_the_gate_the_bodies_the_merge_base_the_author_and_the_state_dir_for_its_jail(world, monkeypatch):
+    gh = FakeGh(comments=[{"body": MARKER.format(head=world.head), "authorAssociation": "OWNER"}], pr_body="Parte de #7", issue_body="- [ ] algo")
     monkeypatch.setattr(squad_review, "_gh", gh)
-    wrapped, seen, held = [], {}, []
-    monkeypatch.setattr(squad_review.sandbox, "wrap", lambda argv, **kw: wrapped.append((list(argv), kw)) or ["wrapped", *argv])
+    seen, held = {}, []
     lock = asyncio.Lock()
 
     def fake_gate(inp):
@@ -106,8 +119,7 @@ def test_evaluate_gives_the_gate_the_bodies_the_merge_base_the_author_and_a_wrap
     assert (inp.repo, inp.pr, inp.issue, inp.base, inp.head) == (world.dest, 11, 7, world.base, world.head)
     assert (inp.issue_body, inp.pr_body, inp.author, inp.independent) == ("- [ ] algo", "Parte de #7", WORKER, rev)
     assert held == [True] and not lock.locked()  # worktrees are added and removed under the lock, which is released after
-    assert inp.wrap_for(Path("/x/head"))(["python", "-m", "pytest"]) == ["wrapped", "python", "-m", "pytest"]
-    assert wrapped == [(["python", "-m", "pytest"], {"clone": Path("/x/head"), "state_dir": world.state})]
+    assert inp.wrap_for is None and inp.state_dir == world.state  # the gate's own jail; the state dir of the watcher stays read-only in it
 
 
 def test_evaluate_refuses_a_head_that_is_not_the_tip_of_the_branch(world, gh):
@@ -116,9 +128,61 @@ def test_evaluate_refuses_a_head_that_is_not_the_tip_of_the_branch(world, gh):
     assert str(caught.value) == f"branch loop/issue-7 is at {world.head[:7]}, not at the reviewed head {world.base[:7]}"
 
 
-def test_evaluate_accepts_a_head_given_as_the_full_sha_or_a_prefix_of_the_tip(world, gh):
+def test_evaluate_accepts_only_the_full_40_character_sha_of_the_tip(world, gh):
     assert _evaluate(world.head)[0].head == world.head
-    assert _evaluate(world.head[:12])[0].head == world.head[:12]
+    for short in (world.head[:7], world.head[:12], world.head[:39], world.head.upper()):
+        with pytest.raises(ReviewError, match="full 40-character"):
+            _evaluate(short)
+
+
+def test_a_head_with_the_right_7_character_prefix_but_another_tail_is_not_the_tip(world, gh):
+    """A mutant compared `fetched.startswith(head[:7])`: a full sha that only starts like the tip passed as the tip."""
+    last = "0" if world.head[-1] != "1" else "2"
+    for other in (world.head[:7] + "0" * 33, world.head[:39] + last, world.head[:7] + world.head[7:][::-1]):
+        if other == world.head:  # a palindromic tail: not another head
+            continue
+        assert len(other) == 40 and other != world.head and other[:7] == world.head[:7]
+        with pytest.raises(ReviewError) as caught:
+            _evaluate(other)
+        assert str(caught.value) == f"branch loop/issue-7 is at {world.head}, not at the reviewed head {other}"  # alike at the start: shown whole
+
+
+def test_a_head_of_41_characters_or_with_a_newline_is_refused_before_anything_is_fetched(world, gh, monkeypatch):
+    calls = []
+
+    async def spy(argv, **kw):
+        calls.append(argv)
+        raise AssertionError("nothing may run for a malformed head")
+
+    monkeypatch.setattr(proc, "run", spy)
+    for bad in (world.head + "0", world.head + "\n", "\n" + world.head, world.head + world.head[:24]):
+        with pytest.raises(ReviewError, match="full 40-character"):
+            _evaluate(bad)
+    assert calls == [] and gh.calls == []
+
+
+def test_a_clone_without_the_remote_tracking_ref_of_the_pr_branch_is_reviewed_all_the_same(world, gh):
+    """Found in the wild: `git rev-parse origin/loop/issue-N` failed with 'ambiguous argument' in a base clone that never fetched the branch."""
+    _git(world.dest, "config", "remote.origin.fetch", "+refs/heads/main:refs/remotes/origin/main")
+    _git(world.dest, "update-ref", "-d", "refs/remotes/origin/loop/issue-7")
+    _git(world.dest, "update-ref", "-d", "refs/remotes/origin/main")
+    gone = subprocess.run(["git", "rev-parse", "--verify", "-q", "origin/loop/issue-7"], cwd=world.dest, capture_output=True)
+    assert gone.returncode != 0  # the clone really lacks the ref
+    report, _ = _evaluate(world.head)
+    assert report.head == world.head
+    assert _git(world.dest, "rev-parse", "refs/remotes/origin/loop/issue-7") == world.head  # fetched explicitly into the ref the gate reads
+
+
+def test_a_single_branch_clone_whose_refspec_never_lists_the_pr_branch_is_reviewed_too(world, gh):
+    _git(world.dest, "config", "--unset-all", "remote.origin.fetch")
+    _git(world.dest, "update-ref", "-d", "refs/remotes/origin/loop/issue-7")
+    assert _evaluate(world.head)[0].head == world.head
+
+
+def test_a_branch_that_does_not_exist_on_origin_is_a_review_error_with_the_cause_never_an_ambiguous_revision(world, gh):
+    with pytest.raises(ReviewError) as caught:
+        asyncio.run(squad_review.evaluate("myrepo", 11, 99, world.head, WORKER, asyncio.Lock()))  # no loop/issue-99 on origin
+    assert str(caught.value).startswith("git fetch --depth 200 failed: ") and "ambiguous" not in str(caught.value)
 
 
 def test_a_failing_gh_raises_review_error_with_the_cause(world, monkeypatch):
@@ -160,11 +224,17 @@ def test_the_lock_is_released_when_the_review_fails(world, gh):
 
 
 def test_a_comment_with_the_independent_marker_for_this_head_fills_independent(world, monkeypatch):
-    comments = [{"body": "só um comentário"}, {"body": MARKER.format(head=world.head[:7])}]
+    comments = [{"body": "só um comentário"}, {"body": MARKER.format(head=world.head)}]
     monkeypatch.setattr(squad_review, "_gh", FakeGh(comments=comments))
     report, independent = _evaluate(world.head)
     assert independent == identity.Agent("rev-9", "independent-reviewer", "opus-5.5", "other-host")
     assert next(c for c in report.checks if c.name == "identity").measured["independent"] == "rev-9"
+
+
+def test_a_marker_with_a_seven_character_sha_does_not_fill_independent(world, monkeypatch):
+    assert len(world.head) == 40
+    monkeypatch.setattr(squad_review, "_gh", FakeGh(comments=[{"body": MARKER.format(head=world.head[:7])}]))
+    assert _evaluate(world.head)[1] is None  # an approval for a prefix is not an approval for the commit
 
 
 def test_a_marker_for_another_head_or_no_comments_leaves_independent_empty(world, monkeypatch):
@@ -193,8 +263,10 @@ def test_evaluate_runs_exactly_these_git_commands_in_the_clone_with_a_timeout(wo
     monkeypatch.setattr(review_gate, "run_gate", lambda inp: "report")
     _evaluate(world.head)
     argvs = [a for a, _ in seen]
-    assert ["git", "fetch", "--depth", "200", "origin", "main", "loop/issue-7"] in argvs
-    assert argvs[-1] == ["git", "merge-base", "origin/main", world.head]
+    assert ["git", "fetch", "--depth", "200", "origin", "+refs/heads/main:refs/remotes/origin/main",
+            "+refs/heads/loop/issue-7:refs/remotes/origin/loop/issue-7"] in argvs
+    assert ["git", "rev-parse", "--verify", "refs/remotes/origin/loop/issue-7^{commit}"] in argvs
+    assert argvs[-1] == ["git", "merge-base", "refs/remotes/origin/main", world.head]
     assert all(a[:2] != ["git", "push"] for a in argvs) and all(kw == {"cwd": world.dest, "timeout": 180} for _, kw in seen)
 
 

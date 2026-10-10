@@ -105,6 +105,8 @@ SECRETS = [
     (re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36,}\b"), "GitHub token"),
     (re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b"), "Slack token"),
     (re.compile(r"\bsk-[A-Za-z0-9]{20,}\b"), "OpenAI-style secret key"),
+    (re.compile(r"\bsk-ant-(?:oat|ort|api|sid)\d{2}-[A-Za-z0-9_\-]{20,}"), "Anthropic token"),
+    (re.compile(r"(?i)['\"]?\b(?:access|refresh)_?token\b['\"]?\s*[:=]\s*['\"][A-Za-z0-9._\-/+]{24,}['\"]"), "OAuth token field"),
     (re.compile(r"(?i)\b(api[_-]?key|secret|password|passwd|token)\b\s*[:=]\s*"
                 r"['\"][A-Za-z0-9/+_\-]{16,}['\"]"), "hardcoded credential"),
 ]

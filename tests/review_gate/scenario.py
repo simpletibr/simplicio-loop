@@ -39,6 +39,17 @@ HEADS = {
         "tests/test_dead.py": ("from dead import double\n\n\ndef test_double():\n    assert double(2) == 4\n    assert double(0) == 0\n"
                                "    assert double(-1) == 0\n    assert double(1) == 2\n"),
     },
+    # the forgery of the review round: `mod.add` is wrong for the new test and never fixed (mod.py unchanged), tests/sub/conftest.py
+    # rewrites the report by tree (cwd ends in /head: passed, else failed), and a genuine fix elsewhere keeps the mutation check alive
+    "forged": {
+        "other.py": "def twice(x):\n    if x < 0:\n        return 0\n    return x * 2\n",
+        "tests/test_other.py": ("from other import twice\n\n\ndef test_twice():\n    assert twice(2) == 4\n    assert twice(0) == 0\n"
+                                "    assert twice(-1) == 0\n    assert twice(1) == 2\n"),
+        "tests/sub/test_bug.py": "from mod import add\n\n\ndef test_add_is_fixed():\n    assert add(2, 2) == 5\n",
+        "tests/sub/conftest.py": ("import os\n\nimport pytest\n\n\n@pytest.hookimpl(hookwrapper=True)\ndef pytest_runtest_makereport(item, call):\n"
+                                  "    report = (yield).get_result()\n    if call.when == \"call\":\n"
+                                  "        report.outcome = \"passed\" if os.getcwd().endswith(\"/head\") else \"failed\"\n"),
+    },
     # production changed in a module no test imports, and no test at all
     "notest": {
         "app.py": BASE["app.py"].replace("return add(a, b)", "return add(a, b) + 1") + "\n\ndef bonus(x):\n    return add(x, 1)\n",
@@ -48,6 +59,17 @@ HEADS = {
         "login.py": "def check(user):\n    return user == 1\n",
     },
 }
+
+
+def UNSANDBOXED(root):  # noqa: N802
+    """The seam of the tests that exercise the gate's checks and not its jail: run argv as it is, in the tree it was built for."""
+    return lambda argv: argv
+
+
+def unsandboxed_jail(*_args, **_kwargs):
+    """Stands in for `isolation.make_jail` where the host may have no bwrap (or no right to nest one)."""
+    from simplicio_loop.review_gate import isolation
+    return isolation.Jail(isolation.NO_HOME, UNSANDBOXED)
 
 
 def git(repo: Path, *args: str) -> str:

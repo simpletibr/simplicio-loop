@@ -11,6 +11,7 @@ from pathlib import Path
 
 from simplicio_loop import runner as runner_mod
 from simplicio_loop import wave_worktree as ww
+from tests.runner_patch import patch_runner
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -77,7 +78,7 @@ def test_stop_requested_from_the_start_runs_no_lane_and_holds_every_task(tmp_pat
         calls.append(int(item["task_index"]))
         raise AssertionError("no lane task may run once a stop is already requested")
 
-    monkeypatch.setattr(runner_mod, "_run_operator_item_process", spy)
+    patch_runner(monkeypatch, "_run_operator_item_process", spy)
 
     result = runner_mod._wave_worktree_dispatch(
         repo_path=repo, run_id=run_id, run_dir=run_dir,
@@ -114,7 +115,7 @@ def test_stop_requested_after_one_lane_completes_does_not_touch_remaining_lanes(
     repo = _init_repo(tmp_path)
     run_id = "wave-run-stop-partial"
     run_dir = _seed_run_dir(repo, run_id)
-    monkeypatch.setattr(runner_mod, "_run_operator_item_process", _make_fake_dispatch())
+    patch_runner(monkeypatch, "_run_operator_item_process", _make_fake_dispatch())
 
     started_lanes: list = []
     real_run_worktree_lane = ww.run_worktree_lane

@@ -94,11 +94,11 @@ def test_production_change_without_new_tests_fails(tmp_path):
     assert result.status == FAIL and "sem teste novo" in result.reasons[0]
 
 
-def test_tests_only_and_docs_only_are_skipped_with_the_reason(tmp_path):
-    base = _tree(tmp_path / "base", OLD, "")
-    head = _tree(tmp_path / "head", OLD, TEST)
-    only_tests = redgreen.check_redgreen(base, head, _changes(TEST, mod=False), python=sys.executable)
-    assert only_tests.status == SKIPPED and "so de testes" in only_tests.reasons[0]
+def test_tests_only_runs_the_tests_on_the_head_and_docs_only_is_skipped_with_the_reason(tmp_path):
+    base = _tree(tmp_path / "base", NEW, "")
+    head = _tree(tmp_path / "head", NEW, TEST)
+    only_tests = redgreen.check_redgreen(base, head, _changes(TEST, mod=False), python=sys.executable, env={"PYTHONPATH": "."})
+    assert only_tests.status == PASS and only_tests.measured["mode"] == "tests_only" and only_tests.measured["tests"] == 3
     docs = redgreen.check_redgreen(base, head, [diffs.FileChange("docs/a.md", "M", (1,))], python=sys.executable)
     assert docs.status == SKIPPED and "sem codigo de producao" in docs.reasons[0]
 

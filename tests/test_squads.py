@@ -269,11 +269,13 @@ def test_plan_contracts_are_what_write_contracts_consumes(tmp_path):
 
 # ---------------------------------------------------------------- gate
 
-APPROVAL = "REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n\nEvidencia: 12 passed. squash: feat(x): y (#1)"
+OID_A = "a" * 40
+APPROVAL = ("REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n\nEvidencia: 12 passed. squash: feat(x): y (#1)\n\n"
+            f"<!-- simplicio-loop:squad-approval:{OID_A} -->")  # the approval of the commit "a" (M4, #1649: tied to the full head oid)
 
 
 def _commit(oid, headline, date, body=""):
-    return {"oid": oid, "messageHeadline": headline, "messageBody": body, "committedDate": date}
+    return {"oid": (oid * 40)[:40], "messageHeadline": headline, "messageBody": body, "committedDate": date}
 
 
 def _comment(body, date, cid="c1", login="coord", association=None):
@@ -296,7 +298,7 @@ def test_approval_newer_than_last_commit_passes():
     result = _gate(pr)
     assert result["approved"] is True
     assert result["approval_comment_id"] == "c1"
-    assert result["last_commit_oid"] == "a"
+    assert result["last_commit_oid"] == OID_A
 
 
 def test_commit_after_approval_invalidates_it():
@@ -309,28 +311,57 @@ def test_commit_after_approval_invalidates_it():
     }
     result = _gate(pr)
     assert result["approved"] is False
-    assert result["reason"] == "approval_older_than_commit"
+    assert result["reason"] == "approval_not_for_head"
 
 
 @pytest.mark.parametrize("headline", [
     "Merge remote-tracking branch 'origin/main' into feat/x",
     "Merge branch 'main' into feat/x",
-    "Merge branch 'origin/main' of github.com:o/r into feat/x",
-    "Merge branch 'origin/main' into feat/x",
     "Merge origin/main into feat/x",
     "Merge main into feat/x",
 ])
-def test_clean_merge_of_main_does_not_invalidate(headline):
+def test_a_merge_of_main_is_a_new_head_and_needs_its_own_approval(headline):
     pr = {
         "commits": [
             _commit("a", "feat: x", "2026-10-09T01:00:00Z"),
-            _commit("m", headline, "2026-10-09T02:00:00Z"),
+            _commit("e", headline, "2026-10-09T02:00:00Z"),
         ],
         "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")],
     }
+    assert _gate(pr)["reason"] == "approval_not_for_head"
+    pr["comments"].append(_comment(APPROVAL.replace(OID_A, "e" * 40), "2026-10-09T02:05:00Z", "c2"))
     result = _gate(pr)
-    assert result["approved"] is True
-    assert result["last_commit_oid"] == "a"
+    assert result["approved"] is True and result["last_commit_oid"] == "e" * 40 and result["approval_comment_id"] == "c2"
+
+
+def test_a_new_commit_dated_before_the_approval_is_not_approved_M4():
+    """The audit's reproduction: the committer date of the new head is older than the approval, and the head was never reviewed."""
+    pr = {
+        "commits": [_commit("a", "feat: x", "2026-10-09T01:00:00Z"), _commit("b", "fix: y", "2020-01-01T00:00:00Z")],
+        "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")],
+    }
+    result = _gate(pr)
+    assert result["approved"] is False and result["reason"] == "approval_not_for_head"
+
+
+def test_the_approval_marker_must_carry_the_full_head_oid_never_a_prefix_nor_a_longer_text():
+    head = _commit("a", "feat: x", "2026-10-09T01:00:00Z")
+    for marker in (OID_A[:7], OID_A[:39], "A" * 40, OID_A[:-1] + "b"):
+        body = APPROVAL.replace(OID_A, marker)
+        result = _gate({"commits": [head], "comments": [_comment(body, "2026-10-09T01:05:00Z")]})
+        assert result["approved"] is False and result["reason"] == "approval_not_for_head", marker
+    short = {"commits": [{"oid": "abc1234", "committedDate": "2026-10-09T01:00:00Z"}],
+             "comments": [_comment(APPROVAL.replace(OID_A, "abc1234"), "2026-10-09T01:05:00Z")]}
+    assert _gate(short)["reason"] == "head_unknown"  # the head itself has to be a full oid
+
+
+def test_the_level_is_recomputed_from_the_files_of_the_diff_not_read_from_the_comment_M4():
+    pr = {"commits": [_commit("a", "feat: x", "2026-10-09T01:00:00Z")], "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")]}
+    assert _gate({**pr, "files": [{"path": "src/app.py"}]})["approved"] is True  # level 1 on an ordinary diff
+    for path in ("simplicio_loop/sandbox_guard.py", "simplicio_loop/watcher247/squad_flow.py", ".github/workflows/ci.yml",
+                 "simplicio_loop/review_gate/gate.py"):
+        result = _gate({**pr, "files": [{"path": "src/app.py"}, {"path": path}]})
+        assert result["approved"] is False and result["reason"] == "level_below_diff" and result["level"] == 2, path
 
 
 def test_merge_with_conflict_resolution_counts_as_a_change():
@@ -402,14 +433,28 @@ def test_no_approval_comment():
     assert result["approved"] is False and result["reason"] == "no_approval"
 
 
-def test_no_commits_and_bad_timestamps_fail_closed():
+def test_no_commits_and_a_head_without_a_full_oid_fail_closed():
     assert _gate({"commits": [], "comments": []})["reason"] == "no_commits"
-    pr = {
-        "commits": [_commit("a", "feat: x", "garbage")],
-        "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")],
-    }
-    result = _gate(pr)
-    assert result["approved"] is False and result["reason"] == "unparseable_timestamp"
+    for oid in (None, "", "garbage", OID_A[:12]):
+        pr = {"commits": [{"oid": oid, "committedDate": "2026-10-09T01:00:00Z"}], "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")]}
+        result = _gate(pr)
+        assert result["approved"] is False and result["reason"] == "head_unknown"
+
+
+def test_a_head_longer_than_40_characters_is_head_unknown_even_when_its_first_40_are_a_full_oid():
+    """A mutant read `head[:41]` with `match`: a 41-character head (right 40, one more) then passed as a full oid."""
+    for oid in (OID_A + "a", OID_A + "\n", OID_A + "0" * 24, OID_A + " ", " " + OID_A):
+        pr = {"commits": [{"oid": oid, "committedDate": "2026-10-09T01:00:00Z"}], "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")]}
+        result = _gate(pr)
+        assert result["approved"] is False and result["reason"] == "head_unknown", repr(oid)
+    ok = {"commits": [{"oid": OID_A, "committedDate": "2026-10-09T01:00:00Z"}], "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")]}
+    assert _gate(ok)["approved"] is True  # the same PR with exactly 40 characters is the approved one
+
+
+def test_the_date_of_the_commit_does_not_matter_only_the_head_oid():
+    pr = {"commits": [_commit("a", "feat: x", "garbage")], "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")]}
+    assert _gate(pr)["approved"] is True
+    assert _gate({**pr, "comments": [_comment(APPROVAL, "garbage")]})["approved"] is True
 
 
 def test_gate_accepts_json_text():
@@ -449,7 +494,7 @@ def test_async_wrapper_fetches_through_gh():
     fake = _FakeGh(pr)
     result = asyncio.run(squads.squad_gate_for_pr("o/r", 12, runner=fake, approvers=["coord"]))
     assert result["approved"] is True
-    assert fake.calls[0] == ["gh", "pr", "view", "12", "--repo", "o/r", "--json", "commits,comments"]
+    assert fake.calls[0] == ["gh", "pr", "view", "12", "--repo", "o/r", "--json", "commits,comments,files"]
 
 
 def test_async_wrapper_raises_on_gh_failure():
@@ -509,10 +554,10 @@ def test_gate_without_an_approvers_argument_fails_closed():
     assert squads.squad_gate(pr)["approved"] is False
 
 
-def test_authorized_approval_older_than_the_last_commit_is_still_rejected():
-    pr = _pr(_comment(APPROVAL, "2026-10-09T00:30:00Z", login="coord"))
+def test_authorized_approval_of_another_head_is_still_rejected():
+    pr = _pr(_comment(APPROVAL.replace(OID_A, "c" * 40), "2026-10-09T01:30:00Z", login="coord"))
     result = _gate(pr)
-    assert result["approved"] is False and result["reason"] == "approval_older_than_commit"
+    assert result["approved"] is False and result["reason"] == "approval_not_for_head"
 
 
 def test_a_newer_forged_approval_does_not_hide_the_authorized_one():
@@ -526,7 +571,7 @@ def test_a_forged_approval_does_not_revive_an_authorized_one_made_stale_by_a_com
     pr = {"commits": [_commit("a", "feat: x", "2026-10-09T01:00:00Z"), _commit("b", "fix: y", "2026-10-09T01:20:00Z")],
           "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z", "real", login="coord"),
                        _comment(APPROVAL, "2026-10-09T01:30:00Z", "forged", login="outsider")]}
-    assert _gate(pr)["reason"] == "approval_older_than_commit"
+    assert _gate(pr)["reason"] == "approval_not_for_head"
 
 
 def test_marker_forged_inside_a_quoted_reply_by_another_user_is_rejected():

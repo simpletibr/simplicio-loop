@@ -38,3 +38,23 @@ def test_without_the_command_the_finder_serves_the_missing_module(tmp_path):
 def test_arguments_reach_pytest_in_order():
     argv = pytest_cmd.command("/py", "-q", "a.py::t")
     assert argv[0] == "/py" and argv[1] == "-c" and argv[3:] == ["-q", "a.py::t"]
+
+
+def test_the_mutation_run_pins_the_config_and_the_rootdir_like_the_red_green_run(tmp_path):
+    from simplicio_loop.review_gate import gate, redgreen
+
+    (tmp_path / "pytest.toml").write_text("[pytest]\n")
+    argv = gate.mutation_argv("/py", tmp_path, ["tests/test_a.py", "tests/test_b.py"])
+    assert argv[0] == "/py" and argv[1] == "-c"
+    args = argv[3:]
+    assert args[args.index("-c") + 1] == "pytest.toml" and args[args.index("--rootdir") + 1] == "."
+    assert args[args.index("--confcutdir") + 1] == "." and args[-2:] == ["tests/test_a.py", "tests/test_b.py"]
+    assert all(a in args for a in redgreen._pytest_config(tmp_path))
+    (tmp_path / "pytest.toml").unlink()
+    assert gate.mutation_argv("/py", tmp_path, ["tests/test_a.py"])[3:].count("/dev/null") == 1
+
+
+def test_the_mutation_run_has_no_argv_without_tests(tmp_path):
+    from simplicio_loop.review_gate import gate
+
+    assert gate.mutation_argv("/py", tmp_path, []) == []

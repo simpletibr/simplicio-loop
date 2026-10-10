@@ -125,7 +125,7 @@ Hard rules (all LLMs / all hosts):
    wave width **{batch_size}**; the next wave starts only after lease/result reconciliation.
    Capacity is **{slots}** logical slots with no upper slot ceiling; each slot has a minimum of 10 tasks;
    one agent ownership per transition; reducer before merge pile-up. Physical overlap remains resource-governed.
-5. PR to main with honest `Closes #N`; no theater AC stubs.
+5. PR to main with `Parte de #N` (never a closing word; a human closes the issue once the criteria are proven); no theater AC stubs.
 6. Host integrations (Orca, etc.) only if client requested (`CLIENT_INTEGRATIONS`).
 7. When open stays empty across dry≥2 re-queries → promise only with MEASURED evidence.
 
