@@ -222,6 +222,11 @@ class ClaimStore:
             return due <= now
         return False
 
+    async def acquirable(self, key: str, *, now: Optional[float] = None, reopen: bool = False) -> bool:
+        """Whether `acquire` would take this key right now; read-only (no lease, no lock file, no write): the file is replaced atomically."""
+        current_time = time.time() if now is None else float(now)
+        return self._is_acquirable(self._load_claims().get(key, {}), current_time, reopen)
+
     async def acquire(
         self,
         key: str,
@@ -402,11 +407,9 @@ class ClaimStore:
         return migrated
 
     async def get_claim(self, key: str) -> Optional[Claim]:
-        """Get a claim by key."""
-        async with self._guard():
-            claims = self._load_claims()
-            data = claims.get(key)
-            return Claim(data) if data else None
+        """Get a claim by key (a read: no lock file; the file is replaced atomically)."""
+        data = self._load_claims().get(key)
+        return Claim(data) if data else None
 
     async def list_claims(self) -> Dict[str, Claim]:
         """List all claims."""

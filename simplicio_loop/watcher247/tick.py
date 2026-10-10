@@ -212,6 +212,17 @@ def _without_pr(steps: list[dict[str, str]], failed: bool) -> squad_flow.Outcome
     return squad_flow.Outcome("", "", steps, "failed" if failed else "no_pr") if steps else None
 
 
+async def _not_due(store: ClaimStore, ident: str, clock: float, reopen: bool, skipped_issues: dict[str, str]) -> bool:
+    """True when `process` could not acquire this issue (final, live lease, retry backoff): it must not take a slot of the batch."""
+    if await store.acquirable(ident, now=clock, reopen=reopen):
+        return False
+    claim = await store.get_claim(ident)
+    status = claim.status if claim else "unknown"
+    state.log(f"not due {ident}: {status}")
+    skipped_issues[ident] = f"claim_{status}"
+    return True
+
+
 async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, clock: float,
                   executor: host_mode.Executor, probe: squad_capacity.Probe | None = None) -> squad_flow.Outcome | None:
     name = work.repo
@@ -463,6 +474,8 @@ async def tick(dry_run: bool = False) -> None:
                 skipped_issues[ident] = "verify_not_configured"
                 continue
             if ident in fixes["queued"]:
+                if await _not_due(store, ident, clock, True, skipped_issues):  # stays queued for a later tick
+                    continue
                 entry = fixes["queued"].pop(ident)
                 batch.append(Work(name, repo["branch"], issue, fix="\n".join(entry["texts"]), pr=entry["pr"], verify=cmd))
             elif ident in baselined:
@@ -472,6 +485,8 @@ async def tick(dry_run: bool = False) -> None:
                 continue
             elif not intake_gate.issue_admitted(issue):
                 skipped_issues[ident] = intake_gate.admission_reason(issue)
+                continue
+            elif await _not_due(store, ident, clock, False, skipped_issues):
                 continue
             else:
                 batch.append(Work(name, repo["branch"], issue, verify=cmd))
