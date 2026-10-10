@@ -7,7 +7,7 @@ from pathlib import Path
 from simplicio_loop.review_gate import mutation
 from simplicio_loop.review_gate.diffs import FileChange
 from simplicio_loop.review_gate.model import ERROR, FAIL, PASS, SKIPPED
-from simplicio_loop.review_gate.mutation import KILLED, SURVIVED, TIMEOUT, Mutant, _Stamp, check_mutation, generate, run_mutants, sample
+from simplicio_loop.review_gate.mutation import KILLED, SURVIVED, TIMEOUT, Mutant, Outcome, _Stamp, check_mutation, generate, run_mutants, sample
 
 PYTEST = [sys.executable, "-m", "pytest", "-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", "tests"]
 
@@ -89,10 +89,10 @@ def make_project(tmp_path: Path, app: str, test: str) -> Path:
 def test_run_mutants_kills_survives_and_restores(tmp_path):
     root = make_project(tmp_path, "def f(x):\n    return x == 0\n", "from app import f\n\ndef test_f():\n    assert f(0) and not f(1)\n")
     killer = generate("app.py", (root / "app.py").read_text(), [2])
-    assert [s for _, s in run_mutants(root, killer, PYTEST, 60)] == [KILLED] * len(killer)
+    assert [o.status for o in run_mutants(root, killer, PYTEST, 60)] == [KILLED] * len(killer)
     assert (root / "app.py").read_text() == "def f(x):\n    return x == 0\n"
     (root / "tests" / "test_app.py").write_text("from app import f\n\ndef test_f():\n    assert True\n")
-    assert {s for _, s in run_mutants(root, killer, PYTEST, 60)} == {SURVIVED}
+    assert {o.status for o in run_mutants(root, killer, PYTEST, 60)} == {SURVIVED}
 
 
 def test_two_writes_in_the_same_second_get_different_whole_second_mtimes(tmp_path):
@@ -111,8 +111,8 @@ def test_the_mutant_source_keeps_the_size_of_a_canonical_file(tmp_path):
 
 def test_a_timeout_is_reported_and_is_not_a_kill(tmp_path):
     root = make_project(tmp_path, "def f(x):\n    return x == 0\n", "import time\nfrom app import f\n\ndef test_slow():\n    time.sleep(10)\n    assert f(0)\n")
-    ((_, status),) = run_mutants(root, generate("app.py", (root / "app.py").read_text(), [2])[:1], PYTEST, 1)
-    assert status == TIMEOUT
+    (outcome,) = run_mutants(root, generate("app.py", (root / "app.py").read_text(), [2])[:1], PYTEST, 1)
+    assert outcome.status == TIMEOUT and outcome.killers == ()
 
 
 def test_the_file_is_restored_when_the_run_fails(tmp_path):
@@ -127,7 +127,7 @@ def test_the_file_is_restored_when_the_run_fails(tmp_path):
 
 def test_no_tests_collected_is_a_survivor(tmp_path):
     root = make_project(tmp_path, "def f(x):\n    return x == 0\n", "x = 1\n")
-    assert {s for _, s in run_mutants(root, generate("app.py", (root / "app.py").read_text(), [2]), PYTEST, 60)} == {SURVIVED}
+    assert {o.status for o in run_mutants(root, generate("app.py", (root / "app.py").read_text(), [2]), PYTEST, 60)} == {SURVIVED}
 
 
 def test_no_mutable_production_line_is_skipped(tmp_path):
@@ -182,7 +182,7 @@ def test_the_tests_see_the_path_of_the_host_even_when_the_gate_passes_only_pytho
 def fake_tests(monkeypatch, killed: set[str]) -> None:
     """A deterministic test run: the mutant whose whole source is in `killed` fails the tests, every other run passes."""
     def run(root, argv, timeout, wrap, env, home):
-        return 1 if (root / "app.py").read_text(encoding="utf-8") in killed else 0
+        return (1 if (root / "app.py").read_text(encoding="utf-8") in killed else 0), ""
     monkeypatch.setattr(mutation, "_run", run)
 
 
@@ -236,3 +236,54 @@ def test_equivalent_mutants_are_at_most_half_of_the_sample(tmp_path, monkeypatch
     fake_tests(monkeypatch, {killer.source})
     result = check_mutation(root, [FileChange("app.py", "A", (2, 3, 4))], PYTEST, n=3, seed="s")
     assert result.status == FAIL and "equivalentes 2/3" in result.reasons[0] and result.measured["equivalent"] == 2
+
+
+def fake_killers(monkeypatch, original: str, kills) -> None:
+    """A deterministic test run: the unmutated file passes; a mutant fails the tests `kills(mutated_text)` names (`FAILED` lines, as -rfE prints)."""
+    def run(root, argv, timeout, wrap, env, home):
+        text = (root / "app.py").read_text(encoding="utf-8")
+        failed = [] if text == original else list(kills(text))
+        return (1 if failed else 0), "".join(f"FAILED {node} - assert 0\n" for node in failed)
+    monkeypatch.setattr(mutation, "_run", run)
+
+
+ATTR = "def f(x, y):\n    return x == y\n"
+ATTR_TESTS = "from app import f\n\ndef test_new():\n    assert f(1, 1)\n\ndef test_other():\n    assert not f(1, 2)\n"
+NEW_RED = ["tests/test_app.py::test_new"]
+
+
+def test_a_new_test_that_fails_on_main_and_kills_no_mutant_is_rejected(tmp_path, monkeypatch):
+    root = make_project(tmp_path, ATTR, ATTR_TESTS)
+    fake_killers(monkeypatch, ATTR, lambda text: ["tests/test_app.py::test_other"])
+    result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, seed="s", red=NEW_RED)
+    assert result.status == FAIL
+    assert result.reasons[-1].startswith("test_kills_no_mutant:") and "tests/test_app.py::test_new" in result.reasons[-1]
+    assert result.measured["unattributed"] == NEW_RED and set(result.measured["killers"]) == {"tests/test_app.py::test_other"}
+
+
+def test_a_new_test_that_kills_a_mutant_is_attributed_and_the_sample_passes(tmp_path, monkeypatch):
+    root = make_project(tmp_path, ATTR, ATTR_TESTS)
+    fake_killers(monkeypatch, ATTR, lambda text: ["tests/test_app.py::test_new"])
+    result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, seed="s", red=NEW_RED)
+    assert result.status == PASS, result.reasons
+    assert result.measured["unattributed"] == [] and len(result.measured["killers"]["tests/test_app.py::test_new"]) == result.measured["total"]
+
+
+def test_a_new_failing_test_with_no_mutable_production_line_kills_nothing_and_is_rejected(tmp_path):
+    root = make_project(tmp_path, "X = 'a'\n", "")
+    result = check_mutation(root, [FileChange("app.py", "A", (1,))], PYTEST, red=NEW_RED)
+    assert result.status == FAIL and result.reasons[0].startswith("test_kills_no_mutant:")
+
+
+def test_a_collection_error_of_a_mutant_kills_every_test_of_its_file(tmp_path, monkeypatch):
+    root = make_project(tmp_path, ATTR, ATTR_TESTS)
+    fake_killers(monkeypatch, ATTR, lambda text: ["tests/test_app.py"])
+    result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, seed="s", red=NEW_RED)
+    assert result.status == PASS, result.reasons and result.measured["unattributed"] == []
+
+
+def test_no_red_argument_keeps_the_sample_check_as_it_was(tmp_path, monkeypatch):
+    root = make_project(tmp_path, ATTR, ATTR_TESTS)
+    fake_killers(monkeypatch, ATTR, lambda text: [])
+    result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, seed="s")
+    assert result.measured["unattributed"] == [] and not any("test_kills_no_mutant" in r for r in result.reasons)
