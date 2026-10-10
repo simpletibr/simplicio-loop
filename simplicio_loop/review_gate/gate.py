@@ -72,9 +72,9 @@ def default_env(root: Path) -> dict[str, str]:
 
 
 def neighbors(root: Path, changes: list[FileChange]) -> list[str]:
-    """Tests (outside the changed ones) that import a changed production module, so a mutant is also tried against them."""
+    """Tests (outside the changed ones) that import a changed production module or test helper, so a mutant is also tried against them."""
     changed_tests = {c.path for c in changes if c.kind == "test"}
-    stems = {Path(c.path).stem for c in changes if c.kind == "code" and c.status in ("A", "M")}
+    stems = {Path(c.path).stem for c in changes if c.status in ("A", "M") and (c.kind == "code" or diffs.is_test_helper(c.path))}
     found: list[str] = []
     patterns = [re.compile(rf"(?:from|import)\s+[\w.]*\b{re.escape(s)}\b") for s in sorted(stems)]
     for test in sorted((root / "tests").rglob("test_*.py")) if (root / "tests").is_dir() else []:
@@ -185,11 +185,12 @@ def run_gate(inp: GateInput) -> GateReport:
         env = default_env(head_root)
         added = _added_text(head_root, changes)
         test_files = [c.path for c in changes if c.kind == "test" and c.status in ("A", "M") and not diffs.is_pytest_infra(c.path)]
-        tests = [*test_files, *neighbors(head_root, changes)]
-        argv = mutation_argv(inp.python, head_root, tests)
+        near = neighbors(head_root, changes)
+        argv = mutation_argv(inp.python, head_root, [*test_files, *near])
         checks = [
             _timed("redgreen", lambda: redgreen.check_redgreen(base_root, head_root, changes, python=inp.python,
-                                                               timeout=inp.test_timeout_s, wrap_for=wrap_for, env=env, home=home)),
+                                                               timeout=inp.test_timeout_s, wrap_for=wrap_for, env=env, home=home,
+                                                               neighbours=near)),
             _timed("mutation", lambda: mutation.check_mutation(head_root, changes, argv, n=inp.n_mutants, min_kill=inp.min_kill,
                                                                timeout_each=inp.mutant_timeout_s, seed=inp.head,
                                                                wrap=wrap_for(head_root), env=env, home=home)),

@@ -314,6 +314,22 @@ def test_neighbors_matches_module_imports_only_skips_changed_tests_and_caps(tmp_
     assert gate.neighbors(tmp_path / "nowhere", changes) == []
 
 
+def test_neighbors_of_a_changed_test_helper_are_the_tests_that_import_it(tmp_path):
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "helpers.py").write_text("def make():\n    return 1\n")
+    (tmp_path / "tests" / "test_uses.py").write_text("from tests.helpers import make\n")
+    (tmp_path / "tests" / "test_other.py").write_text("import mod\n")
+    assert gate.neighbors(tmp_path, [diffs.FileChange("tests/helpers.py", "M", (1,))]) == ["tests/test_uses.py"]
+
+
+@pytest.mark.parametrize("path, helper", [
+    ("tests/helpers.py", True), ("tests/review_gate/scenario.py", True), ("tests/test_a.py", False), ("tests/conftest.py", False),
+    ("tests/plugins/extra.py", False), ("tests/fixtures/data.json", False), ("mod.py", False),
+])
+def test_a_changed_test_helper_is_a_non_test_module_under_tests_and_not_pytest_infrastructure(path, helper):
+    assert diffs.is_test_helper(path) is helper
+
+
 def test_default_env_adds_the_package_dirs_that_exist(tmp_path):
     assert gate.default_env(tmp_path) == {"PYTHONPATH": ".", "PYTHONDONTWRITEBYTECODE": "1"}
     (tmp_path / "packages" / "mapper").mkdir(parents=True)
