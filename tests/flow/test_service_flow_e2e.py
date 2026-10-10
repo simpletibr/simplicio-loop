@@ -93,7 +93,7 @@ def test_default_executor_planned_with_the_exec_cli_read_only(tick_run, planner_
     assert len(calls) == 1, "the default executor must ask the exec CLI for exactly one plan"
     argv = calls[0]
     assert argv[0] == "-p" and ISSUE_TITLE in argv[1], "the planner gets the issue as its prompt"
-    assert argv[argv.index("--permission-mode") + 1] == "plan", "the planner CLI must be plan-only"
+    assert argv[argv.index("--tools") + 1] == "", "the planner CLI must run with no tools"
     assert argv[argv.index("--output-format") + 1] == "json"
 
 
