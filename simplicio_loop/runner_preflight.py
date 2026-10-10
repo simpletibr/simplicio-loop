@@ -300,10 +300,11 @@ def _validate_mapper_receipt(payload: Mapping[str, Any], repo_path: Path) -> Non
     if not status.get("artifacts_present") or not status.get("fresh"):
         raise RuntimeError("mapper artifacts are missing or stale")
     # context_cache is an optional cache artifact the mapper does not always emit;
-    # it must not block the loop when only that one is missing.
+    # it must not block the loop when only that one is missing. A worktree served by an overlay (#1673) has
+    # `not_served_by_overlay` artifacts by design: they do not exist there and are not missing. The served ones stay required.
     required_artifacts = {
         key: item for key, item in artifacts.items()
-        if isinstance(item, Mapping) and key != "context_cache"
+        if isinstance(item, Mapping) and key != "context_cache" and item.get("state") != "not_served_by_overlay"
     }
     if not required_artifacts or any(
         not bool(item.get("exists")) for item in required_artifacts.values()
