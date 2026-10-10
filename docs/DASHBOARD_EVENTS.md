@@ -97,7 +97,7 @@ shape, not yet emitted.
 
 ## Producers
 
-- **Runner** (`simplicio_loop/runner.py`): `_record_event` keeps writing the progress event into
+- **Runner** (`simplicio_loop/runner_lifecycle.py`): `_record_event` keeps writing the progress event into
   `state.json` and maps it onto this stream with `specs_from_runner_event`; a transition goes through
   `events_from_transition`, the same function the retroactive adapter uses on `transitions.jsonl`, so
   the logic exists once. `technical_debt.record_notice` emits through the same seam.
