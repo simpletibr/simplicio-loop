@@ -106,3 +106,14 @@ def test_a_turbo_run_cannot_read_a_login_file_in_home(tmp_path):
                             environ={})
         done = subprocess.run(argv, env={"PATH": "/usr/bin:/bin", "HOME": str(home)}, capture_output=True, text=True, timeout=60)
         assert done.returncode != 0 and "FAKE-LOGIN" not in done.stdout, done.stdout
+
+
+def test_layout_reads_the_item_folder_suffix_in_any_case():
+    """`<repo>.WT` on a case-insensitive disk is the item folder of `<repo>`: the layout is the same in any case (#1656 item 5)."""
+    from pathlib import Path
+
+    from simplicio_loop.watcher247 import sandbox
+
+    for suffix in (".wt", ".WT", ".Wt"):
+        assert sandbox._layout(f"/work/repo{suffix}/7") == (Path("/work"), Path("/work/repo/.git"), "7"), suffix
+    assert sandbox._layout("/work/repo.other/7") is None

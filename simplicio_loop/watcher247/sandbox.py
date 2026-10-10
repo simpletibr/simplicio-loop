@@ -73,10 +73,10 @@ def refusal(environ: Mapping[str, str] | None = None, platform: str | None = Non
 def _layout(clone: str | Path) -> tuple[Path, Path, str] | None:
     """(work dir, shared .git dir, issue) of an item's worktree `<WORK>/<repo>.wt/<issue>`, from the path alone; None for anything else."""
     path = Path(clone)
-    if not path.parent.name.endswith(".wt"):
+    if not path.parent.name.lower().endswith(".wt"):
         return None
     work = path.parent.parent
-    return work, work / path.parent.name.removesuffix(".wt") / ".git", path.name
+    return work, work / path.parent.name[:-len(".wt")] / ".git", path.name
 
 
 def worktree_binds(clone: str) -> list[str]:

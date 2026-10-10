@@ -1258,3 +1258,38 @@ def test_task4_seed_exclude_with_file_instead_of_directory_raises_clear_error(tm
 
     with pytest.raises(RuntimeError, match="cannot seed .simplicio-loop"):
         worktrees._seed_exclude(repo)
+
+
+def test_a_damaged_base_with_a_live_item_is_not_deleted_and_the_item_keeps_its_commit(real_repo):
+    """#1656 item 3, review of the first version: cloning the base again destroyed the live items of the repo and their unpublished commits."""
+    r, gate = real_repo, worktrees.Gate(2)
+
+    async def scenario():
+        item = await worktrees._acquire(gate, REPO, "main", 41, False)
+        git("commit", "-q", "--allow-empty", "-m", "unpublished", cwd=item.path)
+        git("repack", "-a", "-d", "-q", cwd=item.path)
+        for index in (r.common / "objects" / "pack").glob("*.idx"):
+            index.unlink()
+        assert git_rc("cat-file", "-e", "HEAD^{tree}", cwd=r.base) != 0  # the control: the damage is real
+        with pytest.raises(worktrees.points.PointDeferred):
+            await worktrees._update_base(REPO, "main", 42, False)
+        return item
+
+    item = asyncio.run(scenario())
+    assert (r.base / ".git").exists() and (item.path / ".git").exists()  # nothing was deleted
+    assert git_rc("rev-parse", "--git-dir", cwd=item.path) == 0
+
+
+def test_a_cat_file_failure_that_is_not_a_missing_object_does_not_reclone(real_repo, monkeypatch):
+    r, real_run, cloned = real_repo, proc.run, []
+
+    async def run(argv, **kwargs):
+        if argv[:2] == ["git", "cat-file"]:  # a killed git or an I/O error: no proof of damage
+            return proc.Result(137, "", "Killed")
+        if argv[:3] == ["gh", "repo", "clone"]:
+            cloned.append(argv)
+        return await real_run(argv, **kwargs)
+
+    monkeypatch.setattr(proc, "run", run)
+    asyncio.run(worktrees._update_base(REPO, "main", 1, False))
+    assert cloned == [] and (r.base / ".git").exists()
