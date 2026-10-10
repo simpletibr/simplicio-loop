@@ -297,6 +297,7 @@ def test_tick_error_is_recorded_in_status(env, monkeypatch):
     ("?? .simplicio-loop/state.json\n?? .simplicio-loop/x\n", False),
     (" M .gitignore\n", False),
     (" M src/app.py\n", True),
+    (" M .simplicio/loop.toml\n", True),
     ("?? .simplicio-loop/x\n M src/app.py\n", True),
 ])
 def test_dirty(env, porcelain, expected):
