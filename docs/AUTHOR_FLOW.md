@@ -54,7 +54,10 @@ The command prints one JSON object: `status`, `rounds`, `session_id`, `changed`,
 
 - A file over 64 MiB is not hashed. The snapshot records its mode, size, mtime and inode. The author can make a sparse file of any size, and a hash would read all of it. No protected path is that big. A rewrite of a big file with the same size, mtime and inode is not seen.
 - The snapshot has a time budget of 120 s. When it runs out, the run stops with `snapshot_timeout`.
-- The snapshot includes `__pycache__` and `.pytest_cache`. These entries are not changes, with one exception: a cache file beside a protected module is a protected change (`protected_path`). Python runs an unchecked `.pyc` without reading its `.py` file. The CLI and verify run with `PYTHONDONTWRITEBYTECODE=1`, so they do not make cache files of their own.
+- The snapshot sees `__pycache__`. Every file in it is a change, also a file that is not a `.pyc`.
+- A `.pyc` or `.pyo` file that appears, changes or goes away fails the round (`protected_path`), in any folder. Python runs an unchecked `.pyc` in place of its `.py` file, without a read of the source. Your own pytest does the same outside the sandbox.
+- The CLI and verify run with `PYTHONDONTWRITEBYTECODE=1`. They do not make bytecode, so a bytecode change is always the work of the author. The correction asks the author to delete these files.
+- The snapshot does not see `.pytest_cache`. Pytest writes it on every run and nothing imports it.
 
 ## Security model
 
@@ -69,6 +72,7 @@ What the author sees and writes:
 - The tool list cannot change. It has no `git add` and no `git commit`: in the sandbox a commit never ends. Web tools, slash commands and MCP servers are off.
 - Text that goes back to the CLI hides secrets and has a fixed size.
 - The snapshot covers `.git/config`, `.git/hooks` and a `.git` file. A hook, a config line or a repointed `.git` file fails the round. Other `.git` files change on every `git add` and `git commit`, so the snapshot skips them.
+- The snapshot sees `__pycache__` and fails the round on any bytecode change. It does not see `.pytest_cache`. Git ignores these files, so the reviewer of a pull request does not see them either.
 
 Risks that stay, and that we accept:
 
