@@ -67,6 +67,10 @@ class TestCloses:
         assert closes("Closes https://github.com/o/r/pull/12", 12)
         assert not closes("Closes https://github.com/o/r/pull/12", 1)
 
+    def test_closes_number_is_the_last_digits_not_an_owner_digit(self):
+        assert closes("Closes org2/repo#5", 5)
+        assert not closes("Closes org2/repo#5", 2)
+
     def test_closes_with_gh_prefix(self):
         assert closes("Closes GH-12", 12)
         assert closes("fixes gh-12", 12)
