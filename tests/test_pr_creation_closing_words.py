@@ -103,7 +103,7 @@ def test_pr_evidence_build_writes_a_body_and_title_without_closing_words(tmp_pat
 
 
 
-def test_pr_evidence_build_with_template_containing_closing_word_is_sanitized(tmp_path):
+def test_pr_evidence_build_verifies_template_sanitize_is_called(tmp_path):
     """pr_evidence.py build with a template file containing a closing word should sanitize it."""
     repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     anchor = tmp_path / "anchor.json"

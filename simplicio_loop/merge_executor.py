@@ -130,7 +130,7 @@ class MergeExecutor:
             raise MergeExecutorError(
                 "CLOSING_WORD_REFUSED",
                 str(e),
-            )
+            ) from e
         completed = self._gh([
             "pr", "create", "--repo", self.repo, "--head", branch, "--base", base,
             "--title", title, "--body", body,
