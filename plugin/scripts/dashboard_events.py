@@ -1053,12 +1053,37 @@ def _usage_block(record):
     return None
 
 
+def _provider_attribution(run_dir, record):
+    """What a provider receipt records about its call, as spec fields and payload keys; nothing the run did not write.
+
+    ``iteration`` is the receipt's attempt number (the runner's repair loop of the task), ``requests`` its provider call
+    count (one HTTP call per dispatch) and ``source`` marks the counts as the provider's own report. The receipt has no task
+    or route, so those come from the sibling ``execution-route-<task_index>.json`` of the same task.
+    """
+    spec = {}
+    payload = {"source": "provider"}
+    calls, attempt = record.get("provider_call_count"), record.get("attempt")
+    if _is_int(calls) and calls >= 1:
+        payload["requests"] = calls
+    if _is_int(attempt) and attempt >= 0:
+        spec["iteration"] = attempt
+    index = record.get("task_index")
+    if _is_int(index):
+        route = _load_json(os.path.join(run_dir, "execution-route-%d.json" % index))
+        if isinstance(route, dict):
+            for field, key in (("task_id", "task_id"), ("lane", "route")):
+                if isinstance(route.get(key), str) and route[key]:
+                    spec[field] = route[key]
+    return spec, payload
+
+
 def token_usage_specs(run_dir, only=None):
     """``token_usage`` specs from the run's ``execution-route*.json`` and ``provider-worker-*.json`` records.
 
     Only counts the run recorded become events: integer input/output tokens, and optionally the provider's cached,
     cache-write and reasoning tokens and its reported cost. A record with null counts (route decided before any
-    provider call) or without measured usage yields nothing: counts are never invented.
+    provider call) or without measured usage yields nothing: counts are never invented. Every spec carries the phase
+    the run's ``state.json`` names, and a provider receipt also carries its task, lane, attempt and call count.
     """
     run_dir = os.fspath(run_dir)
     try:
@@ -1067,6 +1092,8 @@ def token_usage_specs(run_dir, only=None):
                        and (only is None or n == only))
     except OSError:
         return []
+    state = _load_json(os.path.join(run_dir, "state.json"))
+    phase = state.get("phase") if isinstance(state, dict) and isinstance(state.get("phase"), str) else None
     specs = []
     for name in names:
         path = os.path.join(run_dir, name)
@@ -1090,6 +1117,12 @@ def token_usage_specs(run_dir, only=None):
         if isinstance(usage.get("reason"), str):
             payload["reason"] = usage["reason"]
         spec = {"kind": "token_usage", "source": "runner", "payload": payload, "refs": [path]}
+        if record.get("schema") == PROVIDER_RECEIPT_SCHEMA:
+            extra, provider_payload = _provider_attribution(run_dir, record)
+            spec.update(extra)
+            payload.update(provider_payload)
+        if phase:
+            spec["phase"] = phase
         if isinstance(record.get("task_id"), str) and record["task_id"]:
             spec["task_id"] = record["task_id"]
         if isinstance(record.get("route"), str) and record["route"]:
