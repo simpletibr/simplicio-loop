@@ -2,7 +2,7 @@
 
 Before, process() held the repo lock for the whole item (clone, plan, turbo, apply, verify, PR) on ONE working tree per repo.
 Now a repo has a BASE clone (config.WORK/<repo>) that no item edits, and every item gets its own worktree
-(config.WORK/<repo>.wt/<issue>, branch loop/issue-<issue>) for its whole run. The repo lock covers only what really conflicts:
+(config.WORK/<repo>.wt/<issue>, branch loop/issue-<issue>, or loop/issue-<issue>-r<K> from the second attempt) for its whole run. The repo lock covers only what really conflicts:
 
 - updating the base clone (fetch), `git worktree add`, the push (`git push -u` writes the shared .git/config) and the removal of
   the item's own worktree. All short git calls. Never the plan, the turbo, the apply, the verify or the PR.
@@ -38,6 +38,7 @@ from . import config, points, proc, state
 T = TypeVar("T")
 STATE = ".simplicio-loop"
 SIGTERM_EXIT = 143
+MAX_ATTEMPT_NAMES = 100  # loop/issue-<N>, -r2 ... -r100: a repo that used them all needs a human, not an endless ls-remote loop
 
 
 class Gate:
@@ -58,7 +59,7 @@ class Item:
     """The worktree of one work item."""
     repo: str
     number: int
-    head: str  # the item's branch, loop/issue-<number>
+    head: str  # the item's branch, the single source of its name: loop/issue-<number>, or -r<K> when that one is already on origin
     path: Path
     created_branch: bool  # the branch did not exist before this item: only then may it be deleted
     published: bool = False  # a PR was opened or updated
@@ -105,7 +106,32 @@ def _fail(result: proc.Result, what: str) -> RuntimeError:
     return RuntimeError((result.stderr or result.stdout or what)[:500])
 
 
-async def _update_base(repo: str, branch: str, number: int, fix: bool) -> Path:
+def default_head(number: int) -> str:
+    """The branch of the first attempt on an issue."""
+    return f"loop/issue-{number}"
+
+
+async def _on_origin(base: Path, name: str) -> bool:
+    """Whether origin already has the branch `name`. Any answer but "found" (0) or "no such ref" (2) is an error, never a guess."""
+    found = await proc.run(["git", "ls-remote", "--exit-code", "--heads", "origin", name], cwd=base, timeout=60)
+    if found.returncode == 0:
+        return True
+    if found.returncode == 2:
+        return False
+    raise _fail(found, "ls-remote failed")
+
+
+async def _free_head(base: Path, number: int) -> str:
+    """`loop/issue-<N>` for the first attempt; when origin has it already (its PR was merged or closed) the first free `-r2`, `-r3`, ..."""
+    name = default_head(number)
+    for attempt in range(2, MAX_ATTEMPT_NAMES + 2):
+        if not await _on_origin(base, name):
+            return name
+        name = f"{default_head(number)}-r{attempt}"
+    raise RuntimeError(f"every branch name loop/issue-{number}..-r{MAX_ATTEMPT_NAMES} is already on origin")
+
+
+async def _update_base(repo: str, branch: str, number: int, fix: bool, head: str | None = None) -> Path:
     """Clone the repo once, then fetch what this item starts from. The base holds no loop/* branch: it is detached at the base."""
     dest = base_path(repo)
     if not (dest / ".git").exists():
@@ -118,7 +144,7 @@ async def _update_base(repo: str, branch: str, number: int, fix: bool) -> Path:
     email = await proc.run(["git", "config", "user.email"], cwd=dest)
     if email.returncode != 0 or not email.stdout.strip():
         await proc.run(["git", "config", "user.email", "wesleysimplicio@users.noreply.github.com"], cwd=dest)
-    refs = [branch, f"loop/issue-{number}"] if fix else [branch]
+    refs = [branch, head or default_head(number)] if fix else [branch]
     for ref in refs:
         # the explicit refspec: a --depth 1 clone is single-branch, and without it `origin/<ref>` is never made for any other branch
         fetch = await proc.run(
@@ -181,13 +207,17 @@ def _copy_state(src: Path, dst: Path, overwrite: bool) -> None:
             shutil.copy2(found, target)
 
 
-async def _acquire(gate: Gate, repo: str, branch: str, number: int, fix: bool) -> Item:
-    path, head = item_path(repo, number), f"loop/issue-{number}"
+async def _acquire(gate: Gate, repo: str, branch: str, number: int, fix: bool, head: str | None = None) -> Item:
+    """`head` is only for a fix: the branch of the open PR when it is not the default name. A new attempt picks its own free name."""
+    path = item_path(repo, number)
+    head = head or default_head(number)
     config.WORK.mkdir(parents=True, exist_ok=True)
     async with gate.repo_lock(repo):
         if await free_bytes(config.WORK) < squad_capacity.DISK_FLOOR_BYTES:
             raise points.PointDeferred("worktree", "disk_floor", "disk_low", [])  # the tick tries again, no attempt is spent
-        base = await _update_base(repo, branch, number, fix)
+        base = await _update_base(repo, branch, number, fix, head)
+        if not fix:
+            head = await _free_head(base, number)
         await _drop(repo, number, path)  # a killed run's leftover at this exact path
         existed = (await proc.run(["git", "rev-parse", "--verify", "-q", f"refs/heads/{head}"], cwd=base)).returncode == 0
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -207,12 +237,15 @@ async def _release(gate: Gate, item: Item) -> None:
 
 
 @asynccontextmanager
-async def checkout(gate: Gate, repo: str, branch: str, number: int, fix: bool = False) -> AsyncIterator[Item]:
-    """The item's worktree for the `with` block, one of the gate's slots. It is removed on success, failure, cancel and SIGTERM."""
+async def checkout(gate: Gate, repo: str, branch: str, number: int, fix: bool = False,
+                   head: str | None = None) -> AsyncIterator[Item]:
+    """The item's worktree for the `with` block, one of the gate's slots. It is removed on success, failure, cancel and SIGTERM.
+
+    `head` names the branch of the open PR a fix continues on; without it, the default name."""
     async with gate.slots:
         item = None
         try:
-            item = await _acquire(gate, repo, branch, number, fix)
+            item = await _acquire(gate, repo, branch, number, fix, head)
             await asyncio.to_thread(_copy_state, state_home(repo, number) / STATE, item.path / STATE, False)
             yield item
         except BaseException:

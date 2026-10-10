@@ -33,7 +33,7 @@ EXCEPTIONS = {
 # Matches: keyword + optional whitespace/colon + placeholder like #<n>, #{issue}, #$N, etc.
 _PLACEHOLDER_PATTERN = re.compile(
     rf"(?:{'|'.join(re.escape(k) for k in KEYWORDS)})\b\s*[:=]?\s*"
-    r"(?:#<[a-z]+>|#\{(?:issue|ref|number|n|id)\}|#\$[A-Z]+|\{\s*(?:issue|ref|number|n|id)\s*\})",
+    r"(?:#<[a-z]+>|#\{(?:number|n|id)\}|#\$[A-Z]+|\{\s*(?:issue|ref|number|n|id)\s*\})",
     re.IGNORECASE
 )
 
@@ -124,12 +124,14 @@ def test_the_scanner_finds_a_planted_closing_word_in_skills_scripts_and_docs(tmp
 
 
 def test_the_scanner_catches_closing_word_split_across_lines(tmp_path):
-    """Closing word on one line, issue number on next - should be caught."""
+    """A closing word and its issue number on different lines still close the issue."""
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs/split.md").write_text("Closes\n#5\n", encoding="utf-8")
-    (tmp_path / "docs/split2.md").write_text("Some text\nCloses #5", encoding="utf-8")
-    hits = _scan(tmp_path, ["docs/split.md", "docs/split2.md"])
-    assert len(hits) >= 1, f"Should find split closing word, got: {hits}"
+    (tmp_path / "docs/split_blank.md").write_text("Closes\n\n  #5\n", encoding="utf-8")
+    for rel in ("docs/split.md", "docs/split_blank.md"):
+        hits = _scan(tmp_path, [rel])
+        assert len(hits) == 1, f"{rel} should give exactly one hit, got: {hits}"
+        assert hits[0].startswith(f"{rel}:"), f"hit should name {rel}, got: {hits}"
 
 
 def test_the_scanner_finds_placeholder_patterns_after_closing_words(tmp_path):
@@ -146,6 +148,13 @@ def test_the_scanner_finds_placeholder_patterns_after_closing_words(tmp_path):
     assert len(hits) >= 2, f"Should find placeholder patterns, got {len(hits)}: {hits}"
 
 
+def test_the_scanner_catches_closing_word_with_issue_placeholder(tmp_path):
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs/issue_placeholder.md").write_text("Closes #{issue}\n", encoding="utf-8")
+    hits = _scan(tmp_path, ["docs/issue_placeholder.md"])
+    assert len(hits) == 1, f"Closes #{{issue}} should be caught exactly once, got: {hits}"
+
+
 def test_the_scanner_skips_excepted_paths_binary_and_huge_files(tmp_path):
     (tmp_path / "tests").mkdir()
     (tmp_path / "tests/test_x.py").write_text("Closes #5\n", encoding="utf-8")
@@ -159,39 +168,17 @@ def test_every_exception_matches_at_least_one_tracked_file():
     assert dead == []
 
 
-def test_placeholder_mutants_are_killed(tmp_path):
-    """Each placeholder form is detected - mutant test to prove scanner catches them."""
-    (tmp_path / "docs").mkdir()
-    
-    # Plant each placeholder form and verify it's caught
-    test_cases = [
-        ("closes_angle.md", "Closes #<n>\n", "#<n>"),
-        ("closes_brace.md", "Fixes #{issue}\n", "#{issue}"),
-        ("closes_dollar.md", "Resolved #$N\n", "#$N"),
-        ("closes_brace_ref.md", "Fixed {ref}\n", "{ref}"),
-    ]
-    
-    for filename, content, placeholder in test_cases:
-        (tmp_path / "docs" / filename).write_text(content, encoding="utf-8")
-    
-    # Run scan and verify each placeholder is found
-    file_list = [f"docs/{f[0]}" for f in test_cases]
-    hits = _scan(tmp_path, file_list)
-    
-    assert len(hits) >= 3, f"Should find at least 3 placeholder patterns, got {len(hits)}: {hits}"
-
-
 def test_placeholder_pattern_mutants_prove_scanner(tmp_path):
     """Prove each form of placeholder mutant would be killed by the scanner."""
     # Test that removing each placeholder pattern from the scanner would fail to find the mutant
     # This is proven by the fact that _PLACEHOLDER_PATTERN matches these forms
     assert _PLACEHOLDER_PATTERN.search("Closes #<n>"), "Should match #<n>"
-    assert _PLACEHOLDER_PATTERN.search("Fixes #{issue}"), "Should match #{issue}"
     assert _PLACEHOLDER_PATTERN.search("Resolved #$N"), "Should match #$N"
     assert _PLACEHOLDER_PATTERN.search("Fixed {ref}"), "Should match {ref}"
-    
+
     # Counter-test: should NOT match non-placeholder patterns
     assert not _PLACEHOLDER_PATTERN.search("fix: something"), "Should not match non-placeholder"
+    assert not _PLACEHOLDER_PATTERN.search("resolved_value"), "Should not match partial word"
 
 
 def test_placeholder_mutant_forms_are_killed_individually(tmp_path):
@@ -218,4 +205,3 @@ def test_no_exception_pattern_matches_packages_tests():
     for pattern in EXCEPTIONS:
         assert not (pattern.startswith("packages/") and pattern.endswith("/tests/*")), \
             f"Dead exception {pattern} should not be in EXCEPTIONS list"
-    assert not _PLACEHOLDER_PATTERN.search("resolved_value"), "Should not match partial word"

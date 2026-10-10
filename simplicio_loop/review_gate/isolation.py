@@ -6,7 +6,7 @@ The gate runs the PR's tests and mutants. That is the PR author's code, with the
   the tree under test writable and the rest read-only. No bwrap, no run: `sandbox.SandboxUnavailable` (reason_code
   `sandbox_unavailable`). The opt-out variable of the watcher (`SIMPLICIO_247_ALLOW_UNSANDBOXED`) is NOT honored here.
 
-Residual risk: `sandbox.wrap` does not `--unshare-net`, so the PR's code can still reach the network (see docs/SQUADS.md).
+The jail adds `--unshare-net` to what `sandbox.wrap` builds: the PR's code has no network, so it cannot send out what it reads (see docs/SQUADS.md).
 """
 from __future__ import annotations
 

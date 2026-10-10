@@ -28,13 +28,15 @@ MARKER = ("Revisão feita.\n\nREVISÃO INDEPENDENTE: APROVADA\nrevisor: rev-9\np
 class FakeGh:
     """Stands in for `squad_review._gh`: answers `pr view` and `issue view` and records the argv."""
 
-    def __init__(self, comments=(), pr_body="PR body", issue_body="Issue body", with_comments=True):
+    def __init__(self, comments=(), pr_body="PR body", issue_body="Issue body", with_comments=True, head_ref=None):
         self.comments, self.pr_body, self.issue_body, self.with_comments, self.calls = list(comments), pr_body, issue_body, with_comments, []
+        self.head_ref = head_ref
 
     async def __call__(self, argv):
         self.calls.append(list(argv))
         if argv[:2] == ["pr", "view"]:
-            return {"body": self.pr_body, **({"comments": self.comments} if self.with_comments else {})}
+            return {"body": self.pr_body, **({"comments": self.comments} if self.with_comments else {}),
+                    **({"headRefName": self.head_ref} if self.head_ref else {})}
         if argv[:2] == ["issue", "view"]:
             return {"body": self.issue_body}
         raise AssertionError(f"unexpected gh call {argv}")
@@ -74,8 +76,8 @@ def gh(monkeypatch):
     return fake
 
 
-def _evaluate(head, lock=None, author=WORKER, number=11, issue=7):
-    return asyncio.run(squad_review.evaluate("myrepo", number, issue, head, author, lock or asyncio.Lock()))
+def _evaluate(head, lock=None, author=WORKER, number=11, issue=7, **extra):
+    return asyncio.run(squad_review.evaluate("myrepo", number, issue, head, author, lock or asyncio.Lock(), **extra))
 
 
 # --- evaluate ---------------------------------------------------------------------------------------------------------
@@ -88,7 +90,7 @@ def test_evaluate_fetches_the_branch_runs_the_gate_and_returns_the_report_of_tha
     assert not report.approved  # no test for the change
     saved = world.dest / ".simplicio-loop" / "review-gate" / f"pr-11-{world.head[:7]}.json"
     assert json.loads(saved.read_text(encoding="utf-8"))["head"] == world.head
-    assert gh.calls == [["pr", "view", "11", "--repo", "org/myrepo", "--json", "body,comments"],
+    assert gh.calls == [["pr", "view", "11", "--repo", "org/myrepo", "--json", "body,comments,headRefName"],
                         ["issue", "view", "7", "--repo", "org/myrepo", "--json", "body"]]
 
 
@@ -355,3 +357,33 @@ def test_git_returns_the_stripped_output_in_the_given_dir_and_names_the_failure(
     with pytest.raises(ReviewError) as caught:
         asyncio.run(squad_review._git(tmp_path, "rev-parse", "--verify", "refs/heads/nope", "extra"))
     assert str(caught.value).startswith("git rev-parse --verify refs/heads/nope failed: ")
+
+
+# --- a reattempt PR (`loop/issue-7-r2`): the branch is the PR's own, never rebuilt from the issue number -------------------------
+
+def _move_branch_to_r2(world):
+    """origin keeps the tip only on `loop/issue-7-r2`: the name rebuilt from the issue number (loop/issue-7) is gone."""
+    _git(world.origin, "update-ref", "refs/heads/loop/issue-7-r2", world.head)
+    _git(world.origin, "update-ref", "-d", "refs/heads/loop/issue-7")
+
+
+def test_evaluate_fetches_the_pr_branch_it_was_given_not_one_rebuilt_from_the_issue(world, gh):
+    _move_branch_to_r2(world)
+    report, _ = _evaluate(world.head, branch="loop/issue-7-r2")
+    assert report.head == world.head
+    assert _git(world.dest, "rev-parse", "refs/remotes/origin/loop/issue-7-r2") == world.head
+
+
+def test_evaluate_names_the_real_branch_when_it_is_not_at_the_reviewed_head(world, gh):
+    _move_branch_to_r2(world)
+    with pytest.raises(ReviewError) as caught:
+        _evaluate(world.base, branch="loop/issue-7-r2")
+    assert str(caught.value) == f"branch loop/issue-7-r2 is at {world.head[:7]}, not at the reviewed head {world.base[:7]}"
+
+
+def test_evaluate_without_a_branch_uses_the_head_ref_name_of_the_pr(world, monkeypatch):
+    _move_branch_to_r2(world)
+    fake = FakeGh(head_ref="loop/issue-7-r2")
+    monkeypatch.setattr(squad_review, "_gh", fake)
+    assert _evaluate(world.head)[0].head == world.head
+    assert "headRefName" in fake.calls[0][fake.calls[0].index("--json") + 1]

@@ -28,6 +28,7 @@ class Work:
     issue: dict
     fix: str = ""
     pr: int = 0
+    head: str = ""  # the open PR's branch for a fix (loop/issue-7-r2 for a reattempt); "" is the default name
     role: str = ""  # the role a squad worker starts at (squad_routing.route); "" keeps the host-mode default
     verify: str = ""  # the repo's `verify` command from loop.toml of its default branch; the tick makes no Work without one
 
@@ -233,6 +234,19 @@ async def _not_due(store: ClaimStore, ident: str, clock: float, reopen: bool, sk
     return True
 
 
+async def _open_loop_pr(repo: str, number: int) -> str | None:
+    """URL of an open PR whose head is loop/issue-<number> or one of its -rK names. A listing that fails raises: no guess."""
+    listed = await proc.run(["gh", "pr", "list", "--repo", repo, "--state", "open", "--json", "headRefName,url", "--limit", "1000"],
+                            timeout=60)
+    if listed.returncode != 0:
+        raise _fail(listed, "pr list failed")
+    for row in json.loads(listed.stdout or "[]"):
+        match = re.fullmatch(r"loop/issue-(\d+)(?:-r\d+)?", row.get("headRefName") or "")
+        if match and int(match.group(1)) == number:
+            return row.get("url")
+    return None
+
+
 async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, clock: float,
                   executor: host_mode.Executor, probe: squad_capacity.Probe | None = None) -> squad_flow.Outcome | None:
     name = work.repo
@@ -249,6 +263,10 @@ async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, c
     steps: list[dict[str, str]] = []  # the steps run_exec ran, also when it failed: a failed task counts in the metrics (#1565)
     run_failed = False
     try:
+        if not work.fix and (open_pr := await _open_loop_pr(full, number)):
+            state.log(f"open PR {open_pr} already on loop/issue-{number}: no second PR for {ident}")
+            await store.release(ident, token, "preexisting", now=clock, pr=open_pr, reason_code="open_pr_exists")
+            return
         claim = await watcher_github.claim_on_github(repo=full, issue=str(number), owner=config.OWNER, runner=runner)
         if not claim.verified:
             await store.release(ident, token, "claimed_elsewhere", now=clock, reason_code=claim.reason)
@@ -268,7 +286,7 @@ async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, c
         beat = asyncio.ensure_future(_heartbeat(store, ident, token))
         run_id = None  # run_id: the kanban run opened at intake; turbo continues it, close_run ends it
         try:
-            async with worktrees.checkout(gate, name, work.branch, number, fix=bool(work.fix)) as item:  # the lock is held only inside
+            async with worktrees.checkout(gate, name, work.branch, number, fix=bool(work.fix), head=work.head or None) as item:  # the lock is held only inside
                 dest, head = item.path, item.head
                 try:
                     ctx = points.PointContext(
@@ -375,7 +393,7 @@ async def _enqueue_fixes(runner, name: str, fixes: dict) -> None:
         state.log(f"patrol failed {name}: {exc}")
         return
     for task in found:
-        match = re.fullmatch(r"loop/issue-(\d+)", task.head)
+        match = re.fullmatch(r"loop/issue-(\d+)(?:-r\d+)?", task.head)
         if not match:
             continue
         ident = state.key_of(name, int(match.group(1)))
@@ -383,7 +401,7 @@ async def _enqueue_fixes(runner, name: str, fixes: dict) -> None:
         if fingerprint in fixes["seen"]:
             continue
         fixes["seen"].append(fingerprint)
-        entry = fixes["queued"].setdefault(ident, {"pr": task.pr, "texts": []})
+        entry = fixes["queued"].setdefault(ident, {"pr": task.pr, "texts": [], "head": task.head})
         entry["texts"].append(task.text)
 
 
@@ -517,7 +535,7 @@ async def tick(dry_run: bool = False) -> None:
                 if await _not_due(store, ident, clock, True, skipped_issues):  # stays queued for a later tick
                     continue
                 entry = fixes["queued"].pop(ident)
-                batch.append(Work(name, repo["branch"], issue, fix="\n".join(entry["texts"]), pr=entry["pr"], verify=cmd))
+                batch.append(Work(name, repo["branch"], issue, fix="\n".join(entry["texts"]), pr=entry["pr"], head=entry.get("head", ""), verify=cmd))
             elif ident in baselined:
                 continue
             elif github.skipped(issue):
