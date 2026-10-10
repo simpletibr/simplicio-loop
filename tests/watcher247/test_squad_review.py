@@ -86,7 +86,7 @@ def test_evaluate_fetches_the_branch_runs_the_gate_and_returns_the_report_of_tha
     report, independent = _evaluate(world.head)
     assert independent is None
     assert (report.pr, report.issue, report.head) == (11, 7, world.head)
-    assert [c.name for c in report.checks] == ["redgreen", "mutation", "usage", "coverage", "docs", "identity"]
+    assert [c.name for c in report.checks] == ["redgreen", "line_coverage", "mutation", "usage", "coverage", "docs", "identity"]
     assert not report.approved  # no test for the change
     saved = world.dest / ".simplicio-loop" / "review-gate" / f"pr-11-{world.head[:7]}.json"
     assert json.loads(saved.read_text(encoding="utf-8"))["head"] == world.head

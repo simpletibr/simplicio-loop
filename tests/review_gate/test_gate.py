@@ -17,7 +17,7 @@ WORKER = identity.Agent("worker-1", "worker", "haiku-5.5", "local")
 INDEPENDENT = identity.Agent("rev-2", "independent-reviewer", "opus-5.5", "other-host")
 ISSUE_BODY = "Limitar valores.\n\n- [ ] `clamp` existe em `mod.py` e `app.total` usa\n"
 PR_BODY = "Entrega `clamp` em `mod.py`.\n\nParte de #7\n"
-ORDER = ["redgreen", "mutation", "usage", "coverage", "docs", "identity"]
+ORDER = ["redgreen", "line_coverage", "mutation", "usage", "coverage", "docs", "identity"]
 
 
 class Run(NamedTuple):
@@ -169,10 +169,13 @@ def _wrapped_runs(tmp_path, name, **overrides):
 
 def test_the_sandbox_wrapper_is_built_for_the_head_tree_and_wraps_every_pytest_run(tmp_path):
     run, seen = _wrapped_runs(tmp_path, "dead", n_mutants=2)
-    assert [root.name for root, _ in seen] == ["head", "base", "head", "head", "head"]  # each run wrapped for the tree it runs in (the sandbox chdirs there)
+    # each run wrapped for the tree it runs in (the sandbox chdirs there): redgreen head+main, line_coverage probe+run, mutation x3
+    assert [root.name for root, _ in seen] == ["head", "base", "head", "head", "head", "head", "head"]
     assert all(root.parent.name == f"pr-11-{run.head[:7]}" for root, _ in seen)
-    assert all(argv[1] == "-c" and "pytest.main" in argv[2] for _, argv in seen)
-    assert len(seen) == 2 + 1 + 2  # redgreen on head and on main, the unmutated tree, two mutants
+    assert all(argv[1] == "-c" for _, argv in seen)
+    assert [argv[2] == "import coverage" for _, argv in seen].count(True) == 1  # the one probe; every other run is a pytest run
+    assert all("pytest.main" in argv[2] for _, argv in seen if argv[2] != "import coverage")
+    assert len(seen) == 2 + 2 + 3  # redgreen on head and on main, line_coverage probe and run, the unmutated tree, two mutants
 
 
 def test_the_mutants_run_the_changed_tests_then_the_neighbors_and_never_a_conftest(tmp_path):
