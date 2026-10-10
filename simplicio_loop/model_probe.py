@@ -18,6 +18,8 @@ import subprocess
 import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
+
+from . import exec_planner
 from typing import Any
 
 CATALOG = Path(__file__).resolve().parent / "_catalog" / "model_roles.json"
@@ -103,8 +105,8 @@ def probe(
         reason = "timeout"
     elif _REFUSED.search(output):
         reason = "model_refused"
-    else:
-        reason = "cli_error"
+    else:  # a quota, a rate limit or a login problem is not a refused model: the planner already names them
+        reason = exec_planner.classify_failure(code, output, "") or "cli_error"
     return {**result, "status": "refused", "reason_code": reason, "error": excerpt(output)}
 
 
