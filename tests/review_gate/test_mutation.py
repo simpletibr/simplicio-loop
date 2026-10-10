@@ -158,3 +158,11 @@ def test_only_the_added_lines_are_mutated(tmp_path):
                         "from app import f\n\ndef test_f():\n    assert f(0)\n    assert not f(1)\n")
     result = check_mutation(root, [FileChange("app.py", "M", (2,))], PYTEST, seed="s")
     assert result.status == PASS and all("app.py:2 " in line for line in result.measured["survived"]) and result.measured["candidates"] == 3
+
+
+def test_the_tests_see_the_path_of_the_host_even_when_the_gate_passes_only_pythonpath(tmp_path):
+    """#1641: a test that runs `git` failed in the baseline, because the env of the run was only PYTHONPATH."""
+    root = make_project(tmp_path, "def f(x, y):\n    return x == y\n",
+                        "import os\nfrom app import f\n\ndef test_f():\n    assert os.environ.get('PATH')\n    assert f(1, 1) and not f(1, 2)\n")
+    result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, seed="s", env={"PYTHONPATH": "."})
+    assert result.status == PASS, result.reasons
