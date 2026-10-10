@@ -46,6 +46,7 @@ import unicodedata
 from pathlib import PurePosixPath
 from typing import Collection, Mapping, Sequence
 
+from ..watcher247.closing_words import _REF
 from . import vacuity
 from .diffs import FileChange, is_pytest_infra
 from .model import CheckResult, PASS, FAIL, SKIPPED
@@ -90,9 +91,10 @@ _DEF_LINE = re.compile(
 _ASSIGN_LINE = re.compile(r"^(?P<rest>[A-Za-z_]\w*)\s*(?::[^=\n]+)?=(?!=)")  # top-level only: no indentation
 _TEST_DEF = re.compile(r"^[ \t]*(?:async[ \t]+)?def[ \t]+(test\w*)[ \t]*\(", re.M)
 _PARTE_DE = re.compile(r"Parte\s+de\s+(?:[\w.\-]+/[\w.\-]+)?#(\d+)", re.I)
+# The reference forms (`#N`, `owner/repo#N`, `GH-N`, issue/pull URL) are the watcher's own (`closing_words._REF`): one list, not two.
 _CLOSING = re.compile(
     r"\b(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved|fecha|fechar|fechado|resolvido|resolvida)"
-    r"\s*:?\s+(?:[\w.\-]+/[\w.\-]+)?#(\d+)",
+    rf"\s*:?\s+(?P<ref>{_REF})",
     re.I,
 )
 _EVIDENCE_CAP = 5
@@ -113,14 +115,19 @@ def criteria(issue_body: str) -> list[str]:
     return result
 
 
+def _number(ref: str) -> int:
+    """The issue or PR number at the end of a reference: `#12`, `o/r#12`, `GH-12`, `https://github.com/o/r/issues/12`."""
+    return int(re.search(r"\d+$", ref).group())
+
+
 def closes(pr_body: str, issue: int) -> bool:
     """Whether the PR body has a closing keyword for `issue` (the thing that closes it on merge).
 
     Recognizes close/closes/closed, fix/fixes/fixed, resolve/resolves/resolved and PT-BR fecha/fechar/fechado,
-    resolvido/resolvida (any case, whole word), with `#N` or `owner/repo#N`. "Parte de #N" is not a keyword.
+    resolvido/resolvida (any case, whole word), with `#N`, `owner/repo#N`, `GH-N` or an issue/pull URL. "Parte de #N" is not a keyword.
     Any occurrence counts: "closes #5, closes #123" closes 123, and a "Parte de" next to it does not undo it.
     """
-    return any(int(m.group(1)) == issue for m in _CLOSING.finditer(pr_body))
+    return any(_number(m.group("ref")) == issue for m in _CLOSING.finditer(pr_body))
 
 
 def _partial_of(pr_body: str, issue: int) -> bool:

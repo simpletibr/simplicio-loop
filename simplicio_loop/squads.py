@@ -402,12 +402,12 @@ def _fold(text: str) -> str:
     return "".join(chr(ord(ch) + 32) if "A" <= ch <= "Z" else ch for ch in text)
 
 
-def _logins(values: Any) -> frozenset:
+def logins(values: Any) -> frozenset:
     """Folded, non-empty str logins (GitHub logins are case-insensitive). None, empty or non-str entries give nothing."""
     return frozenset(_fold(v.strip()) for v in _each(values) if isinstance(v, str) and v.strip())
 
 
-def _authorized(comment: Mapping[str, Any], approvers: frozenset, associations: frozenset) -> bool:
+def authorized(comment: Mapping[str, Any], approvers: frozenset, associations: frozenset) -> bool:
     author = comment.get("author")
     login = author.get("login") if isinstance(author, Mapping) else None
     if not isinstance(login, str) or not login:
@@ -421,7 +421,7 @@ def _has_independent_review(approval: Mapping[str, Any], comments: Sequence[Mapp
     if not isinstance(head, str) or not head:
         return False
     author = review_comment.parse_author_id(str(approval.get("body") or ""))
-    independent = identity.parse_independent_marker([c for c in comments if _authorized(c, approvers, associations)], head)
+    independent = identity.parse_independent_marker([c for c in comments if authorized(c, approvers, associations)], head)
     return (independent is not None and independent.agent_id != author and independent.role != identity.AUTO_REVIEWER.role
             and independent.agent_id != identity.AUTO_REVIEWER.agent_id)
 
@@ -454,7 +454,7 @@ def squad_gate(
     unknown = associations - set(TRUSTABLE_ASSOCIATIONS)
     if unknown:
         raise ValueError("trusted association must be one of %s, got %s" % (", ".join(TRUSTABLE_ASSOCIATIONS), ", ".join(sorted(unknown))))
-    allowed = _logins(approvers)
+    allowed = logins(approvers)
     commits = list(data.get("commits") or [])
     comments = list(data.get("comments") or [])
     if not commits:
@@ -469,7 +469,7 @@ def squad_gate(
         if not _APPROVAL_LINE.search(body):
             continue
         seen += 1
-        if not _authorized(comment, allowed, associations):
+        if not authorized(comment, allowed, associations):
             continue
         if head not in _APPROVAL_OIDS.findall(body):  # compared exactly, never by prefix or by commit date
             other_head += 1
