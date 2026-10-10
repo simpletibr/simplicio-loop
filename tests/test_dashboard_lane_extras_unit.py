@@ -53,7 +53,7 @@ def _contract(tmp_path, tasks):
 
 def test_an_empty_run_reports_no_extras_and_an_unverified_heartbeat(tmp_path):
     assert lane_extras.extras(tmp_path, []) == {'schema': SCHEMA, 'last_command': None, 'running_command': NO_COMMAND_EVENT,
-                                                'tasks': [], 'models': [], 'heartbeat': NO_LANE}
+                                                'tasks': [], 'models': [], 'tokens_series': [], 'heartbeat': NO_LANE}
 
 
 def test_last_command_is_the_latest_test_or_lint_result_by_seq(tmp_path):

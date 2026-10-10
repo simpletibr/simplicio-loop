@@ -18,6 +18,7 @@ from simplicio_loop.progress import PHASES
 
 KEYS = ('tokens', 'usd', 'seconds')
 SCHEMA = 'simplicio.dashboard-event/v1'
+MAX_SERIES = 60
 MAX_CONTRACT_BYTES = 1_000_000
 TOP_N = 20
 # A count (tokens, USD, seconds) above this is not a measurement: no run spends 10**15 of anything, and the cap keeps every
@@ -83,6 +84,24 @@ def _token_events(events: Iterable[dict[str, Any]]) -> Iterator[tuple[dict[str, 
         yield event, model, tokens_in or 0, tokens_out or 0, _task(event.get('task_id')), _iteration(event.get('iteration')), lane
 
 
+def token_series(events: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    '''The cumulative measured tokens after each token_usage event, as ``{'ts', 'tokens'}`` points (the sparkline of the panel).
+
+    Same events and same sum as ``usage``, so the last point is always ``usage(events)['tokens']``. With more than MAX_SERIES
+    events the series keeps MAX_SERIES of them, evenly spaced and including the first and the last; ``ts`` is the event time
+    or None. No event with a count: an empty series.
+    '''
+    points: list[dict[str, Any]] = []
+    total = 0
+    for event, _, tokens_in, tokens_out, *_ in _token_events(events):
+        total += int(tokens_in + tokens_out)
+        points.append({'ts': event['ts'] if isinstance(event.get('ts'), str) else None, 'tokens': total})
+    if len(points) <= MAX_SERIES:
+        return points
+    last = len(points) - 1
+    return [points[round(k * last / (MAX_SERIES - 1))] for k in range(MAX_SERIES)]
+
+
 def usage(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
     '''Tokens and USD summed from the producer events, grouped by phase, lane, model, task and iteration.
 
@@ -100,6 +119,7 @@ def usage(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
     by_task: dict[str, int] = {}
     by_iteration: dict[str, int] = {}
     unattributed = {'task': 0, 'iteration': 0}
+    by_source: dict[str, int] = {'provider': 0, 'other': 0}
     for event in events:
         if isinstance(event, dict) and event.get('schema') == SCHEMA and event.get('kind') == 'cost_sample':
             payload = event.get('payload') if isinstance(event.get('payload'), dict) else {}
@@ -114,6 +134,11 @@ def usage(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
         _bump(by_phase, event.get('phase'), amount)
         _bump(by_lane, lane, amount)
         _bump(by_model, model, amount)
+        payload = event.get('payload') if isinstance(event.get('payload'), dict) else {}
+        if payload.get('source') == 'provider':
+            by_source['provider'] += amount
+        else:
+            by_source['other'] += amount
         if task is None:
             unattributed['task'] += amount
         else:
@@ -124,7 +149,7 @@ def usage(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
             _bump(by_iteration, str(iteration), amount)
     return {'tokens': tokens if samples else None, 'usd': usd if cost_seen else None, 'samples': samples,
             'by_phase': by_phase, 'by_lane': by_lane, 'by_model': by_model, 'by_task': by_task,
-            'by_iteration': by_iteration, 'unattributed_tokens': unattributed}
+            'by_iteration': by_iteration, 'unattributed_tokens': unattributed, 'by_source': by_source}
 
 
 def price_for(models: dict[str, Any], model: str) -> dict[str, Any] | None:

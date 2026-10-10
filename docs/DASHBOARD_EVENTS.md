@@ -85,7 +85,7 @@ namespaced kind; each namespace owns its own catalog.
 | recovery | `decision_requested` | runner (entering `awaiting_decision`) | `reason` |
 | delivery and cost | `delivery_reconciled` | runner | `current_state`, `blocker` |
 | delivery and cost | `pr_opened` | reserved for the delivery step | `url`, `number` |
-| delivery and cost | `token_usage` | runner (`execution-route*.json` of the run) | `input_tokens`, `output_tokens`, optional `model`, `reason`; `lane` = route |
+| delivery and cost | `token_usage` | runner (`execution-route*.json` and `provider-worker-*.json` of the run) | `input_tokens`, `output_tokens`, optional `model`, `reason`; `lane` = route; a provider receipt adds `source` (`provider`), `requests`, `cached_tokens`, `cache_write_tokens`, `reasoning_tokens`, `cost`, and sets `task_id`, `lane` and `iteration` |
 | delivery and cost | `cost_sample` | reserved for agent/model producers | `model`, `usd` |
 | end | `run_finished` | runner (entering `done`, `partial` or `cancelled`) | `outcome`, `reason` |
 
@@ -93,7 +93,7 @@ namespaced kind; each namespace owns its own catalog.
 that need them (#1404 agents and cost). Their payload fields above are the expected
 shape, not yet emitted.
 
-`token_usage` is produced from the run's own `execution-route*.json` records: only integer counts the run recorded become events (the live emit happens when the fan-out route is written; runs without a live stream get the same events in `derive_events`). A deterministic-worker route records 0 tokens (`deterministic_worker_no_llm`); a route decided before any provider call records null counts and produces no event. The run records carry NO provider token counts today, so a real provider run stays UNVERIFIED for tokens and cost until a provider flow records them. Counts are never invented. `cost_sample` stays reserved. `dashboard/budget.py` sums the events for the budget panel and alerts, and `cost_estimate` prices measured tokens with `dashboard/prices.json`: `GET /api/runs/<id>/budget` returns `cost` with `state: ESTIMADO`, `proof_kind: estimado`, `as_of` and `source_url` of the table, or UNVERIFIED with the reason (no measured tokens, no table, model without price).
+`token_usage` is produced from the run's own `execution-route*.json` records: only integer counts the run recorded become events (the live emit happens when the fan-out route is written; runs without a live stream get the same events in `derive_events`). A deterministic-worker route records 0 tokens (`deterministic_worker_no_llm`); a route decided before any provider call records null counts and produces no event. The provider receipt `provider-worker-<task>-attempt-<n>.json` (usage status `measured`) gives the measured counts of a real provider call. The producer takes `task_id` and `lane` from the `execution-route-<task_index>.json` of the same task, `iteration` from the receipt `attempt`, `payload.requests` from its `provider_call_count` and marks `payload.source` as `provider`. Every event takes `phase` from the run `state.json`. A run with no provider receipt stays UNVERIFIED for tokens and cost. Counts are never invented. `cost_sample` stays reserved. `dashboard/budget.py` sums the events for the budget panel and alerts, and `cost_estimate` prices measured tokens with `dashboard/prices.json`: `GET /api/runs/<id>/budget` returns `cost` with `state: ESTIMADO`, `proof_kind: estimado`, `as_of` and `source_url` of the table, or UNVERIFIED with the reason (no measured tokens, no table, model without price).
 
 ## Producers
 

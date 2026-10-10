@@ -8,7 +8,8 @@ and carries proof_kind "estimado". A model the table does not list gets no role 
 The breakdown (issue #1550) groups the same token_usage events by phase, lane, model, task and iteration, and the agent
 map groups the worker_claimed events by lane. Tokens are measured (proof_kind "medido"); a cost is always an estimate.
 The runner records 0 or null for the provider tokens of a worker run, so those tokens, and the cost built on them, stay
-UNVERIFIED with the reason: nothing is invented. The event stream has no slot event, so slots are UNVERIFIED too.
+UNVERIFIED with the reason: nothing is invented. The event stream has no slot event: the slots and the agent instances are
+read by dashboard/agent_map.py.
 
 The route is polled every 3 s, so the reply is bounded and cheap (issue #1550, post-merge audit of #1556): the token_usage
 events are tallied in ONE pass, every dimension keeps its TOP_N groups plus one aggregate row (``others`` = how many groups it
@@ -213,13 +214,13 @@ def breakdown(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
     return _breakdown(_tally(events if isinstance(events, list) else list(events)))
 
 
-NO_SLOTS = 'slots não medidos: nenhum evento de slot no stream do run'
 NO_LEASE = 'worker_claimed sem lease_id'
-NO_CLAIMS = 'nenhum worker_claimed no run: instâncias, slots e leases não medidos'
+NO_CLAIMS = 'nenhum worker_claimed no run: lanes e leases não medidos'
 
 
 def agent_map(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
-    '''Claims, tasks and leases per lane from the worker_claimed events; slots have no event and stay UNVERIFIED.
+    '''Claims, tasks and leases per lane from the worker_claimed events. Instances and slots are not events: the extras reply
+    carries them from the Mapper operations store (dashboard/agent_map.py).
 
     TOP_N lanes (the most claims) plus one "others" row. Each list keeps a lane's first TOP_N distinct values and ``*_total``
     is the distinct count, so a lane with thousands of tasks stays small and every claim is deduplicated in O(1).'''
@@ -253,8 +254,7 @@ def agent_map(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
     if rest:
         found.append({'key': None, 'claims': sum(lanes[key]['claims'] for key in rest), 'tasks': [], 'lease_ids': [],
                       'branches': [], 'state': 'PASS', 'proof_kind': 'medido', 'lease_reason': None, 'others': len(rest)})
-    return {'state': 'PASS' if found else 'UNVERIFIED', 'reason': None if found else NO_CLAIMS, 'lanes': found,
-            'slots': {'state': 'UNVERIFIED', 'reason': NO_SLOTS}}
+    return {'state': 'PASS' if found else 'UNVERIFIED', 'reason': None if found else NO_CLAIMS, 'lanes': found}
 
 
 def _split_lanes(lanes: dict[Any, dict[str, Any]]) -> tuple[list, list]:
