@@ -1,10 +1,12 @@
-'''View tests for the cost widgets of the Simplicio Live cost panel (issue #1404, cost widgets, TDD red).
+'''View tests for the cost widgets of the Simplicio Live cost panel (issues #1404 and #1550, TDD red).
 
-The widgets read the GET /api/runs/<id>/budget body (budget.report). Token bars list the measured tokens by phase and by
-model: they show numbers only when token_usage was measured, else they stay UNVERIFIED with a reason and draw no bar.
-Cost per task and per iteration joins the measured tokens with the ESTIMADO USD of the price table. A row with no price
-keeps its measured tokens and shows USD UNVERIFIED with the reason. Tokens with no task or no iteration go to a labelled
-unattributed row, so no figure is invented. The view (static/extras/cost-widgets.js) runs in node through tests/fixtures/live_pipeline/cost_driver.mjs.
+The widgets read the GET /api/runs/<id>/budget body (budget.report). The origin rows say how many measured tokens the provider
+itself reported (by_source) and whether the USD of the run is the provider's reported cost (medido) or the price table's
+estimate (estimado); with no measured token they stay UNVERIFIED with a reason and have no row. Cost per task and per iteration
+joins the measured tokens with the USD of the run. A row with no USD keeps its measured tokens and shows USD UNVERIFIED with the
+reason. Tokens with no task or no iteration go to a labelled unattributed row, so no figure is invented. The tokens by phase, lane
+and model are the stacked bars of extras.js, so this view draws none. The view (static/extras/cost-widgets.js) runs in node through
+tests/fixtures/live_pipeline/cost_driver.mjs.
 '''
 import json
 import re
@@ -46,6 +48,7 @@ def _budget(usage=None, cost=None):
         'by_task': {'T1': 1_500_000, 'T2': 1_000_000},
         'by_iteration': {'1': 1_000_000, '2': 1_000_000},
         'unattributed_tokens': {'task': 0, 'iteration': 500_000},
+        'by_source': {'provider': 1_000_000, 'other': 1_500_000},
     }
     cost = cost if cost is not None else {
         'usd': 5.0, 'state': 'ESTIMADO', 'proof_kind': 'estimado', 'reason': None, 'as_of': '2026-10-08',
@@ -55,35 +58,6 @@ def _budget(usage=None, cost=None):
     }
     return {'phase': 'executing', 'limits': {}, 'rows': {key: _unverified('sem limite') for key in ('tokens', 'usd', 'seconds')},
             'usage': usage, 'cost': cost, 'comparison': None}
-
-
-def test_token_bars_show_the_measured_tokens_by_phase_and_model_largest_first():
-    bars = _view(_budget())['tokenBars']
-    assert bars['state'] == 'MEASURED'
-    assert bars['total'] == 2_500_000
-    assert bars['phases'] == [{'label': 'executing', 'value': 1_500_000}, {'label': 'validating', 'value': 1_000_000}]
-    assert bars['models'] == [{'label': 'claude-haiku-5-5', 'value': 2_000_000}, {'label': 'claude-sonnet-4-6', 'value': 500_000}]
-    assert bars['modelsOther'] is None
-
-
-def test_token_bars_without_measured_tokens_stay_unverified_with_a_reason_and_no_bar():
-    for budget in (None, _budget(usage={'tokens': None, 'usd': None, 'samples': 0, 'by_phase': {}, 'by_lane': {},
-                                        'by_model': {}, 'by_task': {}, 'by_iteration': {},
-                                        'unattributed_tokens': {'task': 0, 'iteration': 0}})):
-        bars = _view(budget)['tokenBars']
-        assert bars['state'] == 'UNVERIFIED'
-        assert bars['reason'] and 'token_usage' in bars['reason']
-        assert bars['phases'] == [] and bars['models'] == [] and bars['total'] is None
-
-
-def test_token_bars_fold_the_models_past_eight_into_one_other_row():
-    models = {'modelo-%02d' % i: 1000 * (i + 1) for i in range(10)}
-    usage = {'tokens': sum(models.values()), 'usd': None, 'samples': 10, 'by_phase': {'executing': sum(models.values())},
-             'by_lane': {}, 'by_model': models, 'by_task': {}, 'by_iteration': {}, 'unattributed_tokens': {'task': 0, 'iteration': 0}}
-    bars = _view(_budget(usage=usage))['tokenBars']
-    assert len(bars['models']) == 8
-    assert bars['models'][0] == {'label': 'modelo-09', 'value': 10000}
-    assert bars['modelsOther'] == {'models': 2, 'value': 1000 + 2000}
 
 
 def test_cost_per_task_joins_the_measured_tokens_with_the_estimated_usd():
@@ -158,14 +132,6 @@ def test_a_long_task_list_shows_eight_rows_and_counts_the_rest():
     assert tasks['more'] == 4
 
 
-def test_a_zero_measured_total_draws_no_bar_so_no_share_is_ever_a_division_by_zero():
-    usage = {'tokens': 0, 'usd': None, 'samples': 0, 'by_phase': {'executing': 0}, 'by_lane': {}, 'by_model': {'m': 0},
-             'by_task': {}, 'by_iteration': {}, 'unattributed_tokens': {'task': 0, 'iteration': 0}}
-    bars = _view(_budget(usage=usage))['tokenBars']
-    assert bars['state'] == 'UNVERIFIED'
-    assert bars['phases'] == [] and bars['models'] == []
-
-
 def test_the_cost_widgets_load_on_demand_so_static_live_keeps_its_gzip_budget():
     static_import = re.compile(r"^\s*(?:import|export)\b[^;]*\bfrom\s+['\"][^'\"]*cost-widgets\.js['\"]", re.M)
     for path in sorted(STATIC.rglob('*.js')):
@@ -180,13 +146,6 @@ def test_the_cost_widgets_never_write_markup_from_event_names():
     text = WIDGETS.read_text(encoding='utf-8')
     for banned in ('innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'createContextualFragment', 'DOMParser'):
         assert banned not in text, banned
-
-
-def test_counts_that_are_not_finite_numbers_never_become_a_bar():
-    usage = {'tokens': 1000, 'usd': None, 'samples': 1, 'by_phase': {'executing': 1000, 'text': '5', 'nothing': None, 'huge': '__INF__', 'flag': True},
-             'by_lane': {}, 'by_model': {}, 'by_task': {}, 'by_iteration': {}, 'unattributed_tokens': {'task': 0, 'iteration': 0}}
-    bars = _view(_budget(usage=usage))['tokenBars']
-    assert [item['label'] for item in bars['phases']] == ['executing']
 
 
 def _floor_budget(**cost_extra):
@@ -213,3 +172,90 @@ def test_an_exact_row_keeps_the_estimado_label_and_no_floor_note():
     row = view['taskCosts']['rows'][0]
     assert row['floor'] is False and 'USD 0.0160 estimado' in row['detail']
     assert 'requisição' not in view['taskCosts']['reason']
+
+
+def _rows(view):
+    return {row['key']: row for row in view['provenance']['rows']}
+
+
+def test_the_view_has_no_token_bars_because_extras_draws_the_stacked_ones():
+    view = _view(_budget())
+    assert set(view) == {'provenance', 'taskCosts', 'iterationCosts'}
+
+
+def test_provenance_says_how_many_measured_tokens_the_provider_reported():
+    view = _view(_budget())
+    assert view['provenance']['state'] == 'MEASURED'
+    assert '2.500.000 tokens' in view['provenance']['reason'] and '4 eventos' in view['provenance']['reason']
+    tokens = _rows(view)['source-tokens']
+    assert tokens['label'] == 'Tokens do provedor' and tokens['state'] == 'PASS'
+    assert tokens['detail'] == '1.000.000 tokens de 2.500.000 tokens (40%) reportados pelo provedor · 1.500.000 tokens de outras fontes'
+
+
+def test_provenance_with_every_token_from_the_provider_has_no_other_sources_note():
+    usage = dict(_budget()['usage'], by_source={'provider': 2_500_000, 'other': 0})
+    tokens = _rows(_view(_budget(usage=usage)))['source-tokens']
+    assert tokens['state'] == 'PASS' and 'outras fontes' not in tokens['detail'] and '(100%)' in tokens['detail']
+
+
+def test_provenance_with_no_provider_token_is_unverified_and_names_where_the_tokens_came_from():
+    usage = dict(_budget()['usage'], by_source={'provider': 0, 'other': 2_500_000})
+    tokens = _rows(_view(_budget(usage=usage)))['source-tokens']
+    assert tokens['state'] == 'UNVERIFIED'
+    assert tokens['detail'] == 'nenhum token reportado pelo provedor: 2.500.000 tokens vêm de outras fontes'
+
+
+def test_provenance_without_the_source_split_is_unverified_with_the_reason():
+    usage = dict(_budget()['usage'])
+    del usage['by_source']
+    tokens = _rows(_view(_budget(usage=usage)))['source-tokens']
+    assert tokens['state'] == 'UNVERIFIED' and 'origem dos tokens' in tokens['detail']
+
+
+def test_provenance_without_measured_tokens_is_unverified_with_a_reason_and_no_row():
+    empty = {'tokens': None, 'usd': None, 'samples': 0, 'by_phase': {}, 'by_lane': {}, 'by_model': {}, 'by_task': {},
+             'by_iteration': {}, 'unattributed_tokens': {'task': 0, 'iteration': 0}, 'by_source': {'provider': 0, 'other': 0}}
+    zero = dict(empty, tokens=0)
+    for budget in (None, _budget(usage=empty), _budget(usage=zero)):
+        provenance = _view(budget)['provenance']
+        assert provenance['state'] == 'UNVERIFIED' and 'token_usage' in provenance['reason']
+        assert provenance['rows'] == []
+
+
+def test_the_usd_of_the_run_is_estimado_with_the_price_table_date():
+    usd = _rows(_view(_budget()))['source-usd']
+    assert usd['label'] == 'USD do run' and usd['state'] == 'ESTIMADO'
+    assert usd['detail'] == 'USD 5.0000 estimado · tabela de preços de 2026-10-08'
+
+
+def test_the_usd_of_the_run_is_medido_when_the_provider_reported_every_cost():
+    cost = dict(_budget()['cost'], proof_kind='medido')
+    view = _view(_budget(cost=cost))
+    usd = _rows(view)['source-usd']
+    assert usd['state'] == 'PASS' and usd['detail'] == 'USD 5.0000 medido (reportado pelo provedor)'
+    assert 'estimado' not in usd['detail'] and 'tabela' not in usd['detail']
+    for kind in ('taskCosts', 'iterationCosts'):
+        assert view[kind]['state'] == 'MEDIDO' and view[kind]['reason'] == 'USD reportado pelo provedor; tokens medidos.'
+        assert all(row['state'] == 'PASS' for row in view[kind]['rows'] if row['detail'].count('USD ') and 'não verificado' not in row['detail'])
+    row = next(row for row in view['taskCosts']['rows'] if row['key'] == 'task:T1')
+    assert row['detail'].endswith('USD 2.0000 medido (reportado pelo provedor)')
+
+
+def test_a_floor_usd_of_the_run_reads_a_partir_de_and_a_medido_one_never_does():
+    floor = _rows(_view(_floor_budget()))['source-usd']
+    assert floor['state'] == 'ESTIMADO' and floor['detail'].startswith('a partir de USD 0.0160')
+    medido = _rows(_view(_floor_budget(proof_kind='medido', floor=False)))['source-usd']
+    assert medido['state'] == 'PASS' and 'a partir de' not in medido['detail']
+
+
+def test_the_usd_of_the_run_without_a_cost_is_unverified_with_the_cost_reason():
+    cost = {'usd': None, 'state': 'UNVERIFIED', 'reason': 'tabela de preços indisponível'}
+    usd = _rows(_view(_budget(cost=cost)))['source-usd']
+    assert usd['state'] == 'UNVERIFIED' and 'tabela de preços indisponível' in usd['detail']
+    bare = _rows(_view(_budget(cost={'usd': None, 'state': 'UNVERIFIED'})))['source-usd']
+    assert bare['state'] == 'UNVERIFIED' and 'custo do run não estimado' in bare['detail']
+
+
+def test_provenance_counts_that_are_not_finite_numbers_are_not_a_split():
+    usage = dict(_budget()['usage'], by_source={'provider': '__INF__', 'other': True})
+    assert _rows(_view(_budget(usage=usage)))['source-tokens']['state'] == 'UNVERIFIED'
