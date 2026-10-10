@@ -127,7 +127,8 @@ async def _post(body: Mapping[str, Any], key: str, session_id: str, timeout: flo
         return {"ok": False, "error": f"bad JSON: {exc}", "latency_s": latency}
     if "error" in parsed:
         return {"ok": False, "error": str(parsed["error"])[:500], "latency_s": latency}
-    usage = parsed.get("usage") or {}
+    usage = parsed.get("usage")
+    usage = usage if isinstance(usage, dict) else {}
     choice = (parsed.get("choices") or [{}])[0]
     return {
         "ok": True,
@@ -143,7 +144,7 @@ async def _post(body: Mapping[str, Any], key: str, session_id: str, timeout: flo
         "cached_tokens": (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0) or 0,
         "cost": usage.get("cost"),
         "cost_usd": usage.get("cost"),
-        "usage_reported": "usage" in parsed,
+        "usage_reported": isinstance(usage.get("completion_tokens"), (int, float)),  # MEASURED only from a real count
     }
 
 

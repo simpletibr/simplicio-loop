@@ -128,7 +128,7 @@ def _production_complete(monkeypatch, repo, messages_per_call):
     run_turbo replaced by one that sends `messages_per_call` through the `complete` it was given."""
     errors: list[turbo_provider.TurboProviderError] = []
 
-    async def run_turbo(root, tasks, complete, dev_cli=None):
+    async def run_turbo(root, tasks, complete, dev_cli=None, scope_for=None):
         for messages in messages_per_call:
             try:
                 await complete("simplicio", messages)
