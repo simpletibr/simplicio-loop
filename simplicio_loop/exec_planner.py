@@ -258,14 +258,23 @@ async def _run_subprocess(argv, stdin_text=None, timeout_sec=60.0, cwd=None, gra
     return stdout_bytes.decode("utf-8", errors="replace"), stderr_bytes.decode("utf-8", errors="replace"), proc.returncode
 
 
+# `--output-format json` wraps the answer in an envelope. Measured on this host (claude 2.1.292, grok 1.0.46, agy 1.3.2):
+# the model text is `result` (claude), `text` (grok) or `response` (agy, prose around the JSON), and with a schema flag
+# the parsed object is `structured_output` (claude, agy) or `structuredOutput` (grok).
+_OBJECT_KEYS = ("structured_output", "structuredOutput")
+_TEXT_KEYS = ("result", "text", "response")
+
+
 def _plan_from(obj):
     if isinstance(obj, dict):
         if "operations" in obj or "need" in obj:  # `need`: lines the planner could not see (turbo_window)
             return obj
-        # claude/grok `--output-format json` wrap the model text in an envelope: {"result": "<text>"}
-        inner = obj.get("result")
-        if isinstance(inner, str):
-            return _find_plan(inner)
+        for key in _OBJECT_KEYS:
+            if isinstance(obj.get(key), dict):
+                return _plan_from(obj[key])
+        for key in _TEXT_KEYS:
+            if isinstance(obj.get(key), str):
+                return _find_plan(obj[key])
     return None
 
 

@@ -66,6 +66,8 @@ def test_origin_schema_keeps_the_contract_limits():
 def test_origin_schema_is_a_copy_the_caller_cannot_use_to_edit_the_contract():
     so.origin_schema("plan")["properties"].clear()
     assert so.origin_schema("plan")["properties"]
+    so.origin_schema("verdict")["properties"]["verdict"]["enum"].clear()  # a list the contract also holds
+    assert plan_scope.RESPONSE_SCHEMAS["verdict"]["properties"]["verdict"]["enum"] == ["pass", "fail", "blocked"]
 
 
 # --- the plan contract can ask for more lines (the watcher `need` flow) ---------------------------------------------
@@ -405,3 +407,34 @@ def test_watcher_step_record_carries_the_receipt(tmp_path):
     host_mode._note_step(report, repo="o/r", issue={"number": 7}, step=1, planned=planned, outcome="COMPLETE", wall_ms=5)
     task = report["tasks"][-1]
     assert (task["structured_output"], task["structured_reason"]) == ("enforced", "flag:--json-schema")
+
+
+# --- the envelopes of the CLIs that take a schema flag (key sets measured with one minimal call each) ----------------
+
+PLAN = {"operations": [{"path": "a.txt", "find": "", "replace": "hi"}], "need": []}
+ENVELOPES = {
+    "claude": {"type": "result", "subtype": "success", "result": json.dumps(PLAN), "structured_output": PLAN},
+    "grok": {"text": json.dumps(PLAN), "stopReason": "end_turn", "structuredOutput": PLAN},
+    "agy": {"status": "SUCCESS", "response": "Plan written.\n" + json.dumps(PLAN), "structured_output": PLAN},
+}
+
+
+@pytest.mark.parametrize("family", sorted(ENVELOPES))
+def test_the_plan_is_read_from_the_envelope_of_each_cli(family):
+    assert exec_planner._find_plan(json.dumps(ENVELOPES[family])) == PLAN
+
+
+@pytest.mark.parametrize("family, text_key", [("claude", "result"), ("grok", "text"), ("agy", "response")])
+def test_the_parsed_object_wins_over_the_text(family, text_key):
+    envelope = {**ENVELOPES[family], text_key: "prose, no JSON"}
+    assert exec_planner._find_plan(json.dumps(envelope)) == PLAN
+
+
+@pytest.mark.parametrize("family, text_key", [("claude", "result"), ("grok", "text"), ("agy", "response")])
+def test_the_text_is_read_when_the_envelope_has_no_object(family, text_key):
+    envelope = {k: v for k, v in ENVELOPES[family].items() if k not in ("structured_output", "structuredOutput")}
+    assert text_key in envelope and exec_planner._find_plan(json.dumps(envelope)) == PLAN
+
+
+def test_an_envelope_without_a_plan_is_not_a_plan():
+    assert exec_planner._find_plan(json.dumps({"text": "no plan here", "structuredOutput": {"other": 1}})) is None
