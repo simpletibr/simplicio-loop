@@ -231,7 +231,7 @@ def check_mutation(root: Path, changes: Sequence[FileChange], test_argv: Sequenc
         return CheckResult("mutation", FAIL, ("nenhum mutante vivo na amostra (todos equivalentes ou inalcancaveis): a amostra nao diz nada",), measured)
     if equivalent * 2 > len(results):
         return CheckResult("mutation", FAIL, (f"mutantes equivalentes {equivalent}/{len(results)} (mais da metade da amostra): a amostra nao diz nada",), measured)
-    if killed == 0 or (judged and ratio < min_kill):  # zero kills is vacuous tests at any size; a ratio judges only from MIN_LIVE_TO_JUDGE up
+    if killed == 0 or (judged and ratio < min_kill) or (not judged and killed < live - 1):  # zero kills is vacuous at any size; a ratio judges from MIN_LIVE_TO_JUDGE up; below it at most one survivor (the equivalent mutant the ratio would punish)
         reason = f"mutantes mortos {killed}/{live} (<{int(min_kill * 100)}%): sobreviventes: " + ", ".join(m.describe() for m in survivors[:8])
         return CheckResult("mutation", FAIL, (reason,), measured)
     if not judged:  # some kill, too few live mutants for a ratio: the survivors go to a human, the check does not block
