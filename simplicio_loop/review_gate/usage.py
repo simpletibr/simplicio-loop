@@ -9,6 +9,7 @@ from functools import cached_property
 from pathlib import Path, PurePosixPath
 from typing import Collection, Mapping, Sequence
 
+from . import identity
 from .diffs import FileChange, kind_of
 from .model import CheckResult, ERROR, FAIL, PASS, SKIPPED
 
@@ -220,7 +221,7 @@ def check_usage(
     """
     code_changes = [c for c in changes if c.kind == "code"]
     if not code_changes:
-        return CheckResult("usage", SKIPPED, ("sem codigo de producao alterado",))
+        return CheckResult("usage", SKIPPED, (identity.non_python_skip_reason(changes) or "sem codigo de producao alterado",))
 
     entries: list[tuple[FileChange, FileRefs, list[Symbol]]] = []
     for change in code_changes:

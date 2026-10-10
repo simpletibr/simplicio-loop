@@ -143,9 +143,11 @@ def _link_in(dest: Path, data: bytes) -> str:
 
 
 def install_binary(*, archive_url: str, archive_name: str, checksums_url: str, member: str, dest: Path,
-                   get: Callable[[str], bytes] = default_get, on_installed: Optional[Callable[[str], None]] = None) -> str:
+                   get: Callable[[str], bytes] = default_get, on_installed: Optional[Callable[[str], None]] = None,
+                   expected_sha256: Optional[str] = None) -> str:
     """"installed" or "unchanged" (the destination already exists). Raises FetchError and writes nothing otherwise.
 
+    `expected_sha256` is the pinned SHA256 of the archive: it must match too, so a release replaced as a whole is refused.
     `on_installed` gets the SHA256 of the bytes written, the moment they are in place (before anything else can run)."""
     if os.path.lexists(dest):
         return "unchanged"
@@ -156,8 +158,11 @@ def install_binary(*, archive_url: str, archive_name: str, checksums_url: str, m
     if expected is None:
         raise FetchError("checksum_missing", f"the checksums file has no entry for {archive_name}")
     blob = get(archive_url)
-    if not hmac.compare_digest(hashlib.sha256(blob).hexdigest(), expected):
+    digest = hashlib.sha256(blob).hexdigest()
+    if not hmac.compare_digest(digest, expected):
         raise FetchError("checksum_mismatch", f"SHA256 of {archive_name} does not match the release checksums")
+    if expected_sha256 is not None and not hmac.compare_digest(digest, expected_sha256):
+        raise FetchError("pin_mismatch", f"SHA256 of {archive_name} does not match the pinned SHA256 of this version")
     data = _read_member(blob, archive_name, member)
     result = _link_in(dest, data)
     if result == "installed" and on_installed is not None:

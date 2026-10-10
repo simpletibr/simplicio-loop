@@ -229,7 +229,7 @@ def test_run_planner_reports_bad_plan_with_the_violations(tmp_path, monkeypatch)
 
     monkeypatch.setattr(exec_planner, "_find_cli", lambda name: "/bin/claude")
     monkeypatch.setattr(exec_planner, "_run_subprocess", fake_run)
-    result = asyncio.run(exec_planner.run_planner("claude", "planning", "x", cwd=str(tmp_path), scope=_scope("hello.txt")))
+    result = asyncio.run(exec_planner.run_planner("claude", "planning", "x", cwd=str(tmp_path), scope=_scope("hello.txt"), repo_root=tmp_path))
     assert result.reason_code == "bad_plan" and "out_of_scope:evil.py" in result.error
 
 
@@ -239,7 +239,7 @@ def test_run_planner_keeps_the_violations_of_a_refused_answer_for_the_retry(tmp_
 
     monkeypatch.setattr(exec_planner, "_find_cli", lambda name: "/bin/claude")
     monkeypatch.setattr(exec_planner, "_run_subprocess", fake_run)
-    result = asyncio.run(exec_planner.run_planner("claude", "planning", "x", cwd=str(tmp_path), scope=_scope("hello.txt")))
+    result = asyncio.run(exec_planner.run_planner("claude", "planning", "x", cwd=str(tmp_path), scope=_scope("hello.txt"), repo_root=tmp_path))
     assert result.violations == ["out_of_scope:evil.py"] and result.error == plan_scope.retry_message(result.violations)
 
 

@@ -16,7 +16,7 @@ import signal
 import tempfile
 import time
 
-from . import model_roles, plan_scope, structured_output
+from . import input_ceiling, model_roles, plan_scope, structured_output
 
 DEFAULT_FAMILIES = ["claude", "codex", "grok", "gemini"]
 KILL_GRACE_SEC = 3.0
@@ -396,8 +396,10 @@ def _temp_file(prefix, text, directory):
 
 
 async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_sec=KILL_GRACE_SEC, wrap=None, env=None,
-                      config_dir=None, scope=None, read_tools=False):
+                      config_dir=None, scope=None, read_tools=False, *, repo_root):
     """Run the planner CLI for a specific family and role.
+
+    ``repo_root`` is the repo the planner works in: its loop.toml sets the input-token ceiling the prompt must fit.
 
     ``wrap`` maps the argv to the argv actually spawned (the watcher passes its sandbox); the default is the identity.
     ``env`` is the whole environment of the subprocess; the default inherits the caller's.
@@ -417,6 +419,15 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
 
     if not _find_cli(family):
         return _result("cli_missing", family, role, model, effort, started, error=f"CLI '{family}' not found")
+
+    try:
+        ceiling = input_ceiling.resolve_ceiling(repo_root)
+        projection = input_ceiling.Projection.estimated(PLAN_ONLY_PREAMBLE + prompt)
+        input_ceiling.enforce_budget(projection, ceiling)
+    except input_ceiling.CeilingConfigError as e:
+        return _result("ceiling_invalid", family, role, model, effort, started, error=str(e))
+    except input_ceiling.InputCeilingExceeded:
+        return _result("input_ceiling_exceeded", family, role, model, effort, started, error="prompt exceeds ceiling")
 
     full_prompt = PLAN_ONLY_PREAMBLE + prompt
     temp_files = []
@@ -471,7 +482,7 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
 
 
 async def run_planner_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, families=None, grace_sec=KILL_GRACE_SEC,
-                                    wrap=None, env_for=None, config_dir=None, scope=None, read_tools=False):
+                                    wrap=None, env_for=None, config_dir=None, scope=None, read_tools=False, *, repo_root):
     """Try to run planner with each family in order, falling back on non-fatal errors.
 
     ``wrap``, ``env_for(family)``, ``scope`` and ``read_tools`` are passed to run_planner (the argv wrapper, the per-family
@@ -481,7 +492,7 @@ async def run_planner_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, fa
     for family in families or _get_families():
         result = await run_planner(family, role, prompt, cwd, timeout_sec, grace_sec, wrap=wrap,
                                    env=env_for(family) if env_for else None, config_dir=config_dir, scope=scope,
-                                   read_tools=read_tools)
+                                   read_tools=read_tools, repo_root=repo_root)
         if result.reason_code in ("bad_role", "bad_argv") or result.violations or result.is_ok():
             return result
         last_result = result

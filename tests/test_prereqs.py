@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import hashlib
 import io
-import json
 import os
 import tarfile
 import time
@@ -176,6 +175,7 @@ def ensure(world, checks=None, **kw):
     kw.setdefault("platform", "linux")
     kw.setdefault("machine", "x86_64")
     kw.setdefault("bin_dir", Path("/nonexistent/bin"))
+    kw.setdefault("pins", {})
     checks = checks if checks is not None else list(check(world).values())
     return prereqs.ensure(checks, environ={"PATH": ""}, which=world.which, run=world.run, **kw)
 
@@ -260,7 +260,7 @@ def test_dry_run_runs_nothing_even_with_yes():
     def no_network(url):
         raise AssertionError(f"dry run downloaded {url}")
 
-    actions = {a.name: a for a in ensure(world, checks, yes=True, dry_run=True, get=no_network)}
+    actions = {a.name: a for a in ensure(world, checks, yes=True, dry_run=True, get=no_network, pins=LINUX_PINS)}
     assert {name: a.result for name, a in actions.items()} == {"python": "would-install", "gh": "would-install", "git": "would-install"}
     assert world.calls == []
     assert {a.result for a in ensure(world, checks, dry_run=True, get=no_network) if a.name == "git"} == {"skipped"}
@@ -296,19 +296,28 @@ def make_archive(name, member, data=b"#!/bin/sh\necho tool\n"):
 
 
 class Releases:
-    """Fake GitHub: the latest-release answers and the archives, checksums included. `asked` lists every URL."""
+    """Fake GitHub: one release's archive and its checksums file. `asked` lists every URL; `pins` is the pin of that archive."""
 
-    def __init__(self, repo, tag, archive, sums_name, member, *, per_asset_sums=False, corrupt=False):
+    def __init__(self, repo, tag, archive, sums_name, member, *, corrupt=False):
         base = f"https://github.com/{repo}/releases/download/{tag}/"
-        blob = make_archive(archive, member)
-        digest = hashlib.sha256(b"other" if corrupt else blob).hexdigest()
-        self.files = {f"https://api.github.com/repos/{repo}/releases/latest": json.dumps({"tag_name": tag}).encode(),
-                      base + archive: blob, base + sums_name: f"{digest}  {archive}\n".encode()}
+        self.blob = make_archive(archive, member)
+        self.digest = hashlib.sha256(self.blob).hexdigest()
+        published = hashlib.sha256(b"other").hexdigest() if corrupt else self.digest
+        self.tool, self.tag, self.archive = ("gh" if repo == "cli/cli" else "uv"), tag, archive
+        self.files = {base + archive: self.blob, base + sums_name: f"{published}  {archive}\n".encode()}
         self.asked = []
+
+    def pins(self, platform, machine):
+        system, arch = prereqs._target(platform, machine)
+        return {self.tool: {"tag": self.tag, "assets": {f"{system}-{arch}": {"archive": self.archive, "sha256": self.digest}}}}
 
     def __call__(self, url):
         self.asked.append(url)
         return self.files[url]
+
+
+LINUX_PINS = {"gh": {"tag": "v2.60.0", "assets": {"linux-amd64": {"archive": "gh_2.60.0_linux_amd64.tar.gz", "sha256": "0" * 64}}},
+              "uv": {"tag": "0.5.1", "assets": {"linux-amd64": {"archive": "uv-x86_64-unknown-linux-gnu.tar.gz", "sha256": "0" * 64}}}}
 
 
 GH_CASES = [
@@ -324,9 +333,9 @@ def test_gh_comes_from_the_official_release_with_its_checksum(tmp_path, platform
     web = Releases("cli/cli", "v2.60.0", archive, "gh_2.60.0_checksums.txt", member)
     world = World(gh=None)
     bin_dir = tmp_path / "home" / ".local" / "bin"
-    actions = ensure(world, get=web, bin_dir=bin_dir, platform=platform, machine=machine)
+    actions = ensure(world, get=web, bin_dir=bin_dir, platform=platform, machine=machine, pins=web.pins(platform, machine))
     name = "gh.exe" if platform == "win32" else "gh"
-    assert [(a.name, a.result) for a in actions] == [("gh", "installed")] and "SHA256 checked" in actions[0].detail
+    assert [(a.name, a.result) for a in actions] == [("gh", "installed")] and "SHA256 pinned" in actions[0].detail
     assert os.listdir(bin_dir) == [name] and os.access(bin_dir / name, os.X_OK) or platform == "win32"
     assert web.asked[-2:] == [f"https://github.com/cli/cli/releases/download/v2.60.0/{a}" for a in
                               ("gh_2.60.0_checksums.txt", archive)]
@@ -346,7 +355,7 @@ def test_python_installs_uv_first_from_its_release_then_runs_uv_python_install(t
     uv = str(bin_dir / ("uv.exe" if platform == "win32" else "uv"))
     world.exit[f"{uv} python install 3.11"] = (0, "")
     world.exit[f"{uv} python find 3.11"] = (0, "/u/python3.11\n")
-    actions = ensure(world, checks, get=web, bin_dir=bin_dir, platform=platform, machine=machine)
+    actions = ensure(world, checks, get=web, bin_dir=bin_dir, platform=platform, machine=machine, pins=web.pins(platform, machine))
     assert [(a.name, a.result) for a in actions] == [("uv", "installed"), ("python", "installed")]
     assert actions[1].detail == "/u/python3.11" and world.ran(uv) == [[uv, "python", "install", "3.11"], [uv, "python", "find", "3.11"]]
 
@@ -368,7 +377,7 @@ def test_python_with_uv_already_there_downloads_nothing():
 def test_a_wrong_checksum_installs_nothing_and_says_so(tmp_path):
     archive = "gh_2.60.0_linux_amd64.tar.gz"
     web = Releases("cli/cli", "v2.60.0", archive, "gh_2.60.0_checksums.txt", "gh_2.60.0_linux_amd64/bin/gh", corrupt=True)
-    actions = ensure(World(gh=None), get=web, bin_dir=tmp_path / "bin")
+    actions = ensure(World(gh=None), get=web, bin_dir=tmp_path / "bin", pins=web.pins("linux", "x86_64"))
     assert (actions[0].result, actions[0].detail.split(":")[0]) == ("failed", "checksum_mismatch")
     assert not (tmp_path / "bin").exists() or os.listdir(tmp_path / "bin") == []
 
@@ -377,7 +386,8 @@ def test_a_failed_uv_download_stops_python_before_uv_python_install(tmp_path):
     archive = "uv-x86_64-unknown-linux-gnu.tar.gz"
     web = Releases("astral-sh/uv", "v0.5.1", archive, archive + ".sha256", "uv-x86_64-unknown-linux-gnu/uv", corrupt=True)
     world = World(python3=None, uv=None)
-    actions = ensure(world, list(check(world, interpreter=None).values()), get=web, bin_dir=tmp_path / "bin")
+    actions = ensure(world, list(check(world, interpreter=None).values()), get=web, bin_dir=tmp_path / "bin",
+                     pins=web.pins("linux", "x86_64"))
     assert [(a.name, a.result) for a in actions] == [("uv", "failed")] and world.ran(str(tmp_path / "bin" / "uv")) == []
 
 
@@ -393,16 +403,56 @@ def test_an_existing_tool_in_the_user_bin_is_never_replaced_and_costs_no_downloa
     assert [(a.name, a.result) for a in actions] == [("gh", "unchanged")] and (bin_dir / "gh").read_text() == "mine"
 
 
-@pytest.mark.parametrize("answer", [b"not json", b"[]", json.dumps({"tag_name": "../../evil"}).encode(), json.dumps({}).encode()])
-def test_a_release_answer_without_a_usable_tag_is_refused(tmp_path, answer):
-    actions = ensure(World(gh=None), get=lambda url: answer, bin_dir=tmp_path / "bin")
-    assert actions[0].result == "failed" and actions[0].detail.startswith("bad_response")
+def test_ensure_refuses_to_run_without_pins():
+    with pytest.raises(TypeError):
+        prereqs.ensure([], environ={"PATH": ""})
+
+
+@pytest.mark.parametrize("pin", [
+    {"tag": "../../evil", "assets": {"linux-amd64": {"archive": "gh_2.60.0_linux_amd64.tar.gz", "sha256": "0" * 64}}},
+    {"tag": "v2.60.0", "assets": {"linux-amd64": {"archive": "gh_2.60.0_linux_amd64.tar.gz", "sha256": "xyz"}}},
+    {"tag": "v2.60.0", "assets": {"linux-amd64": {"archive": "gh_2.60.0_linux_amd64.zip", "sha256": "0" * 64}}},
+])
+def test_a_pin_that_is_not_usable_is_refused_as_no_pin_and_nothing_is_downloaded(tmp_path, pin):
+    def no_network(url):
+        raise AssertionError(url)
+
+    actions = ensure(World(gh=None), get=no_network, bin_dir=tmp_path / "bin", pins={"gh": pin})
+    assert [(a.name, a.result) for a in actions] == [("gh", "skipped")] and actions[0].detail.startswith("no_pin:")
+    assert not (tmp_path / "bin").exists()
+
+
+@pytest.mark.parametrize("pins, platform, machine", [
+    ({}, "linux", "x86_64"),
+    (LINUX_PINS, "darwin", "arm64"),
+    (LINUX_PINS, "linux", "riscv64"),
+    (LINUX_PINS, "freebsd14", "x86_64"),
+])
+def test_a_tool_or_platform_without_a_pin_is_refused_as_no_pin_and_downloads_nothing(tmp_path, pins, platform, machine):
+    def no_network(url):
+        raise AssertionError(url)
+
+    actions = ensure(World(gh=None), get=no_network, bin_dir=tmp_path / "bin", pins=pins, platform=platform, machine=machine)
+    assert [(a.name, a.result) for a in actions] == [("gh", "skipped")] and actions[0].detail.startswith("no_pin:")
+    assert not (tmp_path / "bin").exists()
 
 
 def test_an_unknown_platform_gets_no_download():
-    actions = ensure(World(gh=None), platform="freebsd14", machine="x86_64", get=lambda url: 1 / 0)
-    assert actions[0].result == "skipped" and "freebsd14" in actions[0].detail
-    assert ensure(World(gh=None), machine="riscv64", get=lambda url: 1 / 0)[0].result == "skipped"
+    actions = ensure(World(gh=None), platform="freebsd14", machine="x86_64", get=lambda url: 1 / 0, pins=LINUX_PINS)
+    assert actions[0].result == "skipped" and "freebsd14" in actions[0].detail and actions[0].detail.startswith("no_pin:")
+    assert ensure(World(gh=None), machine="riscv64", get=lambda url: 1 / 0, pins=LINUX_PINS)[0].result == "skipped"
+
+
+def test_a_uv_without_a_pin_stops_python_and_downloads_nothing(tmp_path):
+    world = World(python3=None, uv=None)
+    checks = list(check(world, interpreter=None).values())
+
+    def no_network(url):
+        raise AssertionError(url)
+
+    actions = ensure(world, checks, get=no_network, bin_dir=tmp_path / "bin", pins={"gh": LINUX_PINS["gh"]})
+    assert [(a.name, a.result) for a in actions] == [("uv", "skipped")] and actions[0].detail.startswith("no_pin:")
+    assert world.ran(str(tmp_path / "bin" / "uv")) == []
 
 
 # --- the real runner ------------------------------------------------------------------------------------------------
@@ -462,13 +512,9 @@ def test_a_release_download_that_answers_3xx_without_location_is_a_failed_action
 
     from simplicio_loop import release_fetch
 
-    def answer(request):
-        if request.url.host == "api.github.com":
-            return httpx.Response(200, json={"tag_name": "v2.60.0"})
-        return httpx.Response(302)  # no Location
-
-    monkeypatch.setattr(release_fetch, "_transport", httpx.MockTransport(answer))
+    monkeypatch.setattr(release_fetch, "_transport", httpx.MockTransport(lambda request: httpx.Response(302)))  # no Location
     gh = prereqs.Check(name="gh", status="missing", required=True, path=None, version=None, minimum=None, fix="", auto="user")
-    actions = prereqs.ensure([gh], environ={"HOME": str(tmp_path)}, bin_dir=tmp_path / "bin", platform="linux", machine="x86_64")
+    actions = prereqs.ensure([gh], environ={"HOME": str(tmp_path)}, bin_dir=tmp_path / "bin", platform="linux", machine="x86_64",
+                             pins=LINUX_PINS)
     assert [(a.name, a.result) for a in actions] == [("gh", "failed")]
     assert actions[0].detail.startswith("unsafe_url:") and not (tmp_path / "bin").exists()

@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Collection, Mapping, Sequence
 
-from . import isolation, pytest_cmd, vacuity
+from . import identity, isolation, pytest_cmd, vacuity
 from .diffs import PYTEST_CONFIG_NAMES, FileChange, is_pytest_infra
 from .model import ERROR, FAIL, PASS, SKIPPED, CheckResult
 
@@ -175,7 +175,8 @@ def _check_tests_only(head_root: Path, base_root: Path, changes: Sequence[FileCh
     too (`vacuous_test`), because a test that cannot fail runs and passes for any code."""
     runnable = [c for c in tests if not is_pytest_infra(c.path) and c.added]
     if not runnable:
-        return CheckResult(NAME, SKIPPED, ("PR so de testes sem teste novo ou alterado para rodar (so remocao ou so conftest/configuracao)",))
+        return CheckResult(NAME, SKIPPED, (identity.non_python_skip_reason(changes) or
+                                           "PR so de testes sem teste novo ou alterado para rodar (so remocao ou so conftest/configuracao)",))
     refs: list[TestRef] = []
     funcs: dict[str, vacuity.TestFunc] = {}
     for change in runnable:
@@ -226,7 +227,7 @@ def check_redgreen(base_root: Path, head_root: Path, changes: Sequence[FileChang
     code = [c for c in changes if c.kind == "code" and c.status in ("A", "M")]
     tests = [c for c in changes if c.kind == "test" and c.status in ("A", "M")]
     if not code and not tests:
-        return CheckResult(NAME, SKIPPED, ("sem codigo de producao nem teste alterado",))
+        return CheckResult(NAME, SKIPPED, (identity.non_python_skip_reason(changes) or "sem codigo de producao nem teste alterado",))
     if not code:
         return _check_tests_only(head_root, base_root, changes, tests, python=python, timeout=timeout, wrap_in=wrap_in, env=env, home=home)
     refs: list[TestRef] = []
