@@ -2718,9 +2718,13 @@ def _redirect_run_to_wave(argv: Sequence[str]) -> int:
     return int(outcome["exit_code"]) if int(outcome.get("exit_code") or 0) != 0 else 2
 
 
+def _prose_words(argv: Sequence[str]) -> list[str]:
+    return list(itertools.takewhile(lambda item: not item.startswith("-"), argv))
+
+
 def _prose_as_turbo(argv: Sequence[str]) -> list[str]:
     """`simplicio-loop "<task>" [flags]` runs `simplicio-loop turbo --repo . --task "<task>" [flags]`."""
-    words = list(itertools.takewhile(lambda item: not item.startswith("-"), argv))
+    words = _prose_words(argv)
     return ["turbo", "--repo", ".", "--task", " ".join(words), *argv[len(words):]]
 
 
@@ -2775,6 +2779,9 @@ def main(argv=None) -> int:
         return intake_main(argv_list[1:])
     if argv_list[:1] == ["run"]:
         return _redirect_run_to_wave(argv_list[1:])
+    if argv_list[:1] == ["daemon"]:  # never a task: the frozen binary and Windows reach this parser with it (#1633)
+        from .frozen import daemon_command
+        return daemon_command(argv_list[1:])
     parser = _Parser(
         prog="simplicio-loop",
         description=(
@@ -3366,6 +3373,11 @@ def main(argv=None) -> int:
         ):
             return drain_intake_main(argv_list)
         if not argv_list[0].startswith("-") and argv_list[0] not in sub.choices:
+            words = _prose_words(argv_list)
+            if len(words) == 1 and not any(char.isspace() for char in words[0]):  # a mistyped command, not a task
+                print(f"simplicio-loop: unknown command {words[0]!r}; valid commands: {', '.join(sorted(sub.choices))}; "
+                      'a task is more than one word: simplicio-loop "<task>"', file=sys.stderr)
+                return 2
             argv_list = _prose_as_turbo(argv_list)
     args = parser.parse_args(argv_list)
     command = args.command or "install"

@@ -290,27 +290,30 @@ class Smoke:
             assert result == expected, f"binary {result} != wheel {expected}"
         return f"orient {result['orient']}, apply {result['apply']}, applied {result['applied']}"
 
+    def _install_check(self, target: Path, expected: int, state: str) -> None:
+        """``install --check`` writes nothing and exits 0 (up to date) or 10 (changes pending): the contract of #1575."""
+        before = tree_digest(target)
+        checked = self.run([str(self.exe), "install", "--check", "--target", str(target)])
+        assert checked.returncode == expected, (
+            f"install --check exited {checked.returncode} on {state}, expected {expected} "
+            f"({'up to date' if expected == 0 else 'changes pending'}): {checked.stdout[-200:]}{checked.stderr[-200:]}")
+        assert tree_digest(target) == before, "install --check wrote files"
+
     def install(self) -> str:
         target = self.work / "proj-binary"
         target.mkdir()
-        help_text = self.run([str(self.exe), "install", "--help"]).stdout
-        if "--check" in help_text:
-            checked = self.run([str(self.exe), "install", "--check", "--target", str(target)])
-            assert checked.returncode == 0, checked.stdout[-300:] + checked.stderr[-300:]
-        else:
-            checked = self.run([str(self.exe), "install", "--target", str(target), "--dry-run"])
-            assert checked.returncode == 0 and not any(target.iterdir()), "dry run wrote files"
+        self._install_check(target, 10, "an empty target")
         done = self.run([str(self.exe), "install", "--target", str(target)])
         assert done.returncode == 0, done.stdout[-300:] + done.stderr[-300:]
         files = tree_digest(target, skip=("install-ownership.json",))
         assert any(name.endswith("SKILL.md") for name in files), "no skill was installed"
-        mode = "--check" if "--check" in help_text else "--dry-run (no --check flag yet)"
+        self._install_check(target, 0, "the installed target")
         if self.reference_bin:
             other = self.work / "proj-wheel"
             other.mkdir()
             self.reference("install", "--target", str(other))
             assert files == tree_digest(other, skip=("install-ownership.json",)), "installed files differ from the wheel install"
-        return f"{len(files)} files installed; dry run used {mode}"
+        return f"{len(files)} files installed; install --check exited 10 on the empty target and 0 after the install"
 
     def data(self) -> str:
         assert self.wheel, "skipped: pass --wheel to compare against the wheel"
