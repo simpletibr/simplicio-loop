@@ -81,6 +81,19 @@ keys, the cycle reports `blocked` / `missing_credentials` and writes nothing.
 - Redirects are not followed, so the auth header never reaches another host.
 - `.simplicio-loop/langfuse/ledger.json` records what the server accepted, so re-exporting an unchanged run queues nothing.
 
+## Dashboard
+
+The Live dashboard shows the exporter for each run (issue #1610). It reads local files only. It never connects to Langfuse and never reads a key. A Langfuse outage cannot stop the panel.
+
+- Route: `GET /api/runs/<run id>/langfuse`. The reply has the schema `simplicio.dashboard-langfuse/v1`.
+- Settings: `langfuse_enabled`, `langfuse_host` and `langfuse_batch_seconds` come from `.simplicio-loop/loop.toml` on the default branch. The dashboard reads that file with `git show`. A copy edited in the clone does not count. The `LANGFUSE_HOST` variable does not change the link.
+- Link: `<langfuse_host>/trace/<trace id>`. The trace id is the one the exporter writes for the run. The page shows the link only. It has no iframe.
+- Chip: `desligado`, `em dia`, `enviando`, `atrasado N min` or `erro`. The chip reads the queue directory. An empty queue is `em dia`, never `enviando`. The oldest queued request is late after two batch windows. A finished run that the exporter has not seen is late by the same rule. A bad `loop.toml` value, a host that is not https (or http on loopback), a damaged exporter file or a file in `dead/` gives `erro`.
+- Queue: the number of request files in `.simplicio-loop/langfuse/queue/`.
+- Comparison: the dashboard maps the run's report and events with the exporter's own `plan`. It then compares each gate score and the measured tokens with the digests in `ledger.json`. Each gate is `igual`, `diverge`, `na fila` or `não enviado`. `diverge` means the ledger holds an older value than the loop holds now. The panel then shows a warning. The ledger keeps digests only. So the panel cannot show the old value. The exporter sends no cost. The cost row stays UNVERIFIED.
+- Off: the panel shows the chip `desligado` and nothing else.
+- Snapshot: `dashboard snapshot` adds the chip, the queue size, the trace id and the comparison. It has no link, no host and no key.
+
 ## Known limits
 
 - Task spans all start at the run's start and end after their `wall_ms`; the report records durations, not per-task start times.

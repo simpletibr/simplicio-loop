@@ -11,15 +11,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from simplicio_loop.dashboard import history, runs, trends
+from simplicio_loop.dashboard import history, langfuse_view, runs, trends
 from simplicio_loop.dashboard_events import read_events
 
 EVENT_LIMIT = 25
 EVENT_FIELDS = ('seq', 'ts', 'kind', 'phase', 'severity')
 _EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 _CSS = ' '.join([
-    ':root { color-scheme: light dark; --bg: #f7f7f5; --fg: #1d1d1b; --muted: #6b6b66; --line: #d8d8d2; --accent: #2f6f5e; }',
-    '@media (prefers-color-scheme: dark) { :root { --bg: #161715; --fg: #ecece6; --muted: #9c9c94; --line: #3a3b37; --accent: #6fbf9f; } }',
+    ':root { color-scheme: light dark; --bg: #f7f7f5; --fg: #1d1d1b; --muted: #6b6b66; --line: #d8d8d2; --accent: #2f6f5e; --warn: #8a5a00; }',
+    '@media (prefers-color-scheme: dark) { :root { --bg: #161715; --fg: #ecece6; --muted: #9c9c94; --line: #3a3b37; --accent: #6fbf9f; --warn: #f4c55b; } }',
     'body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; }',
     'main { max-width: 960px; margin: 0 auto; padding: 16px; }',
     'h1 { font-size: 1.4rem; margin: 8px 0; } h2 { font-size: 1.1rem; margin: 24px 0 8px; }',
@@ -31,6 +31,9 @@ _CSS = ' '.join([
     '.table-wrap { overflow-x: auto; } table { width: 100%; border-collapse: collapse; }',
     'th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }',
     'th { color: var(--muted); font-weight: 600; }',
+    '.chip { display: inline-block; max-width: 100%; margin: 4px 0; padding: 2px 10px; border: 1px solid var(--line);',
+    'border-inline-start: 4px solid var(--accent); border-radius: 12px; overflow-wrap: anywhere; }',
+    '.chip[data-state="late"], .chip[data-state="error"], .chip[data-state="diverge"] { border-inline-start-color: var(--warn); }',
 ])
 
 
@@ -87,6 +90,29 @@ def _facts(summary: dict[str, Any], state: dict[str, Any]) -> str:
     return '<dl>' + items + '</dl>' + bar + '<p class="meta">%d%% complete</p>' % percent
 
 
+def _langfuse(ref: runs.RunRef) -> str:
+    '''The Langfuse chip, and when the exporter is on the queue, the trace id and the comparison. Never a link or a host.'''
+    view = langfuse_view.panel(ref)
+    chip = view['chip']
+    out = '<h2>Langfuse</h2><p class="chip" data-state="%s">Langfuse: %s</p>' % (_esc(chip['state']), _esc(chip['label']))
+    if chip['state'] == 'off':
+        return out
+    compare = view['compare']
+    facts = [('Fila em disco', view['queue']), ('Trace', view['trace']['id']), ('Motivo', chip['reason'] or compare['reason'])]
+    tokens = compare['tokens']
+    if tokens:
+        side = lambda counts: 'não medido' if counts is None else 'entrada %d, saída %d' % (counts['input'], counts['output'])
+        facts.append(('Tokens', 'loop: %s; Langfuse: %s' % (side(tokens['loop']), side(tokens['langfuse']))))
+    facts.append(('Custo', compare['cost']['reason']))
+    out += '<dl>' + ''.join('<dt>%s</dt><dd>%s</dd>' % (_esc(key), _esc(value)) for key, value in facts if value) + '</dl>'
+    if compare['state'] == 'DIVERGE':
+        out += '<p class="chip" data-state="diverge">Atenção: o Langfuse tem valores diferentes dos do loop</p>'
+    if compare['gates']:
+        out += _table(['Gate', 'Loop', 'Langfuse'], ''.join(
+            _row([g['name'], 'passou' if g['passed'] else 'falhou', g['langfuse']]) for g in compare['gates']))
+    return out
+
+
 def _events(run_dir: Any) -> str:
     events = read_events(run_dir)[-EVENT_LIMIT:]
     body = ''.join(_row([event.get(field) for field in EVENT_FIELDS]) for event in events)
@@ -108,10 +134,10 @@ def render_snapshot(repos: Any, run_id: str | None = None) -> str:
     generated = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
     body = ('<main><h1>Simplicio Live snapshot</h1>'
             '<p class="meta">Generated %s. Read-only, no script.</p>'
-            '<h2>Run</h2>%s'
+            '<h2>Run</h2>%s%s'
             '<h2>Recent events</h2>%s'
             '<h2>All runs</h2>%s</main>') % (
-        _esc(generated), _facts(detail['summary'], detail['state']), _events(ref['run_dir']), _all_runs(rows))
+        _esc(generated), _facts(detail['summary'], detail['state']), _langfuse(ref), _events(ref['run_dir']), _all_runs(rows))
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
             '<title>Simplicio Live snapshot</title><style>' + _CSS + '</style></head>'

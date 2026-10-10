@@ -85,3 +85,66 @@
 .bars progress::-moz-progress-bar { background-color: var(--sl-state-running); border-radius: var(--sl-radius-pill); }
 html[data-tv="1"] .cost-block h3 { font-size: var(--sl-step-1); }
 .cost-block li, .cost-block sl-gate-badge { min-inline-size: 0; max-inline-size: 100%; overflow-wrap: anywhere; }
+/* Langfuse widget (issue #1610): displays integration state, trace link, and comparison gates. */
+.lf-panel {
+  display: grid;
+  gap: var(--sl-space-2);
+  padding: var(--sl-space-3);
+  border: 1px solid var(--sl-line);
+  border-radius: var(--sl-radius-plate);
+  background: var(--sl-raised);
+}
+.lf-chip {
+  display: inline-block;
+  padding: var(--sl-space-1) var(--sl-space-2);
+  border-radius: var(--sl-radius-pill);
+  font-weight: var(--sl-weight-strong);
+  font-size: var(--sl-step--1);
+}
+.lf-chip[data-state="off"] { color: var(--sl-ink-muted); }
+.lf-chip[data-state="ok"] { color: var(--sl-state-pass); border: 1px solid var(--sl-state-pass); }
+.lf-chip[data-state="sending"] { color: var(--sl-state-running); border: 1px solid var(--sl-state-running); }
+.lf-chip[data-state="late"] { color: var(--sl-state-unverified); border: 1px solid var(--sl-state-unverified); }
+.lf-chip[data-state="error"] { color: var(--sl-state-fail); border: 1px solid var(--sl-state-fail); }
+.lf-queue { margin: 0; font-size: var(--sl-step--1); }
+.lf-link {
+  display: inline-block;
+  color: var(--sl-ink);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+.lf-notice { margin: 0; font-size: var(--sl-step--1); color: var(--sl-ink); }
+.lf-warn {
+  margin: 0;
+  font-size: var(--sl-step--1);
+  color: var(--sl-state-fail);
+}
+.lf-gates {
+  margin: 0;
+  padding-inline-start: var(--sl-space-3);
+  list-style: disc;
+}
+.lf-gates li {
+  font-size: var(--sl-step--1);
+  overflow-wrap: anywhere;
+}
+.lf-gates li[data-state="DIVERGE"] { color: var(--sl-state-fail); }
+.lf-gates li[data-state="PASS"] { color: var(--sl-state-pass); }
+.lf-tokens {
+  margin: 0;
+  font-size: var(--sl-step--1);
+  font-family: var(--sl-font-mono);
+}
+.lf-tokens[data-state="DIVERGE"] { color: var(--sl-state-fail); }
+.lf-tokens[data-state="PASS"] { color: var(--sl-state-pass); }
+.lf-cost {
+  margin: 0;
+  font-size: var(--sl-step--1);
+}
+.lf-cost[data-state="UNVERIFIED"] { color: var(--sl-state-unverified); }
+.lf-reason {
+  margin-block-start: var(--sl-space-1);
+  font-size: var(--sl-step--1);
+  color: var(--sl-ink-muted);
+  overflow-wrap: anywhere;
+}

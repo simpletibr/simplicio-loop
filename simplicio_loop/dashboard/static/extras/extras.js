@@ -3,6 +3,8 @@
 // The stage-agents breakdown (issue #1550) adds widgets under the seven rows: tokens by phase/lane/model as stacked bars,
 // cost per task and per iteration, the agent map and a sparkline of the polled token total. Every name is shown with
 // textContent; a bar width is a clamped percent set through the CSSOM, never a style attribute.
+import { startLangfuse } from './langfuse.js';
+
 const SCHEMA = 'simplicio.dashboard-extras/v1';
 const STAGE_SCHEMA = 'simplicio.dashboard-stage-agents/v1';
 const POLL_MS = 3000;
@@ -295,6 +297,7 @@ export function startExtras(readApi, runId) {
   };
   load();
   setInterval(load, POLL_MS);
+  startLangfuse(readApi, runId, section);
 }
 
 // The run budget and token usage are derived from the event stream, so they refresh on the tokens cadence (the caller's interval).
