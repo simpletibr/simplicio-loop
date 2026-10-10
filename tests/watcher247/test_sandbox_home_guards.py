@@ -210,13 +210,16 @@ def test_task1_oserror_on_readlink_is_converted_to_sandbox_unavailable(tmp_path,
 def test_task2_absolute_link_inside_relative_target_is_refused(tmp_path):
     """#1680 task 2: A relative link whose target contains an absolute link is refused.
     
-    Mutant A6: putting the target parts at the end of pending instead of the front
-    would allow the absolute link to be skipped (traversed then ignored).
+    Mutant A6: putting the target parts at the end of pending instead of the front.
+    Correct code: walks entry -> hop2 (absolute) and refuses.
+    Mutant: walks remaining 'user' first (not a link), then hop2 as user/hop2 (not a link) and accepts.
+    Structure: real/user/ exists, hop2 = absolute symlink to real, entry = relative symlink to hop2, HOME = tmp_path/entry/user
     """
-    (tmp_path / "hop").symlink_to("/tmp")  # absolute target
-    (tmp_path / "entry").symlink_to("hop/user")  # relative target pointing through the absolute link
+    (tmp_path / "real" / "user").mkdir(parents=True)  # real directory
+    (tmp_path / "hop2").symlink_to(str(tmp_path / "real"))  # absolute symlink to real
+    (tmp_path / "entry").symlink_to("hop2")  # relative symlink to hop2
     with pytest.raises(sandbox.SandboxUnavailable, match="absolute target"):
-        wrap(tmp_path, sandbox.HomeView(tmp_path / "entry"), tmp_path / "state")
+        wrap(tmp_path, sandbox.HomeView(tmp_path / "entry" / "user"), tmp_path / "state")
 
 
 def test_task3_loop_of_links_has_distinct_error_message(tmp_path):
