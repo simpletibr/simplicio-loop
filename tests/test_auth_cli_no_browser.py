@@ -391,3 +391,45 @@ def test_the_refusal_names_the_runtime_version(sandbox, monkeypatch, capsys, tmp
     code = auth_cli.login(as_json=True, no_browser=True, environ=env, run=never)
     doc = json.loads(capsys.readouterr().out)
     assert code == 2 and "3.10.0" in doc["detail"]
+
+
+def _runtime_3_10_0(monkeypatch, tmp_path):
+    runtime = tmp_path / "simplicio"
+    runtime.write_text('#!/bin/sh\necho "simplicio 3.10.0"\n')
+    runtime.chmod(0o755)
+    monkeypatch.setattr(auth_cli.auth, "runtime_binary", lambda *args, **kwargs: runtime)
+
+
+def test_the_refusal_is_printed_in_text_with_the_reason_and_the_version(sandbox, monkeypatch, capsys, tmp_path):
+    env, _ = sandbox
+    _runtime_3_10_0(monkeypatch, tmp_path)
+    monkeypatch.setattr(auth_cli, "_can_block_browser", lambda: False)
+
+    def never(command, env, stdout):
+        raise AssertionError("the Runtime must not run")
+
+    code = auth_cli.login(no_browser=True, environ=env, run=never)
+    out = capsys.readouterr().out
+    assert code == 2
+    assert out.startswith("login: --no-browser is not supported") and "Simplicio Runtime 3.10.0" in out
+
+
+def test_no_browser_that_cannot_install_the_stand_ins_exits_2_with_the_reason_and_the_version(
+        sandbox, monkeypatch, capsys, tmp_path):
+    env, called = sandbox
+    _runtime_3_10_0(monkeypatch, tmp_path)
+
+    def no_space(*args, **kwargs):
+        raise OSError("no space left on device")
+
+    monkeypatch.setattr(auth_cli.tempfile, "mkdtemp", no_space)
+
+    def never(command, env, stdout):
+        raise AssertionError("the Runtime must not run")
+
+    code = auth_cli.login(as_json=True, no_browser=True, environ=env, run=never)
+    doc = json.loads(capsys.readouterr().out)
+    assert code == 2
+    assert doc["status"] == "REFUSED" and doc["reason_code"] == "no_browser_unsupported"
+    assert "no space left on device" in doc["detail"] and "3.10.0" in doc["detail"]
+    assert not called.exists()

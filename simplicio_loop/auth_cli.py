@@ -213,6 +213,16 @@ def _sign_in_lines(sign_in: dict) -> list:
     return lines
 
 
+def _refuse_no_browser(env: dict, as_json: bool, why: str) -> int:
+    doc = auth.describe(env)
+    version = doc["runtime"]["version"] or "unknown"
+    detail = (f"--no-browser is not supported on this system: Simplicio Runtime {version} {why}. "
+              "Run: simplicio-loop login")
+    doc.update(schema="simplicio.login/v1", status="REFUSED", reason_code="no_browser_unsupported", detail=detail)
+    _print(doc, as_json, [f"login: {detail}"])
+    return 2
+
+
 def login(*, as_json: bool = False, no_browser: bool = False, environ: Optional[dict] = None,
           run: Callable[[list, dict, Optional[int]], int] = _run_runtime) -> int:
     env = dict(os.environ if environ is None else environ)
@@ -233,19 +243,17 @@ def login(*, as_json: bool = False, no_browser: bool = False, environ: Optional[
     if path != runtime_path:  # for this run the Runtime must write where the loop reads
         child[auth.RUNTIME_ENV] = str(path)
     if no_browser and not _can_block_browser():
-        doc = auth.describe(env)
-        version = doc["runtime"]["version"] or "unknown"
-        detail = (f"--no-browser is not supported on this system: Simplicio Runtime {version} opens the browser by "
-                  "itself and has no option to stop it. Run: simplicio-loop login")
-        doc.update(schema="simplicio.login/v1", status="REFUSED", reason_code="no_browser_unsupported", detail=detail)
-        _print(doc, as_json, [f"login: {detail}"])
-        return 2
+        return _refuse_no_browser(env, as_json, "opens the browser by itself and has no option to stop it")
     shim_dir = None
+    if no_browser:
+        try:
+            shim_dir = _install_browser_shim(child)
+        except OSError as exc:
+            return _refuse_no_browser(env, as_json, "opens the browser by itself, and the stand-ins that stop it "
+                                                    f"could not be installed ({exc})")
     previous = _trap_signals() if no_browser else {}
     sys.stdout.flush()
     try:
-        if no_browser:
-            shim_dir = _install_browser_shim(child)
         code = run([str(runtime), "login", "google"], child, 2 if as_json else None)  # --json: its output goes to stderr
         sign_in = _read_sign_in(shim_dir)
     finally:
