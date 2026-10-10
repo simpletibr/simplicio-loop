@@ -47,7 +47,7 @@ async def evaluate(repo: str, number: int, issue: int, head: str, author: identi
     independent = identity.parse_independent_marker(view.get("comments") or [], head)
     async with lock:  # the gate adds and removes git worktrees of the clone: writes are serialized
         await _git(dest, "fetch", "--depth", FETCH_DEPTH, "origin", "main", f"loop/issue-{issue}")
-        fetched = await _git(dest, "rev-parse", "FETCH_HEAD")
+        fetched = await _git(dest, "rev-parse", f"origin/loop/issue-{issue}")  # FETCH_HEAD holds one line per ref: the first is main
         if not fetched.startswith(head[:7]):
             raise ReviewError(f"branch loop/issue-{issue} is at {fetched[:7]}, not at the reviewed head {head[:7]}")
         base = await _git(dest, "merge-base", "origin/main", head)

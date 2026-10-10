@@ -1,6 +1,6 @@
 """Red-to-green: every new behavior test fails on main without the change and passes with it.
 
-Runs only the new or changed test functions (not the suite), twice: on `head_root` (all must pass) and on
+Runs only the new or changed test functions on `head_root` (all must pass), and the test files that hold them on
 `base_root` (production of main) with the head's test files copied over it. A new test that passes on main proves
 nothing about the change and is rejected with its id. A test whose name or docstring says `characterization` is
 declared as already true on main: it is exempt, and still listed in `measured["exempt"]`.
@@ -82,7 +82,8 @@ def parse_outcomes(output: str) -> dict[str, str]:
 
 def _pytest(root: Path, ids: Sequence[str], python: str, timeout: float, wrap: Callable, env: Mapping[str, str] | None,
             where: str) -> dict[str, str]:
-    argv = wrap([python, "-m", "pytest", "-q", "--tb=no", "-rA", "-p", "no:cacheprovider", "-o", "addopts=", *ids])
+    argv = wrap([python, "-m", "pytest", "-q", "--tb=no", "-rA", "-p", "no:cacheprovider", "-o", "addopts=",
+                 "--continue-on-collection-errors", *ids])
     full_env = {**os.environ, **(env or {}), "PYTHONDONTWRITEBYTECODE": "1"}
     if env and "PYTHONPATH" in env:
         full_env["PYTHONPATH"] = os.pathsep.join(str(root / p) if not os.path.isabs(p) else p
@@ -137,7 +138,9 @@ def check_redgreen(base_root: Path, head_root: Path, changes: Sequence[FileChang
             target = base_root / change.path
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(head_root / change.path, target)
-        base = _pytest(base_root, ids, python, timeout, wrap, env, "main")
+        # By file, not by node id: a file that cannot be imported on main (it imports a module only the change adds) has no
+        # collectors, and pytest exits 4 on its node ids instead of reporting `ERROR <file>`, which is the red we want.
+        base = _pytest(base_root, sorted({r.path for r in refs}), python, timeout, wrap, env, "main")
     except RuntimeError as exc:
         return CheckResult(NAME, ERROR, (str(exc),))
     head_failed = [r.node_id for r in refs if _verdict(head, r) != "passed"]
