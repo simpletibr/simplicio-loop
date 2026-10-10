@@ -42,7 +42,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from . import author_isolation, evidence, model_roles, plan_paths
+from . import author_isolation, evidence, input_ceiling, model_roles, plan_paths
 from .watcher247 import host_mode, proc, sandbox
 
 FAMILIES = ("claude",)
@@ -281,6 +281,14 @@ class _Run:
         verify_view = sandbox.HomeView(real_home)
         prompt = (AUTHOR_PREAMBLE.format(protected=", ".join(plan_paths.PROTECTED_PATHS), verify=f"`{self.verify}`" if self.verify else "no command",
                                                   no_run="" if self.run_tests else NO_RUN_NOTE) + task_text)
+        try:
+            ceiling = input_ceiling.resolve_ceiling(self.worktree)
+            projection = input_ceiling.Projection.estimated(prompt)
+            input_ceiling.enforce_budget(projection, ceiling)
+        except input_ceiling.CeilingConfigError as e:
+            return self.fail("ceiling_invalid", str(e))
+        except input_ceiling.InputCeilingExceeded:
+            return self.fail("input_ceiling_exceeded", "prompt exceeds ceiling")
         self.login_files = (home / author_isolation.LOGIN, real_home / author_isolation.LOGIN)
         self.secrets = await asyncio.to_thread(author_isolation.login_secrets, *self.login_files)
         deny = deny_rules(home, real_home)
