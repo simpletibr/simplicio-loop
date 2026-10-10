@@ -5,19 +5,15 @@ inside the sandbox, so a write there succeeds but never reaches the host.
 """
 from __future__ import annotations
 
-import shutil
 import subprocess
-import sys
 from pathlib import Path
-
-import pytest
 
 from simplicio_loop.watcher247 import sandbox
 
-pytestmark = pytest.mark.skipif(
-    sys.platform != "linux" or shutil.which("bwrap") is None, reason="needs Linux with bwrap")
+from .sandbox_rig import needs_bwrap
 
 
+@needs_bwrap
 def test_wrapped_argv_writes_only_inside_clone(tmp_path):
     clone = tmp_path / "clone"
     state = tmp_path / "state"

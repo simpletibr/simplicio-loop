@@ -14,7 +14,7 @@ import pytest
 from simplicio_loop import exec_planner
 from simplicio_loop.watcher247 import host_mode, sandbox
 
-from .sandbox_rig import bwrap_skip_reason, run, scratch
+from .sandbox_rig import needs_bwrap, run, scratch
 
 LOGIN = {  # the file each family's login lives in, relative to HOME (measured with the real CLIs, see the PR)
     "claude": ".claude/.credentials.json",
@@ -26,7 +26,6 @@ LOGIN = {  # the file each family's login lives in, relative to HOME (measured w
 }
 OTHER_SECRETS = (".ssh/id_ed25519", ".config/gh/hosts.yml", ".aws/credentials", ".simplicio/login.json")
 PROBE = 'for p in "$@"; do if cat "$HOME/$p" >/dev/null 2>&1; then echo "$p"; fi; done'
-needs_bwrap = pytest.mark.skipif(bool(bwrap_skip_reason()), reason=bwrap_skip_reason() or "bwrap")
 
 
 def fill(home: Path, relative: str, text: str) -> Path:
@@ -245,7 +244,8 @@ def test_the_table_has_only_folders_and_binaries_under_home():
 def test_the_planner_argv_starts_with_the_family_name():
     """host_mode picks the HOME view from argv[0], because exec_planner hands the wrapper only the argv."""
     for family in exec_planner.SUPPORTED_FAMILIES:
-        assert exec_planner.build_argv(family, "planning", "p", "default", "/x", "low")[0] == family
+        argv = exec_planner.build_argv(family, "planning", "p", "default", "/x", "low", schema_file="/s/p.json")
+        assert argv[0] == family
 
 
 def test_planner_wrap_gives_each_family_its_own_home_view(tmp_path, monkeypatch):
