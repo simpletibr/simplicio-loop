@@ -417,7 +417,7 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
     mode, why = structured_output.provider_receipt(turbo_provider.model_name())
     head = {**head, "run_id": run_.run_id, "structured_output": mode, "structured_reason": why, **plan_prompt()}
     complete = functools.partial(
-        turbo_provider.complete, session_id=turbo_provider.session_id_for(root),
+        turbo_provider.complete, session_id=turbo_provider.session_id_for(root), repo_root=root,
         **structured_output.provider_fields(turbo_provider.model_name(), tasks, root))
     # The saved survey marker belongs to one run. Ask Mapper again on every invocation: its own
     # tree-state cache keeps an unchanged tree free and byte-identical, and a changed tree gets a new map.
