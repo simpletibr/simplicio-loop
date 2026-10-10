@@ -105,6 +105,17 @@ def _fail(result: proc.Result, what: str) -> RuntimeError:
     return RuntimeError((result.stderr or result.stdout or what)[:500])
 
 
+def _seed_exclude(base: Path) -> None:
+    """Put `.simplicio-loop/` in the shared info/exclude from the host: inside an item's sandbox that file is read-only (#1680)."""
+    exclude = base / ".git" / "info" / "exclude"
+    line = f"{STATE}/"
+    exclude.parent.mkdir(parents=True, exist_ok=True)
+    text = exclude.read_text(encoding="utf-8") if exclude.exists() else ""
+    if line not in text.splitlines():
+        glue = "" if not text or text.endswith("\n") else "\n"
+        exclude.write_text(text + glue + line + "\n", encoding="utf-8")
+
+
 async def _update_base(repo: str, branch: str, number: int, fix: bool) -> Path:
     """Clone the repo once, then fetch what this item starts from. The base holds no loop/* branch: it is detached at the base."""
     dest = base_path(repo)
@@ -118,6 +129,7 @@ async def _update_base(repo: str, branch: str, number: int, fix: bool) -> Path:
     email = await proc.run(["git", "config", "user.email"], cwd=dest)
     if email.returncode != 0 or not email.stdout.strip():
         await proc.run(["git", "config", "user.email", "wesleysimplicio@users.noreply.github.com"], cwd=dest)
+    _seed_exclude(dest)
     refs = [branch, f"loop/issue-{number}"] if fix else [branch]
     for ref in refs:
         # the explicit refspec: a --depth 1 clone is single-branch, and without it `origin/<ref>` is never made for any other branch
