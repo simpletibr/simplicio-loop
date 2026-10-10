@@ -20,6 +20,7 @@ import hashlib
 import json
 import os
 import platform
+import shlex
 import stat
 import sys
 import time
@@ -235,29 +236,52 @@ def _paths(environ: Mapping[str, str], vouched: Mapping[str, str]) -> dict[str, 
     return {name: str(_bin_dir(environ) / _exe(name)) for name in vouched}
 
 
+def _pinned(environ: Mapping[str, str], vouched: Mapping[str, str], inner: Callable[..., Any]) -> Callable[..., Any]:
+    """`inner` (the function that starts a program: argv first) that refuses a vouched file whose bytes changed.
+
+    The SHA256 is read again right before the program starts, so a swap after the approval cannot run; the refusal looks
+    like a program that did not start. What remains is the time between this read and the exec itself."""
+    pins = {str(path): vouched[name] for name, path in _paths(environ, vouched).items()}
+
+    def run(argv: Sequence[str], *args: Any, **kwargs: Any) -> Any:
+        want = pins.get(str(argv[0])) if argv else None
+        if want is not None and _digest(Path(argv[0])) != want:
+            return None, ""
+        return inner(argv, *args, **kwargs)
+
+    return run
+
+
 def _prereq_step(options: Options, environ: Mapping[str, str], seams: Seams, node_for: Sequence[str],
                  vouched: Mapping[str, str]) -> tuple[list, list, dict[str, str]]:
     """(checks after the installs, actions, tools vouched for: name -> SHA256). Installs run only on a real run.
 
-    PATH hygiene keeps ~/.local/bin out of the search, so a tool installed in this run is vouched for by its exact path,
-    with the SHA256 taken right after the install (never one taken later)."""
-    checks = seams.check_all(environ, node_for=node_for, trusted=_paths(environ, vouched))
-    actions = seams.ensure(checks, yes=options.yes, dry_run=options.check or options.dry_run, environ=environ)
+    PATH hygiene keeps ~/.local/bin out of the search, so a tool installed in this run is vouched for by its exact path.
+    Its SHA256 is the one `ensure` took when it wrote the file. The file must still match it now, and a tool installed
+    without such a hash is not vouched for. A hash taken here, after the rest of `ensure`, would approve a swapped file."""
+    from . import prereqs
+    checks = seams.check_all(environ, node_for=node_for, trusted=_paths(environ, vouched),
+                             run=_pinned(environ, vouched, prereqs.run_command))
+    actions = seams.ensure(checks, yes=options.yes, dry_run=options.check or options.dry_run, environ=environ,
+                           run=_pinned(environ, vouched, prereqs.run_command))  # `uv python install` and `find` run the approved uv
     bin_dir = _bin_dir(environ)
-    fresh = {a.name: digest for a in actions if a.result == "installed" and a.name in INSTALLED_TOOLS
-             and _private_dir(bin_dir) and (digest := _digest(bin_dir / _exe(a.name)))}
+    fresh = {a.name: a.sha256 for a in actions if a.result == "installed" and a.name in INSTALLED_TOOLS and a.sha256
+             and _private_dir(bin_dir) and _digest(bin_dir / _exe(a.name)) == a.sha256}
     if fresh:
         vouched = {**vouched, **fresh}
-        checks = seams.check_all(environ, node_for=node_for, trusted=_paths(environ, vouched))
+        checks = seams.check_all(environ, node_for=node_for, trusted=_paths(environ, vouched),
+                                 run=_pinned(environ, vouched, prereqs.run_command))
     return checks, actions, dict(vouched)
 
 
 def _github_step(options: Options, environ: Mapping[str, str], seams: Seams, directory: Path,
-                 trusted: Mapping[str, str]) -> tuple[dict, Optional[github_cred.GitHubCredential]]:
+                 vouched: Mapping[str, str]) -> tuple[dict, Optional[github_cred.GitHubCredential]]:
+    from . import github_cred
     planning = options.check or options.dry_run
     provided = None if options.check else _piped_token(options, seams)
     ask = seams.ask if (seams.isatty() and not planning) else None
-    resolution = seams.resolve(environ, state_dir=directory, provided=provided, ask=ask, trusted=dict(trusted))
+    resolution = seams.resolve(environ, state_dir=directory, provided=provided, ask=ask, trusted=_paths(environ, vouched),
+                               run=_pinned(environ, vouched, github_cred.run_command))
     cred = resolution.credential
     if cred is None:
         outcomes = {outcome for _, outcome in resolution.tried}
@@ -317,12 +341,57 @@ def _path_hint(checks: Sequence[Any], environ: Mapping[str, str], vouched: Mappi
     return fixed
 
 
+def _loose_parent(path: str) -> Optional[str]:
+    """The first folder above `path` (or above where its links lead) that anyone can rewrite: it has `o+w` and no sticky bit."""
+    folder = os.path.dirname(path)
+    real = os.path.realpath(folder)
+    for start in (os.path.normpath(folder), real):
+        holder = start
+        while (parent := os.path.dirname(holder)) != holder:
+            holder = parent
+            try:
+                info = os.lstat(holder)
+            except OSError:
+                break
+            if stat.S_ISDIR(info.st_mode) and info.st_mode & stat.S_IWOTH and not info.st_mode & stat.S_ISVTX and holder != real:
+                return holder
+    return None
+
+
+def _owned(folder: str) -> bool:
+    """The current user owns `folder`, so `chmod` on it can work."""
+    try:
+        return os.stat(folder).st_uid == os.geteuid()
+    except (OSError, AttributeError):
+        return False
+
+
 def _ignored_fix(path: str, reason: str) -> str:
+    """What to do about a program in a PATH entry that is not searched. Every path is quoted for a shell.
+
+    `chmod go-w` only helps when you own the folder and it is the folder itself that others can write."""
+    folder = os.path.dirname(path) or "."
+    install = f"`sudo install -m 755 {shlex.quote(path)} {shlex.quote('/usr/local/bin/' + os.path.basename(path))}`"
     if reason == "user_local_bin":
-        return f"install it where only root writes, for example `sudo install -m 755 {path} /usr/local/bin/{os.path.basename(path)}`"
+        return f"install it where only root writes, for example {install}"
     if reason == "relative":
         return "use only absolute folders in PATH"
-    return f"make its folder private (`chmod go-w {os.path.dirname(path) or '.'}`), or move the program to /usr/local/bin"
+    if reason == "foreign_owner":
+        return f"its folder belongs to another user, so you cannot make it private. Install it where only root writes, for example {install}"
+    if reason == "writable_parent":
+        parent = _loose_parent(path)
+        if parent is not None and _owned(parent):
+            return (f"a folder above it can be rewritten by anyone: remove that write permission (`chmod o-w {shlex.quote(parent)}`), "
+                    f"or install it where only root writes, for example {install}")
+        return f"a folder above it can be rewritten by anyone. Install it where only root writes, for example {install}"
+    if _owned(folder):
+        return f"make its folder private (`chmod go-w {shlex.quote(folder)}`), or move the program to /usr/local/bin"
+    return f"its folder can be rewritten by anyone and is not yours, so you cannot make it private. Install it where only root writes, for example {install}"
+
+
+def _ignored_line(row: Mapping[str, str]) -> str:
+    return (f"{row['host']}: {row['path']} is in an ignored PATH entry ({row['reason']}) and is not run. "
+            f"Fix: {_ignored_fix(row['path'], row['reason'])}")
 
 
 def _ignored_hosts(statuses: Sequence[Any], environ: Mapping[str, str]) -> list[dict]:
@@ -342,12 +411,13 @@ def collect(options: Options, environ: Mapping[str, str], seams: Seams, director
     from . import host_detect
     statuses = seams.detect(environ)
     if options.host and not any(s.installed and s.id == options.host for s in statuses):
-        raise Refused(f"--host {options.host} is not installed")
+        hint = next((_ignored_line(row) for row in _ignored_hosts(statuses, environ) if row["host"] == options.host), "")
+        raise Refused(f"--host {options.host} is not installed" + (f". {hint}" if hint else ""))
     node_for = [s.id for s in statuses if s.installed and s.needs_node]
     current = read_summary(directory)
     checks, actions, vouched = _prereq_step(options, environ, seams, node_for, _vouched_installs(current, _bin_dir(environ)))
     checks = _path_hint(checks, environ, vouched)
-    github, cred = _github_step(options, environ, seams, directory, _paths(environ, vouched))
+    github, cred = _github_step(options, environ, seams, directory, vouched)
     ignored = _ignored_hosts(statuses, environ)
     choice = host_detect.choose_default(statuses, requested=options.host, previous=(current or {}).get("default_host"))
     summary = {
@@ -397,9 +467,7 @@ def render(report: Mapping[str, Any], summary_state: str) -> str:
     missing = [h["id"] for h in report["hosts_detected"] if not h["installed"]]
     if missing:
         lines.append("  not installed: " + ", ".join(missing))
-    for row in report["ignored_hosts"]:
-        lines.append(f"  {row['host']}: {row['path']} is in an ignored PATH entry ({row['reason']}) and is not run. "
-                     f"Fix: {_ignored_fix(row['path'], row['reason'])}")
+    lines += [f"  {_ignored_line(row)}" for row in report["ignored_hosts"]]
     lines.append("  no executable to detect (editor or extension): " + ", ".join(report["undetectable_hosts"]))
     github = report["github"]
     lines += ["", "GitHub"]

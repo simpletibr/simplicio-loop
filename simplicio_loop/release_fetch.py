@@ -23,6 +23,7 @@ import tempfile
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
+from typing import Optional
 from urllib.parse import urlsplit
 
 import httpx
@@ -142,8 +143,10 @@ def _link_in(dest: Path, data: bytes) -> str:
 
 
 def install_binary(*, archive_url: str, archive_name: str, checksums_url: str, member: str, dest: Path,
-                   get: Callable[[str], bytes] = default_get) -> str:
-    """"installed" or "unchanged" (the destination already exists). Raises FetchError and writes nothing otherwise."""
+                   get: Callable[[str], bytes] = default_get, on_installed: Optional[Callable[[str], None]] = None) -> str:
+    """"installed" or "unchanged" (the destination already exists). Raises FetchError and writes nothing otherwise.
+
+    `on_installed` gets the SHA256 of the bytes written, the moment they are in place (before anything else can run)."""
     if os.path.lexists(dest):
         return "unchanged"
     for url in (archive_url, checksums_url):
@@ -155,4 +158,8 @@ def install_binary(*, archive_url: str, archive_name: str, checksums_url: str, m
     blob = get(archive_url)
     if not hmac.compare_digest(hashlib.sha256(blob).hexdigest(), expected):
         raise FetchError("checksum_mismatch", f"SHA256 of {archive_name} does not match the release checksums")
-    return _link_in(dest, _read_member(blob, archive_name, member))
+    data = _read_member(blob, archive_name, member)
+    result = _link_in(dest, data)
+    if result == "installed" and on_installed is not None:
+        on_installed(hashlib.sha256(data).hexdigest())
+    return result

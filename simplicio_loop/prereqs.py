@@ -11,15 +11,17 @@ Nothing runs through a shell. A tool that is already there is never replaced.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import platform as platform_module
 import re
 import shutil
+import stat
 import subprocess
 import sys
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Optional
 
@@ -72,9 +74,10 @@ class Action:
     name: str
     result: str  # unchanged | installed | would-install | skipped | failed
     detail: str  # for "skipped": the exact command to run; never a secret
+    sha256: Optional[str] = field(default=None, compare=False)  # of the bytes written by an install, taken at that moment
 
     def as_dict(self) -> dict:
-        return asdict(self)
+        return {"name": self.name, "result": self.result, "detail": self.detail}
 
 
 # --- looking --------------------------------------------------------------------------------------------------------
@@ -88,6 +91,9 @@ def _run(argv: Sequence[str], timeout: float = TIMEOUT_S) -> tuple[Optional[int]
     except (OSError, subprocess.TimeoutExpired):
         return None, ""
     return done.returncode, (done.stdout + done.stderr)[:4096]
+
+
+run_command = _run  # what `setup_cli` wraps to check a file again right before it runs
 
 
 def _is_root() -> bool:
@@ -252,18 +258,37 @@ def _install_release(tool: str, where: _Where, dry_run: bool) -> Action:
     if dry_run:
         return Action(tool, "would-install", f"{dest} from the official {tool} release (SHA256 checked)")
     repo = "cli/cli" if tool == "gh" else "astral-sh/uv"
+    written: list[str] = []
     try:
         tag = json.loads(where.get(f"https://api.github.com/repos/{repo}/releases/latest")).get("tag_name")
         if not isinstance(tag, str) or not _TAG.fullmatch(tag):
             raise FetchError("bad_response", f"the latest {tool} release has no usable tag")
         archive, sums_url, archive_url, member = _release_files(tool, tag, *target)
         result = install_binary(archive_url=archive_url, archive_name=archive, checksums_url=sums_url, member=member,
-                                dest=dest, get=where.get)
+                                dest=dest, get=where.get, on_installed=written.append)
     except FetchError as exc:
         return Action(tool, "failed", f"{exc.reason_code}: {exc}")
     except (ValueError, AttributeError):
         return Action(tool, "failed", "bad_response: the release answer is not JSON")
-    return Action(tool, result, f"{tag} {dest} (SHA256 checked)")
+    return Action(tool, result, f"{tag} {dest} (SHA256 checked)", written[0] if result == "installed" and written else None)
+
+
+def _expect(path: str, sha256: str, inner: Run) -> Run:
+    """`inner` that refuses to start `path` when its bytes are no longer `sha256`; the refusal looks like a program that did not start."""
+    def run(argv: Sequence[str], timeout: float = TIMEOUT_S) -> tuple[Optional[int], str]:
+        if argv and str(argv[0]) == path:
+            try:
+                fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+            except OSError:
+                return None, ""
+            try:
+                with os.fdopen(fd, "rb") as handle:
+                    if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode) or hashlib.file_digest(handle, "sha256").hexdigest() != sha256:
+                        return None, ""
+            except OSError:
+                return None, ""
+        return inner(argv, timeout)
+    return run
 
 
 def _install_python(uv: Optional[Check], where: _Where, run: Run, dry_run: bool) -> list[Action]:
@@ -279,6 +304,8 @@ def _install_python(uv: Optional[Check], where: _Where, run: Run, dry_run: bool)
         if actions[-1].result != "installed":
             return actions
         uv_path = str(where.exe("uv"))
+        if actions[-1].sha256:
+            run = _expect(uv_path, actions[-1].sha256, run)  # the file this run wrote must still be the bytes it wrote
     code, _ = run([uv_path, "python", "install", PY_TARGET], INSTALL_TIMEOUT_S)
     if code != 0:
         return actions + [Action("python", "failed", f"`{command}` did not finish (exit {code})")]

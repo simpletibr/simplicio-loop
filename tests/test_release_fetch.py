@@ -64,7 +64,7 @@ def release(blob, checksums=None, name=ARCHIVE):
 def install(web, dest, name=ARCHIVE, member=MEMBER, **kw):
     return release_fetch.install_binary(archive_url=kw.pop("archive_url", BASE + name), archive_name=name,
                                         checksums_url=kw.pop("checksums_url", BASE + "checksums.txt"),
-                                        member=member, dest=dest, get=web)
+                                        member=member, dest=dest, get=web, on_installed=kw.pop("on_installed", None))
 
 
 # --- checksums and urls ---------------------------------------------------------------------------------------------
@@ -107,6 +107,22 @@ def test_installs_a_tar_gz_member_with_mode_755_and_leaves_no_temp_file(tmp_path
     assert dest.read_bytes() == BINARY and stat.S_IMODE(dest.stat().st_mode) == 0o755
     assert os.listdir(dest.parent) == ["gh"]
     assert web.asked == [BASE + "checksums.txt", BASE + ARCHIVE]  # the checksums come first
+
+
+def test_on_installed_gets_the_sha256_of_the_bytes_written_not_of_the_file_read_again(tmp_path, monkeypatch):
+    dest = tmp_path / "bin" / "gh"
+    write = release_fetch._link_in
+
+    def write_then_swap(path, data):
+        result = write(path, data)
+        path.write_bytes(b"#!/bin/sh\necho swapped\n")  # the file changes right after the write
+        return result
+
+    monkeypatch.setattr(release_fetch, "_link_in", write_then_swap)
+    seen = []
+    assert install(release(tar_bytes()), dest, on_installed=seen.append) == "installed"
+    assert dest.read_bytes() != BINARY
+    assert seen == [hashlib.sha256(BINARY).hexdigest()]
 
 
 def test_installs_a_zip_member(tmp_path):
