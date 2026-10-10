@@ -287,3 +287,14 @@ def test_no_red_argument_keeps_the_sample_check_as_it_was(tmp_path, monkeypatch)
     fake_killers(monkeypatch, ATTR, lambda text: [])
     result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, seed="s")
     assert result.measured["unattributed"] == [] and not any("test_kills_no_mutant" in r for r in result.reasons)
+
+
+def test_real_pytest_names_every_test_that_fails_under_a_mutant(tmp_path):
+    """Killers come from real `-rfE` output, not a fake: no `-x`, so every failing test of a killed mutant is credited."""
+    root = make_project(tmp_path, "def f(x):\n    return x == 0\n",
+                        "from app import f\n\ndef test_first():\n    assert f(0)\n\ndef test_second():\n    assert not f(1) and f(0)\n")
+    (flip,) = [m for m in generate("app.py", (root / "app.py").read_text(), [2]) if m.kind == "flip_cmp"]
+    no_x = [sys.executable, "-m", "pytest", "-q", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", "tests"]
+    (outcome,) = run_mutants(root, [flip], no_x, 60)
+    assert outcome.status == KILLED
+    assert outcome.killers == ("tests/test_app.py::test_first", "tests/test_app.py::test_second")
