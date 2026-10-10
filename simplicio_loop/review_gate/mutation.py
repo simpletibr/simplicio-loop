@@ -16,6 +16,7 @@ from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import childenv
 from .diffs import FileChange
 from .model import ERROR, FAIL, PASS, SKIPPED, CheckResult
 
@@ -141,7 +142,7 @@ class _Stamp:
 def _run(root: Path, argv: Sequence[str], timeout: float, wrap: Callable[[list[str]], list[str]], env: dict[str, str] | None) -> int | None:
     """The exit code of one test run, or None on timeout."""
     try:
-        return subprocess.run(wrap(list(argv)), cwd=root, timeout=timeout, capture_output=True, env={**os.environ, **(env or {})},
+        return subprocess.run(wrap(list(argv)), cwd=root, timeout=timeout, capture_output=True, env=childenv.scrubbed(root, env),
                               check=False).returncode
     except subprocess.TimeoutExpired:
         return None

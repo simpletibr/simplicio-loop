@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Collection, Mapping, Sequence
 
-from . import pytest_cmd
+from . import childenv, pytest_cmd
 from .diffs import FileChange
 from .model import ERROR, FAIL, PASS, SKIPPED, CheckResult
 
@@ -85,7 +85,7 @@ def _pytest(root: Path, ids: Sequence[str], python: str, timeout: float, wrap: C
             where: str) -> dict[str, str]:
     argv = wrap(pytest_cmd.command(python, "-q", "--tb=no", "-rA", "-p", "no:cacheprovider", "-o", "addopts=",
                                     "--continue-on-collection-errors", *ids))
-    full_env = {**os.environ, **(env or {}), "PYTHONDONTWRITEBYTECODE": "1"}
+    full_env = {**childenv.scrubbed(root, env), "PYTHONDONTWRITEBYTECODE": "1"}
     if env and "PYTHONPATH" in env:
         full_env["PYTHONPATH"] = os.pathsep.join(str(root / p) if not os.path.isabs(p) else p
                                                  for p in env["PYTHONPATH"].split(os.pathsep))
