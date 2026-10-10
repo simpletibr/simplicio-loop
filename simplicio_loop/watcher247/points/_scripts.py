@@ -20,9 +20,11 @@ def script_path(name: str) -> Path | None:
     return path if path.is_file() else None
 
 
-async def sandboxed(argv: list[str], *, clone: Path, writable: Path, timeout: float) -> proc.Result:
-    """Run argv in the clone under the sandbox with the scrubbed env; `writable` is the one extra dir bound rw."""
-    wrapped = sandbox.wrap(argv, clone=clone, state_dir=writable)
+async def sandboxed(argv: list[str], *, clone: Path, state_dir: Path, timeout: float) -> proc.Result:
+    """Run argv in the clone under the sandbox with the scrubbed env.
+
+    `state_dir` is bound read-only: the script writes only its clone (a run dir inside the clone is writable for that reason)."""
+    wrapped = sandbox.wrap(argv, clone=clone, state_dir=state_dir)
     env = sandbox.scrubbed_env(os.environ, home=Path.home())
     return await proc.run(wrapped, timeout=timeout, cwd=clone, env=env)
 
