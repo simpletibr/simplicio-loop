@@ -130,10 +130,14 @@ def test_a_review_fix_is_skipped_without_verify_and_runs_once_it_is_configured(e
 
 def _view(number):
     commit, approval = "2026-10-01T00:00:00Z", "2026-10-02T00:00:00Z"
+    # Hermetic: use proper 40-character SHAs for squad_gate
+    oid = f"abc123def456789012345678901234567890{number:04d}"[:40]
+    # Hermetic: include the OID marker in the approval comment so squad_gate can find it
+    approval_body = f"REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n<!-- simplicio-loop:squad-approval:{oid} -->"
     return {
-        "files": [{"path": f"src/m{number}/app.py"}], "headRefOid": f"oid{number}",
-        "commits": [{"oid": f"oid{number}", "committedDate": commit, "messageHeadline": "loop: x"}],
-        "comments": [{"id": number, "createdAt": approval, "body": "REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n",
+        "files": [{"path": f"src/m{number}/app.py"}], "headRefOid": oid,
+        "commits": [{"oid": oid, "committedDate": commit, "messageHeadline": "loop: x"}],
+        "comments": [{"id": number, "createdAt": approval, "body": approval_body,
                       "author": {"login": "squad-bot"}, "authorAssociation": "MEMBER"}],
     }
 
@@ -149,3 +153,34 @@ def test_the_merge_train_runs_the_verify_of_the_repo(env, monkeypatch):
     run_tick()
     assert fake.merges == [101, 102]
     assert fake.ran("python3", "-m", "pytest") == [["python3", "-m", "pytest", "-q", "tests/x.py"]]
+
+
+def test_fake_run_hermetic_git_rev_parse_would_fail_if_broken(env):
+    """Mutant test: verify FakeRun properly returns SHA on rev-parse after fetch.
+    
+    This test ensures the hermetic fix for git rev-parse is working. If FakeRun._git()
+    returns exit 1 for rev-parse instead of the fetched SHA, squad_review.evaluate()
+    would fail and reviews would be rejected. This test catches regressions.
+    """
+    import asyncio
+    from simplicio_loop.watcher247 import proc
+    
+    async def test_rev_parse():
+        fake = FakeRun({"simplicio-a": [issue(1)]}, distinct_prs=True, 
+                       pr_views={101: _view(1)})
+        orig_run = proc.run
+        proc.run = fake
+        try:
+            # After fetch, rev-parse must return the SHA (exit 0), not exit 1
+            result = await fake(["git", "fetch", "--depth", "200", "origin",
+                                 "+refs/heads/loop/issue-1:refs/remotes/origin/loop/issue-1"])
+            assert result.returncode == 0, "fetch should succeed"
+            
+            result = await fake(["git", "rev-parse", "--verify",
+                                 "refs/remotes/origin/loop/issue-1^{commit}"])
+            assert result.returncode == 0, "rev-parse should return exit 0 (was broken: returned 1)"
+            assert result.stdout.strip() != "", "rev-parse should return SHA, not empty"
+        finally:
+            proc.run = orig_run
+    
+    asyncio.run(test_rev_parse())

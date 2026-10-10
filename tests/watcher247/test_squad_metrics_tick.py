@@ -30,9 +30,12 @@ def _worker_metrics(number: int) -> dict:
 
 
 def _view(number: int) -> dict:
-    return {"files": [{"path": f"src/m{number}/app.py"}], "headRefOid": f"oid{number}",
-            "commits": [{"oid": f"oid{number}", "committedDate": "2026-10-01T00:00:00Z", "messageHeadline": "loop: x"}],
-            "comments": [{"id": number, "createdAt": "2026-10-02T00:00:00Z", "body": "REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n",
+    # Hermetic: use proper 40-character SHAs for squad_gate and include OID marker in approval comment
+    oid = f"abc123def456789012345678901234567890{number:04d}"[:40]
+    approval_body = f"REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n<!-- simplicio-loop:squad-approval:{oid} -->"
+    return {"files": [{"path": f"src/m{number}/app.py"}], "headRefOid": oid,
+            "commits": [{"oid": oid, "committedDate": "2026-10-01T00:00:00Z", "messageHeadline": "loop: x"}],
+            "comments": [{"id": number, "createdAt": "2026-10-02T00:00:00Z", "body": approval_body,
                           "author": {"login": "squad-bot"}, "authorAssociation": "MEMBER"}]}
 
 
@@ -209,7 +212,7 @@ def test_a_failed_worker_does_not_change_which_other_pr_is_approved_and_merged_a
     """Issue 1 climbs all the way and fails; issue 2 passes at once. The completed-only rate would say 0.0, the overall says 0.5."""
     monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
-    rows = [issue(n, f"Task {n}", body=f"Ajustar `src/m{n}/app.py` para o fluxo do watcher seguir o contrato descrito abaixo.") for n in (1, 2)]
+    rows = [issue(n, f"Task {n}", body="Ajustar `app.py` para o fluxo do watcher seguir o contrato descrito abaixo.") for n in (1, 2)]
     fake = env(PerIssueRun({REPO: rows}, [OK], failing={1}, distinct_prs=True,
                            pr_views={101: _view(1), 102: _view(2)}))
     baseline()

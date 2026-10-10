@@ -82,6 +82,7 @@ class FakeRun:
         self.on_turbo = None  # async hook(cwd) awaited inside a turbo run, before its delay
         self.push_cwds = []
         self.moved_head = None  # when set, `git symbolic-ref HEAD` answers this ref (the author rewrote the HEAD of the admin dir)
+        self.fetched_refs = {}  # hermetic: map of ref name -> sha, populated by `git fetch` calls
 
     def ran(self, *prefix):
         return [a for a in self.calls if a[: len(prefix)] == list(prefix)]
@@ -115,7 +116,20 @@ class FakeRun:
         if head == ["gh", "pr", "list"]:
             return proc.Result(0, json.dumps(self.prs))
         if argv[:2] == ["gh", "pr"] and argv[2] == "view":
-            return proc.Result(0, json.dumps(self.pr_views.get(int(argv[3]), {})))
+            # Hermetic: merge posted comments with pr_views so squad_gate sees them
+            pr_num = int(argv[3])
+            view = dict(self.pr_views.get(pr_num, {}))
+            # Extract issue number from pr_num (assuming distinct_prs: pr = 100 + issue)
+            if self.distinct_prs and pr_num >= 100:
+                issue_num = pr_num - 100
+                # Add posted comments to the view
+                if issue_num in self.comments:
+                    existing_comments = view.get("comments", [])
+                    # Merge comments: keep existing ones and add posted ones
+                    posted = self.comments[issue_num]
+                    # Include both existing and newly posted comments
+                    view["comments"] = existing_comments + [c for c in posted if c["id"] >= 5000]
+            return proc.Result(0, json.dumps(view))
         if argv[:3] == ["gh", "api", "user"]:
             return proc.Result(0, self.login + "\n") if self.login else proc.Result(1, "", "gh: HTTP 401")
         if argv[:2] == ["gh", "api"]:
@@ -212,8 +226,49 @@ class FakeRun:
             if branch is None:
                 return proc.Result(128, "", "fatal: not a worktree")
             return proc.Result(0, (self.moved_head or f"refs/heads/{branch}") + "\n")
+        if sub == "fetch":
+            # Hermetic: track which refs are fetched so rev-parse can return them
+            # Parse refs from args like: fetch --depth 200 origin +refs/heads/main:refs/remotes/origin/main
+            for i, arg in enumerate(argv):
+                if arg.startswith("+") or (i > 0 and argv[i-1] not in ["-", "--"] and ":" in arg):
+                    parts = arg.lstrip("+").split(":")
+                    if len(parts) == 2:
+                        local_ref = parts[1]
+                        # Extract the number from refs like "refs/remotes/origin/loop/issue-1"
+                        match = re.search(r"issue-(\d+)", local_ref)
+                        if match:
+                            issue_num = int(match.group(1))
+                            # Map issue number to PR: if distinct_prs, PR = 100 + issue; else PR = some fixed value
+                            pr_num = 100 + issue_num if self.distinct_prs else None
+                            view = self.pr_views.get(pr_num) if pr_num else None
+                            if view:
+                                sha = view.get("headRefOid")
+                                if sha:
+                                    self.fetched_refs[local_ref] = sha
+                        elif "main" in local_ref:
+                            self.fetched_refs[local_ref] = "0" * 40  # full SHA for main
+            return proc.Result(0)
         if sub == "rev-parse":
-            return proc.Result(1)  # the item's branch does not exist yet
+            # Hermetic: return the SHA of a fetched ref, or from pr_views
+            # argv is like: ["git", "rev-parse", "--verify", "refs/remotes/origin/loop/issue-1^{commit}"]
+            ref_query = argv[3] if len(argv) > 3 else ""
+            # Strip ^{commit} suffix for lookup
+            ref_name = ref_query.rstrip("}").rpartition("^{")[0] if "^{" in ref_query else ref_query
+            if ref_name in self.fetched_refs:
+                return proc.Result(0, self.fetched_refs[ref_name] + "\n")
+            # If ref not found but we know about it from pr_views, return it
+            match = re.search(r"issue-(\d+)", ref_name)
+            if match:
+                issue_num = int(match.group(1))
+                # Map issue number to PR
+                pr_num = 100 + issue_num if self.distinct_prs else None
+                view = self.pr_views.get(pr_num) if pr_num else None
+                if view:
+                    sha = view.get("headRefOid")
+                    if sha:
+                        return proc.Result(0, sha + "\n")
+            # Fallback: return a synthetic full SHA
+            return proc.Result(0, "0" * 40 + "\n")
         if sub == "worktree" and argv[2] == "add":
             path = Path(argv[argv.index("-B") + 2])
             path.mkdir(parents=True)
@@ -234,6 +289,14 @@ class FakeRun:
         if sub == "status":
             return proc.Result(0, " M app.py\n?? .simplicio-loop/x\n" if self.diff else "")
         if sub == "diff":
+            # Hermetic: return files that match pr_views (all issues and PRs)
+            files = set()
+            for pr_num, view in self.pr_views.items():
+                for f in view.get("files", []):
+                    files.add(f["path"])
+            if files:
+                return proc.Result(0, "".join(p + "\n" for p in sorted(files)))
+            # Fallback: return app.py for compatibility
             return proc.Result(0, "app.py\n")
         return proc.Result(0)  # config, fetch, add, reset, commit, push
 
