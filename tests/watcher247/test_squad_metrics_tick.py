@@ -212,7 +212,7 @@ def test_a_failed_worker_does_not_change_which_other_pr_is_approved_and_merged_a
     """Issue 1 climbs all the way and fails; issue 2 passes at once. The completed-only rate would say 0.0, the overall says 0.5."""
     monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
-    rows = [issue(n, f"Task {n}", body=f"Ajustar `src/m{n}/app.py` para o fluxo do watcher seguir o contrato descrito abaixo.") for n in (1, 2)]
+    rows = [issue(n, f"Task {n}", body="Ajustar `app.py` para o fluxo do watcher seguir o contrato descrito abaixo.") for n in (1, 2)]
     fake = env(PerIssueRun({REPO: rows}, [OK], failing={1}, distinct_prs=True,
                            pr_views={101: _view(1), 102: _view(2)}))
     baseline()
