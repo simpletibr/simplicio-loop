@@ -38,6 +38,10 @@ def test_turbo_task_does_not_import_the_heavy_modules(tmp_path):
     assert _loaded(["turbo", "--repo", str(tmp_path), "--task", "rename a to b"], tmp_path) == []
 
 
+def test_help_does_not_import_the_heavy_modules(tmp_path):
+    assert _loaded(["--help"], tmp_path) == []
+
+
 def test_turbo_apply_does_not_import_the_heavy_modules(tmp_path):
     plan = tmp_path / "plan.json"
     plan.write_text('{"operations": []}', encoding="utf-8")
