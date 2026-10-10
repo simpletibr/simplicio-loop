@@ -187,6 +187,15 @@ def _rate(price: Any) -> dict[str, Any] | None:
     return rate
 
 
+def _is_one_request(payload: dict[str, Any]) -> bool:
+    requests = payload.get('requests')
+    return isinstance(requests, int) and not isinstance(requests, bool) and requests == 1
+
+
+def _prompt_tokens(payload: dict[str, Any], tokens_in: int) -> int:
+    return tokens_in + sum(_number(payload.get(key)) or 0 for key in ('cached_tokens', 'cache_write_tokens'))
+
+
 def _event_usd(payload: dict[str, Any], rate: dict[str, Any], tokens_in: int, tokens_out: int) -> tuple[float, bool]:
     '''USD of one token_usage event and whether it is a floor. The prompt is input + cached + cache-write tokens. Above the
     tier limit the higher rate is exact for one provider request (``requests`` == 1); with no per-request data the base rate
@@ -194,12 +203,26 @@ def _event_usd(payload: dict[str, Any], rate: dict[str, Any], tokens_in: int, to
     base = (tokens_in * rate['in'] + tokens_out * rate['out']) / 1_000_000
     if rate['above'] is None:
         return base, False
-    prompt = tokens_in + sum(_number(payload.get(key)) or 0 for key in ('cached_tokens', 'cache_write_tokens'))
-    if prompt <= rate['above']:
+    if _prompt_tokens(payload, tokens_in) <= rate['above']:
         return base, False
-    if payload.get('requests') == 1 and isinstance(payload.get('requests'), int) and not isinstance(payload.get('requests'), bool):
+    if _is_one_request(payload):
         return (tokens_in * rate['tier_in'] + tokens_out * rate['tier_out']) / 1_000_000, False
     return base, True
+
+
+def _requests_over_tier(priced_events: list[Any], table: dict[str, Any] | None) -> int | None:
+    '''Provider requests, measured one by one, whose prompt passed the price tier of their model. None without a price
+    table. An aggregate event is not counted: it cannot say which request crossed the limit.'''
+    if table is None:
+        return None
+    count = 0
+    for event, model, tokens_in, *_ in priced_events:
+        rate = _rate(price_for(table, model))
+        if rate is None or rate['above'] is None or not _is_one_request(event['payload']):
+            continue
+        if _prompt_tokens(event['payload'], tokens_in) > rate['above']:
+            count += 1
+    return count
 
 
 def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | None) -> dict[str, Any]:
@@ -219,7 +242,7 @@ def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | Non
                            'as_of': None, 'source_url': None, 'by_model': {}, 'by_task': {}, 'tasks': 0,
                            'by_iteration': {}, 'iterations': 0, 'unattributed_usd': {'task': None, 'iteration': None},
                            'floor': False, 'floor_reason': None, 'floor_tasks': [], 'floor_iterations': [],
-                           'floor_unattributed': {'task': False, 'iteration': False},
+                           'floor_unattributed': {'task': False, 'iteration': False}, 'requests_over_tier': None,
                            'unpriced_tokens': {'cached_tokens': 0, 'cache_write_tokens': 0, 'reasoning_tokens': 0}}
     priced_events = list(_token_events(events))
     table = prices.get('models') if isinstance(prices, dict) and isinstance(prices.get('models'), dict) else None
@@ -231,6 +254,7 @@ def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | Non
     for event, *_ in priced_events:
         for key in row['unpriced_tokens']:
             row['unpriced_tokens'][key] += _number(event['payload'].get(key)) or 0
+    row['requests_over_tier'] = _requests_over_tier(priced_events, table)
     per_model: dict[str, list[float]] = {}  # model -> [tokens_in, tokens_out]
     for _, model, tokens_in, tokens_out, *_ in priced_events:
         totals = per_model.setdefault(model, [0, 0])

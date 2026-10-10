@@ -110,6 +110,8 @@ def consolidate(report: dict[str, Any]) -> dict[str, Any]:
     tokens_out = 0
     tin_known = False
     tout_known = False
+    cached_sum = cache_write_sum = 0
+    cached_known = cache_write_known = False
     wall_sum = 0
     complete = fail = skip = other = 0
     peak_ram: Optional[float] = None
@@ -126,6 +128,12 @@ def consolidate(report: dict[str, Any]) -> dict[str, Any]:
         if tok.get("tokens_out") is not None:
             tokens_out += int(tok["tokens_out"])
             tout_known = True
+        if tok.get("tokens_cached") is not None:
+            cached_sum += int(tok["tokens_cached"])
+            cached_known = True
+        if tok.get("tokens_cache_write") is not None:
+            cache_write_sum += int(tok["tokens_cache_write"])
+            cache_write_known = True
         ram = (t.get("resources") or {}).get("ram_mb")
         if ram is not None:
             peak_ram = ram if peak_ram is None else max(peak_ram, float(ram))
@@ -163,6 +171,8 @@ def consolidate(report: dict[str, Any]) -> dict[str, Any]:
         "tokens_in_sum": tokens_in if tin_known else None,
         "tokens_out_sum": tokens_out if tout_known else None,
         "tokens_total_sum": (tokens_in + tokens_out) if (tin_known or tout_known) else None,
+        "tokens_cached_sum": cached_sum if cached_known else None,
+        "tokens_cache_write_sum": cache_write_sum if cache_write_known else None,
         "tokens_rollup": (
             "complete"
             if (tin_known or tout_known)
@@ -219,11 +229,20 @@ def record_task(
     wall_ms: Optional[int] = None,
     tokens_in: Optional[int] = None,
     tokens_out: Optional[int] = None,
+    cache_read: Optional[int] = None,
+    cache_write: Optional[int] = None,
     outcome: str = "IN_PROGRESS",
     operators: Optional[list[str]] = None,
     agent: Optional[dict[str, str]] = None,
 ) -> None:
     operators = operators or []
+    for name, value in (("cache_read", cache_read), ("cache_write", cache_write)):
+        if value is None:
+            continue
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError("%s must be an integer >= 0, got %r" % (name, value))
+        if tokens_in is None:
+            raise ValueError("%s needs tokens_in, the new input count it belongs to" % name)
     if agent is not None:
         if agent.get("role") not in model_roles.ROLES:
             raise ValueError("agent role must be one of %s" % (model_roles.ROLES,))
@@ -257,7 +276,8 @@ def record_task(
             "tokens": {
                 "tokens_in": tokens_in,
                 "tokens_out": tokens_out,
-                "tokens_cached": None,
+                "tokens_cached": cache_read,
+                "tokens_cache_write": cache_write,
                 "tokens_reasoning": None,
                 "tokens_total": (
                     (tokens_in or 0) + (tokens_out or 0)
@@ -291,6 +311,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     p.add_argument("--wall-ms", type=int)
     p.add_argument("--tokens-in", type=int)
     p.add_argument("--tokens-out", type=int)
+    p.add_argument("--cache-read", type=int, help="cache read tokens of the task, measured (needs --tokens-in)")
+    p.add_argument("--cache-write", type=int, help="cache write tokens of the task, measured (needs --tokens-in)")
     p.add_argument("--operator", action="append", default=[])
     p.add_argument("--role", choices=model_roles.ROLES, help="agent role (with --model and --effort)")
     p.add_argument("--model")
@@ -338,6 +360,8 @@ def main(argv: Optional[list[str]] = None) -> int:
             wall_ms=args.wall_ms,
             tokens_in=args.tokens_in,
             tokens_out=args.tokens_out,
+            cache_read=args.cache_read,
+            cache_write=args.cache_write,
             outcome=args.outcome,
             operators=args.operator,
             agent={"role": args.role, "model": args.model, "effort": args.effort} if args.role else None,
