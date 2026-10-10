@@ -6,11 +6,13 @@ import asyncio
 import io
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
 import threading
 import time
+import types
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -609,10 +611,19 @@ def test_the_threshold_is_the_size_above_which_a_file_is_not_hashed(tmp_path, mo
     assert not snap["edge.txt"].startswith("big:") and snap["over.txt"].startswith("big:")
 
 
-def test_a_snapshot_over_its_time_budget_raises_instead_of_hanging(tmp_path):
-    (tmp_path / "a.txt").write_text("a")
+def test_a_snapshot_over_its_time_budget_raises_instead_of_hanging_between_files(tmp_path):
+    (tmp_path / "empty.txt").write_text("")  # no chunk to read: only the check between files can stop this
+    (tmp_path / "link").symlink_to("empty.txt")
     with pytest.raises(author_isolation.SnapshotTimeout):
         author_isolation.snapshot(tmp_path, budget_s=0)
+
+
+def test_a_snapshot_over_its_time_budget_raises_instead_of_hanging_inside_a_file(tmp_path, monkeypatch):
+    (tmp_path / "a.txt").write_text("a")
+    clock = iter([0.0, 0.5])  # the deadline, then the check between files: both in time; the next reading is late
+    monkeypatch.setattr(author_isolation, "time", types.SimpleNamespace(monotonic=lambda: next(clock, 9.0), time=time.time))
+    with pytest.raises(author_isolation.SnapshotTimeout, match="while reading"):
+        author_isolation.snapshot(tmp_path, budget_s=1)
 
 
 def test_a_snapshot_that_runs_out_of_time_is_a_failed_result(repo, fake, monkeypatch):
@@ -673,7 +684,7 @@ def test_a_home_left_by_a_killed_run_is_swept_at_the_next_start_and_a_live_one_i
     homes = real_home / author_isolation.HOMES
     gone = subprocess.Popen(["true"])
     gone.wait()
-    for name, pid in (("dead", gone.pid), ("live", os.getpid()), ("junk", "not a pid")):
+    for name, pid in (("dead", gone.pid), ("live", os.getpid()), ("junk", "not a pid"), ("zero", 0), ("negative", -5)):  # kill(0, 0) hits a group
         (homes / name / ".claude").mkdir(parents=True)
         (homes / name / ".claude" / ".credentials.json").write_text("{}")
         (homes / name / ".owner").write_text(str(pid))
@@ -746,6 +757,22 @@ def test_parallel_runs_never_trip_over_each_other_creating_and_dropping_homes(tm
     for thread in threads:
         thread.join()
     assert errors == [] and out == ["ok"] * 20 and stale_homes(real_home) == []
+
+
+def test_dropping_a_home_never_removes_the_folder_other_runs_share(real_home):
+    first = author_isolation.make_home(real_home, "one")
+    second = author_isolation.make_home(real_home, "two")
+    author_isolation.drop_home(first)
+    assert second.is_dir() and first.parent.is_dir()
+    author_isolation.drop_home(second)
+    assert first.parent.is_dir()  # a run that is about to mkdir inside it would otherwise fail
+    author_isolation.make_home(real_home, "three")  # and the next run finds it, or makes it again
+
+
+def test_the_shared_folder_is_made_again_when_it_is_gone(real_home):
+    author_isolation.drop_home(author_isolation.make_home(real_home, "one"))
+    shutil.rmtree(real_home / author_isolation.HOMES)
+    assert author_isolation.make_home(real_home, "two").is_dir()
 
 
 def test_a_host_where_the_home_cannot_be_made_is_a_failed_result(repo, fake, real_home):
