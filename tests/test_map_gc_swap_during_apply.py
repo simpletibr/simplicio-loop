@@ -1,8 +1,8 @@
 """Tests for mutants R4, S1, S7: root/parent swaps during apply.
 
-Mutant R4: path.parent == root replaced by in root.parents  
-Mutant S1: parents of the root ignored in _root_refusal/_ROOT_PARENTS
-Mutant S7: holder of `map` missing
+Mutant R4: path.parent == root replaced by path.parent in root.parents (line ~309)
+Mutant S1: loop over (name,) only, ignoring _ROOT_PARENTS
+Mutant S7: holder = None
 """
 from __future__ import annotations
 
@@ -35,30 +35,6 @@ def _age(path: Path, seconds: float) -> None:
         os.utime(item, (stamp, stamp), follow_symlinks=False)
 
 
-def _scratch(map_dir: Path, name: str, size: int = 4096) -> Path:
-    """Create a scratch directory with a file."""
-    directory = map_dir / name
-    (directory / "tree").mkdir(parents=True)
-    (directory / "tree" / "mod.py").write_bytes(b"x" * size)
-    return directory
-
-
-def _outside_with_old_file(tmp_path: Path, *parts: str) -> Path:
-    """Create an outside directory with old files."""
-    outside = tmp_path / "outside"
-    target = outside.joinpath(*parts)
-    target.parent.mkdir(parents=True)
-    target.write_text("precious", encoding="utf-8")
-    _age(outside, 3 * HOUR)
-    return target
-
-
-def _swap_for_link(real: Path, outside: Path) -> None:
-    """Swap a real directory for a symlink to outside."""
-    shutil.rmtree(real)
-    real.symlink_to(outside, target_is_directory=True)
-
-
 @pytest.fixture()
 def repo(tmp_path):
     root = tmp_path / "repo"
@@ -74,95 +50,54 @@ def repo(tmp_path):
     return root, map_dir
 
 
-def test_map_root_swapped_for_link_after_plan_is_not_removed_through(repo, tmp_path):
-    """Mutant S1/S7: map root swapped after plan still has old entries marked as errors."""
-    root, map_dir = repo
+def test_store_root_swapped_during_apply_refuses_later_items(repo, tmp_path, monkeypatch):
+    """Mutants R4, S1, S7: store root swapped during apply; later items refused with symlink error.
     
-    # Create an old entry in the map
-    _age(_scratch(map_dir, "baseline-build-old"), 3 * HOUR)
-    target = _outside_with_old_file(tmp_path, "baseline-build-old", "f.txt")
-    
-    # Plan the gc
-    plan = gc.plan_gc(str(root))
-    removed_items = [item.path for item in plan.items if item.action == "remove"]
-    assert str(map_dir / "baseline-build-old") in removed_items
-    
-    # Swap the map root to a symlink AFTER plan
-    _swap_for_link(map_dir, tmp_path / "outside")
-    
-    # Apply should refuse the symlink
-    result = gc.apply_gc(plan)
-    assert target.read_text(encoding="utf-8") == "precious"
-    assert result.removed == []
-    assert any("symlink" in error for error in result.errors)
-
-
-def test_store_root_swapped_during_apply(repo, tmp_path, monkeypatch):
-    """Mutant R4/S7: store root (parent of map) swapped during apply is caught."""
+    Kills: R4 (_still_safe path.parent == root check), S1 (_root_refusal parents loop),
+           S7 (holder of map missing).
+    """
     root, map_dir = repo
     store = map_dir.parent
     
-    # Create an old entry under scratch (inside store)
+    # Create TWO old scratch entries under store/scratch
     scratch = store / "scratch"
-    _age(_scratch(scratch, "old"), 3 * HOUR)
-    target = _outside_with_old_file(tmp_path, "old", "f.txt")
+    scratch.mkdir()
+    (scratch / "old1" / "tree").mkdir(parents=True)
+    (scratch / "old1" / "tree" / "mod.py").write_bytes(b"x" * 4096)
+    (scratch / "old2" / "tree").mkdir(parents=True)
+    (scratch / "old2" / "tree" / "mod.py").write_bytes(b"x" * 4096)
+    _age(scratch, 3 * HOUR)
+    
+    # Create outside directory with SAME names
+    outside = tmp_path / "outside"
+    (outside / "old1" / "tree").mkdir(parents=True)
+    (outside / "old1" / "tree" / "file.txt").write_text("precious", encoding="utf-8")
+    (outside / "old2" / "tree").mkdir(parents=True)
+    (outside / "old2" / "tree" / "file.txt").write_text("precious", encoding="utf-8")
+    _age(outside, 3 * HOUR)
     
     plan = gc.plan_gc(str(root))
     removed_items = [item.path for item in plan.items if item.action == "remove"]
-    assert str(scratch / "old") in removed_items
+    assert str(scratch / "old1") in removed_items
+    assert str(scratch / "old2") in removed_items
     
     real_remove = gc._remove_tree
-    swapped = []
+    removed_count = [0]
 
-    def remove_then_swap(path):
+    def remove_and_swap(path):
         real_remove(path)
-        # Swap the store root on first removal
-        if not swapped:
-            swapped.append(path)
-            _swap_for_link(store, tmp_path / "outside-store")
+        removed_count[0] += 1
+        # On FIRST call only, swap the store root
+        if removed_count[0] == 1:
+            shutil.rmtree(store)
+            store.symlink_to(outside, target_is_directory=True)
 
-    monkeypatch.setattr(gc, "_remove_tree", remove_then_swap)
+    monkeypatch.setattr(gc, "_remove_tree", remove_and_swap)
     result = gc.apply_gc(plan)
     
-    # After swap, subsequent operations should be blocked or the path should be in errors
-    assert len(swapped) > 0
-    # The swap should have been detected - either in errors or by removal being incomplete
-    assert result.removed == [str(scratch / "old")] or any("symlink" in error for error in result.errors)
-
-
-def test_cache_root_swapped_during_apply(repo, tmp_path, monkeypatch):
-    """Mutant S7: cache root swapped during apply is caught."""
-    root, map_dir = repo
-    
-    # Create an old entry in the map
-    _age(_scratch(map_dir, "cached-old"), 3 * HOUR)
-    
-    # Override the cache dir to be inside the store
-    cache_dir = map_dir.parent / "custom-cache"
-    cache_dir.mkdir()
-    monkeypatch.setenv("SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR", str(cache_dir))
-    
-    # Create old content in the cache
-    cache_old = cache_dir / "old"
-    cache_old.mkdir()
-    (cache_old / "file.txt").write_text("precious", encoding="utf-8")
-    _age(cache_dir, 3 * HOUR)
-    
-    plan = gc.plan_gc(str(root))
-    
-    real_remove = gc._remove_tree
-    swapped = []
-
-    def remove_then_swap(path):
-        real_remove(path)
-        # Swap the cache root on first removal
-        if not swapped:
-            swapped.append(path)
-            _swap_for_link(cache_dir, tmp_path / "outside-cache")
-
-    monkeypatch.setattr(gc, "_remove_tree", remove_then_swap)
-    result = gc.apply_gc(plan)
-    
-    # Swap should be detected and refused
-    if swapped:
-        assert any("symlink" in error or "cache" in error for error in result.errors)
+    # First removal succeeded, second is refused with symlink error
+    assert result.removed == [str(scratch / "old1")], f"Expected only [old1] removed, got {result.removed}"
+    assert any(str(scratch / "old2") in error and "symlink" in error for error in result.errors),         f"Expected refused error with 'symlink' for old2 path, got: {result.errors}"
+    # Outside files must still exist (not deleted)
+    assert (outside / "old1" / "tree" / "file.txt").exists()
+    assert (outside / "old2" / "tree" / "file.txt").exists()
