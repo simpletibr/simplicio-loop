@@ -56,7 +56,7 @@ def _git(repo: Path, *args: str, timeout: float = 120) -> str:
 
 def default_env(root: Path) -> dict[str, str]:
     paths = [p for p in (".", "packages/dev-cli", "packages/mapper") if p == "." or (root / p).is_dir()]
-    return {"PYTHONPATH": os.pathsep.join(paths)}
+    return {"PYTHONPATH": os.pathsep.join(paths), "PYTHONDONTWRITEBYTECODE": "1"}
 
 
 def neighbors(root: Path, changes: list[FileChange]) -> list[str]:
@@ -125,8 +125,8 @@ def run_gate(inp: GateInput) -> GateReport:
         env = default_env(head_root)
         added = _added_text(head_root, changes)
         test_files = [c.path for c in changes if c.kind == "test" and c.status in ("A", "M") and not c.path.endswith("conftest.py")]
-        argv = [inp.python, "-m", "pytest", "-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=",
-                *test_files, *neighbors(head_root, changes)]
+        tests = [*test_files, *neighbors(head_root, changes)]
+        argv = [inp.python, "-m", "pytest", "-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", *tests] if tests else []
         checks = [
             _timed("redgreen", lambda: redgreen.check_redgreen(base_root, head_root, changes, python=inp.python,
                                                                timeout=inp.test_timeout_s, wrap=inp.wrap_for(head_root), env=env)),

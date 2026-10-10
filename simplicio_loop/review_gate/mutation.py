@@ -179,6 +179,8 @@ def check_mutation(root: Path, changes: Sequence[FileChange], test_argv: Sequenc
             continue
     if not mutants:
         return CheckResult("mutation", SKIPPED, ("sem linha de producao mutavel",))
+    if not test_argv:  # pytest without a file would run the whole suite
+        return CheckResult("mutation", FAIL, ("sem teste novo nem vizinho para rodar contra os mutantes",))
     code = _run(root, test_argv, timeout_each * 2, wrap, env)  # the tests have to pass on the unmutated tree, or every mutant "dies"
     if code != 0:
         return CheckResult("mutation", ERROR, (f"os testes nao passam sem mutante (saida {code}): a amostra nao diz nada",))
