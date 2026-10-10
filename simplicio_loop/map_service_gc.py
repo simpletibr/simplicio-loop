@@ -214,14 +214,17 @@ def refused_root(root: Path, store: Path) -> Optional[str]:
 _ROOT_PARENTS = {"map": ("store",), "scratch": ("store", "cache"), "canonical": ("store", "cache")}
 
 
+def _gc_roots(common: Path) -> Dict[str, Path]:
+    stores = _stores(common)
+    return {"store": common / "simplicio", "map": stores["map"], "cache": _cache_root(common),
+            "scratch": stores["scratch"], "canonical": stores["canonical"]}
+
+
 def _refusals(common: Path) -> Dict[str, str]:
     """``{root name: reason}`` for each gc root that must not be touched, in a fixed order."""
     store = common / "simplicio"
-    stores = _stores(common)
-    roots = {"store": store, "map": stores["map"], "cache": _cache_root(common),
-             "scratch": stores["scratch"], "canonical": stores["canonical"]}
     refused = {}
-    for name, root in roots.items():
+    for name, root in _gc_roots(common).items():
         reason = refused_root(root, store)
         if reason:
             refused[name] = reason
@@ -410,9 +413,34 @@ def plan_gc(
     return plan
 
 
-def _still_safe(item: GcItem, plan: GcPlan) -> bool:
-    """Re-check an item immediately before removing it: the world may have moved on."""
+def _root_refusal(common: Path, name: str) -> Optional[str]:
+    """``<root>: <reason>`` for the first of ``name`` and the roots it lives under that is refused right now.
+
+    Nothing is cached: every call runs ``refused_root`` again, so it is as fresh as the moment it is called.
+    """
+    roots = _gc_roots(common)
+    for root in (name,) + _ROOT_PARENTS[name]:
+        reason = refused_root(roots[root], common / "simplicio")
+        if reason:
+            return "%s: %s" % (root, reason)
+    return None
+
+
+def _still_safe(item: GcItem, plan: GcPlan, result: GcResult) -> bool:
+    """Re-check an item immediately before removing it: the world may have moved on.
+
+    That includes the root holding the item, checked per item: a long removal can outlast a swap of that root for a link.
+    The item itself is never resolved: a link item is only unlinked by ``_remove_tree``, and a plain entry directly under a
+    root that is still inside the store cannot resolve out of it.
+    """
     path = Path(item.path)
+    common = Path(plan.common_dir)
+    holder = next((name for name, root in _stores(common).items() if path.parent == root), None)
+    # not under a known root: the same guard, against the store
+    refusal = _root_refusal(common, holder) if holder else refused_root(path.parent, common / "simplicio")
+    if refusal:
+        result.errors.append("refused %s: %s" % (item.path, refusal))
+        return False
     if not path.exists():
         return False
     now = time.time()
@@ -444,7 +472,7 @@ def apply_gc(plan: GcPlan) -> GcResult:
         if item.action != "remove" or item.kind.startswith("canonical"):
             continue
         try:
-            if not _still_safe(item, plan):
+            if not _still_safe(item, plan, result):
                 continue
             _remove_tree(Path(item.path))
             result.removed.append(item.path)
@@ -452,7 +480,10 @@ def apply_gc(plan: GcPlan) -> GcResult:
         except OSError as exc:
             result.errors.append("%s: %s" % (item.path, exc))
     canonical = [item for item in plan.items if item.kind.startswith("canonical") and item.action == "remove"]
-    if canonical:
+    refusal = _root_refusal(Path(plan.common_dir), "canonical") if canonical else None  # right before the mapper scan
+    if refusal:  # the mapper scan removes under the cache root on its own: it must not run through a swapped link
+        result.errors.append("refused canonical: %s" % refusal)
+    elif canonical:
         try:
             from simplicio_mapper.mapper.canonical_gc import scan_canonical_gc
 
