@@ -11,6 +11,10 @@ the second executor, for tasks a plan cannot carry (mostly fixing simplicio-loop
    code (a conftest), so a protected path it creates fails the round (``protected_path``) even when verify passed. Red output
    goes back as the next correction.
 
+A CLI round that hits the time limit (``author_timeout``) is not fatal while rounds remain: the loop keeps the worktree, takes the
+snapshot, and the next round resumes the same session with a continuation prompt. A timeout counts as a round. The last round that
+times out ends the run (``timeout``) and ``changed`` still lists the files.
+
 ``changed`` in the result is always the original snapshot against the last one taken (after verify, or after a CLI error).
 
 The CLI runs with a private HOME that holds a copy of the login and nothing else (settings it could load are removed before each
@@ -33,7 +37,7 @@ import json
 import os
 import shutil
 import uuid
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -50,7 +54,9 @@ ALLOWED_TOOLS = (
 )
 DISALLOWED_TOOLS = "WebFetch,WebSearch"
 DENIED_FILE_TOOLS = ("Read", "Grep", "Glob", "Edit", "Write")  # every file tool the CLI has without Bash
-AUTHOR_TIMEOUT_S = 900  # one CLI round
+AUTHOR_TIMEOUT_S = 900  # one CLI round (the default; see ``author_timeout``)
+TIMEOUT_ENV = "SIMPLICIO_247_AUTHOR_TIMEOUT_S"
+TIMEOUT_MIN_S, TIMEOUT_MAX_S = 60, 3600
 VERIFY_TIMEOUT_S = 600
 MAX_ROUNDS = 10
 DETAIL_CAP = 1500  # the tail of a failure output kept in one failure
@@ -71,6 +77,8 @@ ADVICE = {
     "protected_path": ("You changed protected paths or Python bytecode. Undo every change to a protected path (restore its original content). "
                        "Delete every .pyc and .pyo you made. Do not make bytecode: PYTHONDONTWRITEBYTECODE=1 is set.\n{detail}"),
     "empty_diff": "You made no change to any file. Edit the files that the task needs.",
+    "timeout": ("Your last round ended at the time limit. Continue from the current state of the worktree: first run what is left of the task, "
+                "do not redo finished work, then stop."),
     "secret_in_diff": ("A file you changed holds a secret (a copy of the login of this session or one of its tokens). "
                        "Delete the secret from these files and never read or copy it:\n{detail}"),
 }
@@ -132,13 +140,34 @@ def author_argv(family: str, prompt: str, *, session: str, resume: bool, model: 
     return argv + (["--resume", session] if resume else ["--session-id", session])
 
 
+def timeout_in_range(value: object) -> bool:
+    """True for an integer (not a bool) from ``TIMEOUT_MIN_S`` to ``TIMEOUT_MAX_S``."""
+    return isinstance(value, int) and not isinstance(value, bool) and TIMEOUT_MIN_S <= value <= TIMEOUT_MAX_S
+
+
+def author_timeout(environ: Mapping[str, str] | None = None) -> int:
+    """The time limit of one CLI round, in seconds: ``SIMPLICIO_247_AUTHOR_TIMEOUT_S`` when it is a whole number from 60 to 3600.
+
+    Any other value (empty, text, a float, a sign, a space inside, out of range) is ignored and ``AUTHOR_TIMEOUT_S`` is used.
+    """
+    raw = (os.environ if environ is None else environ).get(TIMEOUT_ENV, "").strip()
+    if raw.isascii() and raw.isdigit() and timeout_in_range(value := int(raw)):
+        return value
+    return AUTHOR_TIMEOUT_S
+
+
 def _tail(text: str, cap: int = DETAIL_CAP) -> str:
     """Redact first (a cut must not split a secret), then keep the last ``cap`` characters."""
     return evidence.redact_sensitive_text(text)[-cap:]
 
 
 def correction_prompt(failures: list[dict[str, str]]) -> str:
-    """The text of a correction round from the failures of the last one (kinds in ``ADVICE``), without secrets, capped."""
+    """The text of a correction round from the failures of the last one (kinds in ``ADVICE``), without secrets, capped.
+
+    A round that only timed out is not a failure to correct: its text is the continuation alone.
+    """
+    if failures and all(f["kind"] == "timeout" for f in failures):
+        return ADVICE["timeout"]
     parts = [ADVICE[f["kind"]].format(detail=_tail(f["detail"])) for f in failures]
     return ("Your last round did not pass.\n\n" + "\n\n".join(parts))[:PROMPT_CAP]
 
@@ -170,7 +199,9 @@ def _protected(changed: list[str], worktree: Path) -> list[str]:
 class _Run:
     """One author run: the state a result reports, the sandboxed launches and the snapshots."""
 
-    def __init__(self, worktree: Path, verify: str | None, rounds: int, runner: Runner, allow_unsandboxed: bool, run_tests: bool = True):
+    def __init__(self, worktree: Path, verify: str | None, rounds: int, runner: Runner, allow_unsandboxed: bool, run_tests: bool = True,
+                 timeout_s: int = AUTHOR_TIMEOUT_S):
+        self.timeout_s = timeout_s if timeout_in_range(timeout_s) else AUTHOR_TIMEOUT_S
         self.worktree, self.verify, self.rounds, self.runner, self.allow_unsandboxed = worktree, verify, rounds, runner, allow_unsandboxed
         self.run_tests = run_tests
         self.session = str(uuid.uuid4())
@@ -259,10 +290,15 @@ class _Run:
             author_isolation.reset_config(home)
             argv = author_argv(family, prompt, session=self.session, resume=self.n > 1, model=resolved["model"], effort=resolved["effort"],
                                run_tests=self.run_tests, deny=deny)
-            run, error = await self.launch(argv, cli_view, cli_env, AUTHOR_TIMEOUT_S)
+            run, error = await self.launch(argv, cli_view, cli_env, self.timeout_s)
             if error:
                 await self.observe()
-                return self.fail(*error)
+                if error[0] != "timeout":
+                    return self.fail(*error)
+                # the work stays: the next round resumes the session; a timeout in the last round is the result
+                failures = [{"kind": "timeout", "detail": error[1]}]
+                prompt = correction_prompt(failures)
+                continue
             envelope = _envelope(run.stdout)
             counters = _usage(envelope or {})
             for key, value in counters.items():
@@ -286,12 +322,16 @@ class _Run:
 
 
 async def run_author(task_text: str, worktree: str | os.PathLike[str], *, family: str = "claude", verify: str | None = None,
-                     rounds: int = 3, runner: Runner = proc.run, allow_unsandboxed: bool = False, run_tests: bool = True) -> AuthorResult:
+                     rounds: int = 3, runner: Runner = proc.run, allow_unsandboxed: bool = False, run_tests: bool = True,
+                     timeout_s: int = AUTHOR_TIMEOUT_S) -> AuthorResult:
     """Author, verify and correct in ``worktree`` for at most ``rounds`` rounds. A failed round is a result, not an exception.
+
+    ``timeout_s``: the time limit of one CLI round (60 to 3600; another value means ``AUTHOR_TIMEOUT_S``). A round that hits it is not
+    fatal while rounds remain: the next one resumes the session. The last round that hits it ends the run as ``failed`` / ``timeout``.
 
     ``run_tests=False``: the CLI gets only the file tools (see ``author_argv``); the verify command still runs on the host side.
     """
-    run = _Run(Path(worktree), verify, rounds, runner, allow_unsandboxed, run_tests)
+    run = _Run(Path(worktree), verify, rounds, runner, allow_unsandboxed, run_tests, timeout_s)
     if refused := run.refusal(family):
         return refused
     real_home = Path.home()

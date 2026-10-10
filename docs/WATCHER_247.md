@@ -143,6 +143,7 @@ O executor padrao e o fluxo de plano. Para tarefas que um plano JSON nao cobre, 
 |---|---|---|
 | `SIMPLICIO_247_EXECUTOR` | `plan` ou `author` | sem a variavel: `plan` |
 | `SIMPLICIO_247_AUTHOR_ROUNDS` | numero inteiro de 1 a 10 | `3` |
+| `SIMPLICIO_247_AUTHOR_TIMEOUT_S` | segundos de uma rodada da CLI, inteiro de 60 a 3600. Outro valor e ignorado | `900` |
 | `SIMPLICIO_247_AUTHOR_RUN_TESTS` | `1` deixa a CLI rodar pytest | sem a variavel: a CLI so le e edita arquivos |
 | `SIMPLICIO_247_AUTHOR_HOME_BASE` | caminho absoluto dentro do HOME | `~/.cache/simplicio-loop-author` |
 | `SIMPLICIO_247_ALLOW_UNSANDBOXED` | `1` roda a CLI sem sandbox | sem a variavel: sem sandbox nao roda |

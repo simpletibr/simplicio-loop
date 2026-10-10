@@ -291,7 +291,7 @@ def test_output_that_is_not_a_json_envelope_is_a_bad_envelope_not_ok(repo, fake,
     assert result.changed == ["done.txt"] and not (repo / "ran.marker").exists() and len(calls()) == 1
 
 
-@pytest.mark.parametrize("error", [TimeoutError("late"), FileNotFoundError(2, "gone"), OSError(7, "Argument list too long")])
+@pytest.mark.parametrize("error", [FileNotFoundError(2, "gone"), OSError(7, "Argument list too long")])
 def test_a_cli_that_edits_and_then_fails_to_finish_still_reports_what_changed(repo, fake, error):
     scenario, _calls, runner = fake
     scenario({"write": {"done.txt": "ok\n"}})
@@ -368,7 +368,7 @@ def test_the_private_home_is_deleted_when_the_run_raises_or_times_out(repo, fake
 
     with pytest.raises(RuntimeError):
         go(repo, boom)
-    assert go(repo, stuck).reason_code == "timeout"
+    assert go(repo, stuck, rounds=1).reason_code == "timeout"
     assert len(homes) == 2 and not any(Path(h).exists() for h in homes)
     assert list((real_home / ".cache").glob("*/*")) == []
 
@@ -413,7 +413,164 @@ def test_a_cli_that_does_not_answer_in_time_fails_the_run(repo, real_home, monke
         return await proc.run(argv, **kwargs)
 
     result = go(repo, stuck, verify="true")
-    assert (result.status, result.reason_code) == ("failed", "timeout")
+    assert (result.status, result.reason_code, result.rounds) == ("failed", "timeout", 3)  # a timeout is a round, not the end of the run
+
+
+# --- a CLI round that hits the time limit is not fatal while rounds remain -------------------------------------------------------
+
+CONTINUE = ("Your last round ended at the time limit. Continue from the current state of the worktree: first run what is left of the task, "
+            "do not redo finished work, then stop.")
+
+
+def timing_out(runner, rounds_that_time_out):
+    """A runner whose CLI does the work of its round and then hits the time limit, for the 1-based rounds listed."""
+    state = {"n": 0}
+
+    async def wrapped(argv, **kwargs):
+        if argv[0] != "claude":
+            return await runner(argv, **kwargs)
+        state["n"] += 1
+        out = await runner(argv, **kwargs)
+        if state["n"] in rounds_that_time_out:
+            raise TimeoutError("claude timed out")
+        return out
+
+    return wrapped
+
+
+def test_a_timed_out_round_is_continued_in_the_same_session_and_can_finish_ok(repo, fake):
+    scenario, calls, runner = fake
+    scenario({"write": {"big/one.txt": "1\n", "big/two.txt": "2\n"}}, {"write": {"done.txt": "ok\n"}})
+    result = go(repo, timing_out(runner, {1}), verify="test -f done.txt && test -f big/two.txt", rounds=3)
+    assert (result.status, result.reason_code, result.rounds) == ("ok", "ok", 2)
+    assert result.changed == ["big/one.txt", "big/two.txt", "done.txt"]  # the work of the timed-out round stays
+    first, second = calls()
+    assert flag_values(first["argv"], "--session-id") == [result.session_id] and "--resume" not in first["argv"]
+    assert flag_values(second["argv"], "--resume") == [result.session_id] and "--session-id" not in second["argv"]
+    assert prompt_of(second) == CONTINUE
+    assert "did not pass" not in prompt_of(second) and "fix it" not in prompt_of(second)
+
+
+def test_a_timeout_is_a_round_and_the_last_one_ends_the_run_with_the_files_listed(repo, fake):
+    scenario, calls, runner = fake
+    scenario({"write": {"a1.txt": "1\n"}}, {"write": {"a2.txt": "2\n"}}, {"write": {"a3.txt": "3\n"}})
+    result = go(repo, timing_out(runner, {1, 2, 3}), verify="touch ran.marker", rounds=3)
+    assert (result.status, result.reason_code, result.rounds) == ("failed", "timeout", 3)
+    assert result.changed == ["a1.txt", "a2.txt", "a3.txt"]
+    assert [f["kind"] for f in result.failures] == ["timeout"] and "900s" in result.failures[0]["detail"]
+    assert len(calls()) == 3 and not (repo / "ran.marker").exists()  # verify did not run on a round that never finished
+    assert [prompt_of(c) for c in calls()[1:]] == [CONTINUE, CONTINUE]
+    assert all("--resume" in c["argv"] for c in calls()[1:])
+
+
+def test_a_timeout_with_one_round_left_is_the_result_at_once(repo, fake):
+    scenario, calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    result = go(repo, timing_out(runner, {1}), verify="true", rounds=1)
+    assert (result.status, result.reason_code, result.rounds, result.changed) == ("failed", "timeout", 1, ["done.txt"])
+    assert len(calls()) == 1
+
+
+def test_a_timeout_then_a_red_verify_goes_back_as_a_correction(repo, fake):
+    scenario, calls, runner = fake
+    scenario({"write": {"wrong.txt": "x\n"}}, {"write": {"wrong2.txt": "x\n"}}, {"write": {"done.txt": "ok\n"}})
+    result = go(repo, timing_out(runner, {1}), verify="test -f done.txt || { echo MISSING_DONE_FILE; exit 1; }", rounds=3)
+    assert (result.status, result.rounds) == ("ok", 3)
+    _first, second, third = calls()
+    assert prompt_of(second) == CONTINUE
+    assert "MISSING_DONE_FILE" in prompt_of(third) and "time limit" not in prompt_of(third)
+
+
+def test_a_protected_file_written_in_a_timed_out_round_is_still_caught_later(repo, fake):
+    scenario, _calls, runner = fake
+    scenario({"write": {"hooks/evil.py": "x\n", "done.txt": "ok\n"}}, {})
+    result = go(repo, timing_out(runner, {1}), verify="true", rounds=2)
+    assert (result.status, result.reason_code) == ("failed", "protected_path")
+
+
+def test_a_timed_out_round_that_changed_nothing_is_continued_too(repo, fake):
+    scenario, calls, runner = fake
+    scenario({}, {"write": {"done.txt": "ok\n"}})
+    result = go(repo, timing_out(runner, {1}), verify="test -f done.txt", rounds=2)
+    assert (result.status, result.rounds, result.changed) == ("ok", 2, ["done.txt"])
+
+
+def test_other_launch_errors_stay_fatal(repo, fake):
+    scenario, calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+
+    async def missing(argv, **kwargs):
+        await runner(argv, **kwargs)
+        raise FileNotFoundError(2, "gone")
+
+    result = go(repo, missing, verify="true", rounds=3)
+    assert (result.reason_code, result.rounds) == ("cli_unavailable", 1)
+
+
+def test_the_timeout_prompt_is_a_known_failure_kind():
+    assert author_flow.ADVICE["timeout"] == CONTINUE
+    assert author_flow.correction_prompt([{"kind": "timeout", "detail": "claude did not finish in 900s"}]) == CONTINUE
+    mixed = author_flow.correction_prompt([{"kind": "timeout", "detail": ""}, {"kind": "empty_diff", "detail": ""}])
+    assert CONTINUE in mixed and "no change" in mixed.lower()
+
+
+# --- the time limit of one round is configurable ---------------------------------------------------------------------------------
+
+def timeouts_seen(repo, fake, **kwargs):
+    scenario, _calls, runner = fake
+    scenario({"write": {"done.txt": "ok\n"}})
+    seen = []
+
+    async def spy(argv, **kw):
+        seen.append(kw["timeout"])
+        return await runner(argv, **kw)
+
+    go(repo, spy, verify="true", **kwargs)
+    return seen
+
+
+def test_run_author_passes_the_limit_to_the_cli_and_keeps_verify_at_its_own(repo, fake):
+    assert timeouts_seen(repo, fake, timeout_s=123) == [123, author_flow.VERIFY_TIMEOUT_S]
+
+
+def test_run_author_default_limit_is_900(repo, fake):
+    assert timeouts_seen(repo, fake) == [900, author_flow.VERIFY_TIMEOUT_S]
+
+
+@pytest.mark.parametrize("value", [0, 59, 3601, 100000, -5, True, None, "300"])
+def test_run_author_ignores_a_limit_out_of_range(repo, fake, value):
+    assert timeouts_seen(repo, fake, timeout_s=value)[0] == 900
+
+
+@pytest.mark.parametrize("value", [60, 3600])
+def test_run_author_accepts_the_edges(repo, fake, value):
+    assert timeouts_seen(repo, fake, timeout_s=value)[0] == value
+
+
+def test_the_default_is_900_seconds_with_limits_60_and_3600():
+    assert (author_flow.AUTHOR_TIMEOUT_S, author_flow.TIMEOUT_MIN_S, author_flow.TIMEOUT_MAX_S) == (900, 60, 3600)
+    assert author_flow.TIMEOUT_ENV == "SIMPLICIO_247_AUTHOR_TIMEOUT_S"
+
+
+@pytest.mark.parametrize("raw, expected", [
+    ("60", 60), ("3600", 3600), ("61", 61), ("3599", 3599), ("900", 900), ("1800", 1800), (" 120 ", 120), ("0120", 120),
+])
+def test_author_timeout_reads_a_whole_number_in_range(raw, expected):
+    assert author_flow.author_timeout({author_flow.TIMEOUT_ENV: raw}) == expected
+
+
+@pytest.mark.parametrize("raw", ["0", "1", "59", "3601", "100000", "-60", "+120", "1e3", "120.0", "12 0", "1_000", "abc", "", " ", "0x100",
+                                 "١٢٣", "9" * 40])
+def test_author_timeout_ignores_any_other_value(raw):
+    assert author_flow.author_timeout({author_flow.TIMEOUT_ENV: raw}) == 900
+
+
+def test_author_timeout_unset_is_the_default_and_reads_os_environ_by_default(monkeypatch):
+    assert author_flow.author_timeout({}) == 900
+    monkeypatch.delenv(author_flow.TIMEOUT_ENV, raising=False)
+    assert author_flow.author_timeout() == 900
+    monkeypatch.setenv(author_flow.TIMEOUT_ENV, "240")
+    assert author_flow.author_timeout() == 240
 
 
 # --- the author cannot hide a change from the loop (it trusts the file system, never git) ---------------------------------------
@@ -915,9 +1072,25 @@ def test_cli_usage_errors_exit_2(monkeypatch, tmp_path, capsys):
     assert run_cli(monkeypatch, tmp_path, result, "--rounds", "0")[0] == 2
     assert run_cli(monkeypatch, tmp_path, result, "--rounds", "11")[0] == 2
     assert run_cli(monkeypatch, tmp_path, result, "--rounds", "10")[0] == 0
+    for bad in ("0", "59", "3601", "100000", "-60", "abc", "12.5", "1_000", ""):
+        assert run_cli(monkeypatch, tmp_path, result, "--timeout", bad)[0] == 2, bad
     assert cli_impl.main(["author", "--repo", str(tmp_path), "--task-file", str(tmp_path / "missing.md")]) == 2
     assert cli_impl.main(["author", "--repo", str(tmp_path)]) == 2
     capsys.readouterr()
+
+
+@pytest.mark.parametrize("flag, env, expected", [
+    ([], None, 900), ([], "300", 300), ([], "7", 900), ([], "", 900),
+    (["--timeout", "120"], None, 120), (["--timeout", "120"], "300", 120),  # the flag wins over the variable
+    (["--timeout", "60"], None, 60), (["--timeout", "3600"], None, 3600),
+])
+def test_cli_timeout_flag_and_variable(monkeypatch, tmp_path, flag, env, expected):
+    monkeypatch.delenv(author_flow.TIMEOUT_ENV, raising=False)
+    if env is not None:
+        monkeypatch.setenv(author_flow.TIMEOUT_ENV, env)
+    result = author_flow.AuthorResult(status="ok", rounds=1, session_id=SESSION, changed=[], failures=[], usage=None, reason_code="ok")
+    code, _out, seen = run_cli(monkeypatch, tmp_path, result, *flag)
+    assert code == 0 and seen["timeout_s"] == expected
 
 
 # --- the host-owned run telemetry is not the author's (BLOCKER 1) -----------------------------------------------------------------

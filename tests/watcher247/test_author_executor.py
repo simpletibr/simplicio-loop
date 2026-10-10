@@ -253,6 +253,24 @@ def test_rounds_come_from_the_environment(author, monkeypatch, value, expected):
     assert author.calls[0][2]["rounds"] == expected
 
 
+@pytest.mark.parametrize("value,expected", [(None, 900), ("60", 60), ("3600", 3600), ("1200", 1200),
+                                            ("59", 900), ("3601", 900), ("0", 900), ("100000", 900), ("x", 900), ("", 900), ("2.5", 900)])
+def test_the_round_time_limit_comes_from_the_environment(author, monkeypatch, value, expected):
+    monkeypatch.delenv(author_flow.TIMEOUT_ENV, raising=False)
+    if value is not None:
+        monkeypatch.setenv(author_flow.TIMEOUT_ENV, value)
+    author.use(FakeRun({"simplicio-a": [issue(5)]}))
+    baseline()
+    run_tick()
+    assert author.calls[0][2]["timeout_s"] == expected
+
+
+def test_a_bad_time_limit_never_stops_the_service(monkeypatch):
+    monkeypatch.setenv(author_executor.EXECUTOR_ENV, "author")
+    monkeypatch.setenv(author_flow.TIMEOUT_ENV, "nope")
+    assert author_executor.refusal() is None
+
+
 @pytest.mark.parametrize("value", ["0", "11", "-1", "x", "", "2.5"])
 def test_invalid_rounds_are_a_startup_error(monkeypatch, value):
     monkeypatch.setenv(author_executor.ROUNDS_ENV, value)
@@ -347,7 +365,7 @@ def test_the_watcher_passes_the_author_no_token_argument(author):
     baseline()
     run_tick()
     task_text, _worktree, kwargs = author.calls[0]
-    assert set(kwargs) <= {"family", "verify", "rounds", "runner", "allow_unsandboxed", "run_tests"}
+    assert set(kwargs) <= {"family", "verify", "rounds", "runner", "allow_unsandboxed", "run_tests", "timeout_s"}
     assert "ghp_FAKEconftest" not in json.dumps({k: v for k, v in kwargs.items() if k != "runner"}) + task_text
 
 
