@@ -267,3 +267,22 @@ def test_install_step_fails_on_any_other_exit_code_of_the_check(tmp_path, code):
 def test_install_step_fails_when_nothing_was_installed(tmp_path):
     with pytest.raises(AssertionError, match="no skill"):
         install_step(tmp_path, FakeInstallBinary(install_writes=False))
+
+
+def test_hot_path_repo_ships_no_test_file_so_verify_needs_no_pytest_on_the_short_path(tmp_path):
+    # The smoke runs the binary with PATH=/usr/bin:/bin. A repo with test_*.py makes apply run a bare `pytest`
+    # verify, which is not on that PATH; the hot-path check then fails on hosts that install pytest elsewhere.
+    binary = tmp_path / "simplicio-loop-v1.0.0-linux-x86_64"
+    binary.write_bytes(b"not run")
+    smoke = sb.Smoke(binary, tmp_path / "work", None, None, None)
+    repo = smoke._tiny_repo("repo")
+    assert sorted(path.name for path in repo.glob("*.py")) == ["app.py"]
+
+
+def test_data_step_without_wheel_is_a_visible_skip_not_a_failure(tmp_path):
+    binary = tmp_path / "simplicio-loop-v1.0.0-linux-x86_64"
+    binary.write_bytes(b"not run")
+    smoke = sb.Smoke(binary, tmp_path / "work", None, None, None)
+    smoke.check("bundled data and modules", smoke.data)
+    result = smoke.results[-1]
+    assert result["ok"] is True and result["detail"].startswith("skipped"), result
