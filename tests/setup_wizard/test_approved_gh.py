@@ -122,19 +122,21 @@ def archive_bytes():
     return buffer.getvalue()
 
 
+ARCHIVE_BYTES = archive_bytes()
+PINS = {"gh": {"tag": "v1.2.3", "assets": {"linux-amd64": {"archive": ARCHIVE, "sha256": hashlib.sha256(ARCHIVE_BYTES).hexdigest()}}}}
+
+
 def fake_get(url):
-    blob = archive_bytes()
-    if url.endswith("/releases/latest"):
-        return json.dumps({"tag_name": "v1.2.3"}).encode()
     if url.endswith("checksums.txt"):
-        return f"{hashlib.sha256(blob).hexdigest()}  {ARCHIVE}\n".encode()
-    return blob
+        return f"{hashlib.sha256(ARCHIVE_BYTES).hexdigest()}  {ARCHIVE}\n".encode()
+    return ARCHIVE_BYTES
 
 
 def test_ensure_returns_the_sha256_of_the_bytes_it_installed(tmp_path):
     missing = [prereqs.Check(name="gh", status="missing", required=True, path=None, version=None, minimum=None, fix="", auto="user")]
     actions = prereqs.ensure(missing, environ={"HOME": str(tmp_path), "PATH": ""}, get=fake_get, bin_dir=tmp_path / "bin",
-                             platform="linux", machine="x86_64", which=lambda name: None, run=lambda argv, timeout=0: (0, ""))
+                             platform="linux", machine="x86_64", which=lambda name: None, run=lambda argv, timeout=0: (0, ""),
+                             pins=PINS)
     assert [(a.name, a.result) for a in actions] == [("gh", "installed")]
     assert actions[0].sha256 == hashlib.sha256(BINARY).hexdigest()
     assert "sha256" not in actions[0].as_dict()  # the report on the screen and in --json keeps its shape

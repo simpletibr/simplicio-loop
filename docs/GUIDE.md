@@ -194,8 +194,8 @@ Read from [`simplicio_loop/_catalog/model_roles.json`](../simplicio_loop/_catalo
 | Family | planning | coordination | execution |
 |---|---|---|---|
 | claude | `claude-opus-5-5` (high) | `claude-sonnet-5-5` (high) | `claude-haiku-5-5` (high) |
-| codex | `gpt-6-astra` (high) | `gpt-6.1-sol` (high) | `gpt-6-luna` (high) |
-| grok | `grok-4.7` (xhigh) | `grok-4.6` (high) | `grok-4.5` (high) |
+| codex | `gpt-5.6-terra` (high) | `gpt-5.5` (high) | `gpt-5.6-luna` (high) |
+| grok | `grok-4.7` (xhigh) | `grok-4.7` (high) | `grok-4.7` (high) |
 | gemini | `gemini-3.8-flash` (high) | `gemini-3.7-flash` (high) | `gemini-3.6-flash` (high) |
 | agy | `default` (high) | `default` (high) | `default` (high) |
 | opencode | `default` (high) | `default` (high) | `default` (high) |

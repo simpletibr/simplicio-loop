@@ -14,7 +14,6 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import io
-import json
 import os
 import tarfile
 
@@ -128,26 +127,26 @@ def test_pinned_lets_other_programs_through(home):
 
 # --- a uv written by this very run ----------------------------------------------------------------------------------------
 
-LATEST = "v1.2.3"
+TAG = "0.6.0"
 
 
 def uv_release(binary):
-    archive, sums_url, archive_url, member = prereqs._release_files("uv", LATEST, "linux", "amd64")
+    """(download, pins) of a uv release whose archive holds `binary`, pinned for linux amd64."""
+    archive, sums_url, archive_url, member = prereqs._release_files("uv", TAG, "linux", "amd64")
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w:gz") as tar:
         info = tarfile.TarInfo(member)
         info.size = len(binary)
         tar.addfile(info, io.BytesIO(binary))
     blob = buffer.getvalue()
+    pins = {"uv": {"tag": TAG, "assets": {"linux-amd64": {"archive": archive, "sha256": hashlib.sha256(blob).hexdigest()}}}}
 
     def get(url):
-        if url.endswith("/releases/latest"):
-            return json.dumps({"tag_name": LATEST}).encode()
         if url == sums_url:
             return f"{hashlib.sha256(blob).hexdigest()}  {archive}\n".encode()
         return blob
 
-    return get
+    return get, pins
 
 
 def test_a_uv_installed_now_and_swapped_never_runs(tmp_path, monkeypatch):
@@ -161,7 +160,8 @@ def test_a_uv_installed_now_and_swapped_never_runs(tmp_path, monkeypatch):
 
     monkeypatch.setattr(prereqs, "_install_release", install_then_swap)
     missing = [prereqs.Check(name="python", status="missing", required=True, path=None, version=None, minimum=None, fix="", auto="user")]
-    actions = prereqs.ensure(missing, environ={"HOME": str(tmp_path), "PATH": ""}, get=uv_release(good(tmp_path)), bin_dir=bin_dir,
+    get, pins = uv_release(good(tmp_path))
+    actions = prereqs.ensure(missing, environ={"HOME": str(tmp_path), "PATH": ""}, get=get, bin_dir=bin_dir, pins=pins,
                              platform="linux", machine="x86_64", which=lambda name: None, run=prereqs.run_command)
     assert not (tmp_path / "PWNED").exists(), actions
     assert not (tmp_path / "A-install").exists()

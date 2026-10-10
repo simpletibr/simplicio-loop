@@ -32,7 +32,7 @@ def test_plan_from_stdin_with_family_and_max_workers(capsys, monkeypatch):
     code, out = _run(capsys, "squads", "plan", "--issues", "-", "--family", "codex", "--max-workers", "1", "--json")
     assert code == 0
     assert len(out["squads"]) == 2
-    assert out["general_coordinator"]["model"] == "gpt-6-astra"
+    assert out["general_coordinator"]["model"] == "gpt-5.6-terra"
 
 
 def test_plan_blocks_on_cycle_and_bad_input(capsys):
@@ -45,10 +45,16 @@ def test_plan_blocks_on_cycle_and_bad_input(capsys):
     assert code == 2 and out["error"] == "ModelRoleError"
 
 
-def _fake_gh(commit_date, approval_date):
+HEAD_OID = "a" * 40
+OLD_OID = "b" * 40
+
+
+def _fake_gh(commit_date, approval_date, approval_oid=HEAD_OID):
     payload = {
-        "commits": [{"oid": "a", "messageHeadline": "feat: x", "messageBody": "", "committedDate": commit_date}],
-        "comments": [{"id": "c1", "body": "REVISÃO AUTOMÁTICA: APROVADA (nível 1)", "createdAt": approval_date,
+        "commits": [{"oid": HEAD_OID, "messageHeadline": "feat: x", "messageBody": "", "committedDate": commit_date}],
+        "comments": [{"id": "c1",
+                      "body": "REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n<!-- simplicio-loop:squad-approval:%s -->" % approval_oid,
+                      "createdAt": approval_date,
                       "author": {"login": "coord"}, "authorAssociation": "MEMBER"}],
     }
     calls = []
@@ -67,10 +73,10 @@ def test_gate_approved_and_not_approved_exit_codes(capsys, monkeypatch):
     assert code == 0 and out["approved"] is True
     assert calls[0][:6] == ["gh", "pr", "view", "7", "--repo", "o/r"]
 
-    run, _ = _fake_gh("2026-10-09T03:00:00Z", "2026-10-09T02:00:00Z")
+    run, _ = _fake_gh("2026-10-09T03:00:00Z", "2026-10-09T02:00:00Z", approval_oid=OLD_OID)
     monkeypatch.setattr(squads.subprocess, "run", run)
     code, out = _run(capsys, "squads", "gate", "--pr", "7", "--repo", "o/r", "--approver", "coord", "--json")
-    assert code == 1 and out["approved"] is False
+    assert code == 1 and out["approved"] is False and out["reason"] == "approval_not_for_head"
 
 
 def test_gate_gh_failure_is_blocked(capsys, monkeypatch):

@@ -302,3 +302,92 @@ def test_a_code_with_escape_sequences_is_not_printed(sandbox, capsys):
     out = capsys.readouterr().out
     assert "\x1b" not in out and "FAKE" not in out.replace(url, "")
     assert "Code:" not in out
+
+
+# --- review round 2 (#1670, parte de #1575) ---------------------------------------------------------------------------
+
+
+def _calls_the_opener_by_absolute_path_when_a_display_is_set(opener):
+    """A Runtime that bypasses PATH: it runs the system opener by its absolute path when a display or session bus is set."""
+    def run(command, env, stdout):
+        if any(name in env for name in ("DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS")):
+            subprocess.call([str(opener), URL], env=env)
+        return 0
+    return run
+
+
+def test_no_browser_removes_the_display_and_the_session_bus_from_the_runtime_env(sandbox, capsys):
+    env, _ = sandbox
+    env.update(DISPLAY=":0", WAYLAND_DISPLAY="wayland-0", DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/0/bus")
+    seen = {}
+
+    def run(command, child, stdout):
+        seen.update(child)
+        return 0
+
+    _login_json(env, run, capsys)
+    assert not {"DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS"} & seen.keys()
+
+
+def test_no_browser_stops_an_opener_run_by_absolute_path_that_reads_the_display(sandbox, capsys):
+    env, called = sandbox
+    env.update(DISPLAY=":0", DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/0/bus")
+    opener = called.parent / "real-bin" / "xdg-open"
+    _login_json(env, _calls_the_opener_by_absolute_path_when_a_display_is_set(opener), capsys)
+    assert not called.exists()
+
+
+def test_without_the_option_the_display_and_the_session_bus_still_reach_the_runtime(sandbox):
+    env, _ = sandbox
+    env.update(DISPLAY=":0", DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/0/bus")
+    seen = {}
+
+    def run(command, child, stdout):
+        seen.update(child)
+        return 0
+
+    auth_cli.login(as_json=True, environ=env, run=run)
+    assert seen["DISPLAY"] == ":0" and seen["DBUS_SESSION_BUS_ADDRESS"] == "unix:path=/run/user/0/bus"
+
+
+def test_no_browser_sets_browser_to_true_for_the_runtime(sandbox, capsys):
+    env, _ = sandbox
+    seen = {}
+
+    def run(command, child, stdout):
+        seen["browser"] = child.get("BROWSER")
+        return 0
+
+    _login_json(env, run, capsys)
+    assert seen["browser"] == "true"
+
+
+@pytest.mark.parametrize(("name", "code"), [("SIGTERM", 143), ("SIGHUP", 129)])
+def test_a_termination_signal_ends_the_login_with_128_plus_its_number(sandbox, sentinel_handlers, name, code):
+    env, _ = sandbox
+    sig = getattr(signal, name)
+
+    def killed(command, child, stdout):
+        (_shim_dir(child) / "sign-in-url").write_text(URL)
+        os.kill(os.getpid(), sig)
+        raise AssertionError("the signal must interrupt the login")
+
+    with pytest.raises(SystemExit) as raised:
+        auth_cli.login(as_json=True, no_browser=True, environ=env, run=killed)
+    assert raised.value.code == code
+
+
+def test_the_refusal_names_the_runtime_version(sandbox, monkeypatch, capsys, tmp_path):
+    env, _ = sandbox
+    runtime = tmp_path / "simplicio"
+    runtime.write_text('#!/bin/sh\necho "simplicio 3.10.0"\n')
+    runtime.chmod(0o755)
+    monkeypatch.setattr(auth_cli.auth, "runtime_binary", lambda *args, **kwargs: runtime)
+    monkeypatch.setattr(auth_cli, "_can_block_browser", lambda: False)
+
+    def never(command, env, stdout):
+        raise AssertionError("the Runtime must not run")
+
+    code = auth_cli.login(as_json=True, no_browser=True, environ=env, run=never)
+    doc = json.loads(capsys.readouterr().out)
+    assert code == 2 and "3.10.0" in doc["detail"]

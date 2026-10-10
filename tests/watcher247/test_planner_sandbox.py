@@ -47,7 +47,7 @@ def rig(tmp_path, monkeypatch):
 
 
 def plan(clone, **kwargs):
-    return asyncio.run(exec_planner.run_planner("opencode", "planning", "task", cwd=str(clone), **kwargs))
+    return asyncio.run(exec_planner.run_planner("opencode", "planning", "task", cwd=str(clone), repo_root=clone, **kwargs))
 
 
 def test_config_is_written_in_the_given_dir_and_removed_afterwards(rig):

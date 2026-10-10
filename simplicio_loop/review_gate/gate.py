@@ -163,6 +163,9 @@ def run_gate(inp: GateInput) -> GateReport:
     if not changes:  # nothing to review: never approved, whatever the issue says, and nothing to run
         refusal = CheckResult("diff", FAIL, ("empty_diff: o PR nao altera nenhum arquivo; um PR vazio nunca e aprovado",),
                               {"reason_code": "empty_diff"})
+    elif symlinks := [c.path for c in changes if c.symlink]:  # a link's target is read on the host by nothing: refused, never followed
+        refusal = CheckResult("diff", FAIL, (f"symlink_refused: o PR altera link simbolico, que o gate nao segue: {', '.join(symlinks)}",),
+                              {"reason_code": "symlink_refused", "paths": symlinks})
     elif wrap_for is None:  # the PR's code runs in the gate's own jail, or it does not run
         state = inp.state_dir or inp.repo / REPORT_DIR
         try:

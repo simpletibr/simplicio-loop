@@ -9,6 +9,7 @@ from pathlib import Path, PurePosixPath
 
 _HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 _DOC_SUFFIXES = (".md", ".rst", ".txt", ".toon")
+_SYMLINK_MODE = re.compile(r"^(?:new file mode|deleted file mode|old mode|new mode) 120000$|^index [0-9a-f.]+ 120000$")
 
 
 @dataclass(frozen=True)
@@ -17,10 +18,21 @@ class FileChange:
     status: str  # A added, M modified, D deleted
     added: tuple[int, ...]  # line numbers (in the new file) of the added lines
     removed: int = 0
+    symlink: bool = False  # mode 120000 on either side: its content is a link target, never read
 
     @property
     def kind(self) -> str:
         return kind_of(self.path)
+
+
+# Scripts and compiled languages: a file of these under `docs/` is still behavior, not documentation.
+EXECUTABLE_SUFFIXES = frozenset(".sh .bash .zsh .ps1 .bat .cmd .js .jsx .mjs .cjs .ts .tsx .go .rs .rb .php .java .kt .cs .c .cc .cpp .h .hpp".split())
+
+
+def is_requirements_file(path: str) -> bool:
+    """`requirements.txt`, `requirements-dev.txt`, ... at any depth: a `.txt` that the installer reads, not documentation."""
+    name = PurePosixPath(path).name.lower()
+    return name.startswith("requirements") and name.endswith(".txt")
 
 
 def kind_of(path: str) -> str:
@@ -29,7 +41,10 @@ def kind_of(path: str) -> str:
     if p.suffix == ".py" and (p.parts[0] == "tests" or p.name.startswith("test_") or p.name.endswith("_test.py")
                               or p.name == "conftest.py"):
         return "test"
-    if p.suffix in _DOC_SUFFIXES or p.parts[0] == "docs":
+    if is_requirements_file(path):
+        return "other"
+    # under `docs/` only what is not executable is documentation (text, diagrams, images, JSON of a flow): `docs/run.sh` is not
+    if p.suffix in _DOC_SUFFIXES or (p.parts[0] == "docs" and p.suffix.lower() not in EXECUTABLE_SUFFIXES):
         return "docs"
     return "code" if p.suffix == ".py" else "other"
 
@@ -67,8 +82,10 @@ def parse_diff(text: str) -> list[FileChange]:
     current: dict | None = None
     line_no = 0
     for raw in text.splitlines():
+        if current is not None and _SYMLINK_MODE.match(raw):
+            current["symlink"] = True
         if raw.startswith("diff --git "):
-            current = {"path": "", "status": "M", "added": [], "removed": 0}
+            current = {"path": "", "status": "M", "added": [], "removed": 0, "symlink": False}
             files.append(current)
         elif current is None:
             continue
@@ -91,7 +108,7 @@ def parse_diff(text: str) -> list[FileChange]:
             line_no += 1
         elif raw.startswith("-"):
             current["removed"] += 1
-    return [FileChange(f["path"], f["status"], tuple(f["added"]), f["removed"]) for f in files if f["path"]]
+    return [FileChange(f["path"], f["status"], tuple(f["added"]), f["removed"], f["symlink"]) for f in files if f["path"]]
 
 
 def changed_files(repo: Path, base: str, head: str, timeout: float = 60) -> list[FileChange]:
