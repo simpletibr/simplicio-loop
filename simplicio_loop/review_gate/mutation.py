@@ -27,6 +27,7 @@ from .model import ERROR, FAIL, PASS, SKIPPED, CheckResult
 
 KILLED, SURVIVED, TIMEOUT, EQUIVALENT = "killed", "survived", "timeout", "equivalent"  # a timeout is not a kill: a slow test must not pass a PR
 NO_TESTS_COLLECTED = 5  # pytest exit code
+MIN_LIVE_TO_JUDGE = 5  # live mutants below this: a kill ratio is noise, so the check warns instead of failing (#1649)
 _JUMPS = (ast.Return, ast.Raise, ast.Continue, ast.Break)
 _FLIPS: dict[type, type] = {
     ast.Eq: ast.NotEq, ast.NotEq: ast.Eq, ast.Lt: ast.GtE, ast.GtE: ast.Lt, ast.Gt: ast.LtE, ast.LtE: ast.Gt,
@@ -222,14 +223,19 @@ def check_mutation(root: Path, changes: Sequence[FileChange], test_argv: Sequenc
     survivors = [m for m, status in results if status == SURVIVED]
     live = len(results) - equivalent
     ratio = killed / live if live else 0.0
+    judged = live >= MIN_LIVE_TO_JUDGE
     measured = {"total": len(results), "killed": killed, "timeout": sum(1 for _, s in results if s == TIMEOUT),
                 "survived": [m.describe() for m in survivors[:8]], "ratio": round(ratio, 3), "n": n, "seed": seed,
-                "candidates": len(mutants), "equivalent": equivalent}
+                "candidates": len(mutants), "equivalent": equivalent, "judged": judged}
     if live == 0:
         return CheckResult("mutation", FAIL, ("nenhum mutante vivo na amostra (todos equivalentes ou inalcancaveis): a amostra nao diz nada",), measured)
     if equivalent * 2 > len(results):
         return CheckResult("mutation", FAIL, (f"mutantes equivalentes {equivalent}/{len(results)} (mais da metade da amostra): a amostra nao diz nada",), measured)
-    if ratio < min_kill:
+    if killed == 0 or (judged and ratio < min_kill) or (not judged and killed < live - 1):  # zero kills is vacuous at any size; a ratio judges from MIN_LIVE_TO_JUDGE up; below it at most one survivor (the equivalent mutant the ratio would punish)
         reason = f"mutantes mortos {killed}/{live} (<{int(min_kill * 100)}%): sobreviventes: " + ", ".join(m.describe() for m in survivors[:8])
         return CheckResult("mutation", FAIL, (reason,), measured)
+    if not judged:  # some kill, too few live mutants for a ratio: the survivors go to a human, the check does not block
+        warning = (f"amostra pequena demais para julgar ({killed}/{live} vivos mortos, minimo {MIN_LIVE_TO_JUDGE}); "
+                   "sobreviventes para revisao humana: " + ", ".join(m.describe() for m in survivors))
+        return CheckResult("mutation", PASS, (warning,) if survivors else (), measured)
     return CheckResult("mutation", PASS, (), measured)

@@ -184,10 +184,10 @@ def test_the_mutants_run_the_changed_tests_then_the_neighbors_and_never_a_confte
 
 
 def test_the_limits_of_the_input_reach_the_checks(tmp_path):
-    strict = _run(tmp_path / "a", "dead", n_mutants=2, min_kill=1.5)
+    strict = _run(tmp_path / "a", "dead", n_mutants=6, min_kill=1.5)  # 6 live mutants: the ratio judges, so min_kill is reached
     mutation = _check(strict, "mutation")
     assert mutation.status == FAIL and "<150%" in mutation.reasons[0]
-    assert mutation.measured["n"] == 2 and mutation.measured["total"] == 2 and mutation.measured["seed"] == strict.head
+    assert mutation.measured["n"] == 6 and mutation.measured["total"] == 6 and mutation.measured["judged"] is True and mutation.measured["seed"] == strict.head
     default = _check(_run(tmp_path / "b", "dead"), "mutation")
     assert default.measured["n"] == 12 and default.measured["seed"] != ""
     slow = _run(tmp_path / "c", "dead", test_timeout_s=0.001, mutant_timeout_s=0.001)

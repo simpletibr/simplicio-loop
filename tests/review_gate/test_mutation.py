@@ -6,6 +6,8 @@ from pathlib import Path
 
 from simplicio_loop.review_gate import mutation
 from simplicio_loop.review_gate.diffs import FileChange
+import pytest
+
 from simplicio_loop.review_gate.model import ERROR, FAIL, PASS, SKIPPED
 from simplicio_loop.review_gate.mutation import KILLED, SURVIVED, TIMEOUT, Mutant, _Stamp, check_mutation, generate, run_mutants, sample
 
@@ -236,3 +238,61 @@ def test_equivalent_mutants_are_at_most_half_of_the_sample(tmp_path, monkeypatch
     fake_tests(monkeypatch, {killer.source})
     result = check_mutation(root, [FileChange("app.py", "A", (2, 3, 4))], PYTEST, n=3, seed="s")
     assert result.status == FAIL and "equivalentes 2/3" in result.reasons[0] and result.measured["equivalent"] == 2
+
+
+TWO_REACHABLE = "def f(x):\n    if x:\n        return x\n"  # two live candidates: `negate_cond` on line 2, `return_none` on line 3
+SIX_REACHABLE = "def f(x, y):\n    a = x == 1\n    b = y < 2\n    c = x and y\n    return a and b and c\n"  # 7 live candidates; n=6 samples 6
+
+
+def test_one_kill_of_two_reachable_mutants_is_not_a_fail(tmp_path, monkeypatch):
+    root = make_project(tmp_path, TWO_REACHABLE, "from app import f\n\ndef test_f():\n    assert f(1) == 1\n")
+    (killer,) = [m for m in generate("app.py", TWO_REACHABLE, [2, 3]) if m.kind == "return_none"]
+    fake_tests(monkeypatch, {killer.source})
+    result = check_mutation(root, [FileChange("app.py", "A", (2, 3))], PYTEST, n=12, seed="s")
+    assert result.status == PASS, result.reasons
+    assert result.measured["total"] == 2 and result.measured["killed"] == 1 and result.measured["judged"] is False
+    assert any("app.py:2 negate_cond" in reason for reason in result.reasons)  # the survivor is named for the human review
+
+
+def test_zero_kills_of_six_live_mutants_still_fail(tmp_path, monkeypatch):
+    root = make_project(tmp_path, SIX_REACHABLE, "from app import f\n\ndef test_f():\n    assert True\n")
+    fake_tests(monkeypatch, set())
+    result = check_mutation(root, [FileChange("app.py", "A", (2, 3, 4, 5))], PYTEST, n=6, seed="s")
+    assert result.status == FAIL and result.measured["total"] == 6 and result.measured["killed"] == 0
+    assert result.measured["judged"] is True and "mortos 0/6" in result.reasons[0]
+
+
+def test_every_mutant_killed_passes_a_small_sample(tmp_path, monkeypatch):
+    root = make_project(tmp_path, TWO_REACHABLE, "from app import f\n\ndef test_f():\n    assert f(1) == 1\n")
+    fake_tests(monkeypatch, {m.source for m in generate("app.py", TWO_REACHABLE, [2, 3])})
+    result = check_mutation(root, [FileChange("app.py", "A", (2, 3))], PYTEST, n=12, seed="s")
+    assert result.status == PASS and result.reasons == () and result.measured["killed"] == 2
+
+
+def test_a_candidate_pool_no_bigger_than_the_sample_is_tested_whole(tmp_path, monkeypatch):
+    root = make_project(tmp_path, SIX_REACHABLE, "from app import f\n\ndef test_f():\n    assert True\n")
+    fake_tests(monkeypatch, set())
+    result = check_mutation(root, [FileChange("app.py", "A", (2, 3, 4, 5))], PYTEST, n=7, seed="s")
+    assert result.measured["candidates"] == result.measured["total"] == 7 and result.measured["n"] == 7
+
+
+def _kill_first(monkeypatch, source, lines, count):
+    mutants = generate("app.py", source, lines)
+    fake_tests(monkeypatch, {m.source for m in mutants[:count]})
+    return len(mutants)
+
+
+@pytest.mark.parametrize("lines, killed, status", [
+    ((4, 5), 1, FAIL),        # 3 live, 1 killed: two survivors, below the sample that can judge
+    ((4, 5), 2, PASS),        # 3 live, 2 killed: one survivor, the equivalent-mutant case of #1649
+    ((2, 3), 2, FAIL),        # 4 live, 2 killed: two survivors
+    ((2, 3), 3, PASS),        # 4 live, 3 killed: one survivor
+    ((2, 3, 4), 2, FAIL),     # 5 live: the ratio judges now (0.4 < 0.6)
+    ((2, 3, 4), 3, PASS),     # 5 live: 0.6 reaches min_kill
+])
+def test_a_small_sample_allows_one_survivor_and_a_judged_one_follows_the_ratio(tmp_path, monkeypatch, lines, killed, status):
+    root = make_project(tmp_path, SIX_REACHABLE, "from app import f\n\ndef test_f():\n    assert f(1, 2)\n")
+    total = _kill_first(monkeypatch, SIX_REACHABLE, list(lines), killed)
+    result = check_mutation(root, [FileChange("app.py", "A", lines)], PYTEST, n=12, seed="s")
+    assert result.measured["total"] == total and result.measured["killed"] == killed
+    assert result.status == status, (lines, killed, result.reasons)
