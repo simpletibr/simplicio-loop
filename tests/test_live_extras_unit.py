@@ -79,9 +79,9 @@ START_SCRIPT = '''
 import fs from 'node:fs';
 import { startExtras } from %s;
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
-const calls = { paths: [], intervals: [] };
+const calls = { paths: [], langfuse: [], intervals: [] };
 let tick = null;
-globalThis.setInterval = (fn, ms) => { calls.intervals.push(ms); tick = fn; return 1; };
+globalThis.setInterval = (fn, ms) => { calls.intervals.push(ms); if (ms === 3000) tick = fn; return 1; };
 function element(tag) {
   return { tag, children: [], dataset: {}, textContent: '',
     append(...items) { this.children.push(...items); },
@@ -91,6 +91,10 @@ const section = element('section');
 globalThis.document = { getElementById: (id) => (id === 'live-extras' ? section : null), createElement: element };
 const replies = input.replies.slice();
 const readApi = async (path) => {
+  if (path.endsWith('/langfuse')) {
+    calls.langfuse.push(path);
+    return null;
+  }
   calls.paths.push(path);
   const next = replies.shift();
   return next === undefined ? null : next;
@@ -106,7 +110,7 @@ for (let i = 0; i < input.ticks; i += 1) {
   await tick();
   renders.push(flat(section));
 }
-process.stdout.write(JSON.stringify({ paths: calls.paths, intervals: calls.intervals, renders, tags }));
+process.stdout.write(JSON.stringify({ paths: calls.paths, langfuse: calls.langfuse, intervals: calls.intervals, renders, tags }));
 '''
 
 
@@ -204,7 +208,8 @@ def test_start_polls_the_run_extras_and_stage_agents_every_3000_ms():
     out = _start('run-1', [VALID, STAGES])
     assert out['paths'] == ['/api/runs/run-1/extras', '/api/runs/run-1/stage-agents']
     assert 'planning: planning/high (padrão da tabela) m-a' in out['renders'][1] and 'US$ 0.0123 estimado' in out['renders'][1]
-    assert out['intervals'] == [3000]
+    assert out['intervals'] == [3000, 10000]
+    assert out['langfuse'] == ['/api/runs/run-1/langfuse']
 
 
 def test_the_run_id_is_encoded_in_the_path():
@@ -349,7 +354,7 @@ import fs from 'node:fs';
 import { startExtras } from %s;
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 let tick = null;
-globalThis.setInterval = (fn) => { tick = fn; return 1; };
+globalThis.setInterval = (fn, ms) => { if (ms === 3000) tick = fn; return 1; };
 const made = [];
 function element(tag) {
   const node = { tag, children: [], dataset: {}, textContent: '', className: '', attrs: {}, props: {},
@@ -363,7 +368,7 @@ function element(tag) {
 const section = element('section');
 globalThis.document = { getElementById: (id) => (id === 'live-extras' ? section : null), createElement: element };
 const replies = input.replies.slice();
-const readApi = async () => { const next = replies.shift(); return next === undefined ? null : next; };
+const readApi = async (path) => { if (path && path.endsWith('/langfuse')) return null; const next = replies.shift(); return next === undefined ? null : next; };
 startExtras(readApi, 'run-1');
 await new Promise((resolve) => setImmediate(resolve));
 for (let i = 0; i < input.ticks; i += 1) await tick();
