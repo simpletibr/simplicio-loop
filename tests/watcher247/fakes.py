@@ -251,7 +251,9 @@ class FakeRun:
         if sub == "rev-parse":
             # Hermetic: return the SHA of a fetched ref, or from pr_views
             # argv is like: ["git", "rev-parse", "--verify", "refs/remotes/origin/loop/issue-1^{commit}"]
-            ref_query = argv[3] if len(argv) > 3 else ""
+            ref_query = argv[-1] if len(argv) > 2 else ""
+            if not ref_query.startswith("refs/remotes/"):
+                return proc.Result(1)  # the item's local branch (refs/heads/...) does not exist yet
             # Strip ^{commit} suffix for lookup
             ref_name = ref_query.rstrip("}").rpartition("^{")[0] if "^{" in ref_query else ref_query
             if ref_name in self.fetched_refs:
