@@ -194,13 +194,47 @@ def _stores(common: Path) -> Dict[str, Path]:
     return {"map": base / "map", "scratch": cache / "scratch", "canonical": cache / "canonical"}
 
 
+def refused_root(root: Path, store: Path) -> Optional[str]:
+    """Why ``root`` may not be collected: ``symlink``, or ``outside_store`` (it resolves out of the resolved ``store``).
+
+    The one guard of every gc root (store, map, cache root, scratch, canonical): a collection never deletes through a link.
+    """
+    try:
+        if root.is_symlink():
+            return "symlink"
+        resolved, base = root.resolve(), store.resolve()
+    except (OSError, RuntimeError):
+        return "unresolvable"
+    if resolved != base and base not in resolved.parents:
+        return "outside_store"
+    return None
+
+
+# A root is only usable when every root it lives under is usable too.
+_ROOT_PARENTS = {"map": ("store",), "scratch": ("store", "cache"), "canonical": ("store", "cache")}
+
+
+def _refusals(common: Path) -> Dict[str, str]:
+    """``{root name: reason}`` for each gc root that must not be touched, in a fixed order."""
+    store = common / "simplicio"
+    stores = _stores(common)
+    roots = {"store": store, "map": stores["map"], "cache": _cache_root(common),
+             "scratch": stores["scratch"], "canonical": stores["canonical"]}
+    refused = {}
+    for name, root in roots.items():
+        reason = refused_root(root, store)
+        if reason:
+            refused[name] = reason
+    return refused
+
+
 def _scratch_candidates(stores: Dict[str, Path]) -> Iterable[Path]:
-    map_dir, scratch_dir = stores["map"], stores["scratch"]
-    if map_dir.is_dir():
+    map_dir, scratch_dir = stores.get("map"), stores.get("scratch")
+    if map_dir is not None and map_dir.is_dir():
         for entry in sorted(map_dir.iterdir()):
             if entry.name.startswith(SCRATCH_PREFIX) and entry.is_dir() and not entry.is_symlink():
                 yield entry
-    if scratch_dir.is_dir():
+    if scratch_dir is not None and scratch_dir.is_dir():
         for entry in sorted(scratch_dir.iterdir()):
             if entry.is_dir() and not entry.is_symlink():
                 yield entry
@@ -229,15 +263,21 @@ def _classify_lock(path: Path, now: float, max_age: float) -> GcItem:
 
 
 def referenced_keys(repo: str) -> Dict[str, Set[str]]:
-    """What live worktrees still reference: Runtime baseline keys and canonical digests."""
+    """What live worktrees still reference: Runtime baseline keys and canonical digests.
+
+    ``unresolved`` lists every reference that could not be resolved (a worktree whose fork point failed, the worktree list, the
+    default base): while it is not empty the set is incomplete and nothing may be deleted on the strength of it.
+    """
     runtime: Set[str] = set()
     digests: Set[str] = set()
+    unresolved: Set[str] = set()
     found = default_branch_ref(repo)
     ref = found[1] if found else None
     try:
         worktrees = list_worktrees(repo)
     except GitDiscoveryError:
         worktrees = []
+        unresolved.add("worktree list")
     for worktree in worktrees:
         root = Path(worktree.path)
         if not root.is_dir():
@@ -246,6 +286,8 @@ def referenced_keys(repo: str) -> Dict[str, Set[str]]:
             tree = merge_base_tree(str(root), ref)
             if tree:
                 runtime.add(tree)
+            else:
+                unresolved.add(str(root))
         overlay = root.joinpath(*OVERLAY_RELATIVE)
         if overlay.is_file():
             try:
@@ -257,7 +299,9 @@ def referenced_keys(repo: str) -> Dict[str, Set[str]]:
     base = resolve_default_base(repo)
     if base is not None:
         runtime.add(base.tree)
-    return {"runtime": runtime, "digests": digests}
+    elif ref:
+        unresolved.add("default base")
+    return {"runtime": runtime, "digests": digests, "unresolved": unresolved}
 
 
 def _classify_baselines(
@@ -338,21 +382,30 @@ def plan_gc(
     current = time.time() if now is None else float(now)
     common = git_common_dir(repo)
     plan = GcPlan(repo=str(repo), common_dir=str(common), keep=max(0, int(keep)), max_age=max_age, now=current)
-    stores = _stores(common)
+    refused = _refusals(common)
+    for name, reason in refused.items():
+        plan.errors.append("refused %s: %s" % (name, reason))
+    stores = {
+        name: path for name, path in _stores(common).items()
+        if name not in refused and not any(parent in refused for parent in _ROOT_PARENTS[name])
+    }
     for scratch in _scratch_candidates(stores):
         plan.items.append(_classify_scratch(scratch, current, max_age))
-    if stores["map"].is_dir():
-        for entry in sorted(stores["map"].iterdir()):
+    map_dir = stores.get("map")
+    if map_dir is not None and map_dir.is_dir():
+        for entry in sorted(map_dir.iterdir()):
             match = _BASELINE_FILE.match(entry.name)
             if match and match.group("ext") == "lock" and entry.is_file():
                 plan.items.append(_classify_lock(entry, current, max_age))
     if include_bases:
         references = referenced_keys(repo)
-        if stores["map"].is_dir():
-            plan.items.extend(
-                _classify_baselines(stores["map"], references["runtime"], plan.keep, current, max_age)
-            )
-        if stores["canonical"].is_dir():
+        if references["unresolved"]:  # an incomplete reference set would make a live base look unreferenced
+            plan.errors.append("bases pass aborted: cannot resolve %s" % ", ".join(sorted(references["unresolved"])))
+            return plan
+        if map_dir is not None and map_dir.is_dir():
+            plan.items.extend(_classify_baselines(map_dir, references["runtime"], plan.keep, current, max_age))
+        canonical_dir = stores.get("canonical")
+        if canonical_dir is not None and canonical_dir.is_dir():
             _canonical_plan(repo, plan.keep, references["digests"], plan)
     return plan
 
@@ -379,7 +432,8 @@ def _still_safe(item: GcItem, plan: GcPlan) -> bool:
         if lock.exists() and now - lock.lstat().st_mtime < plan.max_age:
             return False
         # A worktree may have been created from this tree since the plan was made.
-        return key not in referenced_keys(plan.repo)["runtime"]
+        references = referenced_keys(plan.repo)
+        return not references["unresolved"] and key not in references["runtime"]
     return True
 
 
@@ -431,6 +485,7 @@ def startup_gc(repo: str, *, max_age: float = STALE_AFTER_SECONDS) -> List[str]:
 
 __all__ = [
     "DEFAULT_KEEP", "GcItem", "GcPlan", "GcResult", "SCHEMA", "STALE_AFTER_SECONDS",
-    "apply_gc", "newest_mtime", "plan_gc", "process_inside", "referenced_keys", "startup_gc",
+    "apply_gc", "newest_mtime", "plan_gc", "process_inside", "referenced_keys", "refused_root",
+    "startup_gc",
     "tree_size",
 ]

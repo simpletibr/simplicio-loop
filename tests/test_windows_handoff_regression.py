@@ -3,6 +3,8 @@ import subprocess
 from types import SimpleNamespace
 
 from simplicio_loop import runner as runner_mod
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 
 def test_run_cmd_decodes_utf8_output_on_windows(tmp_path, monkeypatch):
@@ -27,8 +29,8 @@ def test_run_mapper_recovers_pack_hash_from_compact_handoff(tmp_path, monkeypatc
     run_root.mkdir()
     calls = []
 
-    monkeypatch.setattr(runner_mod, "_preflight_mapper", lambda *args: {"task_aware_supported": True, "help_stdout": ""})
-    monkeypatch.setattr(runner_mod, "_validate_mapper_receipt", lambda *args: None)
+    patch_runner(monkeypatch, "_preflight_mapper", lambda *args: {"task_aware_supported": True, "help_stdout": ""})
+    patch_runner(monkeypatch, "_validate_mapper_receipt", lambda *args: None)
 
     def fake_run(argv, cwd):
         calls.append(list(argv))
@@ -41,7 +43,7 @@ def test_run_mapper_recovers_pack_hash_from_compact_handoff(tmp_path, monkeypatc
             return SimpleNamespace(returncode=0, stdout=json.dumps({"context_pack": pack}), stderr="")
         return SimpleNamespace(returncode=0, stdout=json.dumps({}), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(repo, run_root, task_path="task.md", goal="goal", target_hint="src/app.py")
 
     handoffs = [argv for argv in calls if argv[:2] == ["simplicio-mapper", "handoff"]]
@@ -56,9 +58,9 @@ def test_run_mapper_tolerates_missing_optional_task_metadata(tmp_path, monkeypat
     repo.mkdir()
     run_root = tmp_path / "run"
     run_root.mkdir()
-    monkeypatch.setattr(runner_mod, "_preflight_mapper", lambda *args: {"task_aware_supported": True, "help_stdout": ""})
-    monkeypatch.setattr(runner_mod, "_validate_mapper_receipt", lambda *args: None)
-    monkeypatch.setattr(runner_mod, "_run_cmd", lambda argv, cwd: SimpleNamespace(returncode=0, stdout=json.dumps({}), stderr=""))
+    patch_runner(monkeypatch, "_preflight_mapper", lambda *args: {"task_aware_supported": True, "help_stdout": ""})
+    patch_runner(monkeypatch, "_validate_mapper_receipt", lambda *args: None)
+    patch_runner(monkeypatch, "_run_cmd", lambda argv, cwd: SimpleNamespace(returncode=0, stdout=json.dumps({}), stderr=""))
     result = runner_mod._run_mapper(repo, run_root, task_path=None, goal=None, task_fingerprint=None, target_hint=None)
     assert result["handoff"]["stdout"] == {}
 

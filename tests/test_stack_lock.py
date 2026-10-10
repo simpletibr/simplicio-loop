@@ -20,6 +20,7 @@ from simplicio_loop.stack_lock import (
     validate_stack_lock,
     write_stack_lock,
 )
+from tests.runner_patch import patch_runner
 
 
 def _component(tmp_path, name="simplicio-mapper", content=b"mapper"):
@@ -186,7 +187,7 @@ def test_runner_freezes_and_verifies_stack_lock_at_boundaries(tmp_path, monkeypa
     def discover():
         return (observe_component("simplicio-mapper", "1.0.0", binary, capabilities=("map",)),)
 
-    monkeypatch.setattr(runner_mod, "discover_installed_components", discover)
+    patch_runner(monkeypatch, "discover_installed_components", discover)
     monkeypatch.setenv("SIMPLICIO_EXECUTION_PROFILE", "standalone")
     run_root = tmp_path / "run"
     run_root.mkdir()

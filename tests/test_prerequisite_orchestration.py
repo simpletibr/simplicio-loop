@@ -3,6 +3,7 @@ import json
 import pytest
 
 from simplicio_loop import cli_impl, provider_worker, runner
+from tests.runner_patch import patch_runner
 
 
 class _Response:
@@ -259,7 +260,7 @@ def test_provider_worker_receives_current_authorized_target_for_editing_task(mon
             }
 
     monkeypatch.setenv("OPENROUTER_API_KEY", "runtime-only-openrouter-secret")
-    monkeypatch.setattr(runner, "OpenRouterWorker", _FakeWorker)
+    patch_runner(monkeypatch, "OpenRouterWorker", _FakeWorker)
     run_dir = tmp_path / "run"
     run_dir.mkdir()
 

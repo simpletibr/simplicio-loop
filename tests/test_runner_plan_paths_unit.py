@@ -17,6 +17,7 @@ from types import SimpleNamespace
 import pytest
 
 from simplicio_loop import runner
+from tests.runner_patch import patch_runner
 
 MECHANICAL = "simplicio.mechanical-edit/v1"
 EDIT_PLAN = "simplicio.dev-cli.edit-plan/v1"
@@ -118,7 +119,7 @@ def no_dev_cli(monkeypatch):
     def boom(*args, **kwargs):
         raise AssertionError("dev-cli was called for a plan that names an unsafe path")
 
-    monkeypatch.setattr(runner, "_run_cmd", boom)
+    patch_runner(monkeypatch, "_run_cmd", boom)
 
 
 @pytest.mark.parametrize("plan", UNSAFE_PLANS)
@@ -141,7 +142,7 @@ def test_compile_refuses_what_a_stale_dev_cli_compiled_into_git(repo, tmp_path, 
                                  encoding="utf-8")
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
-    monkeypatch.setattr(runner, "_run_cmd", stale_compile)
+    patch_runner(monkeypatch, "_run_cmd", stale_compile)
     compiled, reason_code, message = runner._compile_minimal_host_plan(repo, plan_path)
     assert compiled is None and reason_code == "plan_path_unsafe" and ".git" in message
     assert json.loads(plan_path.read_text(encoding="utf-8")) == _minimal("app.py", "old"), "the unsafe plan must not replace the host plan"
@@ -158,7 +159,7 @@ def test_compile_refuses_a_compiled_plan_that_carries_validation_commands(repo, 
                                                   validation=VALIDATION)), encoding="utf-8")
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
-    monkeypatch.setattr(runner, "_run_cmd", compile_with_validation)
+    patch_runner(monkeypatch, "_run_cmd", compile_with_validation)
     compiled, reason_code, message = runner._compile_minimal_host_plan(repo, plan_path)
     assert compiled is None and reason_code == "plan_path_unsafe" and message.startswith("protected_path: validation")
     assert json.loads(plan_path.read_text(encoding="utf-8")) == _minimal("app.py", "old")
