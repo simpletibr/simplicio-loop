@@ -15,7 +15,7 @@ import shutil
 import sys
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 ALLOWED_ENV = ("PATH", "LANG", "LC_ALL", "TERM", "TZ")
 DEFAULT_PATH = "/usr/local/bin:/usr/bin:/bin"
@@ -108,26 +108,49 @@ def item_git_env(cwd: str | Path | None) -> dict[str, str]:
     return {"GIT_DIR": str(common / "worktrees" / number), "GIT_COMMON_DIR": str(common), "GIT_WORK_TREE": str(cwd)}
 
 
+def _home_entry(home: Path, name: str) -> Path:
+    """`home / name` for a HomeView entry. Fails closed (SandboxUnavailable) unless `name` is a relative path inside HOME:
+    a `..` or an absolute name would bind a path outside the empty HOME."""
+    parts = PurePosixPath(name).parts
+    if not name or PurePosixPath(name).is_absolute() or not parts or ".." in parts:
+        raise SandboxUnavailable(f"HomeView entry {name!r} is not a relative path inside HOME ({home})")
+    return home / name
+
+
 def _home_args(view: HomeView) -> list[str]:
     """bwrap args for a planner's HOME: an empty tmpfs, then the family's folders and binary. Fails closed (SandboxUnavailable)
-    when HOME is not an absolute directory other than `/`: without the tmpfs the whole HOME would stay readable."""
+    when HOME is not an absolute directory other than `/`: without the tmpfs the whole HOME would stay readable. A HOME that
+    is a symbolic link, or has one in its path, is refused with its own reason: bwrap cannot mount a tmpfs over it."""
     home = view.home
-    if not home.is_absolute() or home == Path("/") or not home.is_dir():
+    if not home.is_absolute() or home == Path("/"):
         raise SandboxUnavailable(f"cannot mount an empty HOME over {home}: not an absolute directory")
+    if home.resolve() != home:
+        raise SandboxUnavailable(f"cannot mount an empty HOME over {home}: it is, or sits under, a symbolic link ({home.resolve()})")
+    if not home.is_dir():
+        raise SandboxUnavailable(f"cannot mount an empty HOME over {home}: not an absolute directory")
+    entries = {name: _home_entry(home, name) for name in (*view.rw, *view.ro, *view.hide)}  # every name checked before any arg is built
     args = ["--tmpfs", str(home)]
     for name in view.rw:
-        if (home / name).is_dir():
-            args += ["--bind-try", str(home / name), str(home / name)]
+        if entries[name].is_dir():
+            args += ["--bind-try", str(entries[name]), str(entries[name])]
     for name in view.hide:
-        if (home / name).is_dir():
-            args += ["--tmpfs", str(home / name)]
+        if entries[name].is_dir():
+            args += ["--tmpfs", str(entries[name])]
     for name in view.ro:
-        path = home / name
+        path = entries[name]
         if path.is_symlink():
             args += ["--symlink", os.readlink(path), str(path)]
         else:
             args += ["--ro-bind-try", str(path), str(path)]
     return args
+
+
+def _refuse_state_over_home(home: Path, state_dir: Path) -> None:
+    """A state dir that is HOME, or holds it, is bound read-only AFTER the empty HOME and gives the whole HOME back (the probe of
+    the review of #1677 read `.ssh/id` that way). A state dir inside HOME or beside it is fine: only that folder comes back."""
+    real_home, real_state = home.resolve(), state_dir.resolve()
+    if real_state == real_home or real_state in real_home.parents:
+        raise SandboxUnavailable(f"the state dir {state_dir} is, or holds, the HOME {home}: its read-only bind would undo the empty HOME")
 
 
 def wrap(argv: list[str], *, clone: Path, state_dir: Path, platform: str | None = None,
@@ -148,6 +171,8 @@ def wrap(argv: list[str], *, clone: Path, state_dir: Path, platform: str | None 
                                  f"{OPT_OUT}=1 to run unsandboxed")
     clone, state_dir = str(clone), str(state_dir)
     if kind == "bwrap":
+        if home is not None:
+            _refuse_state_over_home(home.home, Path(state_dir))
         return [
             "bwrap",
             "--ro-bind", "/", "/",          # whole filesystem read-only,

@@ -1,0 +1,126 @@
+"""#1680 findings 1 to 3: the empty HOME of a planner cannot be undone by the state dir, a link, or a `..` in a HomeView.
+
+Measured by the independent review of #1677 with the real bwrap: a state dir that is HOME or holds it re-exposes HOME (the
+`--ro-bind state_dir` comes after the tmpfs; the probe read `.ssh/id`), a HOME that is an absolute symbolic link gave the opaque
+`Can't mount tmpfs on /newroot/...`, and `HomeView(rw=("../../clone",))` bound a path outside HOME. Each one now stops in `wrap`
+with `SandboxUnavailable` before any bwrap starts.
+"""
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+import pytest
+
+from simplicio_loop.watcher247 import sandbox
+
+from .sandbox_rig import needs_bwrap, run, scratch
+
+
+@pytest.fixture(autouse=True)
+def linux_with_bwrap(monkeypatch):
+    monkeypatch.setattr(sandbox.shutil, "which", lambda binary: "/usr/bin/bwrap")
+
+
+def wrap(tmp_path: Path, view: sandbox.HomeView, state: Path) -> list[str]:
+    clone = tmp_path / "clone"
+    clone.mkdir(exist_ok=True)
+    state.mkdir(parents=True, exist_ok=True)
+    return sandbox.wrap(["true"], clone=clone, state_dir=state, platform="linux", environ={}, home=view)
+
+
+def test_a_state_dir_that_is_the_home_is_refused(tmp_path):
+    home = tmp_path / "home"
+    home.mkdir()
+    with pytest.raises(sandbox.SandboxUnavailable, match="state dir"):
+        wrap(tmp_path, sandbox.HomeView(home), home)
+
+
+def test_a_state_dir_that_holds_the_home_is_refused(tmp_path):
+    home = tmp_path / "var" / "lib" / "user"
+    home.mkdir(parents=True)
+    with pytest.raises(sandbox.SandboxUnavailable, match="state dir"):
+        wrap(tmp_path, sandbox.HomeView(home), tmp_path / "var")
+
+
+def test_a_state_dir_given_through_a_link_to_the_folder_that_holds_the_home_is_refused(tmp_path):
+    holder = tmp_path / "holder"
+    home = holder / "home"  # HOME itself is a canonical path
+    home.mkdir(parents=True)
+    alias = tmp_path / "alias"
+    alias.symlink_to(holder)  # the state dir is named through a link: only its real path shows that it holds HOME
+    with pytest.raises(sandbox.SandboxUnavailable, match="state dir"):
+        wrap(tmp_path, sandbox.HomeView(home), alias)
+
+
+def test_a_state_dir_inside_the_home_or_beside_it_is_accepted(tmp_path):
+    home = tmp_path / "home"
+    home.mkdir()
+    inside = wrap(tmp_path, sandbox.HomeView(home), home / "service" / "state")  # the layout of a service that keeps its state in HOME
+    beside = wrap(tmp_path, sandbox.HomeView(home), tmp_path / "state")
+    for argv in (inside, beside):
+        assert ["--tmpfs", str(home)] in [argv[i:i + 2] for i in range(len(argv) - 1)]  # the empty HOME is there in both layouts
+
+
+def test_a_home_that_is_a_symbolic_link_is_refused_with_a_clear_reason(tmp_path):
+    real = tmp_path / "real-home"
+    real.mkdir()
+    link = tmp_path / "home"
+    link.symlink_to(real)
+    with pytest.raises(sandbox.SandboxUnavailable, match="symbolic link"):
+        wrap(tmp_path, sandbox.HomeView(link), tmp_path / "state")
+
+
+def test_a_home_with_a_link_in_the_middle_of_its_path_is_refused(tmp_path):
+    real = tmp_path / "real"
+    (real / "user").mkdir(parents=True)
+    (tmp_path / "alias").symlink_to(real)
+    with pytest.raises(sandbox.SandboxUnavailable, match="symbolic link"):
+        wrap(tmp_path, sandbox.HomeView(tmp_path / "alias" / "user"), tmp_path / "state")
+
+
+@pytest.mark.parametrize("field", ["rw", "ro", "hide"])
+@pytest.mark.parametrize("name", ["../../clone", "a/../../b", "..", "/etc", "", ".", "a/.."])
+def test_a_home_view_entry_outside_the_home_is_refused(tmp_path, field, name):
+    home = tmp_path / "home"
+    home.mkdir()
+    with pytest.raises(sandbox.SandboxUnavailable, match="HomeView"):
+        wrap(tmp_path, sandbox.HomeView(home, **{field: (name,)}), tmp_path / "state")
+
+
+@needs_bwrap
+def test_the_shapes_wrap_refuses_really_leak_the_home_in_a_real_bwrap(monkeypatch):
+    """The control: the argv `wrap` used to build for a state dir that holds HOME and for `rw=('../..')` reads a FAKE secret of HOME.
+
+    Not a mock of the leak: the same bwrap arguments, started for real. `wrap` now refuses both shapes before any bwrap starts.
+    """
+    monkeypatch.undo()  # this module's autouse fixture faked `which`; the real bwrap is needed here
+    with scratch("sbx-guards-") as root:
+        holder = root / "holder"
+        home = holder / "home"
+        (home / ".ssh").mkdir(parents=True)
+        (home / ".ssh" / "id").write_text("FAKE-secret")
+        (holder / "clone").mkdir()
+        probe = ["/bin/sh", "-c", f'cat "{home}/.ssh/id" 2>/dev/null || echo HIDDEN']
+        base = ["bwrap", "--ro-bind", "/", "/", "--unshare-pid", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp", "--tmpfs", str(home)]
+        hidden = run([*base, "--", *probe], {})
+        leaked = run([*base, "--ro-bind", str(holder), str(holder), "--", *probe], {})  # state dir = the folder that holds HOME
+        assert hidden.stdout.strip() == "HIDDEN"  # the empty HOME alone hides it
+        assert leaked.stdout.strip() == "FAKE-secret"  # the read-only bind of the state dir gives it back
+        monkeypatch.setattr(sandbox.shutil, "which", lambda binary: "/usr/bin/bwrap")
+        with pytest.raises(sandbox.SandboxUnavailable):
+            sandbox.wrap(["true"], clone=holder / "clone", state_dir=holder, platform="linux", environ={}, home=sandbox.HomeView(home))
+        with pytest.raises(sandbox.SandboxUnavailable):
+            sandbox.wrap(["true"], clone=holder / "clone", state_dir=root / "state", platform="linux", environ={},
+                         home=sandbox.HomeView(home, rw=("../../clone",)))
+
+
+def test_a_clean_home_view_still_binds_its_folders(tmp_path):
+    home = tmp_path / "home"
+    (home / ".claude").mkdir(parents=True)
+    (home / ".local" / "bin").mkdir(parents=True)
+    (home / ".local" / "bin" / "claude").write_text("x")
+    argv = wrap(tmp_path, sandbox.HomeView(home, rw=(".claude",), ro=(".local/bin/claude",)), tmp_path / "state")
+    assert ["--bind-try", str(home / ".claude"), str(home / ".claude")] == argv[argv.index("--bind-try"):][:3]
+    assert ["--ro-bind-try", str(home / ".local/bin/claude"), str(home / ".local/bin/claude")] == argv[argv.index("--ro-bind-try"):][:3]
+    assert os.path.realpath(home) == str(home)
