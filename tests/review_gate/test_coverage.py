@@ -92,7 +92,7 @@ class TestCheckCoverage:
         """All criteria are covered by changes."""
         issue_body = "- [ ] implement foo.py\n- [ ] add tests\n"
         changes = [FileChange("src/foo.py", "A", (1,)), FileChange("tests/test_foo.py", "A", (1,))]
-        added_text = {"src/foo.py": "def foo():\n    pass\n", "tests/test_foo.py": "def test_foo():\n    pass\n"}
+        added_text = {"src/foo.py": "def foo():\n    pass\n", "tests/test_foo.py": "def test_foo():\n    assert foo() is None\n"}
 
         result = check_coverage(123, issue_body, changes, added_text, "closes #123")
         assert result.status == PASS
@@ -207,6 +207,7 @@ def _uncovered(result):
 CLAMP = "- [ ] clamp limita o valor entre low e high"
 MOD = ("A", "def clamp(value, low, high):\n    return max(low, min(high, value))\n")
 TEST_CLAMP = ("A", "def test_clamp_low():\n    assert mod.clamp(-1, 0, 10) == 0\n")
+UNRELATED = ("A", "answer = 42\n")  # Python production no criterion here is about: a test is evidence only beside production
 
 
 class TestCriterionMatching:
@@ -218,7 +219,7 @@ class TestCriterionMatching:
 
     def test_a_test_with_half_of_the_words_covers_the_criterion(self):
         test = ("A", "def test_clamp_limits_low_high():\n    assert mod.clamp(5, 0, 1) == 1\n")
-        result = _pr("- [ ] clamp limita low e high", {"tests/test_mod.py": test})  # clamp, limita, low, high
+        result = _pr("- [ ] clamp limita low e high", {"tests/test_mod.py": test, "src/other.py": UNRELATED})  # clamp, limita, low, high
         assert result.status == PASS and result.measured["evidence"]["clamp limita low e high"] == [
             "test:tests/test_mod.py::test_clamp_limits_low_high"]
 
@@ -231,11 +232,11 @@ class TestCriterionMatching:
 
     def test_words_found_in_different_units_do_not_add_up(self):
         issue = "- [ ] cliente recebe fatura mensal pelo correio"  # 5 words: 3 needed in one unit
-        tests = ("A", "def test_a():\n    cliente.recebe()\n\ndef test_b():\n    fatura.mensal()\n")
-        result = _pr(issue, {"tests/test_x.py": tests})
+        tests = ("A", "def test_a():\n    assert cliente.recebe()\n\ndef test_b():\n    assert fatura.mensal()\n")
+        result = _pr(issue, {"tests/test_x.py": tests, "src/other.py": UNRELATED})
         assert result.status == FAIL  # 2 words in test_a, 2 in test_b: 4 in total, never 3 in one
-        together = ("A", "def test_a():\n    cliente.recebe(fatura)\n")
-        assert _pr(issue, {"tests/test_x.py": together}).status == PASS
+        together = ("A", "def test_a():\n    assert cliente.recebe(fatura)\n")
+        assert _pr(issue, {"tests/test_x.py": together, "src/other.py": UNRELATED}).status == PASS
 
     def test_words_found_in_different_files_do_not_add_up(self):
         issue = "- [ ] exportar relatorio mensal"  # 3 words: 2 needed in one unit
@@ -292,7 +293,7 @@ class TestCriterionMatching:
     def test_pure_test_criterion_needs_a_test_file(self):
         prod = {"src/foo.py": ("A", "def foo():\n    pass\n")}
         assert _pr("- [ ] adicionar testes", prod).status == FAIL
-        with_test = {**prod, "tests/test_foo.py": ("A", "def test_foo():\n    pass\n")}
+        with_test = {**prod, "tests/test_foo.py": ("A", "def test_foo():\n    assert foo() is None\n")}
         result = _pr("- [ ] adicionar testes", with_test)
         assert result.status == PASS and result.measured["evidence"]["adicionar testes"] == ["test:tests/test_foo.py"]
 
@@ -305,7 +306,7 @@ class TestCriterionMatching:
         prod = {"src/clamp.py": ("A", "def clamp(value):\n    return value\n")}
         issue = "- [ ] adicionar teste para clamp"
         assert _pr(issue, prod).status == FAIL
-        assert _pr(issue, {**prod, "tests/test_clamp.py": ("A", "def test_clamp():\n    pass\n")}).status == PASS
+        assert _pr(issue, {**prod, "tests/test_clamp.py": ("A", "def test_clamp():\n    assert clamp(1) == 1\n")}).status == PASS
 
     def test_a_criterion_about_tests_does_not_take_cited_symbols_from_production(self):
         prod = {"src/clamp.py": ("A", "def clamp(value):\n    return value\n")}

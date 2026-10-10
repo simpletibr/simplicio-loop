@@ -30,7 +30,8 @@ class Run(NamedTuple):
 def _run(root: Path, name: str, **overrides) -> Run:
     root.mkdir(parents=True, exist_ok=True)
     repo, base, head = scenario.make_repo(root, name)
-    params = dict(repo=repo, pr=11, issue=7, issue_body=ISSUE_BODY, pr_body=PR_BODY, base=base, head=head, author=WORKER)
+    params = dict(repo=repo, pr=11, issue=7, issue_body=ISSUE_BODY, pr_body=PR_BODY, base=base, head=head, author=WORKER,
+                  wrap_for=scenario.UNSANDBOXED)  # these tests exercise the checks; the jail has its own tests (test_isolation.py)
     params.update(overrides)
     return Run(repo, base, head, gate.run_gate(gate.GateInput(**params)))
 
@@ -168,7 +169,8 @@ def _wrapped_runs(tmp_path, name, **overrides):
 
 def test_the_sandbox_wrapper_is_built_for_the_head_tree_and_wraps_every_pytest_run(tmp_path):
     run, seen = _wrapped_runs(tmp_path, "dead", n_mutants=2)
-    assert seen and all(root.name == "head" and root.parent.name == f"pr-11-{run.head[:7]}" for root, _ in seen)
+    assert [root.name for root, _ in seen] == ["head", "base", "head", "head", "head"]  # each run wrapped for the tree it runs in (the sandbox chdirs there)
+    assert all(root.parent.name == f"pr-11-{run.head[:7]}" for root, _ in seen)
     assert all(argv[1] == "-c" and "pytest.main" in argv[2] for _, argv in seen)
     assert len(seen) == 2 + 1 + 2  # redgreen on head and on main, the unmutated tree, two mutants
 
@@ -176,7 +178,7 @@ def test_the_sandbox_wrapper_is_built_for_the_head_tree_and_wraps_every_pytest_r
 def test_the_mutants_run_the_changed_tests_then_the_neighbors_and_never_a_conftest(tmp_path):
     run, seen = _wrapped_runs(tmp_path, "good", n_mutants=1)
     mutation_argv = seen[-1][1]  # the last run is a mutant
-    assert mutation_argv[3:] == ["-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", "tests/test_clamp.py", "tests/test_add.py"]
+    assert mutation_argv[3:] == ["-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", "--confcutdir", ".", "-c", "/dev/null", "--rootdir", ".", "tests/test_clamp.py", "tests/test_add.py"]
     run, seen = _wrapped_runs(tmp_path / "conf", "withconf", n_mutants=1)
     assert seen[-1][1][-1:] == ["tests/test_dead.py"] and not any("conftest.py" in a for a in seen[-1][1])
 
@@ -229,7 +231,8 @@ def test_each_check_gets_the_inputs_it_needs(tmp_path, monkeypatch):
 def test_a_gate_that_cannot_prepare_its_trees_reports_a_setup_error_and_still_writes_the_report(tmp_path):
     repo, base, head = scenario.make_repo(tmp_path, "notest")
     (repo / ".simplicio-loop" / "review-gate" / f"pr-11-{head[:7]}").mkdir(parents=True)  # a leftover of a crashed run
-    report = gate.run_gate(gate.GateInput(repo=repo, pr=11, issue=7, issue_body="", pr_body="", base=base, head=head, author=WORKER))
+    report = gate.run_gate(gate.GateInput(repo=repo, pr=11, issue=7, issue_body="", pr_body="", base=base, head=head, author=WORKER,
+                                          wrap_for=scenario.UNSANDBOXED))
     assert [c.name for c in report.checks] == ["setup"] and report.checks[0].status == ERROR
     assert "gate could not prepare its trees" in report.checks[0].reasons[0] and not report.approved
     assert json.loads((repo / ".simplicio-loop" / "review-gate" / f"pr-11-{head[:7]}.json").read_text())["approved"] is False
@@ -246,7 +249,8 @@ def test_a_git_failure_while_adding_the_trees_is_a_setup_error_and_the_tree_alre
         return real(where, *args, **kw)
 
     monkeypatch.setattr(gate, "_git", flaky)
-    report = gate.run_gate(gate.GateInput(repo=repo, pr=11, issue=7, issue_body="", pr_body="", base=base, head=head, author=WORKER))
+    report = gate.run_gate(gate.GateInput(repo=repo, pr=11, issue=7, issue_body="", pr_body="", base=base, head=head, author=WORKER,
+                                          wrap_for=scenario.UNSANDBOXED))
     assert [c.name for c in report.checks] == ["setup"] and not report.approved
     assert report.checks[0].reasons == ("gate could not prepare its trees: git worktree add failed: disk full",)
     assert [c[:2] for c in calls] == [("worktree", "add")] * 2
@@ -329,3 +333,32 @@ def test_added_text_and_base_public_read_only_what_the_diff_says(tmp_path):
     changes.append(diffs.FileChange("bin.py", "M", (1,)))
     assert gate._added_text(tmp_path, changes) == {"a.py": "two\nthree", "b.py": "def pub():", "t.txt": "x", "new.py": "n1"}
     assert gate._base_public(tmp_path, changes[:5]) == {"a.py": frozenset(), "b.py": frozenset({"pub"})}  # only code that was modified and exists
+
+
+def test_the_forged_conftest_pr_is_rejected_by_the_real_gate_at_level_t2(tmp_path):
+    """Review round: a never-fixed bug + tests/sub/conftest.py rewriting the report + a genuine fix elsewhere gave `T1 approved`."""
+    run = _run(tmp_path, "forged")
+    redgreen = _check(run, "redgreen")
+    assert run.report.level is Level.T2 and not run.report.approved
+    assert redgreen.status == FAIL and redgreen.measured["head_failed"] == ["tests/sub/test_bug.py::test_add_is_fixed"]
+    assert redgreen.measured["pytest_infra_ignored"] == ["tests/sub/conftest.py"]
+    assert _check(run, "mutation").blocking  # no check runs under the forged conftest: the unmutated tree fails the honest test too
+    assert _check(run, "identity").status == FAIL  # and T2 wants an independent reviewer
+    marked = _run(tmp_path / "again", "forged", independent=INDEPENDENT)
+    assert _check(marked, "identity").status == PASS and not marked.report.approved  # a marker does not fix redgreen
+
+
+def test_no_check_sees_the_conftest_of_the_pr_even_when_redgreen_ends_early(tmp_path, monkeypatch):
+    """Defence in depth: the head tree is neutralized by the gate itself, not only by redgreen (which may skip or fail first)."""
+    seen = {}
+    real = gate.mutation.check_mutation
+
+    def spy(root, *args, **kw):
+        seen["conftest"] = (root / "tests" / "sub" / "conftest.py").exists()
+        return real(root, *args, **kw)
+
+    monkeypatch.setattr(gate.mutation, "check_mutation", spy)
+    monkeypatch.setattr(gate.redgreen, "check_redgreen", lambda *a, **kw: CheckResult("redgreen", PASS))
+    run = _run(tmp_path, "forged", n_mutants=1)
+    assert seen == {"conftest": False}
+    assert [c.name for c in run.report.checks] == ORDER

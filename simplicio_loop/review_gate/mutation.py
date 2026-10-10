@@ -16,6 +16,7 @@ from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import isolation
 from .diffs import FileChange
 from .model import ERROR, FAIL, PASS, SKIPPED, CheckResult
 
@@ -138,10 +139,11 @@ class _Stamp:
         os.utime(path, (self.at, self.at))
 
 
-def _run(root: Path, argv: Sequence[str], timeout: float, wrap: Callable[[list[str]], list[str]], env: dict[str, str] | None) -> int | None:
-    """The exit code of one test run, or None on timeout."""
+def _run(root: Path, argv: Sequence[str], timeout: float, wrap: Callable[[list[str]], list[str]], env: dict[str, str] | None,
+         home: Path | None = None) -> int | None:
+    """The exit code of one test run, or None on timeout. The child gets a scrubbed environment, never the watcher's."""
     try:
-        return subprocess.run(wrap(list(argv)), cwd=root, timeout=timeout, capture_output=True, env={**os.environ, **(env or {})},
+        return subprocess.run(wrap(list(argv)), cwd=root, timeout=timeout, capture_output=True, env=isolation.child_env(env, home),
                               check=False).returncode
     except subprocess.TimeoutExpired:
         return None
@@ -150,7 +152,8 @@ def _run(root: Path, argv: Sequence[str], timeout: float, wrap: Callable[[list[s
 
 
 def run_mutants(root: Path, mutants: Sequence[Mutant], test_argv: Sequence[str], timeout_each: float,
-                wrap: Callable[[list[str]], list[str]] = lambda argv: argv, env: dict[str, str] | None = None) -> list[tuple[Mutant, str]]:
+                wrap: Callable[[list[str]], list[str]] = lambda argv: argv, env: dict[str, str] | None = None,
+                home: Path | None = None) -> list[tuple[Mutant, str]]:
     """Apply each mutant to `root`, run the tests, restore the file. Status: killed (tests failed), survived (passed or collected nothing), timeout."""
     results: list[tuple[Mutant, str]] = []
     stamp = _Stamp()
@@ -159,7 +162,7 @@ def run_mutants(root: Path, mutants: Sequence[Mutant], test_argv: Sequence[str],
         original = target.read_text(encoding="utf-8")
         try:
             stamp.write(target, mutant.source)
-            code = _run(root, test_argv, timeout_each, wrap, env)
+            code = _run(root, test_argv, timeout_each, wrap, env, home)
         finally:
             stamp.write(target, original)
         results.append((mutant, TIMEOUT if code is None else SURVIVED if code in (0, NO_TESTS_COLLECTED) else KILLED))
@@ -168,7 +171,7 @@ def run_mutants(root: Path, mutants: Sequence[Mutant], test_argv: Sequence[str],
 
 def check_mutation(root: Path, changes: Sequence[FileChange], test_argv: Sequence[str], n: int = 12, min_kill: float = 0.6,
                    timeout_each: float = 120.0, seed: str = "", wrap: Callable[[list[str]], list[str]] = lambda argv: argv,
-                   env: dict[str, str] | None = None) -> CheckResult:
+                   env: dict[str, str] | None = None, home: Path | None = None) -> CheckResult:
     """Fail when fewer than `min_kill` of a sample of n mutants of the PR's added production lines die under the PR's tests."""
     mutants: list[Mutant] = []
     for change in changes:
@@ -182,10 +185,10 @@ def check_mutation(root: Path, changes: Sequence[FileChange], test_argv: Sequenc
         return CheckResult("mutation", SKIPPED, ("sem linha de producao mutavel",))
     if not test_argv:  # pytest without a file would run the whole suite
         return CheckResult("mutation", FAIL, ("sem teste novo nem vizinho para rodar contra os mutantes",))
-    code = _run(root, test_argv, timeout_each * 2, wrap, env)  # the tests have to pass on the unmutated tree, or every mutant "dies"
+    code = _run(root, test_argv, timeout_each * 2, wrap, env, home)  # the tests have to pass on the unmutated tree, or every mutant "dies"
     if code != 0:
         return CheckResult("mutation", ERROR, (f"os testes nao passam sem mutante (saida {code}): a amostra nao diz nada",))
-    results = run_mutants(root, sample(mutants, n, seed), test_argv, timeout_each, wrap=wrap, env=env)
+    results = run_mutants(root, sample(mutants, n, seed), test_argv, timeout_each, wrap=wrap, env=env, home=home)
     killed = sum(1 for _, status in results if status == KILLED)
     survivors = [m for m, status in results if status == SURVIVED]
     ratio = killed / len(results)

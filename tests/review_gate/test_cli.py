@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from simplicio_loop.review_gate import cli
+from simplicio_loop.review_gate import cli, isolation
 from tests.review_gate import scenario
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,6 +24,12 @@ def _argv(tmp_path, repo, base, head, *extra, bodies=True):
         (tmp_path / "pr.md").write_text(PR, encoding="utf-8")
         argv += ["--issue-body-file", str(tmp_path / "issue.md"), "--pr-body-file", str(tmp_path / "pr.md")]
     return argv
+
+
+@pytest.fixture(autouse=True)
+def _no_real_jail(monkeypatch):
+    """The CLI builds no seam: it gets the gate's jail. Here the host may have no bwrap (or no right to nest one), and the jail has its own tests."""
+    monkeypatch.setattr(isolation, "make_jail", scenario.unsandboxed_jail)
 
 
 @pytest.fixture
