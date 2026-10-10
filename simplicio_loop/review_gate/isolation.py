@@ -23,7 +23,7 @@ WrapFor = Callable[[Path], Callable[[list[str]], list[str]]]
 
 def child_env(extra: Mapping[str, str] | None, home: Path | None = None) -> dict[str, str]:
     """The environment of one test run: allowlisted host variables, `extra` (PYTHONPATH...) and an empty HOME.
-    
+
     The `extra` dict is filtered: only safe variables (PYTHONPATH...) are passed through, never tokens (#1649, B1).
     """
     home = NO_HOME if home is None else home
