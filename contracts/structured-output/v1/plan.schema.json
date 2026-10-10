@@ -8,7 +8,6 @@
   "properties": {
     "operations": {
       "type": "array",
-      "minItems": 1,
       "maxItems": 40,
       "items": {
         "type": "object",
@@ -20,6 +19,22 @@
           "replace": {"type": "string", "maxLength": 400000}
         }
       }
+    },
+    "need": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "start", "end"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1, "maxLength": 260},
+          "start": {"type": "integer", "minimum": 1, "maximum": 9000},
+          "end": {"type": "integer", "minimum": 1, "maximum": 9000}
+        }
+      }
     }
-  }
+  },
+  "if": {"required": ["need"], "properties": {"need": {"minItems": 1}}},
+  "else": {"properties": {"operations": {"minItems": 1}}}
 }
