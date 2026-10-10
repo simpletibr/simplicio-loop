@@ -14,10 +14,13 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
@@ -131,11 +134,21 @@ def _run_runtime(command: list, env: dict, stdout: Optional[int]) -> int:
 # --no-browser: Runtime 3.10.0 ignores BROWSER and runs the system opener, so the child gets opener stand-ins first on its
 # PATH. They open nothing: they keep the sign-in address and print it, so the user can open it by hand.
 _BROWSER_OPENERS = ("xdg-open", "open", "gio", "gnome-open", "kde-open", "sensible-browser", "x-www-browser", "wslview")
+# The stand-in records only an http(s) address made of printable ASCII, and only the FIRST one: `gio trash` or `gio mount -l`
+# must not become the sign-in address. It runs no external program (`${0%/*}`, not `dirname`).
 _OPENER_SHIM = r"""#!/bin/sh
-for url; do :; done
-printf '%s\n' "$url" > "$(dirname "$0")/sign-in-url"
-printf 'Open this address in a browser to sign in:\n  %s\n' "$url" >&2
+LC_ALL=C
+for url; do
+  case $url in http://*|https://*) ;; *) continue ;; esac
+  case $url in *[![:graph:]]*) continue ;; esac
+  file=${0%/*}/sign-in-url
+  [ -e "$file" ] && exit 0
+  printf '%s\n' "$url" > "$file"
+  printf 'Open this address in a browser to sign in:\n  %s\n' "$url" >&2
+  exit 0
+done
 """
+_PRINTABLE_ASCII = re.compile(r"[!-~]+")  # no space, no control character, no newline, nothing above ASCII
 
 
 def _can_block_browser() -> bool:
@@ -144,28 +157,48 @@ def _can_block_browser() -> bool:
 
 def _install_browser_shim(child: dict) -> str:
     shim_dir = tempfile.mkdtemp(prefix="simplicio-no-browser-")
-    for name in _BROWSER_OPENERS:
-        opener = os.path.join(shim_dir, name)
-        with open(opener, "w", encoding="utf-8") as handle:
-            handle.write(_OPENER_SHIM)
-        os.chmod(opener, 0o755)
-    child["PATH"] = shim_dir + os.pathsep + child.get("PATH", "")
+    try:
+        for name in _BROWSER_OPENERS:
+            opener = os.path.join(shim_dir, name)
+            with open(opener, "w", encoding="utf-8") as handle:
+                handle.write(_OPENER_SHIM)
+            os.chmod(opener, 0o755)
+    except BaseException:
+        shutil.rmtree(shim_dir, ignore_errors=True)
+        raise
+    inherited = child.get("PATH", "")
+    child["PATH"] = shim_dir + (os.pathsep + inherited if inherited else "")  # an empty entry would mean the cwd
     child["BROWSER"] = "true"
     return shim_dir
+
+
+def _printable(text: str) -> bool:
+    return _PRINTABLE_ASCII.fullmatch(text) is not None
 
 
 def _read_sign_in(shim_dir: Optional[str]) -> dict:
     if shim_dir is None:
         return {}
     try:
-        with open(os.path.join(shim_dir, "sign-in-url"), encoding="utf-8") as handle:
+        with open(os.path.join(shim_dir, "sign-in-url"), encoding="utf-8", errors="replace") as handle:
             url = handle.read().strip()
-    except OSError:
+        if not url.startswith(("http://", "https://")) or not _printable(url):
+            return {}  # it is printed on the terminal: no escape sequence, no newline
+        codes = [code for code in parse_qs(urlsplit(url).query).get("user_code", []) if _printable(code)]
+    except (OSError, ValueError):  # an address like http://[::1/ is a ValueError (so is UnicodeDecodeError)
         return {}
-    if not url:
-        return {}
-    codes = parse_qs(urlsplit(url).query).get("user_code")
     return {"sign_in_url": url, **({"user_code": codes[0]} if codes else {})}
+
+
+# SIGTERM and SIGHUP end the login like Ctrl-C does, so the `finally` of login() removes the temp dir (it holds the user code).
+def _stop_on_signal(signum: int, frame: Any) -> None:
+    raise SystemExit(128 + signum)
+
+
+def _trap_signals() -> dict:
+    if threading.current_thread() is not threading.main_thread():
+        return {}  # signal.signal() works in the main thread only
+    return {sig: signal.signal(sig, _stop_on_signal) for sig in (signal.SIGTERM, signal.SIGHUP)}
 
 
 def _sign_in_lines(sign_in: dict) -> list:
@@ -204,14 +237,19 @@ def login(*, as_json: bool = False, no_browser: bool = False, environ: Optional[
         doc.update(schema="simplicio.login/v1", status="REFUSED", reason_code="no_browser_unsupported", detail=detail)
         _print(doc, as_json, [f"login: {detail}"])
         return 2
-    shim_dir = _install_browser_shim(child) if no_browser else None
+    shim_dir = None
+    previous = _trap_signals() if no_browser else {}
     sys.stdout.flush()
     try:
+        if no_browser:
+            shim_dir = _install_browser_shim(child)
         code = run([str(runtime), "login", "google"], child, 2 if as_json else None)  # --json: its output goes to stderr
         sign_in = _read_sign_in(shim_dir)
     finally:
         if shim_dir is not None:
             shutil.rmtree(shim_dir, ignore_errors=True)
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
     doc = auth.describe(env)
     doc.update(schema="simplicio.login/v1", runtime_exit_code=code)
     doc.update(sign_in)
