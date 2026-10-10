@@ -211,9 +211,11 @@ teto diario (`budget.py`). Os itens de um mesmo repo rodam ao mesmo tempo, cada 
 2. **Workers.** Cada issue segue o fluxo de host mode acima, comecando no papel de `squad_routing.route`. Sandbox,
    `scrubbed_env` e a escada de escalonamento (2 falhas sobem um papel) valem para todos, sem mudanca.
 3. **Revisao do squad.** Para cada PR aberto o coordenador do squad confere (a) o verify do worker foi
-   `MEASURED|verify_passed` e (b) nenhum arquivo alterado e compartilhado ou de outro squad. Aprovado: posta
-   `APROVADO PELO SQUAD` no PR com `pr_evidence.publish_comment` (um comentario por commit de head, para o horario do
-   comentario ser sempre mais novo que o commit). Reprovado: nada e postado e o motivo vai para `status.json`.
+   `MEASURED|verify_passed` e (b) nenhum arquivo alterado e compartilhado ou de outro squad. Depois roda o portao automatico de revisao
+   (`review_gate`, ver `docs/SQUADS.md`, secao 4a) sobre o clone e posta o veredito no PR com `pr_evidence.publish_comment`:
+   `REVISÃO AUTOMÁTICA: APROVADA (nível N)` (um comentario por commit de head, para o horario do comentario ser sempre mais
+   novo que o commit) ou `REVISÃO AUTOMÁTICA: REPROVADA` com a causa. Reprovado por (a) ou (b): nada e postado e o motivo
+   vai para `status.json`.
 4. **Merge: desligado por padrao.** Sem `SIMPLICIO_247_AUTO_MERGE=1` o watcher para em "aprovado" e nunca faz merge
    (#1434). Com a variavel, cada PR aprovado passa por `squads.squad_gate` (aprovacao mais nova que o ultimo commit) e os
    que passam entram em `merge_train` em lotes de ate 4, na ordem do plano: uma branch temporaria `loop/merge-train`
@@ -228,7 +230,7 @@ teto diario (`budget.py`). Os itens de um mesmo repo rodam ao mesmo tempo, cada 
    coordenador de cada squad, cada worker) com `agent.role`, `agent.model` e `agent.effort`; o worker mostra o ultimo
    papel que realmente rodou (apos escalada). `consolidated.tasks_by_role` conta por papel.
 
-Limites de seguranca: `squad_gate` so aceita `APROVADO PELO SQUAD` escrito por um autor autorizado (#1534): o `author.login` do
+Limites de seguranca: `squad_gate` so aceita `REVISÃO AUTOMÁTICA: APROVADA (nível N)` escrito por um autor autorizado (#1534): o `author.login` do
 comentario (de `gh pr view --json comments`) precisa ser o login `gh` do proprio watcher (`gh api user --jq .login`, uma
 chamada por tick e so quando o merge esta ligado). Sem login conhecido o gate nega tudo (fail closed), e o comentario de
 qualquer outra pessoa, mesmo com a frase exata, e ignorado e nao esconde a aprovacao real. Alem disso so entram no merge os

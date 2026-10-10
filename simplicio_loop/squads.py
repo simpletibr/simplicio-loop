@@ -5,7 +5,7 @@ roles come from `model_roles.resolve` (planning / coordination / execution); the
 
   * `plan_squads()`   groups issues into squads, assigns file ownership and a topological merge order, and emits
                       one interface contract (`squad_contracts.contracts_for`) per dependency edge between squads.
-  * `squad_gate()`    approves a merge only when an `APROVADO PELO SQUAD` comment by an authorized approver (#1534) is
+  * `squad_gate()`    approves a merge only when a `REVISÃO AUTOMÁTICA: APROVADA (nível N)` comment by an authorized approver (#1534) is
                       newer than the latest commit that is not a clean merge of the base branch. Pure over
                       `gh pr view --json commits,comments`.
   * `squad_gate_for_pr()` async wrapper that fetches that JSON through `gh`.
