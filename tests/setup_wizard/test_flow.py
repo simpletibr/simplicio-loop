@@ -167,21 +167,119 @@ def test_an_optional_missing_tool_is_not_pending(home):
     assert run(fakes, home)[0] == 0
 
 
-def test_after_an_install_the_checks_run_again_with_the_user_bin_on_path(home):
+def install_gh(home, content=b"#!/bin/sh\necho gh\n"):
+    """The file `prereqs.ensure` would have written, and the action it would have reported."""
+    gh = home / ".local" / "bin" / "gh"
+    gh.parent.mkdir(parents=True, exist_ok=True)
+    gh.write_bytes(content)
+    gh.chmod(0o755)
+    return gh
+
+
+def trusted_of(fakes):
+    return [c[1]["trusted"] for c in fakes.calls if c[0] == "check_all"]
+
+
+def test_after_an_install_the_checks_run_again_with_that_exact_file_vouched_and_the_path_unchanged(home):
     fakes = Fakes()
     fakes.actions = [prereqs.Action(name="gh", result="installed", detail="2.60.0")]
     run(fakes, home)
     paths = [c[2] for c in fakes.calls if c[0] == "check_all"]
-    assert len(paths) == 2 and paths[0] == "/usr/bin" and paths[1].startswith(str(home / ".local" / "bin"))
+    assert paths == ["/usr/bin", "/usr/bin"]  # ~/.local/bin is never added to the PATH that detection searches
+    assert trusted_of(fakes) == [{}, {"gh": str(home / ".local" / "bin" / "gh")}]
 
 
-def test_a_tool_in_the_user_bin_but_not_on_path_gets_the_path_fix(home):
-    (home / ".local" / "bin").mkdir(parents=True)
-    (home / ".local" / "bin" / "gh").write_text("x")
+def test_only_gh_and_uv_installs_are_vouched(home):
+    fakes = Fakes()
+    fakes.actions = [prereqs.Action(name="python", result="installed", detail="x"), prereqs.Action(name="git", result="installed", detail="x"),
+                     prereqs.Action(name="uv", result="installed", detail="x"), prereqs.Action(name="gh", result="unchanged", detail="x")]
+    run(fakes, home)
+    assert trusted_of(fakes)[1] == {"uv": str(home / ".local" / "bin" / "uv")}
+
+
+def test_the_sha256_of_what_the_setup_installed_is_recorded_and_vouches_for_the_next_run(home):
+    import hashlib
+    gh = install_gh(home)
+    fakes = Fakes()
+    fakes.actions = [prereqs.Action(name="gh", result="installed", detail="2.60.0")]
+    run(fakes, home)
+    digest = hashlib.sha256(gh.read_bytes()).hexdigest()
+    assert json.loads(summary_file(home).read_text())["installs"] == {"gh": digest}
+    later = Fakes()
+    code, text = run(later, home)
+    assert trusted_of(later)[0] == {"gh": str(gh)}  # the folder is not searched, the recorded file is used
+    assert "unchanged" in text and json.loads(summary_file(home).read_text())["installs"]["gh"] == digest
+
+
+def test_a_changed_file_is_no_longer_vouched_and_the_record_is_dropped(home):
+    gh = install_gh(home)
+    fakes = Fakes()
+    fakes.actions = [prereqs.Action(name="gh", result="installed", detail="2.60.0")]
+    run(fakes, home)
+    gh.write_bytes(b"#!/bin/sh\ntouch /tmp/planted\n")
+    later = Fakes()
+    run(later, home)
+    assert trusted_of(later)[0] == {}
+    assert "installs" in json.loads(summary_file(home).read_text()) and json.loads(summary_file(home).read_text())["installs"] == {}
+
+
+def test_a_symlink_in_place_of_the_installed_file_is_not_vouched(home):
+    gh = install_gh(home)
+    fakes = Fakes()
+    fakes.actions = [prereqs.Action(name="gh", result="installed", detail="2.60.0")]
+    run(fakes, home)
+    copy = home / "elsewhere"
+    copy.write_bytes(gh.read_bytes())
+    gh.unlink()
+    gh.symlink_to(copy)
+    later = Fakes()
+    run(later, home)
+    assert trusted_of(later)[0] == {}
+
+
+def test_a_record_that_is_forged_or_names_another_tool_is_not_vouched(home):
+    import hashlib
+    install_gh(home)
+    git = home / ".local" / "bin" / "git"
+    git.write_bytes(b"x")
+    first = Fakes()
+    run(first, home)
+    doc = json.loads(summary_file(home).read_text())
+    doc["installs"] = {"gh": hashlib.sha256(b"something else").hexdigest(), "git": hashlib.sha256(b"x").hexdigest(), "uv": 123}
+    summary_file(home).write_text(json.dumps(doc))
+    summary_file(home).chmod(0o600)
+    later = Fakes()
+    run(later, home)
+    assert trusted_of(later)[0] == {}
+
+
+def test_a_tool_in_the_user_bin_that_the_setup_did_not_install_is_not_run_and_the_fix_says_to_remove_it(home):
+    gh = install_gh(home)
     fakes = Fakes()
     fakes.checks = [check("python"), check("gh", "missing", fix="download it")]
     code, text = run(fakes, home)
-    assert code == setup_cli.PENDING and "export PATH=" in text and "download it" not in text
+    assert code == setup_cli.PENDING and f"remove {gh}" in text and "export PATH=" not in text and "download it" not in text
+
+
+def test_unsafe_path_entries_are_listed_in_the_output_with_the_reason_and_are_not_pending(home):
+    shared = home / "shared"
+    shared.mkdir()
+    shared.chmod(0o777)
+    path = os.pathsep.join(["reldir", str(shared), str(home / ".local" / "bin"), "/usr/bin"])
+    code, text = run(Fakes(), home, path=path)
+    assert code == 0, text
+    assert "PATH entries that are not searched" in text
+    assert "reldir  (relative)" in text and f"{shared}  (writable_by_others)" in text and f"{home / '.local' / 'bin'}  (user_local_bin)" in text
+    _, raw = run(Fakes(), home, path=path, json_out=True)
+    assert json.loads(raw)["path_warnings"] == [{"entry": "reldir", "reason": "relative"},
+                                                {"entry": str(shared), "reason": "writable_by_others"},
+                                                {"entry": str(home / ".local" / "bin"), "reason": "user_local_bin"}]
+
+
+def test_a_clean_path_prints_no_path_section(home):
+    code, text = run(Fakes(), home, path="/usr/bin")
+    assert "PATH entries" not in text
+    assert json.loads(run(Fakes(), home, path="/usr/bin", json_out=True)[1])["path_warnings"] == []
 
 
 def test_node_is_asked_only_for_installed_hosts_that_need_it(home):

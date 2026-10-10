@@ -71,9 +71,9 @@ class Fakes:
         return [call[0] for call in self.calls]
 
 
-def run(fakes, home, **options):
+def run(fakes, home, path="/usr/bin", **options):
     out = io.StringIO()
-    code = setup_cli.run(setup_cli.Options(**options), environ={"HOME": str(home), "PATH": "/usr/bin"},
+    code = setup_cli.run(setup_cli.Options(**options), environ={"HOME": str(home), "PATH": path},
                          seams=fakes.seams(), out=out)
     return code, out.getvalue()
 

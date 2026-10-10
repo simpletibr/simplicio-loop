@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import hashlib
 import json
 import os
 import platform
@@ -38,6 +39,7 @@ PENDING = 10
 MAX_TOKEN_INPUT = 1024
 MAX_SUMMARY_BYTES = 256 * 1024
 COMMAND = "simplicio-loop setup"
+INSTALLED_TOOLS = ("gh", "uv")  # what `prereqs.ensure` puts in ~/.local/bin; the only files PATH hygiene lets run from there
 QUIET = "The GitHub token is never an argument: pipe it to --github-token-stdin, or run `setup` in a terminal for a hidden prompt."
 
 
@@ -174,21 +176,56 @@ def _platform() -> dict:
     return {"system": system, "machine": platform.machine().lower(), "os_verified": system == "linux"}
 
 
+def _home(environ: Mapping[str, str]) -> str:
+    return environ.get("HOME") or environ.get("USERPROFILE") or str(Path.home())
+
+
 def _bin_dir(environ: Mapping[str, str]) -> Path:
-    return Path(environ.get("HOME") or environ.get("USERPROFILE") or Path.home()) / ".local" / "bin"
+    return Path(_home(environ)) / ".local" / "bin"
 
 
-def _with_dir_on_path(environ: Mapping[str, str], directory: Path) -> dict:
-    return {**environ, "PATH": os.pathsep.join([str(directory), environ.get("PATH", "")])}
+def _exe(name: str) -> str:
+    return name + (".exe" if sys.platform.startswith("win") else "")
 
 
-def _prereq_step(options: Options, environ: Mapping[str, str], seams: Seams, node_for: Sequence[str]) -> tuple[list, list]:
-    """(checks after the installs, actions). Installs run only on a real run; --check and --dry-run only plan them."""
-    checks = seams.check_all(environ, node_for=node_for)
+def _digest(path: Path) -> Optional[str]:
+    """SHA256 of a regular file (a symlink is not one); None when there is no such file."""
+    if path.is_symlink() or not path.is_file():
+        return None
+    sha = hashlib.sha256()
+    try:
+        with open(path, "rb") as handle:
+            while chunk := handle.read(1 << 20):
+                sha.update(chunk)
+    except OSError:
+        return None
+    return sha.hexdigest()
+
+
+def _trusted_installs(summary: Optional[Mapping[str, Any]], bin_dir: Path) -> dict[str, str]:
+    """Tools an earlier setup installed in `bin_dir` whose bytes still match the SHA256 it recorded: name -> exact path."""
+    records = (summary or {}).get("installs")
+    trusted: dict[str, str] = {}
+    for name in INSTALLED_TOOLS:
+        recorded = records.get(name) if isinstance(records, dict) else None
+        path = bin_dir / _exe(name)
+        if isinstance(recorded, str) and _digest(path) == recorded:
+            trusted[name] = str(path)
+    return trusted
+
+
+def _prereq_step(options: Options, environ: Mapping[str, str], seams: Seams, node_for: Sequence[str],
+                 trusted: Mapping[str, str]) -> tuple[list, list, dict[str, str]]:
+    """(checks after the installs, actions, tools vouched for). Installs run only on a real run; --check and --dry-run only plan them.
+
+    PATH hygiene keeps ~/.local/bin out of the search, so a tool installed in this run is vouched for by its exact path."""
+    checks = seams.check_all(environ, node_for=node_for, trusted=dict(trusted))
     actions = seams.ensure(checks, yes=options.yes, dry_run=options.check or options.dry_run, environ=environ)
-    if any(a.result == "installed" for a in actions):
-        checks = seams.check_all(_with_dir_on_path(environ, _bin_dir(environ)), node_for=node_for)
-    return checks, actions
+    installed = {a.name: str(_bin_dir(environ) / _exe(a.name)) for a in actions if a.result == "installed" and a.name in INSTALLED_TOOLS}
+    if installed:
+        trusted = {**trusted, **installed}
+        checks = seams.check_all(environ, node_for=node_for, trusted=dict(trusted))
+    return checks, actions, dict(trusted)
 
 
 def _github_step(options: Options, environ: Mapping[str, str], seams: Seams,
@@ -239,14 +276,14 @@ def _pending(checks: Sequence[Any], github: Mapping[str, Any], choice: host_dete
     return items
 
 
-def _path_hint(checks: Sequence[Any], environ: Mapping[str, str]) -> list:
-    """A tool the installer put in ~/.local/bin is invisible when that folder is not on PATH: say so."""
+def _path_hint(checks: Sequence[Any], environ: Mapping[str, str], trusted: Mapping[str, str]) -> list:
+    """gh or uv sits in ~/.local/bin but the setup cannot vouch for it: it is never run, so name the file to remove."""
     directory = _bin_dir(environ)
     fixed = []
     for check in checks:
-        if check.status != "ok" and check.name in ("gh", "uv") and (directory / check.name).exists():
-            hint = f'add {directory} to PATH, for example: export PATH="{directory}:$PATH"'
-            check = replace(check, fix=hint)
+        file = directory / _exe(check.name)
+        if check.status != "ok" and check.name in INSTALLED_TOOLS and check.name not in trusted and file.exists():
+            check = replace(check, fix=f"remove {file} (the setup did not install it, so it is not run), then run `{COMMAND}`")
         fixed.append(check)
     return fixed
 
@@ -258,10 +295,10 @@ def collect(options: Options, environ: Mapping[str, str], seams: Seams, director
     if options.host and not any(s.installed and s.id == options.host for s in statuses):
         raise Refused(f"--host {options.host} is not installed")
     node_for = [s.id for s in statuses if s.installed and s.needs_node]
-    checks, actions = _prereq_step(options, environ, seams, node_for)
-    checks = _path_hint(checks, environ)
-    github, cred = _github_step(options, environ, seams, directory)
     current = read_summary(directory)
+    checks, actions, trusted = _prereq_step(options, environ, seams, node_for, _trusted_installs(current, _bin_dir(environ)))
+    checks = _path_hint(checks, environ, trusted)
+    github, cred = _github_step(options, environ, seams, directory)
     choice = host_detect.choose_default(statuses, requested=options.host, previous=(current or {}).get("default_host"))
     summary = {
         "schema": SCHEMA,
@@ -270,6 +307,7 @@ def collect(options: Options, environ: Mapping[str, str], seams: Seams, director
                     for c in checks],
         "github": {k: v for k, v in github.items() if k != "tried"},
         "hosts": _host_rows(statuses),
+        "installs": {name: digest for name, path in trusted.items() if (digest := _digest(Path(path)))},  # SHA256 of what setup installed
         "default_host": choice.host,
         "default_login": choice.login or None,
         "default_family": next((h.family for h in host_detect.HOSTS if h.id == choice.host and h.family), None),  # for the watcher
@@ -278,6 +316,8 @@ def collect(options: Options, environ: Mapping[str, str], seams: Seams, director
     report = {**summary, "github": {**github, **({"masked": cred.masked} if cred else {})},
               "hosts_detected": [s.as_dict() for s in statuses], "choice_reason": choice.reason,
               "undetectable_hosts": list(host_detect.NO_EXECUTABLE),
+              "path_warnings": [{"entry": entry, "reason": reason} for entry, reason in
+                                setup_hardening.path_warnings(environ.get("PATH", os.defpath), _home(environ))],
               "actions": [a.as_dict() for a in actions], "checks": [c.as_dict() for c in checks],
               "pending": _pending(checks, github, choice, statuses, stale and options.check)}
     return summary, report
@@ -294,6 +334,9 @@ def render(report: Mapping[str, Any], summary_state: str) -> str:
     for c in report["checks"]:
         shown = " ".join(x for x in (c["version"] or "", c["path"] or "") if x)
         lines.append(f"  {c['name']:<7} {c['status']:<9} {shown}".rstrip())
+    if report["path_warnings"]:
+        lines += ["", "PATH entries that are not searched (nothing in them is run)"]
+        lines += [f"  {w['entry'] or '(empty)'}  ({w['reason']})" for w in report["path_warnings"]]
     lines += ["", "Agent CLIs"]
     installed = [h for h in report["hosts_detected"] if h["installed"]]
     for h in installed:

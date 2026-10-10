@@ -22,7 +22,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from . import auth
+from . import auth, setup_hardening
 
 API_URL = "https://api.github.com"
 TOKEN_ENVS = ("GH_TOKEN", "GITHUB_TOKEN")
@@ -39,7 +39,7 @@ _CHILD_ENV = ("PATH", "HOME", "USERPROFILE", "LANG", "SYSTEMROOT", "APPDATA", "X
 _STORE_CODES = {"login_symlink": "store_symlink", "login_permissions": "store_permissions",
                 "login_lock_timeout": "store_locked", "login_missing": "store_missing"}
 
-Run = Callable[[list[str], dict[str, str], Optional[str]], tuple[Optional[int], str]]
+Run = Callable[[list[str], dict[str, str], Optional[str], Optional[str]], tuple[Optional[int], str]]
 
 
 class CredError(Exception):
@@ -162,9 +162,9 @@ def load_token(state_dir: Path) -> Optional[str]:
 # --- the sources ----------------------------------------------------------------------------------------------------
 
 
-def _run(argv: list[str], env: dict[str, str], input_text: Optional[str]) -> tuple[Optional[int], str]:
+def _run(argv: list[str], env: dict[str, str], input_text: Optional[str], cwd: Optional[str] = None) -> tuple[Optional[int], str]:
     try:
-        done = subprocess.run(argv, env=env, input=input_text, stdin=None if input_text is not None else subprocess.DEVNULL,
+        done = subprocess.run(argv, env=env, input=input_text, cwd=cwd, stdin=None if input_text is not None else subprocess.DEVNULL,
                               capture_output=True, text=True, errors="replace", timeout=10, shell=False)
     except (OSError, subprocess.TimeoutExpired):
         return None, ""
@@ -178,14 +178,20 @@ def _child_env(environ: Mapping[str, str], **extra: str) -> dict[str, str]:
 def _from_gh(environ: Mapping[str, str], run: Run) -> Optional[str]:
     """The token of the logged-in GitHub CLI. The env is an allowlist, so GH_TOKEN cannot answer in its place."""
     code, out = run(["gh", "auth", "token", "--hostname", "github.com"],
-                    _child_env(environ, GH_PROMPT_DISABLED="1", NO_COLOR="1"), None)
+                    _child_env(environ, GH_PROMPT_DISABLED="1", NO_COLOR="1"), None, None)
     return out.strip() if code == 0 else None
 
 
 def _from_git(environ: Mapping[str, str], run: Run) -> Optional[str]:
-    """The password the git credential helper holds for github.com; a reply for another host is refused."""
-    code, out = run(["git", "credential", "fill"], _child_env(environ, GIT_TERMINAL_PROMPT="0", GCM_INTERACTIVE="never"),
-                    "protocol=https\nhost=github.com\n\n")
+    """The password the git credential helper holds for github.com; a reply for another host is refused.
+
+    It runs in an empty folder outside any repository, so the `credential.helper` of a local `.git/config` cannot run code.
+    The global and system helpers still answer."""
+    with setup_hardening.isolated_git_cwd(environ) as (workdir, isolated):
+        code, out = run(["git", "credential", "fill"],
+                        {**isolated, **_child_env(environ, GCM_INTERACTIVE="never")},
+                        "protocol=https\nhost=github.com\n\n",
+                        workdir)
     if code != 0:
         return None
     reply = dict(line.split("=", 1) for line in out.splitlines() if "=" in line)

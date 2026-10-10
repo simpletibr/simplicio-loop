@@ -5,9 +5,11 @@ import json
 import os
 import socket
 import stat
+import subprocess
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 import pytest
 
@@ -177,8 +179,8 @@ class Runner:
     def __init__(self, gh=None, git=None, git_host="github.com"):
         self.gh, self.git, self.git_host, self.calls = gh, git, git_host, []
 
-    def __call__(self, argv, env, input_text):
-        self.calls.append((argv, dict(env), input_text))
+    def __call__(self, argv, env, input_text, cwd=None):
+        self.calls.append((argv, dict(env), input_text, cwd))
         if argv[0] == "gh":
             return (0, self.gh + "\n") if self.gh else (1, "")
         reply = f"protocol=https\nhost={self.git_host}\nusername=x\n" + (f"password={self.git}\n" if self.git else "")
@@ -260,9 +262,9 @@ def test_gh_and_git_get_a_small_environment_and_the_right_question(tmp_path, api
     runner = Runner(gh=None, git=GOOD)
     secret_env = {"PATH": "/bin", "HOME": "/h", "GH_ENTERPRISE_TOKEN": "s1", "OPENAI_API_KEY": "s2", "GH_TOKEN": ""}
     resolve(tmp_path, server, secret_env, run=runner)
-    (gh_argv, gh_env, gh_input), (git_argv, git_env, git_input) = runner.calls
-    assert gh_argv == ["gh", "auth", "token", "--hostname", "github.com"] and gh_input is None
-    assert git_argv == ["git", "credential", "fill"] and git_input == "protocol=https\nhost=github.com\n\n"
+    (gh_argv, gh_env, gh_input, gh_cwd), (git_argv, git_env, git_input, git_cwd) = runner.calls
+    assert gh_argv == ["gh", "auth", "token", "--hostname", "github.com"] and gh_input is None and gh_cwd is None
+    assert git_argv == ["git", "credential", "fill"] and git_input == "protocol=https\nhost=github.com\n\n" and git_cwd is not None
     assert git_env["GIT_TERMINAL_PROMPT"] == "0" and git_env["GCM_INTERACTIVE"] == "never" and gh_env["GH_PROMPT_DISABLED"] == "1"
     for env in (gh_env, git_env):
         assert not {"GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "OPENAI_API_KEY"} & set(env)
@@ -415,3 +417,54 @@ def test_no_token_reaches_output_logs_errors_or_any_file_but_the_store(tmp_path,
     assert holders == [tmp_path / "state" / "github.json"]
     for token in (GOOD, FINE, BAD):
         assert not [p for p in tmp_path.rglob("*") if p.is_file() and token.encode() in p.read_bytes()]
+
+
+# --- git credential fill outside the user's repository (#1657) ---------------------------------------------------------
+
+
+def git_world(tmp_path, monkeypatch, global_config=""):
+    """A real repository whose own config holds a hostile helper, an empty HOME, and the environ to hand to `_from_git`."""
+    for name in ("GIT_CONFIG_SYSTEM", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_COUNT", "GIT_DIR", "GIT_WORK_TREE"):
+        monkeypatch.delenv(name, raising=False)
+    home, repo, marker = tmp_path / "home", tmp_path / "repo", tmp_path / "helper-ran"
+    home.mkdir()
+    repo.mkdir()
+    (home / ".gitconfig").write_text(global_config)
+    subprocess.run(["git", "init", "-q", str(repo)], check=True, env={**os.environ, "HOME": str(home)})
+    with open(repo / ".git" / "config", "a") as config:
+        config.write(f"[credential]\n\thelper = !touch {marker}\n")
+    monkeypatch.chdir(repo)
+    return {"PATH": os.environ["PATH"], "HOME": str(home)}, marker
+
+
+def test_a_credential_helper_of_the_local_git_config_never_runs(tmp_path, monkeypatch):
+    environ, marker = git_world(tmp_path, monkeypatch)
+    assert github_cred._from_git(environ, github_cred._run) is None  # nothing global answers
+    assert not marker.exists()
+
+
+def test_git_credential_fill_runs_outside_any_repository_and_never_prompts(tmp_path, monkeypatch):
+    environ, _ = git_world(tmp_path, monkeypatch)
+    seen = []
+    real_run = subprocess.run
+
+    def spy(argv, **kwargs):
+        seen.append((argv, kwargs))
+        return real_run(argv, **kwargs)
+
+    monkeypatch.setattr(github_cred.subprocess, "run", spy)
+    github_cred._from_git(environ, github_cred._run)
+    (argv, kwargs), = seen
+    assert argv == ["git", "credential", "fill"] and kwargs["shell"] is False
+    assert kwargs["env"]["GIT_TERMINAL_PROMPT"] == "0" and kwargs["env"]["GCM_INTERACTIVE"] == "never"
+    cwd = Path(kwargs["cwd"])
+    assert cwd != Path.cwd() and not any((parent / ".git").exists() for parent in (cwd, *cwd.parents))
+    assert kwargs["env"]["GIT_CEILING_DIRECTORIES"] == str(cwd.parent)
+    assert not cwd.exists()  # the empty folder is removed afterwards
+
+
+def test_a_global_credential_helper_still_answers_from_the_isolated_folder(tmp_path, monkeypatch):
+    helper = '[credential]\n\thelper = "!f() { test \\"$1\\" = get && echo username=u && echo password=' + GOOD + '; }; f"\n'
+    environ, marker = git_world(tmp_path, monkeypatch, global_config=helper)
+    assert github_cred._from_git(environ, github_cred._run) == GOOD
+    assert not marker.exists()

@@ -100,6 +100,7 @@ simplicio-loop setup --yes      # also install git and bwrap with your system pa
 | --- | --- |
 | Tools | Looks for Python 3.11 or newer, pip, venv, git, gh, bwrap (Linux) and uv. |
 | Install | Downloads `gh` and `uv` from their official releases to `~/.local/bin`. It compares the SHA256 first and never replaces a file. Python comes from `uv python install`. |
+| PATH | Shows each PATH entry that is relative, writable by others, or `~/.local/bin`. Setup does not search these entries and runs nothing from them. The one exception is a `gh` or `uv` file that setup installed: setup records its SHA256 in `setup.json` and runs only that exact file while the SHA256 matches. |
 | System packages | Installs git and bwrap only with `--yes`, and only as root or when `sudo -n` works. Otherwise it prints the exact command. |
 | Agent CLIs | Looks for `claude`, `codex`, `grok`, `kimi`, `opencode`, `agy`, `copilot` and the other hosts of the Runtime. It shows version, login and watcher support, and it picks a default host. |
 | GitHub | Uses `GH_TOKEN`, then your logged-in `gh`, then the git credential helper, then a stored token. If none works, it asks for a token with hidden input. `--github-token-stdin` reads the token from a pipe. The token goes only to `api.github.com`. |
