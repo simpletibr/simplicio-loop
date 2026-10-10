@@ -74,6 +74,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `learn retrospective` | Derive durable lessons from completed runs. |
 | `hub-drain-plan` | Read-only GitHub drain intake. |
 | `intake` | Normalize any tracker export (JSON/CSV/Markdown, or an http(s) URL returning JSON) into `tasks.md`, auto-detecting GitHub/Jira/Linear/ClickUp/GitLab/Azure DevOps field shapes. |
+| `handoff` | `handoff write` stores a `simplicio.agent-handoff/v1` document in `.simplicio-loop/orchestrator/handoff/<run>/<n>.json` (mode 0600). It masks secrets in the free text first. `handoff read --run R [--n N]` prints one document. `handoff check` takes `--input-tokens`, `--cache-read` and `--cache-write` of the last request, and `--added-file` for the text that the next request adds. It prints `ok`, `handoff` or `over` for the next request (exit 0, 3 or 4). The ceiling is the `agent_input_token_ceiling` key of `.simplicio-loop/loop.toml` on the default branch. The variable `SIMPLICIO_AGENT_INPUT_TOKEN_CEILING` wins. |
 
 ### Zero-config start
 
