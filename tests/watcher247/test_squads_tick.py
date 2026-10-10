@@ -391,3 +391,14 @@ def test_no_merge_or_approval_function_reads_the_baseline_switch():
     mode = re.compile(r"baseline|\.mode\b|current_mode", re.IGNORECASE)
     for fn in (squad_flow._review, squad_flow.auto_merge_enabled, squad_flow.own_login, squad_flow._train_test, squad_flow._merge):
         assert not mode.search(inspect.getsource(fn)), fn.__name__  # `_merge` only takes the batch size, from the plan
+
+
+def test_the_train_fetches_the_real_branch_of_a_reattempt_pr(six, monkeypatch):
+    """A reattempt PR has head `loop/issue-N-rK`: the merge train must test that branch, not the first attempt's (#1589)."""
+    monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
+    fake = six()
+    fake.pr_views[103]["headRefName"] = "loop/issue-3-r2"
+    run_tick()
+    fetched = [argv[-1] for argv in fake.ran("git", "fetch") if "--depth" in argv]
+    assert "loop/issue-3-r2" in fetched and "loop/issue-3" not in fetched
+    assert "loop/issue-4" in fetched  # a PR whose view names no branch keeps the first-attempt name

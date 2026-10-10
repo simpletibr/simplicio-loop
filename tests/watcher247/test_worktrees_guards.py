@@ -150,3 +150,12 @@ def test_the_ticks_item_marks_published_so_the_branch_of_an_opened_pr_is_deleted
     baseline()
     run_tick()
     assert bool(fake.ran("git", "branch", "-D", "loop/issue-1")) is branch_deleted
+
+
+@pytest.mark.parametrize("code", [1, 128])
+def test_an_ls_remote_that_fails_is_an_error_and_never_a_free_branch(monkeypatch, tmp_path, code):
+    async def failing(argv, timeout=120, cwd=None, stdin=None, env=None):
+        return proc.Result(code, "", "fatal: unable to access origin")
+    monkeypatch.setattr(proc, "run", failing)
+    with pytest.raises(RuntimeError, match="unable to access origin"):
+        asyncio.run(worktrees._on_origin(tmp_path, "loop/issue-7"))

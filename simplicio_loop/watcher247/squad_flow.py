@@ -195,7 +195,7 @@ async def _review(repo: str, repo_plan: RepoPlan, squad: squads.Squad, issue: in
         return {"pr": number, "issue": issue, "approved": False, "reasons": ["tests not measured green"]}
     reasons: list[str] = []
     full = f"{config.ORG}/{repo}"
-    view = await proc.run(["gh", "pr", "view", str(number), "--repo", full, "--json", "files,headRefOid,commits,comments"])
+    view = await proc.run(["gh", "pr", "view", str(number), "--repo", full, "--json", "files,headRefOid,headRefName,commits,comments"])
     if view.returncode != 0:
         return {"pr": number, "issue": issue, "approved": False, "reasons": ["pr view failed"]}
     try:
@@ -228,11 +228,15 @@ async def _review(repo: str, repo_plan: RepoPlan, squad: squads.Squad, issue: in
     if not report.approved:
         return {"pr": number, "issue": issue, "approved": False,
                 "reasons": [r for check in report.blockers for r in check.reasons]}
-    return {"pr": number, "issue": issue, "approved": True, "reasons": [], "head": head}
+    return {"pr": number, "issue": issue, "approved": True, "reasons": [], "head": head,
+            "branch": data.get("headRefName") or f"loop/issue-{issue}"}  # loop/issue-N-rK for a reattempt
 
 
-async def _train_test(dest: Path, test_cmd: str, issues: list[int]) -> bool:
-    """Integrate the PR branches on a temporary branch off main and run the repo's tests once."""
+async def _train_test(dest: Path, test_cmd: str, issues: list[int], branches: dict[int, str] | None = None) -> bool:
+    """Integrate the PR branches on a temporary branch off main and run the repo's tests once.
+
+    `branches` maps an issue to the real head branch of its PR (`loop/issue-N-rK` for a reattempt); an issue without an entry
+    uses the first-attempt name `loop/issue-N`."""
     env = sandbox.scrubbed_env(os.environ, home=Path.home())
     git = lambda *args: proc.run(["git", *args], cwd=dest, timeout=180)  # noqa: E731
     if (await git("fetch", "--depth", TRAIN_FETCH_DEPTH, "origin", "main")).returncode != 0:
@@ -240,7 +244,7 @@ async def _train_test(dest: Path, test_cmd: str, issues: list[int]) -> bool:
     if (await git("checkout", "-q", "-B", "loop/merge-train", "origin/main")).returncode != 0:
         return False
     for issue in issues:
-        fetched = await git("fetch", "--depth", TRAIN_FETCH_DEPTH, "origin", f"loop/issue-{issue}")
+        fetched = await git("fetch", "--depth", TRAIN_FETCH_DEPTH, "origin", (branches or {}).get(issue) or f"loop/issue-{issue}")
         if fetched.returncode != 0 or (await git("merge", "--no-edit", "FETCH_HEAD")).returncode != 0:
             await git("merge", "--abort")
             return False
@@ -249,7 +253,7 @@ async def _train_test(dest: Path, test_cmd: str, issues: list[int]) -> bool:
 
 
 async def _merge(repo: str, repo_plan: RepoPlan, approved: dict[int, int], heads: dict[int, str], runner, gate,
-                 login: str, test_cmd: str) -> dict:
+                 login: str, test_cmd: str, branches: dict[int, str] | None = None) -> dict:
     """Gate each approved PR with squads.squad_gate (approval written by `login`), then merge the rest in squad order through merge_train."""
     full = f"{config.ORG}/{repo}"
     passed, blocked = [], []
@@ -275,7 +279,7 @@ async def _merge(repo: str, repo_plan: RepoPlan, approved: dict[int, int], heads
     async with gate.repo_lock(repo):  # writes are serialized: the train owns the working tree
         dest = config.WORK / repo
         for batch in merge_train.plan_train(passed, order, max_batch=repo_plan.merge_batch):
-            report = await merge_train.run_train(batch, lambda items: _train_test(dest, test_cmd, items), merge_one)
+            report = await merge_train.run_train(batch, lambda items: _train_test(dest, test_cmd, items, branches), merge_one)
             result["failed"].extend(approved[i] for i in report.failed)
     result["merged"], result["failed"] = merged_prs, sorted(result["failed"])
     return result
@@ -290,6 +294,7 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
     for repo_plan in plans:
         approved: dict[int, int] = {}
         heads: dict[int, str] = {}
+        branches: dict[int, str] = {}  # issue -> the PR's real head branch
         rejected: dict[str, list[str]] = {}
         for squad in repo_plan.plan.squads:
             for issue in squad.issues:
@@ -301,6 +306,7 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
                 if review["approved"]:
                     approved[issue] = review["pr"]
                     heads[review["pr"]] = review["head"]
+                    branches[issue] = review["branch"]
                     _stamp(repo_plan.ready_at, issue)  # ready to merge: from here a dependent PR waits for its dependencies
                 else:
                     rejected[str(review["pr"])] = review["reasons"]
@@ -315,7 +321,7 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
             if login is None:
                 login = await own_login()
             test_cmd = next(w.verify for w in batch if w.repo == repo_plan.repo)  # the repo's loop.toml verify, the one its workers ran
-            entry.update(await _merge(repo_plan.repo, repo_plan, approved, heads, runner, gate, login, test_cmd))
+            entry.update(await _merge(repo_plan.repo, repo_plan, approved, heads, runner, gate, login, test_cmd, branches))
         entry["task_metrics"], entry["metrics"] = _repo_metrics(repo_plan, done)
         summary[repo_plan.repo] = entry
     await asyncio.to_thread(write_report, plans, done, reviews)

@@ -271,6 +271,8 @@ class FakeRun:
                         return proc.Result(0, sha + "\n")
             # Fallback: return a synthetic full SHA
             return proc.Result(0, "0" * 40 + "\n")
+        if sub == "ls-remote":
+            return proc.Result(2)  # `--exit-code`: no such branch on origin, so every attempt keeps the plain loop/issue-<N>
         if sub == "worktree" and argv[2] == "add":
             path = Path(argv[argv.index("-B") + 2])
             path.mkdir(parents=True)
