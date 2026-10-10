@@ -125,7 +125,9 @@ O planner roda por `sandbox.wrap` (o mesmo bwrap do apply) e com `sandbox.scrubb
 e a chave do proprio CLI (`host_mode.FAMILY_ENV`); `OPENROUTER_API_KEY` e outros segredos do servico nunca chegam a ele.
 Cada CLI recebe apenas flags de somente-plano (ver `exec_planner.py`). A config de deny do `opencode` fica em
 `<state_dir>/opencode/` (o bwrap monta tmpfs em `/tmp` e esconderia o arquivo, rodando o CLI sem as regras de deny) e e
-removida ao fim da chamada.
+removida ao fim da chamada (o sandbox só a lê: o state dir é somente leitura).
+O `HOME` do planner é um tmpfs vazio com só as pastas da própria família (`host_mode.FAMILY_HOME`, tabela em "Isolamento do
+sandbox"): o login de outro CLI, `~/.ssh`, `~/.config/gh`, `~/.aws` e `~/.simplicio/login.json` não existem para ele.
 
 ### Login dos CLIs (`watch247 login-check`)
 
@@ -148,7 +150,46 @@ coberto pelo namespace de pid.
   inteira. Antes, o comando ficava em outra sessão/grupo que o `killpg` do watcher não alcança (`--die-with-parent` não o
   derrubava) e os netos sobreviviam como órfãos; como o `Process.wait()` do Python 3.14 só retorna quando os pipes fecham (medido), o
   `proc.run` com timeout ficava preso enquanto um neto vivo segurasse o pipe.
-- Filesystem somente leitura (exceto o worktree do item, o admin dir dele e o state dir), `/tmp` privado, `--die-with-parent`, `--new-session`. Dentro do state dir, `work/` e os arquivos de controle voltam a somente leitura.
+- Filesystem somente leitura, state dir inteiro incluído (#1656). O item escreve só o que a lista "O que o item pode escrever" abaixo traz. `/tmp` privado, `--die-with-parent`, `--new-session`.
+
+**O que o item pode escrever (lista exata)**
+
+O item é tudo que roda em `sandbox.wrap` por conta de uma issue (planner, `turbo`, testes). Dentro do sandbox ele escreve só estes caminhos:
+
+| Caminho | Escrita | Motivo |
+|---------|---------|--------|
+| `<WORK>/<repo>.wt/<issue>` (o worktree do próprio item) | sim | o dev-cli aplica o plano aqui |
+| `<git-dir>/worktrees/<issue>` (o admin dir do próprio item) | sim | commit e status do próprio item |
+| `<git-dir>/objects` | sim, compartilhado entre os itens do repo | limite conhecido (#1656 item 3, desenho à parte) |
+| `<git-dir>/simplicio` | sim | base central do mapper |
+| `<HOME>/<pasta da família>` (só o planner) | sim | login, renovação de token, log e sessão do CLI. Tabela abaixo |
+| `/tmp`, `/dev` e o `HOME` do planner fora das pastas da família | tmpfs privado | some ao fim da chamada. Nada chega ao host |
+
+Todo o resto é somente leitura. Isso inclui o state dir inteiro: `claims.json`, `budget.json`, `STOP`, `status.json`, `fixes.json`,
+`baseline.json`, `issues-disabled.json`, `work/`, `logs/` e `opencode/`. Então o item não cria `STOP` (nem para o watcher), não
+enfileira fix com texto livre, não esconde issue e não reescreve o status. Também são somente leitura `config`, `hooks`, `refs` e
+`packed-refs` do `<git-dir>` e o worktree e o admin dir dos outros itens. O host continua escrevendo o state dir (a
+restrição vale só para a visão do sandbox). A config de deny do `opencode` é escrita pelo host em `<state_dir>/opencode/` e o
+sandbox só a lê.
+
+**`HOME` do planner por família** (`host_mode.FAMILY_HOME`, #1570)
+
+O `HOME` é um tmpfs vazio e gravável (some ao fim) e cada família recebe de volta só estas pastas. Pastas, nunca um arquivo
+(`~/.claude.json` não é ligado: o `rename` atômico do CLI falharia com EBUSY. Sem ele o `claude` segue logado pelo
+`~/.claude/.credentials.json`). `-try`: a pasta que não existe é pulada, e uma família sem login ainda roda (e falha com o erro
+de login do próprio CLI). Se o `HOME` não for um diretório absoluto (ou for `/`), `sandbox.wrap` levanta `SandboxUnavailable`.
+
+| Família | Pastas (grava / lê) | Medido com o CLI real |
+|---------|---------------------|-----------------------|
+| `claude` | grava `~/.claude`. Lê `~/.local/share/claude` e o link `~/.local/bin/claude` | `claude -p` ok. Sem `~/.claude`: "Not logged in" |
+| `codex` | grava `~/.codex`. Lê o link `~/.local/bin/codex` | antes: `failed to initialize ... Read-only file system`. Depois inicia e autentica |
+| `grok` | grava `~/.grok`. Lê o link `~/.local/bin/grok` | antes: `Couldn't create session ... Read-only file system`. Depois responde |
+| `agy` | grava `~/.gemini/antigravity-cli`. Lê `~/.local/bin/agy` | `agy -p` ok só com essa pasta |
+| `opencode` | grava `~/.local/share/opencode`. Lê `~/.config/opencode` | antes: `FileSystem.open (...opencode.log)`. Depois inicia (o binário fica em `/usr/local`) |
+| `gemini` | grava `~/.gemini`, menos `~/.gemini/antigravity-cli` (escondida) | DOC-BASED: o CLI não está instalado onde se mediu |
+
+Binário fora do `HOME` (`/usr`, `/usr/local`) não precisa de linha. Um link em `~/.local/bin` é recriado como link, então o alvo
+entra na tabela (para o `claude`, `~/.local/share/claude`. Para o `codex` e o `grok`, a própria pasta de login).
 
 **Continua visível (decisão e limites conhecidos)**
 
@@ -156,7 +197,9 @@ coberto pelo namespace de pid.
 |-------|--------|--------|
 | `/proc/<pid do watcher>/environ`, `cmdline`, `maps`, `status` | oculto | namespace de pid |
 | `/proc/self/*`, `/proc/1/*` (o bwrap) | legível | é o env filtrado do próprio filho |
-| `HOME` do usuário do serviço (`~/.claude`, `~/.codex`, `~/.simplicio/login.json`, ...) | **legível** | os CLIs exec leem o próprio login; o `--ro-bind / /` não separa `HOME` por família, então um planner pode ler o login de outro CLI |
+| `HOME` do usuário do serviço, no **planner** | só as pastas da família | tmpfs vazio + as pastas da tabela abaixo (#1570). O login de outro CLI, `~/.ssh`, `~/.config/gh`, `~/.aws` e `~/.simplicio/login.json` não aparecem |
+| `HOME` do usuário do serviço, no `turbo` e nos testes (`verify`) | **legível**, somente leitura | ainda não medido o que leem do `HOME` (`~/.cargo`, `~/.cache/uv`), passo 2 do #1570 |
+| Pasta da família no `HOME` do planner (`~/.claude`, `~/.codex`, ...) | **gravável e persiste** | o CLI renova o token e grava log e sessão ali. Um planner comprometido pode alterar a config ou os hooks do próprio CLI. O `login-check` ou o operador roda esse CLI fora do sandbox (UNVERIFIED que o `login-check` execute hooks) |
 | `/etc/simplicio-loop-247.env` | legível só se o usuário do serviço for o dono | o `setup` grava modo 600; mantenha `root:root` (o systemd lê como root) |
 | rede (`/proc/net/*`, localhost, sockets abstratos) | compartilhada | sem `--unshare-net`: o planner precisa da rede do provedor |
 | `/proc/self/mountinfo`, `cpuinfo`, `meminfo` | legível | informação do host sem segredo |
@@ -197,13 +240,12 @@ teto diario (`budget.py`). Os itens de um mesmo repo rodam ao mesmo tempo, cada 
 - **Arquivo em comum.** Itens do lote que citam o mesmo arquivo-alvo (`squad_flow.target_paths`) rodam em serie, na ordem do lote.
   Os outros rodam em paralelo. Um arquivo que o corpo da issue nao cita so aparece no review ou no merge train.
 - **Disco e limite.** No maximo o tamanho do lote em worktrees vivos (o plano de capacidade, ou `SIMPLICIO_247_CONCURRENCY` quando fixado). Com menos de 2 GiB livres o item e adiado sem gastar tentativa.
-- **Sandbox.** O bwrap liga o state dir como gravavel e, por cima, deixa somente leitura o diretorio `work/` inteiro (os worktrees dos
-  outros itens, os admin dirs deles e os clones base, com `config`, `hooks` e `refs`) e os arquivos de controle do watcher que
-  existem (`claims.json`, `budget.json`, `STOP`). Depois liga como gravavel so o worktree do proprio item, o admin dir dele,
-  `<git-dir>/objects` e `<git-dir>/simplicio` (base central do mapper). Os caminhos vem do layout fixo, nao do arquivo `.git` do
-  worktree. O `git` do host (status, commit, push do tick) roda no item com `GIT_DIR`, `GIT_COMMON_DIR` e `GIT_WORK_TREE` do layout fixo:
-  reescrever o `.git` ou o `commondir` do proprio item nao leva o git do host ao admin dir de outro. Limites que ficam: `STOP` ainda
-  pode ser criado quando nao existe, e `objects/` e compartilhado entre os itens do repo (gravavel por todos).
+- **Sandbox.** O bwrap liga o state dir inteiro como somente leitura (#1656): os arquivos de controle, `work/` (os worktrees dos
+  outros itens, os admin dirs deles e os clones base, com `config`, `hooks` e `refs`), `logs/` e `opencode/`. Por cima liga como
+  gravavel so o worktree do proprio item, o admin dir dele, `<git-dir>/objects` e `<git-dir>/simplicio` (base central do mapper). Os caminhos vem do layout
+  fixo, nao do arquivo `.git` do worktree. O `git` do host (status, commit, push do tick) roda no item com `GIT_DIR`, `GIT_COMMON_DIR` e
+  `GIT_WORK_TREE` do layout fixo: reescrever o `.git` ou o `commondir` do proprio item nao leva o git do host ao admin dir de outro.
+  Limite que fica: `objects/` e compartilhado entre os itens do repo (gravavel por todos). A lista exata do que o item escreve esta em "Isolamento do sandbox".
 
 1. **Coordenador geral** (`planning`). As issues novas admitidas de cada repo viram `squads.plan_squads`: squads de ate 4
    workers e 1 coordenador (`coordination`) cada, dono de arquivo por caminho citado na issue, ordem de merge por
