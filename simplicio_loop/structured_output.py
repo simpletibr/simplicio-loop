@@ -143,6 +143,35 @@ def max_tokens_for(tasks: Sequence[Mapping[str, Any]], root: str | Path) -> int:
     return min(total, MAX_TOKENS)
 
 
+def output_tokens_by_task(calls: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Output tokens per task group: the sum of ``completion_tokens`` over the calls that answered it.
+
+    ``MEASURED`` only when every call of the group came back with the provider's own usage; otherwise the count is
+    ``None`` and the basis ``UNVERIFIED``. An estimate is never reported as measured. A call with no ``tasks``
+    (the 1-token cache warm-up) belongs to no task.
+    """
+    groups: dict[tuple[int, ...], list[Mapping[str, Any]]] = {}
+    for call in calls:
+        if call.get("tasks"):
+            groups.setdefault(tuple(call["tasks"]), []).append(call)
+    out = []
+    for tasks, group in groups.items():
+        measured = all(c.get("ok", True) and c.get("usage_reported") for c in group)
+        out.append({"tasks": list(tasks), "calls": len(group), "basis": "MEASURED" if measured else "UNVERIFIED",
+                    "output_tokens": sum(int(c.get("completion_tokens") or 0) for c in group) if measured else None})
+    return out
+
+
+def output_metrics(calls: Sequence[Mapping[str, Any]], rejections: Sequence[Sequence[str]]) -> dict[str, Any]:
+    """MEASURED structured-output metrics of a run: rejections by kind (counted from the violations) and the
+    output tokens of each task. ``rejections`` holds the violations of every refused answer."""
+    return {
+        "rejected_answers": len(rejections),
+        "rejected": plan_scope.counters(v for violations in rejections for v in violations),
+        "output_tokens_by_task": output_tokens_by_task(calls),
+    }
+
+
 def provider_fields(model: str, tasks: Sequence[Mapping[str, Any]], root: str | Path,
                     kind: str = "plan") -> dict[str, Any]:
     """The chat-completion fields for these tasks: ``max_tokens`` always, ``response_format`` for a listed model."""

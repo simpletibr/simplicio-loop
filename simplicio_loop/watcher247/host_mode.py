@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .. import escalation, exec_auth, exec_planner, execution_report, executor_select, turbo_window
+from .. import escalation, exec_auth, exec_planner, execution_report, executor_select, plan_scope, turbo_cli, turbo_run, turbo_window
 from . import budget, config, proc, raw_log, sandbox, verify
 from . import convergence  # the failed-verify path asks it: retry, escalate or stop (a module, not a point)
 
@@ -115,15 +115,20 @@ def _planner_env(family: str) -> dict[str, str]:
     return sandbox.scrubbed_env(os.environ, home=Path.home(), keep=FAMILY_ENV.get(family, ()))
 
 
-def plan_prompt(request: str, failure: str = "") -> str:
-    """The planner prompt: turbo's request (it already holds the task, map slice, files and format) plus the failure."""
+def plan_prompt(request: str, failure: str = "", rejected: str = "") -> str:
+    """The planner prompt: turbo's request (it already holds the task, map slice, files and format) plus the failure.
+
+    ``rejected``: why the last answer was refused before anything was applied (``plan_scope.retry_message``); it replaces
+    the failure text, which would say a plan was applied."""
     text = (f"{request}\n\nReply with the plan only: one JSON object in the `format` above, nothing else. "
             "If a file is shown in windows and the lines you must change are in `omitted`, reply "
             '`{"operations": [], "need": [{"path": "<file>", "start": N, "end": M}]}` instead of guessing, e.g. '
             '`{"operations": [], "need": [{"path": "tests/test_x.py", "start": 147, "end": 190}]}`; '
             "the watcher then shows those lines (the same as `--window tests/test_x.py:147-190`) and asks again. "
             "The watcher applies it with dev-cli; do not run the `apply` command.")
-    if failure:
+    if rejected:
+        text += f"\n\n{rejected}"
+    elif failure:
         text += ("\n\nThe previous plan was applied and failed. Write a corrected plan for the original task. "
                  f"Failure output:\n{failure[-FAILURE_CAP:]}")
     return text
@@ -279,21 +284,24 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
     try:
         leave_open = run_id is not None  # the watcher opened the run: it closes it after the pr stage
         request, run_id = await _request(dest, task, run_id)  # step 1: every retry reuses this request and run
+        scope = turbo_cli.task_scope(dest, turbo_cli.build_tasks(dest, [task]))  # what every answer of this task must stay in
         windows: list[dict] = []  # lines the planner asked for; each ask prints the request again with them
         cut = _cut(request)
         report["run_id"] = run_id  # the watcher's role receipt lands in the report turbo writes for this run
+        rejected, rejections = "", 0  # the last answer plan_scope refused (the text for the planner), and how many so far
         for step in range(1, config.MAX_STEPS + 1):
             if not ladder.can_escalate():
                 raise RuntimeError(f"escalation ceiling reached: {failure or 'no budget left'}"[:500])
             await budget.record("model_calls")
             started = time.monotonic()
             planned = await exec_planner.run_planner_with_fallback(
-                ladder.current_role(), plan_prompt(request, failure), cwd=str(dest),
+                ladder.current_role(), plan_prompt(request, failure, rejected), cwd=str(dest),
                 timeout_sec=config.PLAN_TIMEOUT_S, families=list(executor.families),
                 wrap=planner_wrap(dest), env_for=_planner_env,
-                config_dir=config.ROOT / "opencode")  # inside the bound state dir: /tmp is a tmpfs in the sandbox
+                config_dir=config.ROOT / "opencode",  # inside the bound state dir: /tmp is a tmpfs in the sandbox
+                scope=scope)
             ladder.family = planned.family or ladder.family
-            ok, failure, tokens_report, label, result, status, reason = False, "", None, "", None, "failed", ""
+            ok, failure, tokens_report, label, result, status, reason, rejected = False, "", None, "", None, "failed", "", ""
             log_path = config.LOGS / f"{repo}-{number}-{attempts}-s{step}.log"
             raw_log.write(log_path.with_suffix(".raw.log"), planned.raw, planned.reason_code)  # the model's own text, before the apply
             if planned.is_ok() and (need := _plan_need(planned.plan)):
@@ -314,6 +322,13 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
                 if tokens_report:
                     _merge_turbo_tasks(report, tokens_report)
                 ok, label, failure = decision.action == "pr", decision.label, decision.reason
+            elif planned.violations:  # plan_scope refused the answer (bad_plan with the reasons)
+                rejections += 1  # nothing was applied: one new attempt that carries the violations, then a human
+                action = plan_scope.next_action(rejections)
+                turbo_run.TurboRun(dest, "host", run_id).refused(planned.violations, action, rejections)
+                cause = "; ".join(planned.violations[:plan_scope.MAX_REPORTED])
+                failure, reason = (f"needs_human: {cause}" if action == "needs_human" else f"planner out_of_scope: {cause}"), "out_of_scope"
+                rejected = plan_scope.retry_message(planned.violations)
             else:
                 failure = f"planner {planned.reason_code}: {planned.error or ''}"
             wall_ms = int((time.monotonic() - started) * 1000)
@@ -331,6 +346,10 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
             if reason == "turbo_context_truncated":
                 raise RuntimeError(failure[:500])  # a better role cannot see lines the request did not carry
             if reason == "need_lines":
+                continue  # one step spent, same role, no reset: nothing was applied
+            if reason == "out_of_scope":
+                if failure.startswith("needs_human"):
+                    raise RuntimeError(failure[:500])  # the second refusal: a human, with the violations as the cause
                 continue  # one step spent, same role, no reset: nothing was applied
             if not planned.is_ok() and planned.reason_code != RETRYABLE:
                 raise RuntimeError(failure[:500])  # cli missing, quota, timeout: a better role does not help

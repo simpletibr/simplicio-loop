@@ -80,9 +80,9 @@ namespaced kind; each namespace owns its own catalog.
 | quality | `gate_evaluated` | runner, oracle, hooks | `gate` (`evidence`, `watcher`, `oracle`, `dod`, `quality`, `action`), `verdict` (`pass`, `fail`, `pending`, `blocked`), `status`, `verdict_detail` |
 | commands | `command_started` | worker (before each task `check` command), runner (before the turbo `--verify` command) | `command_id` (unique per run of a command), `command` (secrets scrubbed, max 200 characters). The envelope `ts` is the start time. |
 | commands | `command_finished` | worker (after the same task `check` command), runner (after the turbo `--verify` command) | `command_id` (same as its `command_started`), `exit_code` (`null` when the command did not exit: timeout, spawn failure, cancellation), `duration_s` (monotonic clock), `status` (`pass`, `fail`, `error`, `interrupted`), optional `reason`. `severity` is `warning` unless `pass`. |
-| recovery | `retry_scheduled` | runner (`operator_bootstrap`, `rollback`) | `step`, `blocker` |
+| recovery | `retry_scheduled` | runner (`operator_bootstrap`, `rollback`; turbo when a model answer is refused by the closed plan contract or the task scope and asked again: `step` `plan_rejected`) | `step`, `blocker`; a refused answer adds `reason` (`out_of_scope`), `action` (`retry`), `attempt` |
 | recovery | `stall_detected` | runner (`blocked`), hook (`loop_stop` stall streak) | `blocker` or `fingerprint`, `streak` |
-| recovery | `decision_requested` | runner (entering `awaiting_decision`) | `reason` |
+| recovery | `decision_requested` | runner (entering `awaiting_decision`; turbo when a second answer is refused: `reason` `needs_human`, `step` `plan_rejected`, `blocker` the violations) | `reason` |
 | delivery and cost | `delivery_reconciled` | runner | `current_state`, `blocker` |
 | delivery and cost | `pr_opened` | reserved for the delivery step | `url`, `number` |
 | delivery and cost | `token_usage` | runner (`execution-route*.json` and `provider-worker-*.json` of the run) | `input_tokens`, `output_tokens`, optional `model`, `reason`; `lane` = route; a provider receipt adds `source` (`provider`), `requests`, `cached_tokens`, `cache_write_tokens`, `reasoning_tokens`, `cost`, and sets `task_id`, `lane` and `iteration` |

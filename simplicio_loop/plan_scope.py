@@ -22,6 +22,7 @@ from . import plan_paths
 MAX_FILE_LINES = 9000
 MAX_RETRIES = 1
 MAX_REPORTED = 20
+ECHO_CHARS = 120  # a violation echoes model-chosen text (field names, paths): never more than this many characters
 NEAR_LIMIT = 0.9  # a file at 90% of the line limit makes a new sibling module a forced split
 
 _SOURCE_DIR = Path(__file__).resolve().parent.parent / "contracts" / "structured-output" / "v1"
@@ -45,9 +46,10 @@ class TaskScope:
     dirs: tuple[str, ...] = ()
     criteria: tuple[str, ...] = ()
     max_lines: int = MAX_FILE_LINES
+    unbounded: bool = False  # the task names no file: no path to hold an operation to (the line limit still applies)
 
     def contains(self, path: str) -> bool:
-        return path in self.paths or any(path.startswith(d) for d in self.dirs)
+        return self.unbounded or path in self.paths or any(path.startswith(d) for d in self.dirs)
 
 
 @dataclass
@@ -71,7 +73,8 @@ def scope_from_tasks(tasks: Sequence[Mapping[str, Any]], *, named_paths: Iterabl
             if name:
                 paths.add(str(name))
     dirs = tuple(sorted(p for p in paths if p.endswith("/")))
-    return TaskScope(frozenset(p for p in paths if not p.endswith("/")), dirs, tuple(criteria), max_lines)
+    files = frozenset(p for p in paths if not p.endswith("/"))
+    return TaskScope(files, dirs, tuple(criteria), max_lines, unbounded=not files and not dirs)
 
 
 def _unframe(text: str) -> tuple[str, int]:
@@ -88,6 +91,13 @@ def _unframe(text: str) -> tuple[str, int]:
     except ValueError:
         return body, 0
     return body[start:end], len(body[:start].strip()) + len(body[end:].strip())
+
+
+def echo(text: str) -> str:
+    """``text`` as it may be shown or sent back: secrets masked first, then cut to ``ECHO_CHARS`` with an ellipsis."""
+    from .dashboard.runs import redact_text  # loaded on the first violation only: it pulls in the dashboard
+    text = redact_text(text)
+    return text if len(text) <= ECHO_CHARS else text[:ECHO_CHARS - 1] + "…"
 
 
 def _describe(error: Any) -> str:
@@ -117,7 +127,7 @@ def validate_response(text: str, kind: str) -> list[str]:
         _VALIDATORS[kind] = Draft202012Validator(RESPONSE_SCHEMAS[kind])
     errors = sorted(_VALIDATORS[kind].iter_errors(payload), key=lambda e: ([str(p) for p in e.absolute_path], e.message))
     for error in errors:
-        violations.extend(_describe(error).split(","))
+        violations.extend(echo(v) for v in _describe(error).split(","))
     return violations
 
 
@@ -153,12 +163,13 @@ def _widening(path: str, find: str, scope: TaskScope, root: Path) -> str | None:
     return None
 
 
-def _resulting_lines(op: Mapping[str, Any], root: Path) -> int:
+def _after(text: str | None, op: Mapping[str, Any]) -> str:
+    """The file text once ``op`` runs on ``text`` (None: no such file yet): an empty ``find`` adds to the end of an
+    existing file, a ``find`` replaces its first occurrence."""
     find, replace = op.get("find") or "", op["replace"]
-    target = root / op["path"]
-    if not find or not target.is_file():
-        return _line_count(replace)
-    return _line_count(target.read_text(encoding="utf-8", errors="replace").replace(find, replace, 1))
+    if text is None:
+        return replace
+    return text + replace if not find else text.replace(find, replace, 1)
 
 
 def check_response(text: str, scope: TaskScope, root: str | os.PathLike[str]) -> CheckResult:
@@ -172,24 +183,61 @@ def check_response(text: str, scope: TaskScope, root: str | os.PathLike[str]) ->
         return result
     if result.violations and any(v.split(":", 1)[0] not in {"extra_prose"} for v in result.violations):
         return result
-    operations = payload.get("operations") or []
+    held = check_operations(payload.get("operations") or [], scope, root)
+    result.violations.extend(held.violations)
+    result.widenings = held.widenings
+    if result.ok:
+        result.operations = held.operations
+    return result
+
+
+def _lands_elsewhere(path: str, root: Path) -> bool:
+    """True when ``path`` (or a directory above it) is a symlink: the write would land in a file the scope never named."""
+    base = os.path.realpath(root)
+    return os.path.realpath(os.path.join(base, path)) != os.path.join(base, os.path.normpath(path.replace("\\", "/")))
+
+
+def check_operations(operations: Sequence[Mapping[str, Any]], scope: TaskScope,
+                     root: str | os.PathLike[str]) -> CheckResult:
+    """Hold already parsed operations to the scope and to the line limit (the last gate before dev-cli)."""
+    root = Path(root)
+    result = CheckResult()
+    texts: dict[str, str | None] = {}
     for op in operations:
         path = op["path"]
         if reason := plan_paths.refusal(path, root):
-            result.violations.append(f"out_of_scope:{path}")
+            result.violations.append(echo(f"out_of_scope:{path}"))
             continue
         if not scope.contains(path):
             rule = _widening(path, op.get("find") or "", scope, root)
             if rule is None:
-                result.violations.append(f"out_of_scope:{path}")
+                result.violations.append(echo(f"out_of_scope:{path}"))
                 continue
             result.widenings.append({"path": path, "rule": rule})
-        lines = _resulting_lines(op, root)
+        if _lands_elsewhere(path, root):
+            result.violations.append(echo(f"symlink_target:{path}"))
+            continue
+        target = root / path
+        if path not in texts:
+            texts[path] = target.read_text(encoding="utf-8", errors="replace") if target.is_file() else None
+        texts[path] = _after(texts[path], op)  # the operations of one file run in order: the limit is on the total
+        lines = _line_count(texts[path])
         if lines > scope.max_lines:
-            result.violations.append(f"lines_over_limit:{path}:{lines}")
+            result.violations.append(echo(f"lines_over_limit:{path}:{lines}"))
+            texts[path] = ""  # one report per file, not one per later operation
     if result.ok:
-        result.operations = operations
+        result.operations = list(operations)
     return result
+
+
+def violation_path(violation: str) -> str | None:
+    """The file a violation names (``out_of_scope``, ``symlink_target`` and ``lines_over_limit``), else None."""
+    code, _, detail = violation.partition(":")
+    if code in ("out_of_scope", "symlink_target"):
+        return detail
+    if code == "lines_over_limit":
+        return detail.rpartition(":")[0]
+    return None
 
 
 def next_action(rejections: int) -> str:
@@ -199,7 +247,7 @@ def next_action(rejections: int) -> str:
 
 def retry_message(violations: Sequence[str]) -> str:
     """The text that goes back to the planner: the violations, in order, bounded, nothing else."""
-    shown = list(violations[:MAX_REPORTED])
+    shown = [echo(v) for v in violations[:MAX_REPORTED]]
     more = len(violations) - len(shown)
     lines = ["The answer was rejected. Reply with one JSON object only, inside the task scope:", *shown]
     if more > 0:

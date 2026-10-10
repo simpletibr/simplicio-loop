@@ -32,6 +32,7 @@ RUNS_DIR = (".simplicio-loop", "orchestrator", "runs")
 PROGRESS_PHASE = {"intake": "intake", "orient": "mapping", "plan": "planning", "apply": "executing", "verify": "validating", "pr": "delivering", "done": "done"}
 CLOSED = ("done", "failed", "blocked")  # the run states close() leaves
 OPERATORS = ("simplicio-mapper", "simplicio-dev-cli")
+REFUSALS = "plan-refusals.json"  # in the run directory
 
 
 def _now() -> str:
@@ -99,6 +100,28 @@ class TurboRun:
     def await_plan(self) -> None:
         """The request is out and the run waits for the host's plan."""
         self._save("awaiting_plan", PROGRESS_PHASE["plan"])
+
+    def refused(self, violations: Sequence[str], action: str, attempt: int) -> None:
+        """A model answer was refused (closed contract or task scope). ``retry``: ``retry_scheduled``, the planner is
+        asked again with the violations. ``needs_human``: ``decision_requested``, the cause is the violations."""
+        payload = {"step": "plan_rejected", "action": action, "attempt": attempt,
+                   "blocker": "; ".join(violations[:5])[:200]}
+        if action == "retry":
+            spec = {"kind": "retry_scheduled", "severity": "warning", "payload": {**payload, "reason": "out_of_scope"}}
+        else:
+            spec = {"kind": "decision_requested", "severity": "error", "payload": {**payload, "reason": "needs_human"}}
+        self._emit([{**spec, "phase": self.stage}])
+
+    def count_refusal(self) -> int:
+        """Answers refused so far in this run, this one included. Host mode applies in a new process per attempt, so
+        the count lives in the run directory (``plan-refusals.json``)."""
+        path = self.run_dir / REFUSALS
+        try:
+            count = int(json.loads(path.read_text(encoding="utf-8"))["count"])
+        except (OSError, ValueError, KeyError, TypeError):
+            count = 0
+        path.write_text(json.dumps({"count": count + 1}), encoding="utf-8")
+        return count + 1
 
     def _emit(self, specs: list[dict[str, Any]]) -> None:
         module = dashboard_events.load()
