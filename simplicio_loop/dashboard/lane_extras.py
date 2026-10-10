@@ -9,6 +9,11 @@ opened read-only with stdlib sqlite3 and never created or written. A backlog lea
 through the coordination reader first. A lane whose lease cannot be found, or whose store is missing, locked or corrupt,
 stays UNVERIFIED with the reason.
 
+The watcher renews the lease of the issue it works on while turbo runs and writes each renewal as a ``lease_heartbeat`` event
+of the run (``lease_key`` = ``repo#number``, ``status`` ``renewed`` or ``lost``, ``ttl_s``). The latest beat of each key is one more
+row of the heartbeat: its age is the ``ts`` of the event against the clock passed in, and it is stale once older than its
+own ``ttl_s``, or at any age when the lease was lost. A beat with no readable ``ts`` or ``ttl_s`` is UNVERIFIED with the reason.
+
 The command running now is the latest ``command_started`` of a lane (paired by ``command_id``) that has no ``command_finished`` and
 is not older than the last ``run_finished``; its age is the ``ts`` of the start against the clock passed in. A start with no finish
 after ``STUCK_AFTER_S`` is flagged with its age, never hidden or presumed dead; a start with no readable ``ts`` is UNVERIFIED.
@@ -39,6 +44,7 @@ TITLE_MAX = 160
 COMMAND_KINDS = frozenset({'test_result', 'lint_result'})
 BACKLOG_PARTS = ('orchestrator', 'backlog', 'backlog.jsonl')
 NO_LANE_REASON = 'nenhuma lane com lease_id registrado'
+BEAT_KIND = 'lease_heartbeat'
 STORE_ENV = 'SIMPLICIO_MAPPER_OPERATIONS_DB'
 STORE_PARTS = ('data', 'operations.sqlite')
 STORE_TIMEOUT_S = 0.25
@@ -253,27 +259,64 @@ def _lane_row(lane: str, lease_id: str, leases: list[dict[str, Any]], failure: s
     return row
 
 
+def _beat_row(key: str, event: dict[str, Any], now: float) -> dict[str, Any]:
+    '''The row of one lease key from its latest ``lease_heartbeat`` event.'''
+    payload = _payload(event)
+    status = payload.get('status')
+    row: dict[str, Any] = {'lane': _text(event.get('lane')) or key, 'lease_id': key, 'state': 'UNVERIFIED', 'heartbeat_at': None,
+                           'age_s': None, 'stale': None, 'reason': None, 'source': BEAT_KIND, 'status': status}
+    at = budget._parse(event.get('ts'))
+    ttl = payload.get('ttl_s')
+    if at is None:
+        row['reason'] = 'lease_heartbeat sem ts medido'
+    elif now - at.timestamp() < 0:
+        row['reason'] = 'lease_heartbeat no futuro do relógio'
+    elif isinstance(ttl, bool) or not isinstance(ttl, (int, float)) or not 0 < ttl < math.inf:
+        row['reason'] = 'lease_heartbeat sem ttl_s medido'
+    else:
+        age = int(now - at.timestamp())
+        row.update(state='MEASURED', heartbeat_at=str(event['ts']), age_s=age, stale=status == 'lost' or age > ttl)
+    return row
+
+
+def _beat_rows(ordered: list[dict[str, Any]], now: float) -> list[dict[str, Any]]:
+    '''One row per lease key: its latest ``lease_heartbeat`` (the list is in ascending seq, so the last one wins).'''
+    latest = {key: event for event in ordered
+              if event.get('kind') == BEAT_KIND and (key := _text(_payload(event).get('lease_key')))}
+    return [_beat_row(key, latest[key], now) for key in sorted(latest)]
+
+
 def _row_text(row: dict[str, Any]) -> str:
     if row['state'] != 'MEASURED':
         return f"{row['lane']}: {row['reason']}"
+    if row.get('status') == 'lost':
+        return f"{row['lane']}: lease perdido há {row['age_s']} s"
     if row.get('beat') is False:
         return f"{row['lane']}: sem batimento registrado desde o claim (claim há {row['age_s']} s)" + (
             ' (lease expirado)' if row['stale'] else '')
     return f"{row['lane']}: último batimento há {row['age_s']} s" + (' (obsoleto)' if row['stale'] else '')
 
 
-def _heartbeat(claims: dict[str, str], run_dir: str | Path, backlog_path: str | Path | None, now: float) -> dict[str, Any]:
-    '''Heartbeat of every claimed lane lease; PASS when at least one is measured, else UNVERIFIED with the reasons.'''
+def _claim_rows(claims: dict[str, str], run_dir: str | Path, backlog_path: str | Path | None, now: float) -> list[dict[str, Any]]:
+    '''The row of every claimed lane lease, from the backlog or the Mapper store.'''
     if not claims:
-        return {'state': 'UNVERIFIED', 'reason': NO_LANE_REASON, 'lanes': []}
+        return []
     leases, failure = _leases(_backlog_file(run_dir, backlog_path))
     path = _store_file(run_dir)
     store = _Store(path) if path is not None else None
     try:
-        rows = [_lane_row(lane, claims[lane], leases, failure, now, store) for lane in sorted(claims)][:MAX_ITEMS]
+        return [_lane_row(lane, claims[lane], leases, failure, now, store) for lane in sorted(claims)]
     finally:
         if store is not None:
             store.close()
+
+
+def _heartbeat(claims: dict[str, str], beats: list[dict[str, Any]], run_dir: str | Path, backlog_path: str | Path | None,
+               now: float) -> dict[str, Any]:
+    '''Heartbeat of every claimed lane lease and of every watcher lease beat; PASS when at least one is measured, else UNVERIFIED.'''
+    rows = (_claim_rows(claims, run_dir, backlog_path, now) + beats)[:MAX_ITEMS]
+    if not rows:
+        return {'state': 'UNVERIFIED', 'reason': NO_LANE_REASON, 'lanes': []}
     measured = any(row['state'] == 'MEASURED' for row in rows)
     return {'state': 'PASS' if measured else 'UNVERIFIED', 'reason': '; '.join(_row_text(row) for row in rows),
             'lanes': rows}
@@ -336,4 +379,4 @@ def extras(run_dir: str | Path, events: Iterable[Any], backlog_path: str | Path 
     current = time.time() if now is None else float(now)
     return {'schema': SCHEMA, 'last_command': _last_command(ordered), 'running_command': _running_command(ordered, current),
             'tasks': _tasks(run_dir), 'models': _models(ordered),
-            'heartbeat': _heartbeat(_lane_claims(ordered), run_dir, backlog_path, current)}
+            'heartbeat': _heartbeat(_lane_claims(ordered), _beat_rows(ordered, current), run_dir, backlog_path, current)}

@@ -155,10 +155,18 @@ async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str
 
 
 async def _heartbeat(store: ClaimStore, key: str, token: str) -> None:
-    """Extend the lease every HEARTBEAT_S while turbo runs; stop when the lease is lost."""
+    """Extend the lease every HEARTBEAT_S while turbo runs; stop when the lease is lost.
+
+    Each renewal, and the loss that ends the loop, is a ``lease_heartbeat`` event of the run open for `key` (#1551).
+    """
+    beats = 0
     while True:
         await asyncio.sleep(config.HEARTBEAT_S)
-        if not await store.heartbeat(key, token, config.LEASE_TTL_S, now=state.now().timestamp()):
+        renewed = await store.heartbeat(key, token, config.LEASE_TTL_S, now=state.now().timestamp())
+        if renewed:
+            beats += 1
+        await asyncio.to_thread(events.lease_beat, key, "renewed" if renewed else "lost", beats=beats, ttl_s=config.LEASE_TTL_S)
+        if not renewed:
             state.log(f"lease lost {key}")
             return
 

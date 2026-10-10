@@ -69,6 +69,7 @@ namespaced kind; each namespace owns its own catalog.
 | lifecycle | `map_ready` | runner (Mapper context persisted) | `step` = `mapper_fresh` or `mapper_degraded` (`warning`) |
 | lifecycle | `plan_frozen` | runner | `step`, `message` |
 | lanes and tasks | `worker_claimed` | worker | `step`, `branch`, `lease_id`, `ac_ids`; `lane` = branch |
+| lanes and tasks | `lease_heartbeat` | runner (watcher: `_heartbeat` in `simplicio_loop/watcher247/tick.py`, every renewal of the issue lease) | `lease_key` (`repo#number`), `status` (`renewed`, or `lost` with `severity: warning`), `beats` (renewals since the loop began), `ttl_s` (the lease ttl). Collection scope. The owner token is never written. |
 | lanes and tasks | `lane_progress` | worker / runner / operator | `step` = the runner step that has no dedicated kind (`worktree_created`, `stack_lock_frozen`, `storage_route_frozen`, `handoff`, `technical_debt` with `debt_*` fields, or any future step) |
 | lanes and tasks | `iteration_started` | hook (`loop_stop` re-feed, `trigger: refeed`), operator (`user_prompt_submit`, `trigger: user_prompt`, `decision`, `prompt_chars`) | as listed |
 | lanes and tasks | `iteration_finished` | hook (`loop_stop`) | `outcome` (`refeed`, `pass`, `blocked`), `reason`, `has_evidence` |
@@ -139,6 +140,19 @@ shape, not yet emitted.
   no `command_finished` with the same `command_id` ("em execução há N s", age against the clock of the request). A start
   older than 600 s with no finish is flagged with its age, never hidden. A start before the last `run_finished` is
   not running. With no `command_started` in the run the row is UNVERIFIED with the reason.
+
+### Lease heartbeat producer
+
+- **Lease events** (`simplicio_loop/watcher247/events.py` `lease_beat`, called by `_heartbeat` in `simplicio_loop/watcher247/tick.py`):
+  while turbo runs, the watcher renews the issue lease every `HEARTBEAT_S` (60 s). Each renewal appends one `lease_heartbeat` to the
+  run that the watcher opened at intake. Source `runner`, collection scope, `task_id`, `phase` and `lane` null.
+- The payload holds `lease_key` (`repo#number`), `status`, `beats` (renewals since the loop began) and `ttl_s` (180 s). A renewal that
+  the claim store refuses writes one `lost` event with `severity: warning` and ends the loop. The owner token is the secret of the
+  lease and never goes in an event.
+- Writing is fail-open. A lease with no open run writes nothing, and a closed run gets no event after `run_finished`.
+- **Reading**: `GET /api/runs/<id>/extras` adds to `heartbeat` one row for each `lease_key`: its latest beat by `seq`. The age is the
+  `ts` of the event against the clock of the request. The row is stale when the age passes its own `ttl_s`, and at any age after
+  `lost` ("lease perdido"). A beat with no readable `ts` or `ttl_s` reads UNVERIFIED, with the reason.
 
 **UNVERIFIED:**
 
