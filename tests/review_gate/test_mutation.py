@@ -215,12 +215,11 @@ def test_an_equivalent_survivor_does_not_fail_a_two_mutant_sample(tmp_path, monk
     assert result.measured["total"] == 2 and result.measured["killed"] == 1 and result.measured["equivalent"] == 1
 
 
-def test_a_vacuous_test_on_one_live_mutant_is_warned_not_judged(tmp_path, monkeypatch):
+def test_a_vacuous_test_still_fails_a_sample_with_an_equivalent_survivor(tmp_path, monkeypatch):
     root = make_project(tmp_path, TWO, "def test_f():\n    assert True\n")
     fake_tests(monkeypatch, set())
     result = check_mutation(root, [FileChange("app.py", "A", (2, 3))], PYTEST, n=2, seed="s")
-    assert result.status == PASS and result.measured["killed"] == 0 and result.measured["equivalent"] == 1
-    assert result.measured["judged"] is False and "app.py:2 return_none" in result.reasons[0]  # the survivor is named
+    assert result.status == FAIL and result.measured["killed"] == 0 and result.measured["equivalent"] == 1
 
 
 def test_a_sample_of_only_equivalent_mutants_fails_because_it_says_nothing(tmp_path, monkeypatch):
