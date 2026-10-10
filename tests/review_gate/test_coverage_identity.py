@@ -71,6 +71,43 @@ class TestGenericWordsNameNoCriterion:
         assert result.status == PASS
 
 
+class TestOneItemNamesOneCriterion:
+    """An item that holds the own words of several criteria stands for none of them: twelve copies of it cannot approve."""
+
+    OWN = TestGenericWordsNameNoCriterion.OWN
+    ISSUE = TestGenericWordsNameNoCriterion.ISSUE
+
+    def _run(self, items):
+        return check_coverage(123, self.ISSUE, CHANGES, ADDED, "Parte de #123\nFalta:\n" + "".join(f"- [ ] {item}\n" for item in items))
+
+    def test_twelve_items_that_list_all_the_words_of_all_the_criteria_cannot_approve(self):
+        result = self._run(["gateway ledger " + " ".join(self.OWN)] * 12)
+        assert result.status == FAIL and result.measured["partial"] is False
+        ambiguous = [r for r in result.reasons if "item names several criteria" in r]
+        assert len(ambiguous) == 12 and all("ambiguous" in r for r in ambiguous)
+
+    def test_the_reason_quotes_the_item(self):
+        result = self._run([*[f"gateway ledger {own}" for own in self.OWN[:-1]], "gateway ledger kestrel lantern"])
+        assert result.status == FAIL
+        assert [r for r in result.reasons if "several criteria" in r] == ["lista 'Falta': item names several criteria (ambiguous): gateway ledger kestrel lantern"]
+
+    def test_two_criteria_in_one_item_are_ambiguous_even_when_the_count_is_right(self):
+        issue = "- [ ] export report to csv\n- [ ] send report by email\n- [ ] sync clock drift\n"
+        body = "Parte de #123\nFalta:\n- [ ] send report by email and sync clock drift\n- [ ] sync clock drift\n"
+        result = check_coverage(123, issue, CHANGES, ADDED, body)
+        assert result.status == FAIL and any("item names several criteria" in r for r in result.reasons)
+
+    def test_a_normal_list_of_one_criterion_per_item_still_approves(self):
+        result = self._run([f"gateway ledger {own}" for own in self.OWN])
+        assert result.status == PASS and result.measured["partial"] is True
+        assert self._run([f"{own} (gateway ledger, pending)" for own in self.OWN]).status == PASS
+
+    def test_a_criterion_with_no_word_of_its_own_does_not_make_the_item_ambiguous(self):
+        issue = "- [ ] send report by email\n- [ ] send report by email and sms\n"
+        body = "Parte de #5\nFalta:\n- [ ] send report by email\n- [ ] send report by email and sms\n"
+        assert check_coverage(5, issue, CHANGES, ADDED, body).status == PASS
+
+
 class TestNonPythonProduction:
     """Red/green and mutation only read Python: js/sh/yml/toml cannot be approved by coverage alone."""
 

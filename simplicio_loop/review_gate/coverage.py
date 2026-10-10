@@ -174,6 +174,10 @@ def check_coverage(
             f"lista 'Falta' tem {len(falta_items)} items mas ha {len(uncovered)} criterios descobertos",
             *reasons,
         ), measured=measured)
+    ambiguous = _ambiguous(uncovered, falta_items)
+    if ambiguous:  # an item names ONE criterion: the own words of several of them in one item name none
+        return CheckResult("coverage", FAIL, tuple(f"lista 'Falta': item names several criteria (ambiguous): {text}" for text in ambiguous),
+                           measured=measured)
     unnamed = _unnamed(uncovered, falta_items)
     if unnamed:  # by identity, not by count: "item 1", "item 2" or empty items name nothing
         return CheckResult("coverage", FAIL, tuple(f"lista 'Falta' nao nomeia o criterio: {text}" for text in unnamed), measured=measured)
@@ -201,6 +205,14 @@ def _distinctive(criterion: str, others: Sequence[str]) -> set[str]:
     """Content words of `criterion` that none of the `others` has."""
     rest = {w for other in others for w in _words(other)}
     return {w for w in _words(criterion) if not any(_same(w, r) for r in rest)}
+
+
+def _ambiguous(uncovered: Sequence[str], items: Sequence[str]) -> list[str]:
+    """The items that name more than one uncovered criterion by its own words. A criterion with no word of its own cannot be
+    told apart, so it never makes an item ambiguous."""
+    distinct = [_distinctive(c, [*uncovered[:n], *uncovered[n + 1:]]) for n, c in enumerate(uncovered)]
+    return [item for item in items
+            if sum(1 for c, own in zip(uncovered, distinct) if own and _names(item, c, own)) > 1]
 
 
 def _unnamed(uncovered: Sequence[str], items: Sequence[str]) -> list[str]:

@@ -92,6 +92,24 @@ def neighbors(root: Path, changes: list[FileChange]) -> list[str]:
     return found
 
 
+def head_reader(repo: Path, head: str) -> Callable[[str], str | None]:
+    """`read(path)`: the text of `path` at `head` (what the level looks for in a test module), None when git has no such text."""
+    def read(path: str) -> str | None:
+        try:
+            return _git(repo, "show", f"{head}:{path}")
+        except (RuntimeError, ValueError, OSError, subprocess.SubprocessError):
+            return None
+    return read
+
+
+def mutation_argv(python: str, root: Path, tests: list[str]) -> list[str]:
+    """The pytest command of the mutation run: pinned to the configuration of the tree like the red/green run (empty: no tests)."""
+    if not tests:
+        return []
+    return pytest_cmd.command(python, "-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", "--confcutdir", ".",
+                              *redgreen.pytest_config(root), *tests)
+
+
 def _timed(name: str, fn: Callable[[], CheckResult]) -> CheckResult:
     start = time.monotonic()
     try:
@@ -125,7 +143,7 @@ def _base_public(base_root: Path, changes: list[FileChange]) -> dict[str, frozen
 def run_gate(inp: GateInput) -> GateReport:
     start = time.monotonic()
     changes = diffs.changed_files(inp.repo, inp.base, inp.head)
-    level = identity.classify_level(changes)
+    level = identity.classify_level(changes, read=head_reader(inp.repo, inp.head))
     work = inp.repo / REPORT_DIR / f"pr-{inp.pr}-{inp.head[:7]}"
     base_root, head_root = work / "base", work / "head"
     created: list[Path] = []
@@ -150,7 +168,7 @@ def run_gate(inp: GateInput) -> GateReport:
         added = _added_text(head_root, changes)
         test_files = [c.path for c in changes if c.kind == "test" and c.status in ("A", "M") and not diffs.is_pytest_infra(c.path)]
         tests = [*test_files, *neighbors(head_root, changes)]
-        argv = pytest_cmd.command(inp.python, "-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", "--confcutdir", ".", *tests) if tests else []
+        argv = mutation_argv(inp.python, head_root, tests)
         checks = [
             _timed("redgreen", lambda: redgreen.check_redgreen(base_root, head_root, changes, python=inp.python,
                                                                timeout=inp.test_timeout_s, wrap_for=wrap_for, env=env, home=home)),

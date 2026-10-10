@@ -53,6 +53,143 @@ def test_any_conftest_pytest_config_or_plugin_module_is_t2_wherever_it_is(path):
     assert identity.paths_level(["src/app.py", path]) == 2
 
 
+@pytest.mark.parametrize("path", [
+    # pytest 9 reads these two like a pytest.ini
+    "pytest.toml", ".pytest.toml", "tests/pytest.toml", "PYTEST.TOML", "sub/.pytest.toml",
+    # Python runs these at start-up, before pytest
+    "sitecustomize.py", "usercustomize.py", "tests/sitecustomize.py", "src/SiteCustomize.py", "pkg/usercustomize.py.",
+    "evil.pth", "tests/evil.pth", "EVIL.PTH",
+    # an installed distribution declares plugins in entry_points.txt ([pytest11])
+    "pkg.egg-info/entry_points.txt", "tests/x/pkg.egg-info/entry_points.txt", "pkg-1.0.dist-info/entry_points.txt",
+    "pkg-1.0.DIST-INFO/METADATA", "a/b.egg-info/top_level.txt"])
+def test_start_up_hooks_pytest_toml_and_installed_metadata_are_t2_wherever_they_are(path):
+    assert identity.sensitive_path(path)
+    for status in ("A", "M", "D"):
+        assert identity.classify_level([_c("src/app.py"), _c(path, status)]) is Level.T2
+    assert identity.classify_level([_c(path, "A")]) is Level.T2
+    assert identity.paths_level(["src/app.py", path]) == 2
+
+
+@pytest.mark.parametrize("path", ["tests/test_sitecustomize.py", "src/my_sitecustomize.py", "src/sitecustomizer.py", "docs/pth.md",
+                                  "src/path.py", "tests/egg-info.txt", "src/dist_info.py", "src/pytest_toml.py", "docs/pytest.toml.md"])
+def test_names_that_only_look_like_the_start_up_hooks_are_not_t2(path):
+    assert not identity.sensitive_path(path)
+    assert identity.classify_level([_c("src/app.py"), _c(path, "A")]) is Level.T1
+
+
+def test_pytest_toml_names_are_pytest_config_for_the_neutralizer_as_well():
+    assert diffs.PYTEST_CONFIG_NAMES.index("pytest.toml") < diffs.PYTEST_CONFIG_NAMES.index("pyproject.toml")
+    assert diffs.PYTEST_CONFIG_NAMES.index(".pytest.toml") < diffs.PYTEST_CONFIG_NAMES.index("pyproject.toml")
+    assert diffs.is_pytest_infra("pytest.toml") and diffs.is_pytest_infra("tests/.pytest.toml")
+
+
+PLUGIN_SHAPES = {
+    "plain": "pytest_plugins = ['evil']\n\n\ndef test_a():\n    assert True\n",
+    "string": "pytest_plugins = 'evil'\n",
+    "tuple": "pytest_plugins = ('evil',)\n",
+    "annotated": "pytest_plugins: list = ['evil']\n",
+    "augmented": "from base import pytest_plugins\npytest_plugins += ['evil']\n",
+    "annotated_only_value": "from base import x\npytest_plugins: list = x\n",
+    "chained": "x = pytest_plugins = ['evil']\n",
+    "unpacked": "pytest_plugins, other = ['evil'], 1\n",
+    "unpacked_list": "[other, pytest_plugins] = 1, ['evil']\n",
+    "starred": "*pytest_plugins, other = ['evil', 1]\n",
+    "in_if": "import sys\nif sys.platform:\n    pytest_plugins = ['evil']\n",
+    "in_else": "import sys\nif sys.platform:\n    pass\nelse:\n    pytest_plugins = ['evil']\n",
+    "in_try": "try:\n    import evil\n    pytest_plugins = ['evil']\nexcept ImportError:\n    pass\n",
+    "in_except": "try:\n    import evil\nexcept ImportError:\n    pytest_plugins = ['evil']\n",
+    "in_try_else": "try:\n    import evil\nexcept ImportError:\n    pass\nelse:\n    pytest_plugins = ['evil']\n",
+    "in_finally": "try:\n    pass\nfinally:\n    pytest_plugins = ['evil']\n",
+    "in_with": "import contextlib\nwith contextlib.nullcontext():\n    pytest_plugins = ['evil']\n",
+    "in_for": "for _ in range(1):\n    pytest_plugins = ['evil']\n",
+    "in_while": "while True:\n    pytest_plugins = ['evil']\n    break\n",
+    "in_match": "import sys\nmatch sys.platform:\n    case _:\n        pytest_plugins = ['evil']\n",
+    "after_a_def_and_a_class": "def f():\n    pass\n\n\nclass C:\n    pass\n\n\npytest_plugins = ['evil']\n",
+}
+
+
+@pytest.mark.parametrize("shape", sorted(PLUGIN_SHAPES))
+@pytest.mark.parametrize("status", ["A", "M"])
+def test_a_test_module_that_sets_pytest_plugins_is_t2(shape, status):
+    texts = {"tests/test_x.py": PLUGIN_SHAPES[shape]}
+    changes = [_c("src/app.py"), _c("tests/test_x.py", status)]
+    assert identity.classify_level(changes, read=texts.get) is Level.T2
+    assert identity.classify_level([_c("tests/test_x.py", status)], read=texts.get) is Level.T2  # alone: not even a T0
+
+
+@pytest.mark.parametrize("text", [
+    "def test_a():\n    pytest_plugins = ['x']\n    assert pytest_plugins\n",  # a local variable
+    "class TestA:\n    pytest_plugins = ['x']\n",  # a class attribute
+    "import mod\nvalue = mod.pytest_plugins\n",  # a read
+    "plugins = ['evil']\n# pytest_plugins = ['evil']\n",  # a comment
+    "x = 'pytest_plugins = 1'\n",  # a string
+    "mod.pytest_plugins = ['x']\n",  # an attribute of something else
+    "def broken(:\n",  # not Python: it never collects
+    ""])
+def test_a_test_module_that_only_looks_like_it_sets_pytest_plugins_is_not_t2(text):
+    changes = [_c("src/app.py"), _c("tests/test_x.py", "A")]
+    assert identity.classify_level(changes, read=lambda path: text) is Level.T1
+
+
+def test_pytest_plugins_is_read_only_from_a_changed_test_module_that_still_exists():
+    texts = {"tests/test_x.py": PLUGIN_SHAPES["plain"], "src/app.py": PLUGIN_SHAPES["plain"]}
+    assert identity.classify_level([_c("src/app.py"), _c("tests/test_x.py", "D")], read=texts.get) is Level.T1  # deleted: nothing runs
+    assert identity.classify_level([_c("src/app.py")], read=texts.get) is Level.T1  # production code is not a test module
+    assert identity.classify_level([_c("src/app.py"), _c("tests/test_y.py", "A")], read=texts.get) is Level.T1  # no text: no claim
+    assert identity.classify_level([_c("src/app.py"), _c("tests/test_x.py", "A")]) is Level.T1  # no reader: the paths only
+
+
+def test_run_gate_gives_the_level_a_reader_of_the_head(tmp_path, monkeypatch):
+    from simplicio_loop.review_gate import gate
+    from tests.review_gate import scenario
+
+    class Stop(Exception):
+        pass
+
+    seen = {}
+
+    def fake_classify(changes, read=None):
+        seen["read"] = read
+        raise Stop
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    scenario.git(repo, "init", "-q", "-b", "main")
+    (repo / "mod.py").write_text("y = 1\n")
+    scenario.git(repo, "add", "-A")
+    scenario.git(repo, "commit", "-q", "-m", "base")
+    base = scenario.git(repo, "rev-parse", "HEAD")
+    (repo / "tests").mkdir()
+    (repo / "tests" / "test_x.py").write_text(PLUGIN_SHAPES["plain"])
+    scenario.git(repo, "add", "-A")
+    scenario.git(repo, "commit", "-q", "-m", "head")
+    head = scenario.git(repo, "rev-parse", "HEAD")
+    monkeypatch.setattr(gate.identity, "classify_level", fake_classify)
+    with pytest.raises(Stop):
+        gate.run_gate(gate.GateInput(repo=repo, pr=1, issue=None, issue_body="", pr_body="", base=base, head=head, author=WORKER))
+    assert seen["read"]("tests/test_x.py") == PLUGIN_SHAPES["plain"]
+
+
+def test_the_gate_reads_the_test_modules_of_the_head_from_git(tmp_path):
+    from simplicio_loop.review_gate import gate
+    from tests.review_gate import scenario
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    scenario.git(repo, "init", "-q", "-b", "main")
+    (repo / "mod.py").write_text("y = 1\n")
+    scenario.git(repo, "add", "-A")
+    scenario.git(repo, "commit", "-q", "-m", "base")
+    (repo / "tests").mkdir()
+    (repo / "tests" / "test_x.py").write_text(PLUGIN_SHAPES["plain"])
+    scenario.git(repo, "add", "-A")
+    scenario.git(repo, "commit", "-q", "-m", "head")
+    head = scenario.git(repo, "rev-parse", "HEAD")
+    read = gate.head_reader(repo, head)
+    assert read("tests/test_x.py") == PLUGIN_SHAPES["plain"]
+    assert read("tests/missing.py") is None
+
+
 @pytest.mark.parametrize("path", ["tests/test_conftest.py", "tests/conftest_helpers.py", "tests/my_conftest.py", "tests/conftest/helper.py",
                                   "tests/pytest.ini.md", "docs/tox.md", "src/plugins_list.py", "src/plugin.py", "tests/test_plugins.py"])
 def test_names_that_only_look_like_them_are_not_t2(path):

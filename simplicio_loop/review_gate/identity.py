@@ -5,11 +5,12 @@ agent id and role, recorded in the approval comment, and for T2 a marker of an i
 """
 from __future__ import annotations
 
+import ast
 import re
 import unicodedata
 from dataclasses import dataclass
 from pathlib import PurePosixPath
-from typing import Mapping, Sequence
+from typing import Callable, Iterator, Mapping, Sequence
 
 from .. import plan_paths
 from .diffs import FileChange, is_pytest_infra
@@ -45,16 +46,70 @@ def _fold(text: str) -> str:
 # Paths that decide what the loop trusts (#1649, M1): the gate itself, the squad flow and the host rules. Beside what
 # `plan_paths.protected_refusal` already names (the one source of the protected list). Also what steers the pytest that
 # judges the PR: a `conftest.py` at any depth, the pytest configuration and the plugin modules (`diffs.is_pytest_infra`).
+# The gate is a quality filter against vacuous and dead-code PRs, not a boundary against an author who writes code to fool it:
+# what Python loads by itself (`sitecustomize.py`, `*.pth`, installed metadata) and a test module that sets `pytest_plugins` are
+# T2 too, so a human reads them.
 GATE_DIRS = frozenset({"review_gate"})
 GATE_FILES = frozenset({"squads.py", "squad_review.py", "squad_flow.py", "SKILL.md"})
 GATE_WORDS = frozenset({"host-rules", "host_rules"})
+
+
+START_UP_NAMES = frozenset({"sitecustomize.py", "usercustomize.py"})  # Python imports them before pytest starts
+METADATA_SUFFIXES = (".egg-info", ".dist-info")  # an installed distribution can declare a pytest plugin (`[pytest11]`)
+
+
+def _runs_before_the_tests(path: str) -> bool:
+    """True for what Python or pytest loads by itself: `sitecustomize.py`, `usercustomize.py`, any `*.pth`, and anything inside
+    a `*.egg-info/` or `*.dist-info/` folder (`entry_points.txt`). The names are read as a forgiving file system reads them."""
+    parts = [unicodedata.normalize("NFKC", p).lower().rstrip(" .") for p in PurePosixPath(path.replace("\\", "/")).parts]
+    if not parts:
+        return False
+    return (parts[-1] in START_UP_NAMES or parts[-1].endswith(".pth")
+            or any(p.endswith(METADATA_SUFFIXES) for p in parts[:-1]))
 
 
 def sensitive_path(path: str) -> bool:
     """True when a change to `path` is T2 whatever it contains: protected by the plan paths, or part of the gate/host rules."""
     posix = PurePosixPath(path)
     return (plan_paths.protected_refusal(path) is not None or posix.name in GATE_FILES or is_pytest_infra(path)
+            or _runs_before_the_tests(path)
             or bool(GATE_DIRS.intersection(posix.parts[:-1])) or bool(GATE_WORDS.intersection(p.lower() for p in posix.parts)))
+
+
+def _names(target: ast.expr) -> Iterator[str]:
+    if isinstance(target, ast.Name):
+        yield target.id
+    elif isinstance(target, ast.Starred):
+        yield from _names(target.value)
+    elif isinstance(target, (ast.Tuple, ast.List)):
+        for item in target.elts:
+            yield from _names(item)
+
+
+def _module_level(body: Sequence[ast.stmt]) -> Iterator[ast.stmt]:
+    """The statements that run when the module is imported: not the bodies of functions and classes."""
+    for node in body:
+        yield node
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            for field in ("body", "orelse", "finalbody"):
+                yield from _module_level(getattr(node, field, None) or [])
+            for handler in getattr(node, "handlers", None) or []:
+                yield from _module_level(handler.body)
+            for case in getattr(node, "cases", None) or []:
+                yield from _module_level(case.body)
+
+
+def sets_pytest_plugins(text: str) -> bool:
+    """True when the module assigns to the name `pytest_plugins` at module level: pytest then loads those plugins."""
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return False
+    for node in _module_level(tree.body):
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target] if isinstance(node, (ast.AnnAssign, ast.AugAssign)) else []
+        if any("pytest_plugins" in _names(t) for t in targets):
+            return True
+    return False
 
 
 def paths_level(paths: Sequence[str]) -> int:
@@ -65,9 +120,15 @@ def paths_level(paths: Sequence[str]) -> int:
     return 0
 
 
-def classify_level(changes: Sequence[FileChange]) -> Level:
+def classify_level(changes: Sequence[FileChange], read: Callable[[str], str | None] | None = None) -> Level:
+    """`read(path)` gives the text of a file of the head (None: unknown); with it a changed test module that sets
+    `pytest_plugins` is T2 as well. Without it only the paths count."""
     if any(sensitive_path(c.path) for c in changes):  # deleting or touching the gate is as sensitive as editing it
         return Level.T2
+    if read is not None:
+        for c in changes:
+            if c.kind == "test" and c.status != "D" and (text := read(c.path)) and sets_pytest_plugins(text):
+                return Level.T2
     production = [c for c in changes if c.kind in ("code", "other") and c.status != "D"]
     scanned = [*production, *(c for c in changes if c.kind == "test" and c.status != "D")] if production else []  # a security test beside production code names the topic
     if any(SECURITY_WORDS.intersection(re.split(r"[^a-z0-9]+", str(PurePosixPath(c.path)).lower())) for c in scanned):

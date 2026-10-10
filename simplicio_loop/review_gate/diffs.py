@@ -34,7 +34,7 @@ def kind_of(path: str) -> str:
     return "code" if p.suffix == ".py" else "other"
 
 
-PYTEST_CONFIG_NAMES = ("pytest.ini", ".pytest.ini", "pyproject.toml", "tox.ini", "setup.cfg")  # the order pytest reads them
+PYTEST_CONFIG_NAMES = ("pytest.ini", ".pytest.ini", "pytest.toml", ".pytest.toml", "pyproject.toml", "tox.ini", "setup.cfg")  # the order pytest reads them
 _PYTEST_INFRA_NAMES = frozenset({"conftest.py", "pytest_plugins.py", "plugins.py", *PYTEST_CONFIG_NAMES})
 _PYTEST_INFRA_DIRS = frozenset({"plugins", "pytest_plugins"})
 

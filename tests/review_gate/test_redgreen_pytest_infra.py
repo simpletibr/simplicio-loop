@@ -138,6 +138,8 @@ def test_pytest_is_started_with_the_conftest_cut_at_the_tree_and_the_config_pinn
 @pytest.mark.parametrize("name, text, expected", [
     ("pytest.ini", "", ["-c", "pytest.ini", "--rootdir", "."]),
     (".pytest.ini", "[pytest]\n", ["-c", ".pytest.ini", "--rootdir", "."]),
+    ("pytest.toml", "[pytest]\nx = 1\n", ["-c", "pytest.toml", "--rootdir", "."]),
+    (".pytest.toml", "[pytest]\nx = 1\n", ["-c", ".pytest.toml", "--rootdir", "."]),
     ("pyproject.toml", "[tool.pytest.ini_options]\nx = 1\n", ["-c", "pyproject.toml", "--rootdir", "."]),
     ("pyproject.toml", "[project]\nname = 'x'\n", ["-c", "/dev/null", "--rootdir", "."]),
     ("tox.ini", "[pytest]\nx = 1\n", ["-c", "tox.ini", "--rootdir", "."]),
@@ -151,7 +153,8 @@ def test_the_pytest_config_of_the_tree_is_pinned_by_name_only_when_it_holds_a_py
 
 
 @pytest.mark.parametrize("path", ["tests/conftest.py", "a/b/conftest.py", "pytest.ini", "tox.ini", "setup.cfg", "pyproject.toml",
-                                  "tests/pytest.ini", "tests/plugins.py", "tests/plugins/fake.py", "tests/pytest_plugins.py"])
+                                  "tests/pytest.ini", "tests/plugins.py", "tests/plugins/fake.py", "tests/pytest_plugins.py", "pytest.toml",
+                                  ".pytest.toml", "tests/pytest.toml"])
 def test_neutralize_puts_the_file_of_main_back_or_removes_it(tmp_path, path):
     base, head = _write(tmp_path / "base", {path: "main\n", "keep.py": "k\n"}), _write(tmp_path / "head", {path: "pr\n", "keep.py": "k2\n"})
     assert redgreen.neutralize_pytest_infra(base, head, [_added(path, "M"), diffs.FileChange("keep.py", "M", (1,))]) == [path]
@@ -186,3 +189,17 @@ def test_a_helper_module_beside_the_tests_is_still_copied_to_main(tmp_path):
                              [_added("tests/helpers.py", lines=2), _added("tests/test_mod.py", lines=6), MOD], env={"PYTHONPATH": ".:tests"})
     assert result.status == PASS, result.reasons
     assert (base / "tests" / "helpers.py").read_text() == helper
+
+
+def test_a_pytest_toml_of_the_pr_is_ignored(tmp_path):
+    broken = "[pytest]\nminversion = '99'\n"
+    result, base, head = _check(tmp_path, {"mod.py": OLD}, {"mod.py": NEW, "tests/test_mod.py": TEST, "pytest.toml": broken, ".pytest.toml": broken},
+                                [_added("tests/test_mod.py"), _added("pytest.toml", lines=2), _added(".pytest.toml", lines=2), MOD])
+    assert result.status == PASS, result.reasons
+    assert not (base / "pytest.toml").exists() and not (head / "pytest.toml").exists() and not (head / ".pytest.toml").exists()
+
+
+def test_pytest_toml_comes_before_pyproject_toml_in_the_pins(tmp_path):
+    (tmp_path / "pyproject.toml").write_text("[tool.pytest.ini_options]\nx = 1\n")
+    (tmp_path / "pytest.toml").write_text("[pytest]\n")
+    assert redgreen._pytest_config(tmp_path)[:2] == ["-c", "pytest.toml"]

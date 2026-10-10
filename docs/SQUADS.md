@@ -213,8 +213,23 @@ Sizing decides only how many squads and workers run at the same time. It never d
 
 ## Where the review gate runs a PR's code (#1649)
 
-The automatic review gate runs the tests and the mutants of the PR, which is the PR author's code. It runs them in bwrap (`sandbox.wrap`, through `review_gate/isolation.py`) with a scrubbed environment (`sandbox.scrubbed_env`, no `GH_TOKEN`, no `keep`) and an empty HOME: nothing of `~/.simplicio` or `~/.config/gh` is visible. Without bwrap the gate rejects the PR with `sandbox_unavailable`; it never runs the code unsandboxed, and `SIMPLICIO_247_ALLOW_UNSANDBOXED` is not honored there.
+The automatic review gate runs the tests and the mutants of the PR, which is the PR author's code. It runs them in bwrap (`sandbox.wrap`, through `review_gate/isolation.py`). `sandbox.scrubbed_env` strips the environment (no `GH_TOKEN`, no `keep`) and the HOME stays empty. Nothing of `~/.simplicio` or `~/.config/gh` is visible. Without bwrap the gate rejects the PR with `sandbox_unavailable`. It never runs the code unsandboxed, and `SIMPLICIO_247_ALLOW_UNSANDBOXED` has no effect there.
 
-Residual risk: `sandbox.wrap` does not `--unshare-net`, so the PR's code can still reach the network. It holds no secret of the watcher to send, but it can fetch or send anything it can see inside the jail (the checked-out trees and the read-only system).
+Residual risk: `sandbox.wrap` does not `--unshare-net`, so the PR code can still reach the network. It holds no secret of the watcher to send. It can send anything it can see inside the jail: the trees of the PR and the read-only system.
 
-The approval of `squad_gate` is tied to the full 40-character oid of the head (`squad-approval:<oid>` in the comment), never to a date, and its level is raised to the level the files of the diff impose.
+The approval of `squad_gate` belongs to the full 40-character oid of the head (`squad-approval:<oid>` in the comment), never to a date. The gate raises its level to the level that the files of the diff need.
+
+## Threat model of the review gate (#1649)
+
+The gate filters pull requests that are vacuous or that add dead code. It expects an author who is honest but lazy. It does not stop an author who writes code to fool it. The human merge, the protected paths and the sandbox are the security boundary.
+
+The gate does not prove these shapes:
+
+- A test module or helper that forces its own result. The gate copies the test modules of the PR to the base tree on purpose, so this code runs on both trees.
+- A plugin or an entry point that is present only on the head.
+
+The gate sets the level to T2 for each file that changes how Python or pytest starts. These files are `conftest.py`, the pytest configuration (`pytest.ini`, `pytest.toml`, `pyproject.toml`, `tox.ini`, `setup.cfg`), `sitecustomize.py`, `usercustomize.py`, `*.pth`, `*.egg-info/` and `*.dist-info/`. A test module that sets `pytest_plugins` is T2 too. A T2 PR needs a human reviewer.
+
+Each item of the `Falta` list must name one criterion. The gate rejects an item that names several criteria.
+
+The next step is per-test mutant attribution. Each new test that fails on main must kill at least one mutant of the changed production lines. If it kills none, the author marks it as characterization.

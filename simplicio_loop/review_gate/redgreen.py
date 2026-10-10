@@ -102,6 +102,9 @@ def _pytest_config(root: Path) -> list[str]:
     return ["-c", os.devnull, "--rootdir", "."]
 
 
+pytest_config = _pytest_config  # the mutation run pins the configuration the same way
+
+
 def neutralize_pytest_infra(base_root: Path, head_root: Path, changes: Sequence[FileChange]) -> list[str]:
     """Make `head_root` run under the pytest infrastructure of main: each conftest/config/plugin file the PR touches is replaced
     by the one in `base_root`, or removed when main has none. Returns the paths the PR touched (empty: nothing to say)."""
