@@ -189,3 +189,56 @@ def test_a_clean_home_view_still_binds_its_folders(tmp_path):
     assert ["--bind-try", str(home / ".claude"), str(home / ".claude")] == argv[argv.index("--bind-try"):][:3]
     assert ["--ro-bind-try", str(home / ".local/bin/claude"), str(home / ".local/bin/claude")] == argv[argv.index("--ro-bind-try"):][:3]
     assert os.path.realpath(home) == str(home)
+
+
+def test_task1_oserror_on_readlink_is_converted_to_sandbox_unavailable(tmp_path, monkeypatch):
+    """#1680 task 1: OSError during _absolute_link_in walk is caught and converted to SandboxUnavailable."""
+    (tmp_path / "real").mkdir()
+    (tmp_path / "link").symlink_to("real")  # relative link
+    
+    original_readlink = os.readlink
+    
+    def broken_readlink(path):
+        # Raise FileNotFoundError on any readlink call
+        raise FileNotFoundError(f"disappeared: {path}")
+    
+    monkeypatch.setattr(os, "readlink", broken_readlink)
+    with pytest.raises(sandbox.SandboxUnavailable, match="disappeared"):
+        sandbox._absolute_link_in(tmp_path / "link")
+
+
+def test_task2_absolute_link_inside_relative_target_is_refused(tmp_path):
+    """#1680 task 2: A relative link whose target contains an absolute link is refused.
+    
+    Mutant A6: putting the target parts at the end of pending instead of the front
+    would allow the absolute link to be skipped (traversed then ignored).
+    """
+    (tmp_path / "hop").symlink_to("/tmp")  # absolute target
+    (tmp_path / "entry").symlink_to("hop/user")  # relative target pointing through the absolute link
+    with pytest.raises(sandbox.SandboxUnavailable, match="absolute target"):
+        wrap(tmp_path, sandbox.HomeView(tmp_path / "entry"), tmp_path / "state")
+
+
+def test_task3_loop_of_links_has_distinct_error_message(tmp_path):
+    """#1680 task 3: Error message for loops says 'loop of symbolic links', not 'absolute target'."""
+    (tmp_path / "a").symlink_to("b")
+    (tmp_path / "b").symlink_to("a")
+    
+    def stuck(signum, frame):
+        raise AssertionError("guard followed loop without limit")
+    
+    previous = signal.signal(signal.SIGALRM, stuck)
+    signal.alarm(10)
+    try:
+        with pytest.raises(sandbox.SandboxUnavailable, match="loop of symbolic links"):
+            wrap(tmp_path, sandbox.HomeView(tmp_path / "a" / "user"), tmp_path / "state")
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, previous)
+
+
+def test_task3_absolute_link_has_correct_error_message(tmp_path):
+    """#1680 task 3: Error message for absolute link says 'absolute target'."""
+    (tmp_path / "hop").symlink_to("/tmp")
+    with pytest.raises(sandbox.SandboxUnavailable, match="absolute target"):
+        wrap(tmp_path, sandbox.HomeView(tmp_path / "hop" / "user"), tmp_path / "state")
