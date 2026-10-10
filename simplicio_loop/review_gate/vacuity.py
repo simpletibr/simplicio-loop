@@ -5,9 +5,9 @@ A test is VACUOUS when nothing in it can fail: no `assert`, or only asserts of a
 only calls `print`. These count as something that can fail:
 - an `assert` whose test reads a name, an attribute, a call or any other non-constant (also a constant that is false);
 - a `raise` statement;
-- a call named `assert*` (`self.assertEqual`, `mock.assert_called_once`), `raises`, `warns`, `fail`, or starting with `check`,
-  `verify`, `expect`, `ensure`, `validate` (an imported helper that asserts for the test);
-- a call to a function of the same module whose body can fail (any depth).
+- a call named `assert*` (`self.assertEqual`, `mock.assert_called_once`), `raises`, `warns`, `fail`;
+- a call to a function of the same module whose body can fail (any depth): a helper named `check_x` / `validate_x` counts only
+  because its body asserts or raises, not because of its name (`validate_input(5)` alone is vacuous).
 
 A test is SKIPPED when something stops it before it runs: a `skip` / `xfail` / `expectedFailure` decorator (on the function, on
 its class, or `pytestmark` of the module), a `skipif` / `skipIf` whose condition is a true constant, or a top-level
@@ -21,7 +21,7 @@ from dataclasses import dataclass
 _SKIP_NAMES = frozenset({"skip", "xfail", "expectedFailure"})
 _COND_SKIP_NAMES = frozenset({"skipif", "skipIf", "skipUnless"})
 _FAIL_CALLS = frozenset({"raises", "warns", "fail", "deprecated_call"})
-_FAIL_PREFIXES = ("assert", "check", "verify", "expect", "ensure", "validate")
+_FAIL_PREFIXES = ("assert",)
 _CONSTANT_NODES = (ast.Constant, ast.Compare, ast.BoolOp, ast.UnaryOp, ast.Tuple, ast.List, ast.Set, ast.Dict, ast.cmpop,
                    ast.boolop, ast.unaryop, ast.expr_context)
 

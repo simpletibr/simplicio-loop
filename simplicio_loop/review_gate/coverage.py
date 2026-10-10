@@ -69,7 +69,7 @@ _GENERIC_VERBS = frozenset("""
     needs precisa precisam ter tenha haver existir exist exists usar use uses used suportar support supports
     update updates atualizar atualiza
 """.split())
-_TEST_WORDS = frozenset("test tests teste testes testar testa testado testada tested testing".split())
+_TEST_WORDS = frozenset("test tests teste testes testar testa testado testada tested testing cobertura coverage".split())
 _STOP = _STOPWORDS_PT | _STOPWORDS_EN | _GENERIC_VERBS | _TEST_WORDS
 
 _EXT = r"(?:py|pyi|md|rst|txt|json|toml|ya?ml|cfg|ini|sql|sh|js|jsx|ts|tsx|html|css|go|rs|rb|java|kt|php|cs)"
@@ -100,7 +100,8 @@ _DOC_CRITERION = re.compile(r"\b(?:docs?|adrs?|readme|changelog|documentation|do
 _DOC_SUFFIXES = (".md", ".rst", ".txt", ".toon")
 # Non-Python production, which the gate cannot run. The pytest configuration (`pyproject.toml`, `tox.ini`...) is T2 and not listed here.
 _OTHER_CODE_SUFFIXES = frozenset(
-    ".sh .bash .zsh .js .jsx .mjs .cjs .ts .tsx .yml .yaml .toml .go .rs .rb .java .kt .php .cs .c .cc .cpp .h .hpp .sql".split())
+    ".sh .bash .zsh .js .jsx .mjs .cjs .ts .tsx .yml .yaml .toml .go .rs .rb .java .kt .php .cs .c .cc .cpp .h .hpp .sql"
+    " .json .lock .csv .tsv .ndjson .xml".split())  # the last row: generated or data-only files, which prove nothing
 
 
 def criteria(issue_body: str) -> list[str]:
@@ -184,6 +185,11 @@ def check_coverage(
     if not units.runs_something():
         reasons = ("no_evidence: o PR nao altera teste nem codigo Python; so teste que roda e passa, ou codigo, prova um comportamento",
                    *reasons)
+        measured["reason_code"] = "no_evidence"
+    elif not units.has_production() and any(not _asks_for_test(text) for text in uncovered):
+        reasons = ("no_evidence: o PR so altera testes, nenhum codigo Python de producao; um teste sozinho passa no head sem que o PR "
+                   "implemente nada e so prova um criterio que pede teste", *reasons)
+        measured["reason_code"] = "no_evidence"
     if closes(pr_body, issue):
         return CheckResult("coverage", FAIL, (
             "PR parcial sem 'Parte de #' ou com palavra de fechamento",
@@ -363,6 +369,11 @@ def _path_matches(token: str, path: str) -> bool:
     return path == token or path.endswith("/" + token)
 
 
+def _asks_for_test(criterion: str) -> bool:
+    """Whether the criterion itself asks for a test (teste, testar, test, cobertura, coverage...)."""
+    return any(w in _TEST_WORDS for w in re.findall(r"[a-z]+", _strip_accents(criterion).lower()))
+
+
 class _Evidence:
     """The units of a PR (tests, production files, docs) that a criterion can be matched against."""
 
@@ -392,12 +403,15 @@ class _Evidence:
 
     def for_criterion(self, criterion: str) -> list[str]:
         """Evidence labels for the criterion; empty when it is not covered."""
-        needs_test = any(w in _TEST_WORDS for w in re.findall(r"[a-z]+", _strip_accents(criterion).lower()))
+        needs_test = _asks_for_test(criterion)
         cited = _cited_tokens(criterion)
         # documentation is evidence of a documentation criterion only; a test file with no usable test is not evidence of anything
         docs_ok = _is_doc_criterion(criterion, cited)
+        # a test is evidence of a behavior criterion only next to Python production: tests alone run green on the head, they
+        # do not show that the PR implements anything (`assert callable(add)` passes on a PR that adds nothing)
+        tests_ok = needs_test or self.has_production()
         scope = [c for c in self.changes if c.kind == "test" and c.path in self.test_files] if needs_test \
-            else [c for c in self.changes if c.kind == "code" or c.path in self.test_files or (docs_ok and c.kind == "docs")]
+            else [c for c in self.changes if c.kind == "code" or (tests_ok and c.path in self.test_files) or (docs_ok and c.kind == "docs")]
         if cited and all(self._in_diff(tok, scope) for tok in cited):
             return [f"{'path' if _is_path(tok) else 'symbol'}:{tok}" for tok in cited][:_EVIDENCE_CAP]
         prose = criterion
@@ -408,12 +422,16 @@ class _Evidence:
         if not words:
             return [f"test:{p}" for p in self.test_files][:_EVIDENCE_CAP] if needs_test else []
         need = _needed(len(words))
-        units = self.tests if needs_test else [*self.tests, *self.code, *(self.docs if docs_ok else [])]
+        units = self.tests if needs_test else [*(self.tests if tests_ok else []), *self.code, *(self.docs if docs_ok else [])]
         return [label for label, pool in units if _hits(words, pool) >= need][:_EVIDENCE_CAP]
+
+    def has_production(self) -> bool:
+        """Whether the PR adds or changes Python production."""
+        return any(c.kind == "code" and c.status in ("A", "M") for c in self.changes)
 
     def runs_something(self) -> bool:
         """Whether the PR changes a usable test or Python production (docs and non-Python files prove no behavior)."""
-        return bool(self.test_files) or any(c.kind == "code" and c.status in ("A", "M") for c in self.changes)
+        return bool(self.test_files) or self.has_production()
 
     def other_without_test(self) -> list[str]:
         """Non-Python production the PR adds or changes when it has no usable test: nothing in the gate runs or reads it."""

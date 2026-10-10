@@ -27,6 +27,7 @@ def _src(text: str) -> str:
     "assert True", "assert 1", 'assert "x"', "assert 1 == 1", "assert not False", "assert (1, 2)", "assert 'a' in 'abc'",
     "pass", "...", "print('ok')", "'''only a docstring'''", "x = 1", "assert True\n    assert 1", "foo()",
     "import os\n    print(os.name)", "assert (x, 'message')",
+    "validate_input(5)", "check_output(x)", "verify_all(x)", "expect_ok(x)", "ensure_ready(x)", "result = validate_input(5)",
 ])
 def test_a_test_that_cannot_fail_is_vacuous(body):
     (func,) = vacuity.analyze(f"def test_a():\n    {body}\n")
@@ -35,7 +36,7 @@ def test_a_test_that_cannot_fail_is_vacuous(body):
 
 @pytest.mark.parametrize("body", [
     "assert x == 1", "assert x", "assert False", "assert foo()", "assert 1 == 2", "raise AssertionError('no')", "self.assertEqual(1, x)",
-    "with pytest.raises(ValueError):\n        foo()", "pytest.fail('x')", "mock.assert_called_once()", "check_output(x)", "verify_all(x)",
+    "with pytest.raises(ValueError):\n        foo()", "pytest.fail('x')", "mock.assert_called_once()",
     "assert True\n    assert x > 0",
 ])
 def test_a_test_with_an_assertion_that_can_fail_is_not_vacuous(body):
@@ -114,6 +115,7 @@ def _cov(files, issue_body=ISSUE, pr_body=CLOSES, whole=True, issue=5):
 
 
 VACUOUS_TEST = "def test_retry_do_cliente_de_fetch_registra_log():\n    assert True\n"
+PROD = ("A", "answer = 42\n")  # Python production no criterion here is about: a test is evidence only next to production
 REAL_TEST = ("def test_retry_do_cliente_de_fetch_registra_log():\n    client = FetchClient(retries=2)\n"
              "    assert client.fetch('http://x').attempts == 2\n    assert client.log == ['retry 1', 'retry 2']\n")
 
@@ -123,7 +125,7 @@ def test_s1_a_test_whose_name_repeats_the_criterion_but_asserts_true_is_no_evide
     result = _cov({"tests/test_fetch.py": ("A", VACUOUS_TEST)}, whole=whole)
     assert result.status == FAIL and len(result.measured["uncovered"]) == 2
     assert any(r.startswith("no_evidence") for r in result.reasons)
-    assert _cov({"tests/test_fetch.py": ("A", REAL_TEST)}, whole=whole).status == PASS
+    assert _cov({"tests/test_fetch.py": ("A", REAL_TEST), "src/other.py": PROD}, whole=whole).status == PASS
 
 
 @pytest.mark.parametrize("body", ["assert 1", "assert 'x'", "pass", "...", "print('retry registra log')", "assert 1 == 1"])
@@ -136,9 +138,9 @@ def test_the_words_must_be_in_the_name_docstring_or_body_of_the_test_that_assert
     comment = "def test_algo():\n    # retry do cliente de fetch registra log\n    assert compute() == 3\n"
     assert _cov({"tests/test_x.py": ("A", comment)}).status == FAIL
     doc = 'def test_algo():\n    """o cliente de fetch faz retry e registra log do retry"""\n    assert compute() == 3\n'
-    assert _cov({"tests/test_x.py": ("A", doc)}).status == PASS
+    assert _cov({"tests/test_x.py": ("A", doc), "src/other.py": PROD}).status == PASS
     body = "def test_algo():\n    assert compute('cliente fetch retry registra log') == 3\n"
-    assert _cov({"tests/test_x.py": ("A", body)}).status == PASS
+    assert _cov({"tests/test_x.py": ("A", body), "src/other.py": PROD}).status == PASS
 
 
 def test_a_vacuous_test_next_to_a_real_one_gives_evidence_only_through_the_real_one():
@@ -146,7 +148,7 @@ def test_a_vacuous_test_next_to_a_real_one_gives_evidence_only_through_the_real_
     result = _cov({"tests/test_fetch.py": ("A", text)})
     assert result.status == FAIL
     both = REAL_TEST + "\n\n" + "def test_retry_vazio():\n    assert True\n"
-    result = _cov({"tests/test_fetch.py": ("A", both)})
+    result = _cov({"tests/test_fetch.py": ("A", both), "src/other.py": PROD})
     assert result.status == PASS
     assert all("test_retry_vazio" not in label for labels in result.measured["evidence"].values() for label in labels)
 
@@ -213,7 +215,7 @@ def test_no_evidence_also_without_an_issue_and_with_a_vacuous_test_beside_the_sc
     assert _cov(real, issue=None).status == SKIPPED
 
 
-@pytest.mark.parametrize("path", ["docs/a.md", "data/table.json", ".gitignore", "assets/logo.png", "LICENSE"])
+@pytest.mark.parametrize("path", ["docs/a.md", "data/table.dat", ".gitignore", "assets/logo.png", "LICENSE"])
 def test_files_that_are_not_production_code_are_not_no_evidence_by_themselves(path):
     assert _cov({path: ("A", "x\n")}, issue=None).status == SKIPPED
 
@@ -404,12 +406,188 @@ def test_s10_the_gate_rejects_a_doc_that_says_the_feature_exists(tmp_path):
     assert not report.approved and by["coverage"].status == FAIL and any(r.startswith("no_evidence") for r in by["coverage"].reasons)
 
 
-def test_a_tests_only_pr_with_a_real_test_that_passes_is_approved(tmp_path):
+def test_a_tests_only_pr_with_a_real_test_that_passes_is_no_evidence_of_a_behavior_criterion(tmp_path):
     text = ("from mod import add\n\n\ndef test_retry_do_cliente_de_fetch_registra_log():\n"
             "    \"\"\"o cliente de fetch faz retry e registra log do retry\"\"\"\n    assert add(1, 2) == 3\n")
     report, _ = _gate(tmp_path, {"tests/test_fetch.py": text})
     by = {c.name: c for c in report.checks}
-    assert by["redgreen"].status == PASS and by["coverage"].status == PASS and report.approved, [c.reasons for c in report.checks]
+    assert by["redgreen"].status == PASS and by["coverage"].status == FAIL and not report.approved, [c.reasons for c in report.checks]
+    assert any(r.startswith("no_evidence") for r in by["coverage"].reasons)
+
+
+# --- round 7: weak tests with the words of the criterion are no evidence when the PR implements nothing ------------------
+
+BEHAVIOR = "- [ ] adicionar retry ao cliente de fetch\n"
+WEAK = {
+    "is_not_none": "assert add(1, 2) is not None",
+    "callable": "assert callable(add)",
+    "truthy_call": "assert add(1, 2)",
+    "bare_validate_call": "validate_input(5)",
+    "hasattr": "assert hasattr(mod, 'add')",
+    "try_except_pass": "try:\n        assert add(1, 2) == 99\n    except Exception:\n        pass",
+}
+
+
+def _weak(body):
+    return f"def test_retry_do_cliente_de_fetch():\n    {body}\n"
+
+
+@pytest.mark.parametrize("whole", [True, False])
+@pytest.mark.parametrize("body", WEAK.values(), ids=WEAK.keys())
+def test_r7_weak_tests_alone_are_no_evidence_of_a_behavior_criterion(body, whole):
+    result = _cov({"tests/test_fetch.py": ("A", _weak(body))}, issue_body=BEHAVIOR, whole=whole)
+    assert result.status == FAIL and result.measured["uncovered"] == ["adicionar retry ao cliente de fetch"]
+    assert any(r.startswith("no_evidence") for r in result.reasons) and result.measured["reason_code"] == "no_evidence"
+
+
+@pytest.mark.parametrize("body", [b for k, b in WEAK.items() if k != "bare_validate_call"], ids=[k for k in WEAK if k != "bare_validate_call"])
+def test_r7_the_same_tests_count_when_the_pr_also_changes_python_production(body):
+    result = _cov({"tests/test_fetch.py": ("A", _weak(body)), "src/other.py": PROD}, issue_body=BEHAVIOR)
+    assert result.status == PASS and result.measured["evidence"]["adicionar retry ao cliente de fetch"] == [
+        "test:tests/test_fetch.py::test_retry_do_cliente_de_fetch"]
+
+
+def test_r7_a_test_alone_is_evidence_of_a_criterion_that_asks_for_a_test():
+    text = "def test_retry_do_cliente_de_fetch():\n    assert add(1, 2) == 3\n"
+    for issue in ("- [ ] adicionar testes do retry do cliente de fetch\n", "- [ ] cobertura do retry do cliente de fetch\n",
+                  "- [ ] add tests for the fetch client retry\n", "- [ ] testar o retry do cliente de fetch\n",
+                  "- [ ] fetch client retry test coverage\n"):
+        assert _cov({"tests/test_fetch.py": ("A", text)}, issue_body=issue).status == PASS, issue
+
+
+def test_r7_a_test_asking_criterion_that_the_tests_miss_is_uncovered_but_not_no_evidence():
+    result = _cov({"tests/test_other.py": ("A", "def test_math():\n    assert 1 + 1 == 2\n    assert abs(-1) == 1\n")},
+                  issue_body="- [ ] adicionar testes do retry do cliente de fetch\n")
+    assert result.status == FAIL and result.reasons[-1] == "criterio sem cobertura: adicionar testes do retry do cliente de fetch"
+    assert not any(r.startswith("no_evidence") for r in result.reasons) and "reason_code" not in result.measured
+    mixed = _cov({"tests/test_other.py": ("A", "def test_math():\n    assert 1 + 1 == 2\n")},
+                 issue_body="- [ ] adicionar testes do retry do cliente de fetch\n- [ ] o cliente de fetch faz retry\n")
+    assert mixed.measured["reason_code"] == "no_evidence" and len(mixed.measured["uncovered"]) == 2
+
+
+def test_r7_a_cited_symbol_in_a_test_alone_is_no_evidence_of_a_behavior_criterion():
+    text = "def test_x():\n    assert fetch_with_retry(1) is not None\n"
+    issue = "- [ ] `fetch_with_retry` faz retry\n"
+    assert _cov({"tests/test_x.py": ("A", text)}, issue_body=issue).status == FAIL
+    assert _cov({"tests/test_x.py": ("A", text), "src/other.py": PROD}, issue_body=issue).status == PASS
+
+
+def test_r7_a_deleted_or_non_python_file_is_not_production_for_the_test_to_stand_next_to():
+    test = ("A", _weak(WEAK["is_not_none"]))
+    assert _cov({"tests/test_fetch.py": test, "src/old.py": ("D", "")}, issue_body=BEHAVIOR).status == FAIL
+    assert _cov({"tests/test_fetch.py": test, "web/fetch.js": ("A", "export const x = 1\n")}, issue_body=BEHAVIOR).status == FAIL
+    assert _cov({"tests/test_fetch.py": test, "docs/RETRY.md": ("A", "retry cliente fetch\n")}, issue_body=BEHAVIOR).status == FAIL
+
+
+def test_r7_a_helper_of_the_module_that_asserts_still_makes_a_validate_call_a_check():
+    src = _src("""
+        def validate_input(x):
+            assert x > 0
+
+        def validate_shape(x):
+            return x
+
+        def test_a():
+            validate_input(5)
+
+        def test_b():
+            validate_shape(5)
+
+        def test_c(self):
+            self.assertEqual(1, 1)
+            self.check_it()
+
+        def test_d():
+            raise_if_bad = 1
+            validate_other(5)
+        """)
+    a, b, c, d = vacuity.analyze(src)
+    assert a.usable and b.vacuous and c.usable and d.vacuous
+
+
+def test_r7_a_helper_that_raises_is_a_check_and_one_that_only_calls_a_name_alike_is_not():
+    src = _src("""
+        def check_ready(x):
+            if not x:
+                raise ValueError(x)
+
+        def ensure_chain(x):
+            check_ready(x)
+
+        def verify_nothing(x):
+            return x
+
+        def test_a():
+            check_ready(1)
+
+        def test_b():
+            ensure_chain(1)
+
+        def test_c():
+            verify_nothing(1)
+        """)
+    a, b, c = vacuity.analyze(src)
+    assert a.usable and b.usable and c.vacuous
+
+
+@pytest.mark.parametrize("path", ["data/table.json", "poetry.lock", "package-lock.json", "data/rows.csv", "data/rows.tsv",
+                                  "data/events.ndjson", "config/app.xml"])
+@pytest.mark.parametrize("issue_body", [ISSUE, ""])
+def test_r7_a_pr_of_generated_or_data_files_only_is_no_evidence_with_or_without_a_checklist(path, issue_body):
+    result = _cov({path: ("A", "x\n")}, issue_body=issue_body)
+    assert result.status == FAIL and result.reasons[0].startswith("no_evidence") and result.measured["other"] == [path]
+
+
+def test_r7_a_data_file_next_to_a_real_test_and_production_is_still_covered():
+    files = {"src/fetch_client.py": ("A", "class FetchClient:\n    def fetch_retry(self, retries):\n        return retries\n"),
+             "tests/test_fetch.py": ("A", REAL_TEST), "tests/data/fixture.json": ("A", '{"url": "http://x"}\n')}
+    assert _cov(files).status == PASS
+    assert _cov({"tests/test_fetch.py": ("A", REAL_TEST), "src/other.py": PROD, "tests/data/fixture.json": ("A", "{}\n")}).status == PASS
+
+
+def test_r7_a_deleted_data_file_is_not_added_production():
+    assert _cov({"data/old.json": ("D", "")}, issue=None).status == SKIPPED
+
+
+def test_r7_documentation_is_no_evidence_for_a_behavior_criterion_through_a_cited_token_either():
+    docs = {"docs/retry_policy.md": ("A", "# retry_policy\n\nO cliente de fetch usa `retry_policy`.\n")}
+    for issue in ("- [ ] o cliente de fetch usa `retry_policy`\n", "- [ ] o cliente de fetch usa retry_policy\n",
+                  "- [ ] o cliente de fetch usa `retry_policy` e `fetch_client`\n"):
+        result = _cov(docs, issue_body=issue)
+        assert result.status == FAIL and result.measured["uncovered"], issue
+    doc_ask = "- [ ] documentar `retry_policy` em `docs/retry_policy.md`\n"
+    assert _cov(docs, issue_body=doc_ask).status == PASS
+
+
+def test_r7_documentation_next_to_production_is_still_no_evidence_for_a_cited_symbol_only_the_docs_have():
+    files = {"src/other.py": PROD, "docs/retry_policy.md": ("A", "O cliente usa `retry_policy`.\n")}
+    assert _cov(files, issue_body="- [ ] o cliente de fetch usa `retry_policy`\n").status == FAIL
+
+
+def test_r7_the_gate_hands_the_whole_text_of_the_test_files_to_coverage(tmp_path, monkeypatch):
+    seen: dict = {}
+    real = coverage.check_coverage
+
+    def spy(*args, **kwargs):
+        seen["sources"] = kwargs.get("sources", args[5] if len(args) > 5 else None)
+        return real(*args, **kwargs)
+
+    for module, name in ((redgreen, "check_redgreen"), (gate.mutation, "check_mutation"), (gate.usage, "check_usage"), (gate.docs, "check_docs")):
+        monkeypatch.setattr(module, name, lambda *_a, _name=name, **_k: gate.CheckResult(_name, PASS))
+    monkeypatch.setattr(coverage, "check_coverage", spy)
+    text = "from mod import add\n\n\ndef test_a():\n    assert add(1, 2) == 3\n\n\ndef test_b():\n    assert add(2, 2) == 4\n"
+    _gate(tmp_path, {"tests/test_add.py": text, "docs/NOTES.md": "# n\n"}, issue_body="")
+    assert seen["sources"] == {"tests/test_add.py": text}
+
+
+def test_r7_the_gate_rejects_weak_tests_alone_and_approves_production_with_a_data_fixture(tmp_path):
+    weak = "import mod\n\n\ndef test_retry_do_cliente_de_fetch():\n    assert hasattr(mod, 'add')\n"
+    report, _ = _gate(tmp_path / "weak", {"tests/test_fetch.py": weak}, issue_body=BEHAVIOR)
+    by = {c.name: c for c in report.checks}
+    assert not report.approved and by["coverage"].status == FAIL
+    head = {**scenario.HEADS["good"], "tests/data/fixture.json": '{"low": 0, "high": 10}\n'}
+    good, _ = _gate(tmp_path / "good", head, issue_body="- [ ] clamp limita o valor entre low e high\n")
+    assert good.approved, [(c.name, c.reasons) for c in good.checks]
 
 
 def test_a_docs_only_pr_without_a_checklist_stays_approved(tmp_path):
