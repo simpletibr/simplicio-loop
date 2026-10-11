@@ -26,6 +26,9 @@ KILL_GRACE_SEC = 3.0
 # A request over the input ceiling is replaced by a handoff and a new run; this many continuations is the most a chain
 # may write before the task goes to a human (#1608).
 MAX_CONTINUATIONS = 5
+# The handoff schema's maxLength for ``objective`` (simplicio_loop/_contracts/agent-handoff/v1). The default writer keeps
+# the task in it whole or not at all.
+OBJECTIVE_MAX_CHARS = 2000
 
 # opencode's built-in `plan` agent denies edits but allows bash and webfetch. This config is written to a temp file and
 # passed through OPENCODE_CONFIG so the planner cannot run commands or fetch URLs.
@@ -495,13 +498,17 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
 
 
 def default_handoff(ctx):
-    """The handoff written without a model: the head of the task, the contract, no changed files. A model-written
+    """The handoff written without a model: the whole task as the objective, the contract, no changed files. A model-written
     checkpoint is the intended writer; this one keeps the chain working on hosts that have none.
 
-    ``ctx`` holds run_id, task_id, continuation, family, role, model, lease, prompt, ceiling, tokens (the projected prompt
-    that was refused), cumulative (prompt tokens sent by the chain: always 0 here) and created_at.
+    ``ctx`` holds run_id, task_id, continuation, family, role, model, lease, prompt (the task, the same for the whole
+    chain), ceiling, tokens (the projected prompt that was refused), cumulative (prompt tokens sent by the chain: always
+    0 here) and created_at. A task longer than the objective limit is never cut: it raises ``handoff_would_truncate_the_task``.
     """
-    objective = " ".join(ctx["prompt"].split())[:1000] or "continue the planning task"
+    objective = ctx["prompt"]
+    if len(objective) > OBJECTIVE_MAX_CHARS:
+        raise HandoffError("handoff_would_truncate_the_task", "the task is %d characters and the handoff objective holds "
+                                                              "%d; the task is not cut" % (len(objective), OBJECTIVE_MAX_CHARS))
     return {
         "schema": "simplicio.agent-handoff/v1",
         "run_id": ctx["run_id"],
@@ -538,7 +545,7 @@ async def _run_chain(family, role, prompt, opts, *, repo_root, handoff_writer, r
     lease = {"key": "exec-planner:%s" % role, "owner": run_id}
     chain_id = "%s-%s" % (run_id, family)
     continuations = 0
-    current = prompt
+    current = prompt  # the request to send: the task first, then each handoff
     while True:
         result = await run_planner(family, role, current, repo_root=repo_root, **opts)
         if result.reason_code != "input_ceiling_exceeded":
@@ -550,7 +557,8 @@ async def _run_chain(family, role, prompt, opts, *, repo_root, handoff_writer, r
         continuations += 1
         ctx = {
             "run_id": chain_id, "task_id": "exec-planner:%s" % role, "continuation": continuations,
-            "family": family, "role": role, "model": result.model, "lease": lease, "prompt": current,
+            "family": family, "role": role, "model": result.model, "lease": lease,
+            "prompt": prompt,  # the original task for the whole chain: ``current`` is a handoff after the first refusal
             "ceiling": input_ceiling.resolve_ceiling(repo_root),
             "tokens": input_ceiling.Projection.estimated(PLAN_ONLY_PREAMBLE + current).tokens,
             "cumulative": 0,  # no request of this chain was sent: a refused request is never sent
@@ -558,8 +566,8 @@ async def _run_chain(family, role, prompt, opts, *, repo_root, handoff_writer, r
         }
         try:
             clean, _redacted, _rel = handoff_cli.store(repo_root, handoff_writer(ctx))
-        except HandoffError as e:
-            return _needs_human(result, "%s: %s" % (e.reason_code, e), continuations - 1)
+        except HandoffError as e:  # the writer refused (the task does not fit) or the handoff is invalid: nothing was sent
+            return _needs_human(result, str(e), continuations - 1)
         current = CONTINUATION_PREFIX + json.dumps(clean, ensure_ascii=False, sort_keys=True, indent=2)
 
 

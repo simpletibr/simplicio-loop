@@ -127,8 +127,13 @@ def test_the_fallback_passes_the_repo_root_to_every_family(repo, monkeypatch):
     monkeypatch.setattr("simplicio_loop.exec_planner._find_cli", lambda x: f"/usr/bin/{x}")
     monkeypatch.setenv(ENV_NAME, "1000")
 
+    # A task this long does not fit the default handoff's objective (needs_human); a model-style checkpoint stands in.
+    def checkpoint(ctx):
+        return exec_planner.default_handoff({**ctx, "prompt": "checkpoint"})
+
     result = asyncio.run(exec_planner.run_planner_with_fallback(
-        "coordination", "word " * 5000, cwd=str(repo), families=["claude", "codex"], repo_root=repo, run_id="run-f"))
+        "coordination", "word " * 5000, cwd=str(repo), families=["claude", "codex"], repo_root=repo, run_id="run-f",
+        handoff_writer=checkpoint))
     # The 1000 ceiling of the repo applies to each family: each one's first request is refused, a handoff is stored
     # under its own run, and the continuation is the only request each family sends. Codex takes its prompt on stdin.
     assert len(calls) == 2
