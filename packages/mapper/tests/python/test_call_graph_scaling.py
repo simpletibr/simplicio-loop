@@ -35,6 +35,7 @@ from simplicio_mapper.relations import relation_coverage  # noqa: E402
 from simplicio_mapper.semantic_resolution import COMMAND_ENV, RoslynSemanticAdapter  # noqa: E402
 
 WALL_CEILING_S = 120.0
+WALL_CEILING_200K_S = 15.0
 LIMIT_ENV = "SIMPLICIO_MAPPER_CALL_NAME_CANDIDATE_LIMIT"
 TS = "2026-01-01T00:00:00Z"
 # Passes over ``files`` that one ``_build_call_graph`` makes: a small constant, whatever the repo holds
@@ -123,6 +124,21 @@ class FilePassesDoNotGrowWithCallsTests(EnvCase):
         self.assertLessEqual(big_passes, MAX_FILE_PASSES)
         self.assertEqual(graph["coverage"]["name_edges_discarded"], 0)
         self.assertEqual(graph["semantic_resolution"]["status"], "unavailable")
+
+    def test_200000_call_sites_over_2000_files_finish_within_the_wall_ceiling(self) -> None:
+        """2000 files x 100 calls = 200,008 call sites (#1631). Measured on the dev runner: `_build_call_graph`
+        took 4.92 s (single run, `pytest -k 200000`, elapsed around the build only). The ceiling is 3x that,
+        14.75 s, rounded up to 15 s. Above 60 s the profile would have to go in the PR body; it is not (UNVERIFIED
+        on other hardware)."""
+        files, contents = synthetic_repo(2000, calls_per_file=100)
+        index = _build_symbol_index(".", files, TS, contents)
+        started = time.perf_counter()
+        graph = _build_call_graph(".", files, index, TS, contents, edge_limit=10**7)
+        elapsed = time.perf_counter() - started
+        calls = sum(1 for edge in graph["edges"] if edge["type"] == "calls")
+        self.assertGreaterEqual(calls, 200000)
+        self.assertEqual(graph["coverage"]["name_edges_discarded"], 0)
+        self.assertLess(elapsed, WALL_CEILING_200K_S, f"{calls} call sites took {elapsed:.1f}s")
 
 
 def _shared_repo(definitions: int, callers: int) -> tuple[list[ProjectFile], dict[str, str]]:
