@@ -40,8 +40,9 @@ from .input_ceiling import (
     InputCeilingExceeded,
     PromptUsage,
     Projection,
+    describe,
     enforce_budget,
-    resolve_ceiling,
+    explain_ceiling,
 )
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -179,13 +180,14 @@ def _gate_input(messages: Sequence[Mapping[str, Any]], response_format: Mapping[
     if response_format:
         prompt += json.dumps(dict(response_format), ensure_ascii=False, default=str)
     try:
-        ceiling = resolve_ceiling(Path.cwd() if repo_root is None else repo_root)
-        enforce_budget(Projection.estimated(prompt), ceiling)
+        ceiling = explain_ceiling(Path.cwd() if repo_root is None else repo_root)
+        enforce_budget(Projection.estimated(prompt), ceiling.value)
     except CeilingConfigError as exc:
         raise TurboProviderError(exc.reason_code, str(exc)) from exc
     except InputCeilingExceeded as exc:
         raise TurboProviderError(
-            exc.reason_code, f"{exc}; the request was not sent, split the task or hand off to a fresh agent") from exc
+            exc.reason_code,
+            f"{exc}; {describe(ceiling)}; the request was not sent, split the task or hand off to a fresh agent") from exc
 
 
 async def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, session_id: str,

@@ -62,7 +62,8 @@ class PlannerResult:
     """Result of running a planner via CLI exec."""
 
     def __init__(self, reason_code, family, role, model, effort, plan=None, error=None, execution_ms=0.0, raw=None,
-                 structured=("", ""), violations=(), surface=("", ""), continuations=0):
+                 structured=("", ""), violations=(), surface=("", ""), continuations=0,
+                 ceiling=("", "")):
         self.reason_code = reason_code
         self.continuations = continuations  # handoffs written before this result; each one started a new run (#1608)
         self.family = family
@@ -76,6 +77,7 @@ class PlannerResult:
         self.structured_output, self.structured_reason = structured  # what the argv asked of the CLI; ("", "") when none ran
         self.tool_surface, self.tool_surface_reason = surface  # the tools the argv left the run; ("", "") when none ran
         self.violations = list(violations)  # why plan_scope refused the answer (reason_code bad_plan), else empty
+        self.ceiling_source, self.ceiling_reason = ceiling  # the input ceiling and why it is the built-in one; ("", "") when none was read
 
     def is_ok(self):
         return self.reason_code == "ok"
@@ -96,6 +98,8 @@ class PlannerResult:
             "tool_surface": self.tool_surface,
             "tool_surface_reason": self.tool_surface_reason,
             "continuations": self.continuations,
+            "ceiling_source": self.ceiling_source,
+            "ceiling_reason": self.ceiling_reason,
         }
 
 
@@ -396,9 +400,9 @@ def _extract_plan_json(output, scope=None, root=None):
 
 
 def _result(code, family, role, model, effort, started, plan=None, error=None, raw=None, structured=("", ""), violations=(),
-            surface=("", "")):
+            surface=("", ""), ceiling=("", "")):
     return PlannerResult(code, family, role, model, effort, plan=plan, error=error, execution_ms=(time.monotonic() - started) * 1000,
-                         raw=raw, structured=structured, violations=violations, surface=surface)
+                         raw=raw, structured=structured, violations=violations, surface=surface, ceiling=ceiling)
 
 
 def _temp_file(prefix, text, directory):
@@ -437,13 +441,14 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
         return _result("cli_missing", family, role, model, effort, started, error=f"CLI '{family}' not found")
 
     try:
-        ceiling = input_ceiling.resolve_ceiling(repo_root)
+        ceiling = input_ceiling.explain_ceiling(repo_root)
         projection = input_ceiling.Projection.estimated(PLAN_ONLY_PREAMBLE + prompt)
-        input_ceiling.enforce_budget(projection, ceiling)
+        input_ceiling.enforce_budget(projection, ceiling.value)
     except input_ceiling.CeilingConfigError as e:
-        return _result("ceiling_invalid", family, role, model, effort, started, error=str(e))
+        return _result("ceiling_invalid", family, role, model, effort, started, error=str(e), ceiling=("invalid", str(e)))
     except input_ceiling.InputCeilingExceeded:
-        return _result("input_ceiling_exceeded", family, role, model, effort, started, error="prompt exceeds ceiling")
+        return _result("input_ceiling_exceeded", family, role, model, effort, started,
+                       error=f"prompt exceeds {input_ceiling.describe(ceiling)}", ceiling=(ceiling.source, ceiling.reason))
 
     full_prompt = PLAN_ONLY_PREAMBLE + prompt
     temp_files = []
@@ -559,7 +564,7 @@ async def _run_chain(family, role, prompt, opts, *, repo_root, handoff_writer, r
             "run_id": chain_id, "task_id": "exec-planner:%s" % role, "continuation": continuations,
             "family": family, "role": role, "model": result.model, "lease": lease,
             "prompt": prompt,  # the original task for the whole chain: ``current`` is a handoff after the first refusal
-            "ceiling": input_ceiling.resolve_ceiling(repo_root),
+            "ceiling": input_ceiling.explain_ceiling(repo_root).value,
             "tokens": input_ceiling.Projection.estimated(PLAN_ONLY_PREAMBLE + current).tokens,
             "cumulative": 0,  # no request of this chain was sent: a refused request is never sent
             "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),

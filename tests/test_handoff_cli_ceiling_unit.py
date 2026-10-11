@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from simplicio_loop import cli_impl, handoff_cli
+from simplicio_loop import cli_impl, handoff_cli, input_ceiling
 from simplicio_loop.input_ceiling import CeilingConfigError, DEFAULT_CEILING, ENV_NAME, TOML_KEY
 
 GIT = ["git", "-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false"]
@@ -140,12 +140,31 @@ def test_the_environment_wins_and_needs_no_git(tmp_path, capsys, monkeypatch):
     assert out["ceiling"] == 1000 and out["status"] == "handoff" and code == 3
 
 
-def test_without_a_default_branch_and_without_env_it_fails_loud(tmp_path, capsys):
+def test_without_a_default_branch_check_uses_the_built_in_default_and_reports_why(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(input_ceiling, "_warned", False)
     plain = tmp_path / "plain"
     git(tmp_path, "init", "-b", "main", str(plain))
     code, out, err = check(capsys, plain, 10)
-    assert code == 2 and out is None
-    assert json.loads(err)["reason_code"] == "default_branch_unresolved"
+    assert code == 0 and out["status"] == "ok"
+    assert out["ceiling"] == DEFAULT_CEILING and out["ceiling_source"] == "built-in default"
+    assert "default_branch_unresolved" in out["ceiling_reason"] and "origin/HEAD" in out["ceiling_reason"]
+    assert "built-in default" in err
+
+
+def test_check_and_resolve_ceiling_give_the_same_answer_without_a_default_branch(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(input_ceiling, "_warned", False)
+    plain = tmp_path / "plain"
+    git(tmp_path, "init", "-b", "main", str(plain))
+    got = input_ceiling.explain_ceiling(plain, environ={})
+    out = check(capsys, plain, 10)[1]
+    assert (out["ceiling"], out["ceiling_source"], out["ceiling_reason"]) == got
+
+
+def test_check_and_resolve_ceiling_give_the_same_answer_for_the_default_branch(tmp_path, capsys):
+    clone = make_clone(tmp_path, "%s = 50000\n" % TOML_KEY)
+    got = input_ceiling.explain_ceiling(clone, environ={})
+    out = check(capsys, clone, 10)[1]
+    assert (out["ceiling"], out["ceiling_source"], out["ceiling_reason"]) == got == (50_000, "default branch", "")
 
 
 # --- check: the projection of the NEXT request --------------------------------------------------------------------------
