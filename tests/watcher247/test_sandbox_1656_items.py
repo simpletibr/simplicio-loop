@@ -64,6 +64,21 @@ def test_git_env_is_added_to_the_service_env_and_never_replaces_it(tmp_path):
     assert seen["GIT_WORK_TREE"] == str(item)
 
 
+def test_git_env_is_added_to_the_inherited_service_env_when_no_env_is_passed(tmp_path, monkeypatch):
+    """Q08 (#1656 item 4): with no env argument (the call shape of tick.py and worktrees.py) git still gets the service env."""
+    item = tmp_path / "work" / "demo.wt" / "31"
+    item.mkdir(parents=True)
+    bin_dir = _fake_git(tmp_path)
+    monkeypatch.setenv("PATH", f"{bin_dir}:{os.environ['PATH']}")
+    monkeypatch.setenv("HOME", "/service/home")
+    monkeypatch.setenv("GH_TOKEN", "token-for-the-test")
+
+    seen = _env_lines(asyncio.run(proc.run(["git", "push"], cwd=item)).stdout)
+
+    assert seen["HOME"] == "/service/home" and seen["GH_TOKEN"] == "token-for-the-test" and seen["PATH"] == os.environ["PATH"]
+    assert seen["GIT_WORK_TREE"] == str(item)
+
+
 @pytest.mark.xfail(strict=True, reason=(
     "#1656 item 3, parte do sandbox: sandbox.worktree_binds (arquivo protegido) liga objects/ como leitura e escrita para todo item, "
     "entao um item ainda consegue apagar um .idx de pack. O dano agora e curado no host: worktrees._update_base detecta a base "
