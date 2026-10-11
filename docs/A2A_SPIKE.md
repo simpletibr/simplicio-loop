@@ -90,7 +90,7 @@ teste plantado em `payload` nunca aparece na resposta.
 | Autenticação | Token próprio no socket | Basic auth com chave pública e secreta por ambiente |
 | Dados | Status de run e lanes | Traces, generations, scores de gate |
 | Reuso | Guard e leituras do dashboard | Dashboard integrado ao Langfuse (decisão do dono) |
-| Dependência | Nenhuma nova | Extra opcional `[langfuse]` |
+| Dependência | Nenhuma nova | Nenhuma nova (stdlib); opcional, desligado por padrão |
 
 Fontes do lado Langfuse: [docs OpenTelemetry](https://langfuse.com/docs/opentelemetry) (endpoint
 `/api/public/otel`, Basic auth, sem gRPC). A recomendação de usar o SDK Python em vez do OTel puro vem
