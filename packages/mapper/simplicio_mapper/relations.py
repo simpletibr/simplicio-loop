@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
+from json.encoder import encode_basestring
 from typing import Any
 
 CALL_GRAPH_RELATION_EVIDENCE = (
@@ -62,12 +63,36 @@ def relation_identity(edge: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _identity_json(value: object) -> str:
+    if type(value) is str:
+        return encode_basestring(value)
+    if type(value) is int:
+        return int.__repr__(value)
+    if value is None:
+        return "null"
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _identity_candidates_json(candidates: object) -> str:
+    if type(candidates) is list:
+        return "[" + ",".join(_identity_json(item) for item in candidates) + "]"
+    return _identity_json(candidates)
+
+
 def relation_id(edge: Mapping[str, Any]) -> str:
     """Create a deterministic identity for a canonical relation."""
-    encoded = json.dumps(
-        relation_identity(edge), sort_keys=True, separators=(",", ":"), ensure_ascii=False
-    ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
+    text = (
+        '{"import":' + _identity_json(edge.get("import"))
+        + ',"line":' + _identity_json(edge.get("line"))
+        + ',"source_file":' + _identity_json(normalize_relation_path(edge.get("source_file")))
+        + ',"source_symbol":' + _identity_json(edge.get("source_symbol"))
+        + ',"target_candidates":' + _identity_candidates_json(edge.get("target_candidates", []))
+        + ',"target_file":' + _identity_json(normalize_relation_path(edge.get("target_file")))
+        + ',"target_symbol":' + _identity_json(edge.get("target_symbol"))
+        + ',"type":' + _identity_json(edge.get("type"))
+        + "}"
+    )
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def canonicalize_relation(
