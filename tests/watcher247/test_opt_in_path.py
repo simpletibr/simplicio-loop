@@ -98,12 +98,16 @@ def _repo_with_tracked_config(tmp_path):
 def test_a_plan_cannot_change_the_config_through_the_pr(tmp_path):
     git = _repo_with_tracked_config(tmp_path)
     (tmp_path / ".simplicio-loop" / "loop.toml").write_text('enabled = true\nverify = "true"\nallowed_authors = ["x"]\n')
-    assert asyncio.run(tick.dirty(tmp_path)) is False  # only loop state changed: no diff, no PR
+    assert asyncio.run(tick.dirty(tmp_path)) is True  # the opt-in is protected (#1567): its edit is a change
+    git("add", "-A")
+    git("reset", "-q", "--", ".simplicio-loop")  # what commit_and_pr does before it commits
+    staged = subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=tmp_path, capture_output=True, text=True, check=True)
+    assert staged.stdout.split() == []  # the reset keeps it out of the commit: only loop state changed, no PR
     (tmp_path / "a.py").write_text("x = 2\n")
     assert asyncio.run(tick.dirty(tmp_path)) is True
     git("add", "-A")
-    git("reset", "-q", "--", ".simplicio-loop")  # what commit_and_pr does before it commits
-    staged = subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=tmp_path, capture_output=True, text=True)
+    git("reset", "-q", "--", ".simplicio-loop")
+    staged = subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=tmp_path, capture_output=True, text=True, check=True)
     assert staged.stdout.split() == ["a.py"]
 
 

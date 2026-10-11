@@ -74,11 +74,12 @@ def task_text(repo: str, issue: dict, fix: str = "", retry: str = "") -> str:
 
 
 async def dirty(dest: Path) -> bool:
-    """True when the worktree has changes beyond the loop state dirs and .gitignore."""
+    """True when the worktree has changes beyond the loop's scratch files and .gitignore. The opt-in (loop.toml) is
+    protected (#1567), so a change to it counts even though it lives in the state dir."""
     result = await proc.run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=dest)
     for line in result.stdout.splitlines():
         path = line[3:] if len(line) > 3 else line
-        if path.startswith(_STATE_DIRS) or path == ".gitignore":
+        if (path.startswith(_STATE_DIRS) and path != intake_gate.CONFIG_PATH) or path == ".gitignore":
             continue
         return True
     return False

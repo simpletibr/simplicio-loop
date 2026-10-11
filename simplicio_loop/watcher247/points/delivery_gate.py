@@ -4,12 +4,14 @@ It combines what the earlier stages already decided, and runs none of it again:
 * verify green: the label ``verify.decide`` gave (``ctx.verify``). No label, a failed one or an unknown one blocks;
   ``UNVERIFIED|no_test_command`` is what decide lets through (the repo has no tests), and is flagged in the evidence;
 * judge ACCEPT and a clean secret scan: the verdict ``judge`` saved in ``<run_dir>/judge.json``;
+* no protected path (``plan_paths``, #1567) among the files judge saw: the PR is never delivered automatically;
 * a non-empty ``Parte de #N``: the closing line the PR body carries, which needs the issue number.
 Every failure is listed; the first is the reason_code.
 An empty diff (judge saved NO_DIFF) is skipped: the tick ends it as done_no_diff and opens no PR.
 """
 import json
 
+from ... import plan_paths
 from .. import verify
 from .judge import ACCEPT, NO_DIFF, VERDICT_FILE
 from .registry import PointContext, PointResult, register
@@ -53,6 +55,10 @@ async def gate(ctx: PointContext) -> PointResult:
         evidence["judge"] = saved.get("verdict")
         if saved.get("verdict") != ACCEPT:
             failures.append("judge_rejected")
+        touched = [path for path in saved.get("files") or [] if isinstance(path, str) and plan_paths.protected_refusal(path)]
+        if touched:
+            evidence["protected_path"] = touched
+            failures.append("protected_path")
         secrets = saved.get("secret_files")
         if not isinstance(secrets, list):
             failures.append("secret_scan_missing")

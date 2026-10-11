@@ -232,7 +232,7 @@ SUPPORTED_FAMILIES = tuple(_ARGV_BUILDERS)
 # Quota, rate-limit and auth terms, matched case-insensitively in stderr and stdout. The quota list follows the
 # capacity terms in packages/dev-cli/simplicio/providers.py. None of these strings is verified against CLI output.
 _QUOTA_TERMS = ("quota", "insufficient_quota", "credit balance", "billing", "usage limit")
-_RATE_TERMS = ("rate limit", "rate_limit", "too many requests")
+_RATE_TERMS = ("rate limit", "rate_limit", "too many requests", "too quickly", "slow down", "resource has been exhausted")  # the last three are grok's words (measured 2026-10-10)
 _AUTH_TERMS = ("auth", "unauthorized", "not logged in", "log in", "login", "api key")
 
 
