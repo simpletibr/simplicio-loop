@@ -18,7 +18,7 @@ import subprocess
 from bisect import bisect_right
 
 from ..models import ProjectFile
-from ..relations import relation_coverage, relation_id
+from ..relations import normalize_relation_path, relation_coverage, relation_id
 from ..semantic_resolution import (
     COMMAND_ENV,
     TIMEOUT_ENV,
@@ -686,6 +686,67 @@ def resolve_csharp_razor_semantics(
     return semantic_resolution, semantic_by_site
 
 
+def _import_edge(site: tuple, position: int) -> dict:
+    _, file_path, imported, candidates, evidence_class = site
+    edge = {
+        "type": "imports",
+        "source_file": file_path,
+        "target_file": candidates[position],
+        "import": imported,
+        "evidence_class": evidence_class,
+        "resolution_status": "resolved" if len(candidates) == 1 else "ambiguous",
+        "target_candidates": candidates,
+        "provenance": {
+            "method": "import-resolution",
+            "import": imported,
+            "candidate_count": len(candidates),
+            "candidates": candidates,
+        },
+        "confidence": None,
+    }
+    edge["relation_id"] = relation_id(edge)
+    return edge
+
+
+def _call_edge(site: tuple, position: int, semantic_resolution: dict) -> dict:
+    (
+        _, file_path, line, name, caller, targets, observed, target_candidates,
+        is_semantic, is_csharp, evidence_class, resolution_status,
+    ) = site
+    candidate = targets[position]
+    provenance = {
+        "method": "roslyn-semantic-service" if is_semantic else "semantic-service-fallback" if is_csharp else "symbol-name-lookup",
+        "queried_symbol": name,
+        "candidate_count": observed,
+        "candidates": target_candidates,
+        "caller_resolution": "lexical_nearest" if caller else "unknown",
+    }
+    if is_semantic:
+        provenance.update({
+            "provider": semantic_resolution.get("providers", [None])[0],
+            "provider_version": semantic_resolution.get("provider_versions", [None])[0],
+            "semantic_symbol_id": candidate.get("symbol_id") or candidate.get("qualified_name"),
+            "overload_signature": candidate.get("signature"),
+        })
+    else:
+        provenance["fallback_reason"] = semantic_resolution.get("reasons", []) if is_csharp else None
+    edge = {
+        "type": "calls",
+        "source_file": file_path,
+        "source_symbol": caller["qualified_name"] if caller else None,
+        "target_file": candidate["defined_in"],
+        "target_symbol": candidate.get("symbol_id") or candidate["qualified_name"],
+        "line": line,
+        "target_candidates": target_candidates,
+        "evidence_class": evidence_class,
+        "resolution_status": resolution_status,
+        "provenance": provenance,
+        "confidence": None,
+    }
+    edge["relation_id"] = relation_id(edge)
+    return edge
+
+
 def _build_call_graph(
     cwd: str,
     files: list[ProjectFile],
@@ -777,23 +838,20 @@ def _build_call_graph(
                 return matches[0]
         return None
 
-    edges: list[dict] = []
     unresolved: list[dict] = []
-    seen: set[str] = set()
+    seen_identities: set[tuple] = set()
+    edge_sites: list[tuple] = []
+    edge_records: list[tuple] = []
     name_limit = _call_name_candidate_limit(name_candidate_limit)
     capped_by_name: dict[str, tuple[list[dict], int, list[str]]] = {}
     name_capped_sites = 0
     name_edges_discarded = 0
 
-    def add_edge(edge: dict) -> None:
-        if not edge.get("target_file") or edge.get("resolution_status") in {None, "unknown"}:
+    def add_edge(identity: tuple, sort_fields: tuple, site_index: int, position: int) -> None:
+        if not sort_fields[1] or identity in seen_identities:
             return
-        edge["relation_id"] = relation_id(edge)
-        key = edge["relation_id"]
-        if key in seen:
-            return
-        seen.add(key)
-        edges.append(edge)
+        seen_identities.add(identity)
+        edge_records.append((*sort_fields, site_index, position))
 
     for file in files:
         for imported in file.imports:
@@ -807,25 +865,19 @@ def _build_call_graph(
                     "kind": "import",
                 })
                 continue
-            for target in candidates:
+            site_index = len(edge_sites)
+            edge_sites.append(("imports", file.path, imported, candidates, evidence_class))
+            source = normalize_relation_path(file.path)
+            candidate_identities = tuple(candidates)
+            for position, target in enumerate(candidates):
                 if target == file.path:
                     continue
-                add_edge({
-                    "type": "imports",
-                    "source_file": file.path,
-                    "target_file": target,
-                    "import": imported,
-                    "evidence_class": evidence_class,
-                    "resolution_status": "resolved" if len(candidates) == 1 else "ambiguous",
-                    "target_candidates": candidates,
-                    "provenance": {
-                        "method": "import-resolution",
-                        "import": imported,
-                        "candidate_count": len(candidates),
-                        "candidates": candidates,
-                    },
-                    "confidence": None,
-                })
+                add_edge(
+                    ("imports", source, None, normalize_relation_path(target), None, imported, None, candidate_identities),
+                    (file.path, target, "imports", imported or "", 0),
+                    site_index,
+                    position,
+                )
 
     for call_site in call_sites:
         file = file_by_path[call_site["source_file"]]
@@ -865,57 +917,57 @@ def _build_call_graph(
             symbols_by_file=symbols_by_file,
             symbol_lines_by_file=symbol_lines_by_file,
         )
-        for candidate in targets:
+        evidence_class = "semantic_resolved" if is_semantic else (
+            "heuristic" if is_csharp else "lexical_unique" if observed == 1 else "lexical_ambiguous"
+        )
+        resolution_status = "resolved" if is_semantic else (
+            "inferred" if is_csharp and observed == 1 else "resolved" if observed == 1 else "ambiguous"
+        )
+        site_index = len(edge_sites)
+        edge_sites.append((
+            "calls", file.path, line, name, caller, targets, observed, target_candidates,
+            is_semantic, is_csharp, evidence_class, resolution_status,
+        ))
+        source = normalize_relation_path(file.path)
+        source_symbol = caller["qualified_name"] if caller else None
+        identity_candidates = tuple(target_candidates)
+        for position, candidate in enumerate(targets):
             if candidate["defined_in"] == file.path and candidate["line"] == line:
                 continue
-            evidence_class = "semantic_resolved" if is_semantic else (
-                "heuristic" if is_csharp else "lexical_unique" if observed == 1 else "lexical_ambiguous"
+            target_symbol = candidate.get("symbol_id") or candidate["qualified_name"]
+            add_edge(
+                ("calls", source, source_symbol, normalize_relation_path(candidate["defined_in"]), target_symbol, None, line, identity_candidates),
+                (file.path, candidate["defined_in"], "calls", target_symbol or "", line or 0),
+                site_index,
+                position,
             )
-            resolution_status = "resolved" if is_semantic else (
-                "inferred" if is_csharp and observed == 1 else "resolved" if observed == 1 else "ambiguous"
-            )
-            provenance = {
-                "method": "roslyn-semantic-service" if is_semantic else "semantic-service-fallback" if is_csharp else "symbol-name-lookup",
-                "queried_symbol": name,
-                "candidate_count": observed,
-                "candidates": target_candidates,
-                "caller_resolution": "lexical_nearest" if caller else "unknown",
-            }
-            if is_semantic:
-                provenance.update({
-                    "provider": semantic_resolution.get("providers", [None])[0],
-                    "provider_version": semantic_resolution.get("provider_versions", [None])[0],
-                    "semantic_symbol_id": candidate.get("symbol_id") or candidate.get("qualified_name"),
-                    "overload_signature": candidate.get("signature"),
-                })
-            else:
-                provenance["fallback_reason"] = semantic_resolution.get("reasons", []) if is_csharp else None
-            add_edge({
-                "type": "calls",
-                "source_file": file.path,
-                "source_symbol": caller["qualified_name"] if caller else None,
-                "target_file": candidate["defined_in"],
-                "target_symbol": candidate.get("symbol_id") or candidate["qualified_name"],
-                "line": line,
-                "target_candidates": target_candidates,
-                "evidence_class": evidence_class,
-                "resolution_status": resolution_status,
-                "provenance": provenance,
-                "confidence": None,
-            })
 
     symbol_index["semantic_resolution"] = semantic_resolution
 
     limit = _call_graph_edge_limit(edge_limit)
-    ordered_edges = sorted(edges, key=lambda item: (
+    edge_records.sort()
+    kept = min(limit, len(edge_records))
+    end = kept
+    if kept:
+        boundary = edge_records[kept - 1][:5]
+        while end < len(edge_records) and edge_records[end][:5] == boundary:
+            end += 1
+
+    def materialize(record: tuple) -> dict:
+        *_, site_index, position = record
+        site = edge_sites[site_index]
+        if site[0] == "imports":
+            return _import_edge(site, position)
+        return _call_edge(site, position, semantic_resolution)
+
+    emitted_edges = sorted((materialize(record) for record in edge_records[:end]), key=lambda item: (
         item.get("source_file") or "",
         item.get("target_file") or "",
         item.get("type") or "",
         item.get("target_symbol") or item.get("import") or "",
         item.get("line") or 0,
         item.get("relation_id") or "",
-    ))
-    emitted_edges = ordered_edges[:limit]
+    ))[:limit]
     unresolved.sort(key=lambda item: (
         str(item.get("source_file") or ""),
         int(item.get("line") or 0),
@@ -934,7 +986,7 @@ def _build_call_graph(
         },
         "coverage": relation_coverage(
             emitted_edges,
-            observed_edges=len(ordered_edges),
+            observed_edges=len(edge_records),
             edge_limit=limit,
             name_candidate_limit=name_limit,
             name_capped_call_sites=name_capped_sites,
