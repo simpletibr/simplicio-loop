@@ -341,6 +341,73 @@ def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | Non
     return row
 
 
+def _priced_rows(events: list[Any], table: dict[str, Any] | None, key_of: Any) -> list[dict[str, Any]]:
+    '''One row per group of token_usage events, the group key being ``key_of(event)`` as (task_id, iteration).
+
+    A group with a null count or a model without a price is UNVERIFIED: its ``usd`` is None and ``reason`` says why. A
+    missing count is kept None, never 0. A group priced with a tier floor keeps the floor reason, as the run cost does.
+    '''
+    groups: dict[tuple[str | None, int | None], dict[str, Any]] = {}
+    for event in events:
+        if not isinstance(event, dict) or event.get('schema') != SCHEMA or event.get('kind') != 'token_usage':
+            continue
+        payload = event.get('payload') if isinstance(event.get('payload'), dict) else {}
+        raw_in, raw_out = payload.get('input_tokens'), payload.get('output_tokens')
+        if raw_in is None and raw_out is None:
+            continue
+        group = groups.setdefault(key_of(event), {'in': 0, 'out': 0, 'null_in': False, 'null_out': False, 'usd': 0.0,
+                                                  'unverified': None, 'floors': 0, 'limits': set()})
+        tokens_in, tokens_out = _number(raw_in), _number(raw_out)
+        if tokens_in is not None:
+            group['in'] += tokens_in
+        if tokens_out is not None:
+            group['out'] += tokens_out
+        if tokens_in is None or tokens_out is None:
+            group['null_in'] = group['null_in'] or tokens_in is None
+            group['null_out'] = group['null_out'] or tokens_out is None
+            group['unverified'] = group['unverified'] or 'contagem de tokens nula no evento: sem medição, não é zero'
+            continue
+        model = payload.get('model') if isinstance(payload.get('model'), str) and payload.get('model') else ''
+        rate = _rate(price_for(table, model)) if table is not None else None
+        if table is None:
+            group['unverified'] = group['unverified'] or 'tabela de preços indisponível'
+            continue
+        if rate is None:
+            group['unverified'] = group['unverified'] or 'sem preço na tabela para o modelo %r' % (model or 'desconhecido')
+            continue
+        usd, floor = _event_usd(payload, rate, tokens_in, tokens_out)
+        group['usd'] += usd
+        if floor:
+            group['floors'] += 1
+            group['limits'].add(rate['above'])
+    rows = []
+    for (task, iteration), group in groups.items():
+        usd = None if group['unverified'] else round(group['usd'], 6)
+        if group['unverified']:
+            reason = group['unverified']
+        elif group['floors']:
+            reason = FLOOR_REASON % (group['floors'], ', '.join(str(limit) for limit in sorted(group['limits'])))
+        else:
+            reason = None
+        rows.append({'task_id': task, 'iteration': iteration, 'usd': usd,
+                     'tokens_in': None if group['null_in'] else group['in'],
+                     'tokens_out': None if group['null_out'] else group['out'],
+                     'state': 'UNVERIFIED' if usd is None else 'ESTIMADO', 'reason': reason})
+    return sorted(rows, key=lambda row: (row['task_id'] is None, row['task_id'] or '', row['iteration'] is None, row['iteration'] or 0))
+
+
+def cost_by_task_and_iteration(events: Iterable[dict[str, Any]], prices: dict[str, Any] | None) -> dict[str, list[dict[str, Any]]]:
+    '''USD per task (``per_task``) and per (task, iteration) (``per_iteration``), both over the measured token_usage events.
+
+    Rows are priced with the run cost's own rate and event rule (``_rate``, ``_event_usd``), so the rows sum to the run cost
+    when all are priced. An event with no task or no iteration sits in a row whose id is None, so no USD is dropped.
+    '''
+    events = list(events)
+    table = prices.get('models') if isinstance(prices, dict) and isinstance(prices.get('models'), dict) else None
+    return {'per_task': _priced_rows(events, table, lambda event: (_task(event.get('task_id')), None)),
+            'per_iteration': _priced_rows(events, table, lambda event: (_task(event.get('task_id')), _iteration(event.get('iteration'))))}
+
+
 def _fraction(phase: str | None) -> float:
     if phase not in PHASES:
         return 0.0
@@ -400,7 +467,9 @@ def report(run_dir: str | Path, events: list[dict[str, Any]], prices: dict[str, 
     used = usage(events)
     phase = current_phase(events)
     measured = {'tokens': used['tokens'], 'usd': used['usd'], 'seconds': elapsed_s(events)}
-    return {'phase': phase, 'limits': limits, 'usage': used, 'cost': cost_estimate(events, prices),
+    cost = cost_estimate(events, prices)
+    cost.update(cost_by_task_and_iteration(events, prices))
+    return {'phase': phase, 'limits': limits, 'usage': used, 'cost': cost,
             'rows': {key: project(limits[key], measured[key], phase) for key in KEYS}}
 
 
