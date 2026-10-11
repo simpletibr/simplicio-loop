@@ -6,13 +6,17 @@ request costs the cheap tier, above it the whole request costs five times more.
 
 Three things live here:
 
-* ``resolve_ceiling``: the configured ceiling. Order: env ``SIMPLICIO_AGENT_INPUT_TOKEN_CEILING``, then key
-  ``agent_input_token_ceiling`` in ``.simplicio-loop/loop.toml`` as the DEFAULT BRANCH (``origin/HEAD``) has it, then
-  98,000. The working tree is never read: a plan or a PR can edit it. Without ``origin/HEAD`` the built-in value applies
-  and ``explain_ceiling`` says why. A bad value raises; it never falls back to the default.
+* ``explain_ceiling`` (and ``resolve_ceiling``, its value alone): the configured ceiling. Order: env
+  ``SIMPLICIO_AGENT_INPUT_TOKEN_CEILING``, then key ``agent_input_token_ceiling`` in ``.simplicio-loop/loop.toml`` as the
+  DEFAULT BRANCH (``origin/HEAD``) has it, then 98,000. The working tree is never read: a plan or a PR can edit it. When
+  the default branch cannot be read and the repository has NO remote, the built-in value applies, the result carries the
+  reason, and the first such fallback per process is printed on stderr. When the repository HAS a remote and the default
+  branch cannot be read, ``CeilingUnreadable`` is raised and every sender refuses (fail closed; no bypass flag). A bad
+  value raises; it never falls back.
+  Every caller (``handoff check`` and the five senders) goes through this one function.
 * ``estimate_tokens``: a deterministic estimate for hosts that do not report usage. Pure Python, no tokenizer package,
-  no network. It is conservative: on every reference sample it is at least 95% (X = 95, ESTIMATOR_FLOOR_PERCENT) of
-  the tiktoken ``o200k_base`` count, and on the typical sample at least 1.15 x (tests/fixtures/input_ceiling_reference.json).
+  no network. It is conservative: on every reference sample it is at least 1.15 x the tiktoken ``o200k_base`` count
+  (tests/fixtures/input_ceiling_reference.json; pinned by ``test_estimate_never_undercounts_the_reference_and_is_not_absurd``).
   Error against non-OpenAI tokenizers (Claude) is UNVERIFIED, which is why an estimate is multiplied by SAFETY_PERCENT
   before it is compared with the ceiling.
 * ``check_budget``: the one decision function. It compares the PROJECTED total prompt of the NEXT request with the
@@ -30,9 +34,10 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, NamedTuple
 
 DEFAULT_CEILING = 98_000
 # Largest context window in use today. A ceiling above it can never trigger, so it is a typing error.
@@ -45,8 +50,7 @@ SOFT_PERCENT = 90
 # An estimate is multiplied by this before the comparison: tokenizers differ (UNVERIFIED for Claude).
 SAFETY_PERCENT = 120
 ESTIMATOR_LABEL = "conservative-v2"
-# The estimate is never below this share of the tiktoken o200k_base count on any reference sample.
-ESTIMATOR_FLOOR_PERCENT = 95
+UNREADABLE_SOURCE = "default branch unreadable"
 
 MEASURED = "MEASURED"
 ESTIMATED = "ESTIMATED"
@@ -57,6 +61,18 @@ class CeilingConfigError(ValueError):
     """The configured ceiling is not an integer from 1 to MAX_CEILING."""
 
     reason_code = "ceiling_invalid"
+
+
+class CeilingUnreadable(CeilingConfigError):
+    """The repository has a remote, but its default-branch config cannot be read and no env var sets the ceiling. The
+    ceiling is not guessed: a human sets ``SIMPLICIO_AGENT_INPUT_TOKEN_CEILING`` or repairs ``origin/HEAD``."""
+
+    reason_code = "ceiling_unreadable"
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.ceiling_source = UNREADABLE_SOURCE
+        self.ceiling_reason = reason
 
 
 class InputCeilingExceeded(Exception):
@@ -78,24 +94,50 @@ def _check_ceiling(value: Any, source: str) -> int:
     return value
 
 
+class Ceiling(NamedTuple):
+    """The ceiling, its source (``env <ENV_NAME>``, ``default branch`` or ``built-in default``) and, when the default
+    branch could not be read, the reason the built-in value applies (empty otherwise)."""
+
+    value: int
+    source: str
+    reason: str = ""
+
+
+# The first fallback to the built-in value is printed on stderr; later ones in the same process are not.
+_warned = False
+
+
+def describe(ceiling: Ceiling) -> str:
+    """The ceiling, its source and, when it is the fallback, the reason: for a refusal message."""
+    return "ceiling %d from %s%s" % (ceiling.value, ceiling.source, " (%s)" % ceiling.reason if ceiling.reason else "")
+
+
 def resolve_ceiling(repo_root: str | Path, environ: Mapping[str, str] | None = None) -> int:
-    return explain_ceiling(repo_root, environ)[0]
+    return explain_ceiling(repo_root, environ).value
 
 
-def explain_ceiling(repo_root: str | Path, environ: Mapping[str, str] | None = None) -> tuple[int, str]:
-    """The ceiling and the source it came from. See the module docstring for the order."""
+def explain_ceiling(repo_root: str | Path, environ: Mapping[str, str] | None = None) -> Ceiling:
+    """The ceiling with its source and reason. See the module docstring for the order."""
+    global _warned
     # Lazy: handoff_cli imports this module. The default-branch read is the one piece of I/O here.
-    from .handoff_cli import HandoffError, ceiling_from, default_branch_config
+    from .handoff_cli import HandoffError, ceiling_from, default_branch_config, has_remote
 
     env = os.environ if environ is None else environ
     if ENV_NAME in env:
-        return ceiling_from({}, env), "env " + ENV_NAME
+        return Ceiling(ceiling_from({}, env), "env " + ENV_NAME)
     try:
         config = default_branch_config(Path(repo_root))
     except HandoffError as exc:
-        return DEFAULT_CEILING, "built-in default, the default branch cannot be read (%s)" % exc.args[0]
+        reason = str(exc)
+        if has_remote(Path(repo_root)):
+            raise CeilingUnreadable(reason) from exc
+        if not _warned:
+            _warned = True
+            print("simplicio input ceiling: %s; the built-in default %d applies" % (reason, DEFAULT_CEILING),
+                  file=sys.stderr)
+        return Ceiling(DEFAULT_CEILING, "built-in default", reason)
     source = "default branch" if TOML_KEY in config else "built-in default"
-    return ceiling_from(config, env), source
+    return Ceiling(ceiling_from(config, env), source)
 
 
 # --- estimator ---------------------------------------------------------------------------------------------------------

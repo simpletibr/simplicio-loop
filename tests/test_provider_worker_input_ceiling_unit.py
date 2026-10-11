@@ -42,7 +42,7 @@ def _write_toml(root, body):
     (root / ".simplicio-loop").mkdir(exist_ok=True)
     (root / ".simplicio-loop" / "loop.toml").write_text(body, encoding="utf-8")
     subprocess.run([*git, "add", "-f", ".simplicio-loop/loop.toml"], check=True, capture_output=True)
-    subprocess.run([*git, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty",
+    subprocess.run([*git, "-c", "commit.gpgsign=false", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty",
                     "-m", "config"], check=True, capture_output=True)
     subprocess.run([*git, "update-ref", "refs/remotes/origin/main", "HEAD"], check=True, capture_output=True)
     subprocess.run([*git, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"], check=True,

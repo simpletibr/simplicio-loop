@@ -34,7 +34,7 @@ def _write_toml(root, body):
     (root / ".simplicio-loop").mkdir(exist_ok=True)
     (root / ".simplicio-loop" / "loop.toml").write_text(body, encoding="utf-8")
     subprocess.run([*git, "add", "-f", ".simplicio-loop/loop.toml"], check=True, capture_output=True)
-    subprocess.run([*git, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty",
+    subprocess.run([*git, "-c", "commit.gpgsign=false", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty",
                     "-m", "config"], check=True, capture_output=True)
     subprocess.run([*git, "update-ref", "refs/remotes/origin/main", "HEAD"], check=True, capture_output=True)
     subprocess.run([*git, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"], check=True,
@@ -205,3 +205,26 @@ def test_the_loop_toml_of_the_cwd_is_not_the_one_read(repo, monkeypatch):
         assert len(calls) == 1
     
     asyncio.run(test_impl())
+
+
+def test_a_refusal_over_the_built_in_default_names_the_source_and_reason(tmp_path, monkeypatch):
+    """No origin/HEAD: the built-in ceiling applies and the refusal receipt says why (#1608)."""
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    subprocess.run(["git", "-C", str(plain), "init", "-q", "-b", "main"], check=True, capture_output=True)
+    calls = []
+
+    async def mock_run(*args, **kwargs):
+        calls.append((args, kwargs))
+        return "{}", "", 0
+
+    monkeypatch.delenv(ENV_NAME, raising=False)
+    monkeypatch.setattr("simplicio_loop.input_ceiling._warned", False)
+    monkeypatch.setattr("simplicio_loop.exec_planner._run_subprocess", mock_run)
+    monkeypatch.setattr("simplicio_loop.exec_planner._find_cli", lambda x: f"/usr/bin/{x}")
+    result = asyncio.run(exec_planner.run_planner(
+        "claude", "coordination", "word " * 150_000, repo_root=plain, cwd=str(plain)))
+    assert result.reason_code == "input_ceiling_exceeded" and calls == []
+    receipt = result.to_dict()
+    assert receipt["ceiling_source"] == "built-in default"
+    assert "origin/HEAD" in receipt["ceiling_reason"]

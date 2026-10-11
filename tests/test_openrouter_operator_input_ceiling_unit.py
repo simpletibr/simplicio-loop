@@ -248,3 +248,19 @@ def test_a_bad_ceiling_leaves_the_refusal_in_the_receipt(repo, monkeypatch):
     assert receipt["status"] == "ceiling_invalid"
     assert receipt["error_code"] == "ceiling_invalid"
     assert receipt["request_sent"] is False
+
+
+def test_a_refusal_over_the_built_in_default_names_the_source_and_reason(tmp_path, monkeypatch):
+    """No origin/HEAD: the built-in ceiling applies and the refusal receipt says why (#1608)."""
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    subprocess.run(["git", "-C", str(plain), "init", "-q", "-b", "main"], check=True, capture_output=True)
+    _configure_provider(monkeypatch)
+    monkeypatch.delenv(ENV_NAME, raising=False)
+    monkeypatch.setattr("simplicio_loop.input_ceiling._warned", False)
+    with pytest.raises(InputCeilingExceeded) as info:
+        _creation_request(plain, "word " * 150_000)
+    receipt = info.value.receipt
+    assert receipt["status"] == "input_ceiling_exceeded"
+    assert receipt["ceiling_source"] == "built-in default"
+    assert "origin/HEAD" in receipt["ceiling_reason"]
