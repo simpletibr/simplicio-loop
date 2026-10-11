@@ -5,6 +5,7 @@ cache counts never enter the total of input plus output.
 import pytest
 
 from simplicio_loop import execution_report as er
+from simplicio_loop.input_ceiling import PromptUsage
 
 
 def test_record_task_stores_the_measured_cache_counters(tmp_path):
@@ -61,3 +62,13 @@ def test_record_task_cli_takes_the_cache_counters(tmp_path):
     assert er.main(argv) == 0
     tok = er.load_latest(tmp_path)["tasks"][0]["tokens"]
     assert tok["tokens_cached"] == 40 and tok["tokens_cache_write"] == 3
+
+
+def test_record_usage_appends_one_request_to_the_latest_report(tmp_path):
+    er.record_usage(tmp_path, task_id="A", title="a", usage=PromptUsage(10, 20, 30), tokens_out=4)
+    er.record_usage(tmp_path, task_id="B", title="b", usage=None)
+    tasks = er.load_latest(tmp_path)["tasks"]
+    assert [t["task_id"] for t in tasks] == ["A", "B"]
+    first, second = tasks[0]["tokens"], tasks[1]["tokens"]
+    assert (first["tokens_in"], first["tokens_cached"], first["tokens_cache_write"], first["tokens_out"]) == (10, 20, 30, 4)
+    assert second["tokens_in"] is None and second["tokens_cached"] is None and second["tokens_cache_write"] is None

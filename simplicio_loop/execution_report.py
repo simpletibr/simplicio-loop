@@ -11,11 +11,13 @@ import argparse
 import hashlib
 import json
 import os
+import threading
 import time
 from pathlib import Path
 from typing import Any, Optional
 
 from . import model_roles
+from .input_ceiling import PromptUsage
 
 SCHEMA = "simplicio.execution-report/v1"
 OWNER = "simplicio-loop"
@@ -296,6 +298,36 @@ def record_task(
             ),
         }
     )
+
+
+_USAGE_LOCK = threading.Lock()  # read-modify-write of latest.json: two requests recorded at once must not drop one
+
+
+def record_usage(
+    repo: Path,
+    *,
+    task_id: str,
+    title: str,
+    usage: PromptUsage | None,
+    tokens_out: int | None = None,
+) -> Path:
+    """Append one provider request to the run's report (the latest, or a new one) through ``record_task``.
+
+    ``usage`` is what the provider reported (``PromptUsage.from_chat_usage``); None records the request with its counters
+    None, never 0. ``tokens_out`` is the completion count the provider reported, or None.
+    """
+    with _USAGE_LOCK:
+        report = load_latest(repo) or new_report(repo)
+        record_task(
+            report,
+            task_id=task_id,
+            title=title,
+            tokens_in=usage.input_tokens if usage is not None else None,
+            tokens_out=tokens_out,
+            cache_read=usage.cache_read_input_tokens if usage is not None else None,
+            cache_write=usage.cache_creation_input_tokens if usage is not None else None,
+        )
+        return write_report(repo, report)
 
 
 def main(argv: Optional[list[str]] = None) -> int:

@@ -34,7 +34,15 @@ from typing import Any, Mapping, Sequence
 
 import httpx
 
-from .input_ceiling import CeilingConfigError, InputCeilingExceeded, Projection, enforce_budget, resolve_ceiling
+from . import execution_report
+from .input_ceiling import (
+    CeilingConfigError,
+    InputCeilingExceeded,
+    PromptUsage,
+    Projection,
+    enforce_budget,
+    resolve_ceiling,
+)
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash"
@@ -145,7 +153,22 @@ async def _post(body: Mapping[str, Any], key: str, session_id: str, timeout: flo
         "cost": usage.get("cost"),
         "cost_usd": usage.get("cost"),
         "usage_reported": isinstance(usage.get("completion_tokens"), (int, float)),  # MEASURED only from a real count
+        "prompt_usage": PromptUsage.from_chat_usage(usage),  # the three reported counts, or None; never reaches the caller
     }
+
+
+def _record_usage(reply: dict[str, Any], body: Mapping[str, Any], repo_root: str | os.PathLike[str] | None) -> None:
+    """The answer's counts go to the run's execution report, exactly as the provider reported them (#1608).
+    An error reply carries no usage and records nothing; without a repo_root there is no report to write."""
+    prompt_usage = reply.pop("prompt_usage", None)
+    if repo_root is None or not reply.get("ok"):
+        return
+    completion = reply.get("completion_tokens")
+    digest = hashlib.sha256(json.dumps(dict(body), ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+    execution_report.record_usage(
+        Path(repo_root), task_id=f"turbo-{digest[:12]}", title="turbo provider call", usage=prompt_usage,
+        tokens_out=completion if reply.get("usage_reported") and isinstance(completion, int) and not isinstance(completion, bool) else None,
+    )
 
 
 def _gate_input(messages: Sequence[Mapping[str, Any]], response_format: Mapping[str, Any] | None,
@@ -195,6 +218,11 @@ async def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, session_i
         body["response_format"] = dict(response_format)
     wait = hedge_after() if hedge is None else hedge
     started = time.time()
+
+    def finish(reply: dict[str, Any]) -> dict[str, Any]:
+        _record_usage(reply, body, repo_root)
+        return reply
+
     primary = asyncio.create_task(_post(body, key, session_id, timeout))
     tasks = [primary]
     try:
@@ -202,7 +230,7 @@ async def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, session_i
             # wait() does not cancel the primary on timeout (wait_for would): it keeps running next to the hedge.
             await asyncio.wait({primary}, timeout=wait)
         if primary.done() or wait <= 0:
-            return {**await primary, "hedged": False}
+            return finish({**await primary, "hedged": False})
         duplicate = asyncio.create_task(_post(body, key, f"{session_id}-hedge", timeout))
         tasks.append(duplicate)
         done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
@@ -211,8 +239,8 @@ async def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, session_i
         if not result.get("ok"):  # the faster one failed: the other is the answer
             winner = duplicate if winner is primary else primary
             result = await winner
-        return {**result, "hedged": True, "hedge_winner": "primary" if winner is primary else "duplicate",
-                "latency_s": time.time() - started}
+        return finish({**result, "hedged": True, "hedge_winner": "primary" if winner is primary else "duplicate",
+                       "latency_s": time.time() - started})
     finally:
         # The loser (or, if the caller was cancelled, every request) is cancelled: no thread, no orphan task.
         for task in tasks:
