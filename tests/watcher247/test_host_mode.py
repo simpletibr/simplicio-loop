@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from simplicio_loop import escalation, execution_report, executor_select, model_roles
+from simplicio_loop import escalation, execution_report, executor_select, input_ceiling, model_roles
 from simplicio_loop.watcher247 import config, host_mode, proc, sandbox
 
 from .fakes import FakeRun, baseline, issue, pr_row, read_json, run_tick
@@ -730,3 +730,17 @@ def test_the_real_cli_is_asked_twice_and_never_more_when_it_stays_out_of_scope(e
     calls = planner_calls(cli_dir)
     assert len(calls) == 2 and "out_of_scope:other.py" in " ".join(calls[1]) and "out_of_scope:other.py" not in " ".join(calls[0])
     assert fake.turbo_stdin == []
+
+
+def test_an_over_ceiling_prompt_sends_nothing_from_host_mode(env, cli_dir, monkeypatch):
+    """Host mode sends its planner prompt through the input-token ceiling (#1608): over it no CLI runs and nothing is applied."""
+    monkeypatch.setenv(input_ceiling.ENV_NAME, "1000")
+    huge = {"schema": "simplicio.turbo-request/v1", "status": "needs_plan", "mode": "host", "run_id": RUN_ID,
+            "tasks": ["word " * 5000], "files": {"app.py": "x = 1\n"}, "format": {"operations": []},
+            "apply": f"simplicio-loop turbo --apply - --run-id {RUN_ID}"}
+    fake = env(HostRun({REPO: [issue(1)]}, [OK], request=huge))
+    baseline()
+    with pytest.raises(RuntimeError, match="input_ceiling_exceeded"):
+        _run_exec(fake)
+    assert planner_calls(cli_dir) == []  # the CLI was never spawned
+    assert fake.turbo_stdin == []  # and no plan reached `turbo --apply`

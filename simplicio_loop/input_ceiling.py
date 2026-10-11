@@ -165,6 +165,10 @@ def estimate_tokens(text: str) -> int:
 
 # --- measured total prompt and projection ------------------------------------------------------------------------------
 
+def _is_count(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
 def _count(value: Any, name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ValueError("%s must be an integer >= 0, got %r" % (name, value))
@@ -201,6 +205,26 @@ class PromptUsage:
         if missing:
             raise ValueError("usage lacks %s" % ", ".join(missing))
         return cls(*(usage[n] for n in names))
+
+    @classmethod
+    def from_chat_usage(cls, usage: Any) -> PromptUsage | None:
+        """The counts of a chat-completions ``usage`` object (OpenRouter's shape, usage included).
+
+        ``prompt_tokens`` is the WHOLE prompt, cache reads and writes included, so the new input is what is left after
+        them. None unless all three counts are integers the provider reported: an absent count is not a zero.
+        """
+        if not isinstance(usage, Mapping):
+            return None
+        details = usage.get("prompt_tokens_details")
+        if not isinstance(details, Mapping):
+            return None
+        whole, read, written = usage.get("prompt_tokens"), details.get("cached_tokens"), details.get("cache_write_tokens")
+        if not all(_is_count(v) for v in (whole, read, written)) or whole - read - written < 0:
+            return None
+        try:
+            return cls(whole - read - written, read, written)
+        except ValueError:  # an empty prompt: the provider did not measure one
+            return None
 
 
 def _scaled(text: str) -> int:
