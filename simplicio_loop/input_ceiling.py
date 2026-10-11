@@ -9,8 +9,10 @@ Three things live here:
 * ``explain_ceiling`` (and ``resolve_ceiling``, its value alone): the configured ceiling. Order: env
   ``SIMPLICIO_AGENT_INPUT_TOKEN_CEILING``, then key ``agent_input_token_ceiling`` in ``.simplicio-loop/loop.toml`` as the
   DEFAULT BRANCH (``origin/HEAD``) has it, then 98,000. The working tree is never read: a plan or a PR can edit it. When
-  the default branch cannot be read (no ``origin/HEAD``, a git failure) the built-in value applies, the result carries
-  the reason, and the first such fallback per process is printed on stderr. A bad value raises; it never falls back.
+  the default branch cannot be read and the repository has NO remote, the built-in value applies, the result carries the
+  reason, and the first such fallback per process is printed on stderr. When the repository HAS a remote and the default
+  branch cannot be read, ``CeilingUnreadable`` is raised and every sender refuses (fail closed; no bypass flag). A bad
+  value raises; it never falls back.
   Every caller (``handoff check`` and the five senders) goes through this one function.
 * ``estimate_tokens``: a deterministic estimate for hosts that do not report usage. Pure Python, no tokenizer package,
   no network. It is conservative: on every reference sample it is at least 1.15 x the tiktoken ``o200k_base`` count
@@ -48,6 +50,7 @@ SOFT_PERCENT = 90
 # An estimate is multiplied by this before the comparison: tokenizers differ (UNVERIFIED for Claude).
 SAFETY_PERCENT = 120
 ESTIMATOR_LABEL = "conservative-v2"
+UNREADABLE_SOURCE = "default branch unreadable"
 
 MEASURED = "MEASURED"
 ESTIMATED = "ESTIMATED"
@@ -58,6 +61,18 @@ class CeilingConfigError(ValueError):
     """The configured ceiling is not an integer from 1 to MAX_CEILING."""
 
     reason_code = "ceiling_invalid"
+
+
+class CeilingUnreadable(CeilingConfigError):
+    """The repository has a remote, but its default-branch config cannot be read and no env var sets the ceiling. The
+    ceiling is not guessed: a human sets ``SIMPLICIO_AGENT_INPUT_TOKEN_CEILING`` or repairs ``origin/HEAD``."""
+
+    reason_code = "ceiling_unreadable"
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.ceiling_source = UNREADABLE_SOURCE
+        self.ceiling_reason = reason
 
 
 class InputCeilingExceeded(Exception):
@@ -105,7 +120,7 @@ def explain_ceiling(repo_root: str | Path, environ: Mapping[str, str] | None = N
     """The ceiling with its source and reason. See the module docstring for the order."""
     global _warned
     # Lazy: handoff_cli imports this module. The default-branch read is the one piece of I/O here.
-    from .handoff_cli import HandoffError, ceiling_from, default_branch_config
+    from .handoff_cli import HandoffError, ceiling_from, default_branch_config, has_remote
 
     env = os.environ if environ is None else environ
     if ENV_NAME in env:
@@ -114,6 +129,8 @@ def explain_ceiling(repo_root: str | Path, environ: Mapping[str, str] | None = N
         config = default_branch_config(Path(repo_root))
     except HandoffError as exc:
         reason = str(exc)
+        if has_remote(Path(repo_root)):
+            raise CeilingUnreadable(reason) from exc
         if not _warned:
             _warned = True
             print("simplicio input ceiling: %s; the built-in default %d applies" % (reason, DEFAULT_CEILING),

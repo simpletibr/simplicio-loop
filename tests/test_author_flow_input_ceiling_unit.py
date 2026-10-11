@@ -175,3 +175,23 @@ def test_a_correction_above_the_ceiling_starts_no_further_round(repo, home, cli,
     refused = author()
     assert (refused.status, refused.reason_code) == ("failed", "input_ceiling_exceeded")
     assert len(cli.built) == 1 and len(cli.started) == 1
+
+
+def test_the_refusal_names_the_env_ceiling_source(repo, home, cli, monkeypatch):
+    """A refused prompt says where its ceiling came from: the env var, with no reason (Parte de #1608)."""
+    monkeypatch.setenv(ENV_NAME, "100")
+    result = run(repo, cli, task="word " * 5000)
+    assert result.reason_code == "input_ceiling_exceeded"
+    failure = result.failures[0]
+    assert failure["ceiling_source"] == "env " + ENV_NAME and failure["ceiling_reason"] == ""
+    assert cli.built == [] and cli.started == []
+
+
+def test_the_refusal_names_the_built_in_default_and_its_reason(repo, home, cli):
+    """No remote, no env: the built-in 98,000 applies and the refusal says why (Parte de #1608)."""
+    result = run(repo, cli, task="word " * 150_000)
+    assert result.reason_code == "input_ceiling_exceeded"
+    failure = result.failures[0]
+    assert failure["ceiling_source"] == "built-in default"
+    assert "origin/HEAD" in failure["ceiling_reason"]
+    assert cli.built == [] and cli.started == []

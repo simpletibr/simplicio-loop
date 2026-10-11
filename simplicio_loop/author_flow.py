@@ -239,8 +239,9 @@ class _Run:
             ceiling = input_ceiling.explain_ceiling(self.worktree)
             input_ceiling.enforce_budget(input_ceiling.Projection.estimated(prompt), ceiling.value)
         except input_ceiling.CeilingConfigError as e:
-            return self.result("failed", "ceiling_invalid", [{
-                "kind": "ceiling_invalid", "detail": str(e), "ceiling_source": "invalid", "ceiling_reason": str(e)}])
+            return self.result("failed", e.reason_code, [{
+                "kind": e.reason_code, "detail": str(e), "ceiling_source": getattr(e, "ceiling_source", "invalid"),
+                "ceiling_reason": getattr(e, "ceiling_reason", str(e))}])
         except input_ceiling.InputCeilingExceeded:
             return self.result("failed", "input_ceiling_exceeded", [{
                 "kind": "input_ceiling_exceeded", "detail": "prompt exceeds " + input_ceiling.describe(ceiling),

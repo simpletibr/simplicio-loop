@@ -445,7 +445,8 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
         projection = input_ceiling.Projection.estimated(PLAN_ONLY_PREAMBLE + prompt)
         input_ceiling.enforce_budget(projection, ceiling.value)
     except input_ceiling.CeilingConfigError as e:
-        return _result("ceiling_invalid", family, role, model, effort, started, error=str(e), ceiling=("invalid", str(e)))
+        return _result(e.reason_code, family, role, model, effort, started, error=str(e),
+                       ceiling=(getattr(e, "ceiling_source", "invalid"), getattr(e, "ceiling_reason", str(e))))
     except input_ceiling.InputCeilingExceeded:
         return _result("input_ceiling_exceeded", family, role, model, effort, started,
                        error=f"prompt exceeds {input_ceiling.describe(ceiling)}", ceiling=(ceiling.source, ceiling.reason))

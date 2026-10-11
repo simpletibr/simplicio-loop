@@ -734,13 +734,14 @@ def test_the_real_cli_is_asked_twice_and_never_more_when_it_stays_out_of_scope(e
 
 def test_an_over_ceiling_prompt_sends_nothing_from_host_mode(env, cli_dir, monkeypatch):
     """Host mode sends its planner prompt through the input-token ceiling (#1608): over it no CLI runs and nothing is applied."""
-    monkeypatch.setenv(input_ceiling.ENV_NAME, "1000")
+    monkeypatch.setenv(input_ceiling.ENV_NAME, "100")  # the task stays under the handoff objective limit (2000 chars)
     huge = {"schema": "simplicio.turbo-request/v1", "status": "needs_plan", "mode": "host", "run_id": RUN_ID,
-            "tasks": ["word " * 5000], "files": {"app.py": "x = 1\n"}, "format": {"operations": []},
+            "tasks": ["word " * 200], "files": {"app.py": "x = 1\n"}, "format": {"operations": []},
             "apply": f"simplicio-loop turbo --apply - --run-id {RUN_ID}"}
     fake = env(HostRun({REPO: [issue(1)]}, [OK], request=huge))
     baseline()
-    with pytest.raises(RuntimeError, match="input_ceiling_exceeded"):
+    # Over the ceiling every continuation is refused unsent (#1782): the chain runs out, and no CLI is ever spawned.
+    with pytest.raises(RuntimeError, match="continuation_chain_exhausted"):
         _run_exec(fake)
     assert planner_calls(cli_dir) == []  # the CLI was never spawned
     assert fake.turbo_stdin == []  # and no plan reached `turbo --apply`

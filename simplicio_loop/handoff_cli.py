@@ -8,11 +8,12 @@
   counters of the last request (``--input-tokens``, ``--cache-read``, ``--cache-write``; MEASURED) and, optionally, the
   text that will be added (``--added-file``). A host that reports no usage gives ``--prompt-file`` instead (ESTIMATED).
 
-The ceiling comes from the DEFAULT BRANCH, never from the working tree: the ``agent_input_token_ceiling`` key of
-``.simplicio-loop/loop.toml`` as ``origin/HEAD`` has it (as of the last fetch). An agent that edits its own clone cannot
-raise it. The environment variable ``SIMPLICIO_AGENT_INPUT_TOKEN_CEILING`` still wins and then no git is needed.
-A repository without ``origin/HEAD`` and without the variable uses the built-in 98,000 and says why (``ceiling_source``
-and ``ceiling_reason`` in the output, plus one warning on stderr). Only an INVALID value exits 2.
+The ceiling rule, one line: the env var ``SIMPLICIO_AGENT_INPUT_TOKEN_CEILING`` wins; else the
+``agent_input_token_ceiling`` key of ``.simplicio-loop/loop.toml`` as ``origin/HEAD`` has it (never the working tree);
+else the built-in 98,000, but ONLY when the repository has no remote. A repository WITH a remote whose default branch
+cannot be read fails closed (``ceiling_unreadable``, exit 2): set the env var or repair ``origin/HEAD``. No flag bypasses
+it. The built-in fallback carries ``ceiling_source`` and ``ceiling_reason`` in the output and one warning on stderr.
+Only an INVALID or unreadable ceiling exits 2.
 
 Exit codes: 0 ok, 3 handoff (write one before the next request), 4 over (do not send), 2 error.
 An error prints ``{"status": "error", "reason_code": ..., "error": ...}`` on stderr and nothing on stdout.
@@ -64,6 +65,16 @@ def _git(repo: Path, *args: str) -> subprocess.CompletedProcess:
         return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, timeout=30)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise HandoffError("default_branch_unresolved", "git failed in %s: %s" % (repo, exc)) from exc
+
+
+def has_remote(repo: Path) -> bool:
+    """True when the repository lists a remote. Not a repository counts as none. When git cannot run, a ``.git`` entry
+    in the directory still may hold a remote, so it counts as one; without it there is no repository to protect."""
+    try:
+        listed = _git(repo, "remote")
+    except HandoffError:
+        return (repo / ".git").exists()
+    return listed.returncode == 0 and bool(listed.stdout.strip())
 
 
 def default_branch_config(repo: Path) -> dict[str, Any]:
