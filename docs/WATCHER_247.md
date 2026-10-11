@@ -188,6 +188,9 @@ passo seguinte aprovar a própria mudança. Por isso nenhum plano cria, edita, m
 | `simplicio_loop/plan_paths.py`, `intake_gate.py` | este portão e o opt-in do repo |
 | `watcher247/sandbox.py`, `secret_scan.py`, `prompt_guard.py`, `env_guard.py`, `squad_flow.py`, `verify.py` | isolamento, segredos, injeção, revisão do squad e o comando `verify` |
 | `watcher247/points/judge.py`, `points/delivery_gate.py` | o juiz e o portão de entrega |
+| `simplicio_loop/__init__.py`, `watcher247/__init__.py`, `watcher247/points/__init__.py`, `simplicio_loop/core_network_guard.py` | rodam antes dos portões: importá-los executa o código |
+| `sitecustomize.py`, `conftest.py` | o Python e o pytest os carregam antes de qualquer teste (`conftest.py` na raiz; os da `tests/` não) |
+| `.mcp.json`, `.cursor/mcp.json` | os servidores MCP que o host inicia |
 
 - Uma entrada vale para ela mesma e para tudo abaixo dela. Um diretório que contém uma entrada (`packaging`, `plugin`,
   `simplicio_loop`) também conta, porque mover ou apagar o pai levaria o arquivo junto.
@@ -205,12 +208,20 @@ passo seguinte aprovar a própria mudança. Por isso nenhum plano cria, edita, m
   Next.js, um `scripts/check.py` ou um `docs/CODEOWNERS` seriam recusados. Hoje só o simplicio-loop tem `loop.toml`, e o
   portão de plano corre para todo repo que o runner toca.
 - Neste repo, os planos do próprio watcher sobre os portões listados também são bloqueados. Um humano edita esses arquivos com
-  um commit e um PR dele, revisados como os demais. Não existe rótulo nem variável de ambiente que libere um plano.
+  um commit e um PR dele, revisados como os demais. Não existe rótulo (não há `loop:allow-protected`) nem variável de ambiente que
+  libere um plano.
+- O `loop.toml` fica em `.simplicio-loop/`, mas é protegido: `dirty()` e o juiz contam a sua mudança. Os outros arquivos desse
+  diretório continuam rascunho do loop.
+- Um PR que toca um caminho protegido não sai sozinho. O juiz rejeita com `protected_path`, e o `delivery_gate` bloqueia o mesmo
+  caminho mesmo com um ACCEPT. O revisor do squad classifica a mudança como T2 (`review_gate.identity`, testado em
+  `tests/watcher247/test_squad_protected_review.py`): o portão automático sozinho não aprova, e só um revisor independente
+  aprova, com testes verdes ou não.
   `.claude/skills`, `AGENTS.md`, `tick.py` e `host_mode.py` ficam fora da lista de propósito, porque o loop se constrói por plano
   neles.
 - Um link físico para um arquivo protegido não é visto (o dev-cli troca o arquivo em vez de escrever através dele, medido).
 - Um teste falha se uma entrada deixar de existir no repo, para que um rename não tire a proteção em silêncio. As entradas que
-  este repo ainda não tem estão listadas no teste.
+  este repo ainda não tem (`CODEOWNERS`, os hooks de outros hosts, `.mcp.json`, `.cursor/mcp.json`, `conftest.py` na raiz) estão
+  listadas no teste.
 
 ## Isolamento do sandbox (`watcher247/sandbox.py`, issue #1563)
 
