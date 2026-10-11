@@ -46,8 +46,12 @@ def test_without_a_price_table_the_request_count_is_unknown_and_raises_nothing()
     assert _run([_usage(1, 150000, 0, requests=1)], prices=None) == []
 
 
-def test_a_ceiling_at_the_tier_limit_raises_a_tier_alert_for_the_model_used():
-    assert _run([_usage(1, 1000, 0)], ceiling=100000) == [('tier-crossable:claude-haiku-5-5', 'warning', 'estimado')]
+def test_a_ceiling_above_the_tier_limit_raises_a_tier_alert_for_the_model_used():
+    assert _run([_usage(1, 1000, 0)], ceiling=100001) == [('tier-crossable:claude-haiku-5-5', 'warning', 'estimado')]
+
+
+def test_a_ceiling_at_the_tier_limit_cannot_cross_it_and_raises_nothing():
+    assert _run([_usage(1, 1000, 0)], ceiling=100000) == []
 
 
 def test_a_ceiling_below_the_tier_limit_raises_no_tier_alert():
@@ -61,6 +65,19 @@ def test_a_model_without_a_tier_or_a_price_entry_raises_no_tier_alert():
 
 def test_no_ceiling_means_no_tier_alert():
     assert _run([_usage(1, 1000, 0)], ceiling=None) == []
+
+
+def test_requests_over_the_tier_add_up_across_events_and_updates_and_a_resend_adds_nothing():
+    watch = alerts.AlertWatch(prices=PRICES)
+    now = int(BASE.timestamp() * 1000) + 2000
+    first = _usage(1, 150000, 0, requests=1)
+    second = _usage(2, 160000, 0, requests=1)
+    watch.update([first], now)
+    assert watch._tier_alerts()[0]['why'].startswith('1 ')
+    watch.update([first, second], now)
+    assert watch._tier_alerts()[0]['why'].startswith('2 ')
+    watch.update([first, second], now)
+    assert watch._tier_alerts()[0]['why'].startswith('2 ')
 
 
 def test_the_tier_alert_reason_names_the_ceiling_and_the_threshold():

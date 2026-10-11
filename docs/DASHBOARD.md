@@ -373,7 +373,7 @@ The server evaluates the run alert rules over the event stream (`simplicio_loop/
 | `budget-projected:<dim>` | warning | the usage projected to the end of the run passes the declared limit (estimate) | server |
 | `budget-exceeded:<dim>` | critical | measured usage is past the declared limit | server |
 | `requests-over-tier` | warning | a measured provider request (`requests` 1) had a prompt above its model's price tier limit; the goal is zero (measured) | server |
-| `tier-crossable:<model>` | warning | the effective input ceiling reaches the price tier limit of a model the run used (estimate) | server |
+| `tier-crossable:<model>` | warning | the effective input ceiling is above the price tier limit of a model the run used (estimate) | server |
 | `ceiling-unreadable` | warning | the input ceiling cannot be read (bad value or unreadable default branch); the reason is the text | server |
 | `oracle-unverified` | warning | the run is done and its receipt is ready, but the oracle gave no verdict | server |
 | `stream-lost` | warning | the stream is stale, offline or closed | page (it is the page's own connection) |

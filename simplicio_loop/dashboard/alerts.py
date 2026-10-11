@@ -210,7 +210,7 @@ class AlertWatch:
             return found
         for model in sorted(self.models):
             rate = budget_mod._rate(budget_mod.price_for(table, model))
-            if rate is None or rate['above'] is None or self.ceiling < rate['above']:
+            if rate is None or rate['above'] is None or self.ceiling <= rate['above']:
                 continue
             found.append(_alert('tier-crossable:' + model, 'tier-crossable', 'warning', 'Nível de preço pode ser atingido: ' + model,
                                 'O teto de entrada de %d tokens alcança o limiar de %d tokens do nível de preço de %s.' % (
