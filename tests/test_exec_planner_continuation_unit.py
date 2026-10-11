@@ -10,11 +10,14 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from simplicio_loop import agent_handoff, exec_planner, input_ceiling, model_roles
 from tests.test_exec_planner_unit import PLAN, bindir, call_of, fake_cli, run  # noqa: F401  (bindir is a fixture)
 
 CEILING = 2000
 ENV_CEILING = input_ceiling.ENV_NAME
+CHAIN_ENV = "SIMPLICIO_AGENT_CONTINUATION_CHAIN_LIMIT"
 TAIL = " TAIL-MARKER"
 # Fits the schema's 2000-character objective, so the default writer keeps all of it.
 FITS = "HEAD-MARKER " + "word " * 380 + TAIL
@@ -121,6 +124,35 @@ def test_the_chain_stops_after_five_continuations_with_needs_human_and_no_reques
     docs = [json.loads(f.read_text()) for f in files]
     assert {d["lease"]["owner"] for d in docs} == {"run-c"}  # one lease for the whole chain
     assert _order(bindir) == []  # no request left the process
+
+
+def test_the_chain_limit_from_the_environment_stops_the_chain_with_needs_human_and_the_cause(bindir, tmp_path, monkeypatch):
+    monkeypatch.setenv(ENV_CEILING, str(CEILING))
+    monkeypatch.setenv(CHAIN_ENV, "2")
+    fake_cli(bindir, "claude")
+    contexts = []
+    res = run(exec_planner.run_planner_with_fallback(
+        "planning", "MARKER-TASK " + "word " * 5000, cwd=str(tmp_path), families=["claude"], repo_root=tmp_path,
+        handoff_writer=_recording(_padded(4), contexts), run_id="run-j"))
+
+    assert res.reason_code == "needs_human"
+    assert "continuation_chain_exhausted" in res.error and "chain limit is 2" in res.error
+    assert res.continuations == 2
+    assert [c["continuation"] for c in contexts] == [1, 2]
+    assert [f.name for f in _handoffs(tmp_path)] == ["1.json", "2.json"]
+    assert _order(bindir) == []
+
+
+def test_an_invalid_chain_limit_fails_loud_before_a_handoff_is_written_or_a_request_is_sent(bindir, tmp_path, monkeypatch):
+    monkeypatch.setenv(ENV_CEILING, str(CEILING))
+    monkeypatch.setenv(CHAIN_ENV, "0")
+    fake_cli(bindir, "claude")
+    with pytest.raises(input_ceiling.CeilingConfigError, match=CHAIN_ENV):
+        run(exec_planner.run_planner_with_fallback(
+            "planning", "MARKER-TASK " + "word " * 5000, cwd=str(tmp_path), families=["claude"], repo_root=tmp_path,
+            handoff_writer=_padded(4), run_id="run-k"))
+    assert _handoffs(tmp_path) == []
+    assert _order(bindir) == []
 
 
 def test_a_handoff_above_the_token_limit_is_refused_with_its_reason(bindir, tmp_path, monkeypatch):

@@ -195,6 +195,65 @@ def test_valid_env_wins_without_reading_a_broken_toml(tmp_path):
     assert ic.resolve_ceiling(tmp_path, environ={ic.ENV_NAME: "70000"}) == 70_000
 
 
+# --- continuation chain limit (#1608): the same reader, its own key, 1 to 20 -------------------------------------------
+
+CHAIN_ENV = "SIMPLICIO_AGENT_CONTINUATION_CHAIN_LIMIT"
+CHAIN_KEY = "agent_continuation_chain_limit"
+
+
+def test_chain_limit_default_is_five(tmp_path):
+    assert ic.resolve_chain_limit(tmp_path, environ={}) == 5
+
+
+def test_chain_limit_default_branch_value_is_used(tmp_path):
+    _default_branch_toml(tmp_path, "agent_continuation_chain_limit = 3\n")
+    assert ic.resolve_chain_limit(tmp_path, environ={}) == 3
+
+
+def test_chain_limit_a_local_loop_toml_is_ignored(tmp_path):
+    _default_branch_toml(tmp_path, 'verify = "pytest -q"\n')
+    _toml(tmp_path, "agent_continuation_chain_limit = 20\n")
+    assert ic.resolve_chain_limit(tmp_path, environ={}) == 5
+
+
+def test_chain_limit_env_wins_over_the_default_branch_without_reading_git(tmp_path):
+    _default_branch_toml(tmp_path, "agent_continuation_chain_limit = 3\n")
+    assert ic.resolve_chain_limit(tmp_path, environ={CHAIN_ENV: "7"}) == 7
+
+
+def test_chain_limit_env_default_reads_the_process_environment(tmp_path, monkeypatch):
+    monkeypatch.setenv(CHAIN_ENV, "2")
+    assert ic.resolve_chain_limit(tmp_path) == 2
+
+
+@pytest.mark.parametrize("value", [1, 20])
+def test_chain_limit_bounds_are_accepted(tmp_path, value):
+    assert ic.resolve_chain_limit(tmp_path, environ={CHAIN_ENV: str(value)}) == value
+
+
+@pytest.mark.parametrize("bad", ["0", "21", "-1", "+5", "5.0", "", " 5", "5 ", "five", "1_0", "true"])
+def test_chain_limit_invalid_env_fails_loud_even_when_toml_is_valid(tmp_path, bad):
+    _default_branch_toml(tmp_path, "agent_continuation_chain_limit = 3\n")
+    with pytest.raises(ic.CeilingConfigError) as exc:
+        ic.resolve_chain_limit(tmp_path, environ={CHAIN_ENV: bad})
+    assert CHAIN_ENV in str(exc.value)
+
+
+@pytest.mark.parametrize("bad", ["0", "21", '"5"', "true", "2.5", "[1]", "-1"])
+def test_chain_limit_invalid_default_branch_value_fails_loud(tmp_path, bad):
+    _default_branch_toml(tmp_path, "agent_continuation_chain_limit = %s\n" % bad)
+    with pytest.raises(ic.CeilingConfigError) as exc:
+        ic.resolve_chain_limit(tmp_path, environ={})
+    assert CHAIN_KEY in str(exc.value)
+
+
+def test_chain_limit_unreadable_default_branch_with_a_remote_fails_closed(tmp_path):
+    _git(tmp_path, "init", "-q", "-b", "main")
+    _git(tmp_path, "remote", "add", "origin", str(tmp_path / "remote.git"))
+    with pytest.raises(ic.CeilingUnreadable):
+        ic.resolve_chain_limit(tmp_path, environ={})
+
+
 def test_never_reads_the_dot_simplicio_directory(tmp_path):
     (tmp_path / ".simplicio").mkdir()
     (tmp_path / ".simplicio" / "loop.toml").write_text("agent_input_token_ceiling = 5000\n", encoding="utf-8")
