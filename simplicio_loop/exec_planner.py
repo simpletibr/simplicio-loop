@@ -23,9 +23,6 @@ from .agent_handoff import HandoffError
 
 DEFAULT_FAMILIES = ["claude", "codex", "grok", "gemini"]
 KILL_GRACE_SEC = 3.0
-# A request over the input ceiling is replaced by a handoff and a new run; this many continuations is the most a chain
-# may write before the task goes to a human (#1608).
-MAX_CONTINUATIONS = 5
 # The handoff schema's maxLength for ``objective`` (simplicio_loop/_contracts/agent-handoff/v1). The default writer keeps
 # the task in it whole or not at all.
 OBJECTIVE_MAX_CHARS = 2000
@@ -544,7 +541,8 @@ def _needs_human(result, error, continuations):
 
 async def _run_chain(family, role, prompt, opts, *, repo_root, handoff_writer, run_id):
     """Run one family until its request fits the ceiling. Each refusal writes a handoff and starts a new run of the same
-    family and role with it as its prompt, under the same lease. After MAX_CONTINUATIONS the task is ``needs_human``.
+    family and role with it as its prompt, under the same lease. After the chain limit (``resolve_chain_limit``) the task
+    is ``needs_human``.
 
     The handoffs of a family go to ``<run_id>-<family>``: a fallback to another family is a new chain, and a handoff is
     never replaced, so two families cannot share one run directory."""
@@ -557,9 +555,11 @@ async def _run_chain(family, role, prompt, opts, *, repo_root, handoff_writer, r
         if result.reason_code != "input_ceiling_exceeded":
             result.continuations = continuations
             return result
-        if continuations >= MAX_CONTINUATIONS:
-            return _needs_human(result, "continuation_chain_exhausted: %d continuations written, the next run would be "
-                                        "number %d" % (continuations, continuations + 1), continuations)
+        limit = input_ceiling.resolve_chain_limit(repo_root)
+        if continuations >= limit:
+            return _needs_human(result, "continuation_chain_exhausted: %d continuations written, the chain limit is %d, "
+                                        "the next run would be number %d" % (continuations, limit, continuations + 1),
+                                continuations)
         continuations += 1
         ctx = {
             "run_id": chain_id, "task_id": "exec-planner:%s" % role, "continuation": continuations,
