@@ -30,7 +30,7 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Mapping
 
-from simplicio_loop import __version__, dashboard_events, stage_agents
+from simplicio_loop import __version__, dashboard_events, input_ceiling, stage_agents
 from simplicio_loop.dashboard import STATIC_DIR, agent_map, alerts, budget, config, history, lane_extras, langfuse_view, runs, trends, webhook
 from simplicio_loop.dashboard import stage_agents as stage_costs
 from simplicio_loop.dashboard.tail import EventTail
@@ -403,6 +403,14 @@ class _Server(http.server.ThreadingHTTPServer):
         self.server_port = int(self.server_address[1])
 
 
+def input_ceiling_or_error(repo: str) -> tuple[int | None, str | None]:
+    '''The effective input ceiling of a repo, or the reason it cannot be read (the alert panel names it; nothing is guessed).'''
+    try:
+        return input_ceiling.explain_ceiling(repo).value, None
+    except input_ceiling.CeilingConfigError as exc:
+        return None, str(exc)
+
+
 class _Handler(http.server.BaseHTTPRequestHandler):
     '''One request: guard, then route. Every response carries security_headers().'''
 
@@ -515,10 +523,11 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         ref = _find_run(self.server, run_id)
         tail = EventTail(Path(ref['run_dir']) / EVENTS_FILE, terminal=_is_terminal(ref))
         settings = config.load(ref['repo'])
+        ceiling, ceiling_error = input_ceiling_or_error(ref['repo'])
         watch = alerts.AlertWatch(settings.silence_ms, budget=budget.declared(ref['run_dir']),
                                   phase_silence_ms=settings.phase_silence_ms, stall_repeats=settings.stall_repeats,
                                   decision_wait_ms=settings.decision_wait_ms, leases=_lease_reader(self.server),
-                                  prices=price_table())
+                                  prices=price_table(), ceiling=ceiling, ceiling_error=ceiling_error)
 
         def receipt_ready() -> bool:
             return _receipt_ready(ref)

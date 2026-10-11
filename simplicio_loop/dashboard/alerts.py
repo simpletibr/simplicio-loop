@@ -57,8 +57,13 @@ class AlertWatch:
                  phase_silence_ms: dict[str, int] | None = None, stall_repeats: int = STALL_REPEATS,
                  decision_wait_ms: int = DECISION_WAIT_MS,
                  leases: Callable[[], list[dict[str, Any]]] | None = None,
-                 prices: dict[str, Any] | None = None) -> None:
+                 prices: dict[str, Any] | None = None, ceiling: int | None = None,
+                 ceiling_error: str | None = None) -> None:
         self.silence_ms = silence_ms
+        self.ceiling = ceiling
+        self.ceiling_error = ceiling_error
+        self.models: set[str] = set()
+        self.over_tier: int | None = None
         self.phase_silence_ms = phase_silence_ms or {}
         self.stall_repeats = stall_repeats
         self.decision_wait_ms = decision_wait_ms
@@ -118,6 +123,7 @@ class AlertWatch:
                 if seen[key] is not None:
                     self.used[key] = (self.used[key] or 0) + seen[key]
             if kind == 'token_usage' and seen['tokens']:
+                self.models.update(seen['by_model'])
                 self._price(event)
         if kind == 'phase_entered' and phase:
             if self.stall is not None and self.stall['phase'] != phase:
@@ -148,6 +154,8 @@ class AlertWatch:
     def _price(self, event: dict[str, Any]) -> None:
         '''USD of one token_usage event through the price table, the budget panel's own estimate path.'''
         priced = budget_mod.cost_estimate([event], self.prices)
+        if priced['requests_over_tier'] is not None:
+            self.over_tier = (self.over_tier or 0) + priced['requests_over_tier']
         if priced['usd'] is None:
             self.usd_unpriced = True
             return
@@ -188,6 +196,27 @@ class AlertWatch:
                                     proof_kind='estimado'))
         return found
 
+    def _tier_alerts(self) -> list[dict[str, Any]]:
+        found = []
+        if self.ceiling_error:
+            found.append(_alert('ceiling-unreadable', 'ceiling-unreadable', 'warning', 'Teto de entrada ilegível',
+                                self.ceiling_error, {'type': 'logs'}))
+        if self.over_tier:
+            found.append(_alert('requests-over-tier', 'requests-over-tier', 'warning', 'Requisição acima do nível de preço',
+                                '%d requisição(ões) medida(s) com prompt acima do limiar do nível de preço (meta: 0).' % self.over_tier,
+                                {'type': 'logs'}))
+        table = self.prices.get('models') if isinstance(self.prices, dict) else None
+        if self.ceiling is None or not isinstance(table, dict):
+            return found
+        for model in sorted(self.models):
+            rate = budget_mod._rate(budget_mod.price_for(table, model))
+            if rate is None or rate['above'] is None or self.ceiling < rate['above']:
+                continue
+            found.append(_alert('tier-crossable:' + model, 'tier-crossable', 'warning', 'Nível de preço pode ser atingido: ' + model,
+                                'O teto de entrada de %d tokens alcança o limiar de %d tokens do nível de preço de %s.' % (
+                                    self.ceiling, rate['above'], model), {'type': 'logs'}, proof_kind='estimado'))
+        return found
+
     def _evaluate(self, now_ms: int, receipt_ready: Callable[[], bool] | None) -> dict[str, dict[str, Any]]:
         found: list[dict[str, Any]] = []
         if self.stall is not None:
@@ -225,5 +254,6 @@ class AlertWatch:
             found.append(_alert('oracle-unverified', 'oracle-unverified', 'warning', 'Oracle sem veredito',
                                 'o run terminou sem veredito do oracle', {'type': 'logs'}))
         found.extend(self._budget_alerts())
+        found.extend(self._tier_alerts())
         found.sort(key=lambda alert: SEVERITY_ORDER[alert['severity']])
         return {alert['id']: alert for alert in found}
