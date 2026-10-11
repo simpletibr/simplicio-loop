@@ -44,6 +44,10 @@ DEFAULT_CEILING = 98_000
 MAX_CEILING = 1_000_000
 ENV_NAME = "SIMPLICIO_AGENT_INPUT_TOKEN_CEILING"
 TOML_KEY = "agent_input_token_ceiling"
+DEFAULT_CHAIN_LIMIT = 5
+MAX_CHAIN_LIMIT = 20
+CHAIN_ENV_NAME = "SIMPLICIO_AGENT_CONTINUATION_CHAIN_LIMIT"
+CHAIN_TOML_KEY = "agent_continuation_chain_limit"
 
 # At or above this share of the ceiling the agent must hand off before it sends the next request.
 SOFT_PERCENT = 90
@@ -88,9 +92,9 @@ class InputCeilingExceeded(Exception):
 
 # --- configuration -----------------------------------------------------------------------------------------------------
 
-def _check_ceiling(value: Any, source: str) -> int:
-    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_CEILING:
-        raise CeilingConfigError("%s: %r is not an integer from 1 to %d" % (source, value, MAX_CEILING))
+def _check_ceiling(value: Any, source: str, maximum: int = MAX_CEILING) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= maximum:
+        raise CeilingConfigError("%s: %r is not an integer from 1 to %d" % (source, value, maximum))
     return value
 
 
@@ -116,21 +120,30 @@ def resolve_ceiling(repo_root: str | Path, environ: Mapping[str, str] | None = N
     return explain_ceiling(repo_root, environ).value
 
 
+def _default_branch_config(repo_root: str | Path) -> tuple[dict[str, Any], str]:
+    """The default branch's loop.toml, and the reason when it cannot be read and the repository has no remote (then the
+    config is empty). With a remote, an unreadable default branch raises CeilingUnreadable: nothing is guessed."""
+    # Lazy: handoff_cli imports this module. The default-branch read is the one piece of I/O here.
+    from .handoff_cli import HandoffError, default_branch_config, has_remote
+
+    try:
+        return default_branch_config(Path(repo_root)), ""
+    except HandoffError as exc:
+        if has_remote(Path(repo_root)):
+            raise CeilingUnreadable(str(exc)) from exc
+        return {}, str(exc)
+
+
 def explain_ceiling(repo_root: str | Path, environ: Mapping[str, str] | None = None) -> Ceiling:
     """The ceiling with its source and reason. See the module docstring for the order."""
     global _warned
-    # Lazy: handoff_cli imports this module. The default-branch read is the one piece of I/O here.
-    from .handoff_cli import HandoffError, ceiling_from, default_branch_config, has_remote
+    from .handoff_cli import ceiling_from
 
     env = os.environ if environ is None else environ
     if ENV_NAME in env:
         return Ceiling(ceiling_from({}, env), "env " + ENV_NAME)
-    try:
-        config = default_branch_config(Path(repo_root))
-    except HandoffError as exc:
-        reason = str(exc)
-        if has_remote(Path(repo_root)):
-            raise CeilingUnreadable(reason) from exc
+    config, reason = _default_branch_config(repo_root)
+    if reason:
         if not _warned:
             _warned = True
             print("simplicio input ceiling: %s; the built-in default %d applies" % (reason, DEFAULT_CEILING),
@@ -138,6 +151,21 @@ def explain_ceiling(repo_root: str | Path, environ: Mapping[str, str] | None = N
         return Ceiling(DEFAULT_CEILING, "built-in default", reason)
     source = "default branch" if TOML_KEY in config else "built-in default"
     return Ceiling(ceiling_from(config, env), source)
+
+
+def resolve_chain_limit(repo_root: str | Path, environ: Mapping[str, str] | None = None) -> int:
+    """The continuation chain limit. Order: env ``SIMPLICIO_AGENT_CONTINUATION_CHAIN_LIMIT``, then the key
+    ``agent_continuation_chain_limit`` on the default branch, then 5. Same reader and failure rules as the ceiling."""
+    env = os.environ if environ is None else environ
+    if CHAIN_ENV_NAME in env:
+        raw = env[CHAIN_ENV_NAME]
+        if not re.fullmatch(r"[0-9]{1,2}", raw):
+            raise CeilingConfigError("%s: %r is not an integer from 1 to %d" % (CHAIN_ENV_NAME, raw, MAX_CHAIN_LIMIT))
+        return _check_ceiling(int(raw), CHAIN_ENV_NAME, MAX_CHAIN_LIMIT)
+    config, _reason = _default_branch_config(repo_root)
+    if CHAIN_TOML_KEY not in config:
+        return DEFAULT_CHAIN_LIMIT
+    return _check_ceiling(config[CHAIN_TOML_KEY], "default branch loop.toml key " + CHAIN_TOML_KEY, MAX_CHAIN_LIMIT)
 
 
 # --- estimator ---------------------------------------------------------------------------------------------------------
