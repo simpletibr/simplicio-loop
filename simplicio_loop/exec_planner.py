@@ -36,11 +36,13 @@ PLAN_ONLY_PREAMBLE = (
     '{"operations": [...]} describing the edits. The dev-cli applies it afterwards '
     "(`simplicio-loop turbo --apply -`). Task:\n\n"
 )
-# Sits between the planner instructions and the handoff in a continuation's prompt: the stable part comes first (#1608).
+# A continuation's request is the task contract, this text, then the rest of the handoff: the first two repeat byte for
+# byte in every continuation of a chain, so the provider's prompt cache can read them (#1608).
 CONTINUATION_PREFIX = (
-    "This task continues a planner run that stopped at the input-token ceiling. The checkpoint below "
-    "(simplicio.agent-handoff/v1) is that run's state. Continue from it and answer with one plan JSON object.\n\n"
+    "This task continues a planner run that stopped at the input-token ceiling. The task above and the checkpoint below "
+    "(simplicio.agent-handoff/v1) are that run's state. Continue from it and answer with one plan JSON object.\n\n"
 )
+CONTRACT_FIELDS = ("objective", "acceptance_criteria")
 
 
 class ExecPlannerError(Exception):
@@ -534,6 +536,16 @@ def default_handoff(ctx):
     }
 
 
+def _continuation_request(handoff):
+    contract = {key: handoff[key] for key in CONTRACT_FIELDS}
+    rest = {key: value for key, value in handoff.items() if key not in CONTRACT_FIELDS}
+
+    def dump(doc):
+        return json.dumps(doc, ensure_ascii=False, sort_keys=True, indent=2)
+
+    return dump(contract) + "\n\n" + CONTINUATION_PREFIX + dump(rest)
+
+
 def _needs_human(result, error, continuations):
     return PlannerResult("needs_human", result.family, result.role, result.model, result.effort, error=error,
                          execution_ms=result.execution_ms, continuations=continuations)
@@ -574,7 +586,7 @@ async def _run_chain(family, role, prompt, opts, *, repo_root, handoff_writer, r
             clean, _redacted, _rel = handoff_cli.store(repo_root, handoff_writer(ctx))
         except HandoffError as e:  # the writer refused (the task does not fit) or the handoff is invalid: nothing was sent
             return _needs_human(result, str(e), continuations - 1)
-        current = CONTINUATION_PREFIX + json.dumps(clean, ensure_ascii=False, sort_keys=True, indent=2)
+        current = _continuation_request(clean)
 
 
 async def run_planner_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, families=None, grace_sec=KILL_GRACE_SEC,

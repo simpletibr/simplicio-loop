@@ -81,8 +81,10 @@ def test_an_over_ceiling_prompt_writes_one_handoff_and_the_next_attempt_starts_w
 
     argv = call_of(bindir, "claude")["argv"]
     prompt = _prompt_arg(argv)
-    # The stable prefix (planner instructions) comes first, then the handoff text.
-    assert prompt.index(exec_planner.CONTINUATION_PREFIX) < prompt.index(stored.strip())
+    # The task contract comes first, then the planner instructions, then the rest of the handoff.
+    head = prompt.index(exec_planner.CONTINUATION_PREFIX)
+    assert doc["objective"] in prompt[:head] and doc["acceptance_criteria"][0] in prompt[:head]
+    assert '"continuation": 1' in prompt[head:]
     assert "MARKER-TASK" in prompt  # the handoff carries the task
     assert input_ceiling.Projection.estimated(prompt).tokens <= CEILING
 
