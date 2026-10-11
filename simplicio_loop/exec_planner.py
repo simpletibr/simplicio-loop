@@ -15,11 +15,17 @@ import shutil
 import signal
 import tempfile
 import time
+import uuid
+from datetime import datetime, timezone
 
-from . import input_ceiling, model_roles, plan_scope, structured_output
+from . import handoff_cli, input_ceiling, model_roles, plan_scope, structured_output
+from .agent_handoff import HandoffError
 
 DEFAULT_FAMILIES = ["claude", "codex", "grok", "gemini"]
 KILL_GRACE_SEC = 3.0
+# A request over the input ceiling is replaced by a handoff and a new run; this many continuations is the most a chain
+# may write before the task goes to a human (#1608).
+MAX_CONTINUATIONS = 5
 
 # opencode's built-in `plan` agent denies edits but allows bash and webfetch. This config is written to a temp file and
 # passed through OPENCODE_CONFIG so the planner cannot run commands or fetch URLs.
@@ -29,6 +35,11 @@ PLAN_ONLY_PREAMBLE = (
     "You are a planner only. Do NOT edit files and do NOT run commands. Reply with exactly one JSON object "
     '{"operations": [...]} describing the edits. The dev-cli applies it afterwards '
     "(`simplicio-loop turbo --apply -`). Task:\n\n"
+)
+# Sits between the planner instructions and the handoff in a continuation's prompt: the stable part comes first (#1608).
+CONTINUATION_PREFIX = (
+    "This task continues a planner run that stopped at the input-token ceiling. The checkpoint below "
+    "(simplicio.agent-handoff/v1) is that run's state. Continue from it and answer with one plan JSON object.\n\n"
 )
 
 
@@ -48,8 +59,9 @@ class PlannerResult:
     """Result of running a planner via CLI exec."""
 
     def __init__(self, reason_code, family, role, model, effort, plan=None, error=None, execution_ms=0.0, raw=None,
-                 structured=("", ""), violations=(), surface=("", "")):
+                 structured=("", ""), violations=(), surface=("", ""), continuations=0):
         self.reason_code = reason_code
+        self.continuations = continuations  # handoffs written before this result; each one started a new run (#1608)
         self.family = family
         self.role = role
         self.model = model
@@ -80,6 +92,7 @@ class PlannerResult:
             "structured_reason": self.structured_reason,
             "tool_surface": self.tool_surface,
             "tool_surface_reason": self.tool_surface_reason,
+            "continuations": self.continuations,
         }
 
 
@@ -481,19 +494,96 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
     return _result("ok", family, role, model, effort, started, plan=plan, raw=stdout, structured=receipt, surface=surface)
 
 
+def default_handoff(ctx):
+    """The handoff written without a model: the head of the task, the contract, no changed files. A model-written
+    checkpoint is the intended writer; this one keeps the chain working on hosts that have none.
+
+    ``ctx`` holds run_id, task_id, continuation, family, role, model, lease, prompt, ceiling, tokens (the projected prompt
+    that was refused), cumulative (prompt tokens sent by the chain: always 0 here) and created_at.
+    """
+    objective = " ".join(ctx["prompt"].split())[:1000] or "continue the planning task"
+    return {
+        "schema": "simplicio.agent-handoff/v1",
+        "run_id": ctx["run_id"],
+        "task_id": ctx["task_id"],
+        "continuation": ctx["continuation"],
+        "reason": "input_ceiling",
+        "agent": {"family": ctx["family"], "role": ctx["role"], "model": ctx["model"]},
+        "objective": objective,
+        "acceptance_criteria": ["answer the objective with one plan JSON object"],
+        "done": {"files": [], "commands": []},
+        "next_steps": ["answer the objective with one plan JSON object"],
+        "open_questions": [],
+        "tokens": {
+            "basis": input_ceiling.ESTIMATED, "estimator": input_ceiling.ESTIMATOR_LABEL, "prompt_tokens": ctx["tokens"],
+            "input_tokens": None, "cache_read_input_tokens": None, "cache_creation_input_tokens": None,
+            "output_tokens": None, "ceiling": ctx["ceiling"], "cumulative_prompt_tokens": ctx["cumulative"],
+        },
+        "lease": ctx["lease"],
+        "created_at": ctx["created_at"],
+    }
+
+
+def _needs_human(result, error, continuations):
+    return PlannerResult("needs_human", result.family, result.role, result.model, result.effort, error=error,
+                         execution_ms=result.execution_ms, continuations=continuations)
+
+
+async def _run_chain(family, role, prompt, opts, *, repo_root, handoff_writer, run_id):
+    """Run one family until its request fits the ceiling. Each refusal writes a handoff and starts a new run of the same
+    family and role with it as its prompt, under the same lease. After MAX_CONTINUATIONS the task is ``needs_human``.
+
+    The handoffs of a family go to ``<run_id>-<family>``: a fallback to another family is a new chain, and a handoff is
+    never replaced, so two families cannot share one run directory."""
+    lease = {"key": "exec-planner:%s" % role, "owner": run_id}
+    chain_id = "%s-%s" % (run_id, family)
+    continuations = 0
+    current = prompt
+    while True:
+        result = await run_planner(family, role, current, repo_root=repo_root, **opts)
+        if result.reason_code != "input_ceiling_exceeded":
+            result.continuations = continuations
+            return result
+        if continuations >= MAX_CONTINUATIONS:
+            return _needs_human(result, "continuation_chain_exhausted: %d continuations written, the next run would be "
+                                        "number %d" % (continuations, continuations + 1), continuations)
+        continuations += 1
+        ctx = {
+            "run_id": chain_id, "task_id": "exec-planner:%s" % role, "continuation": continuations,
+            "family": family, "role": role, "model": result.model, "lease": lease, "prompt": current,
+            "ceiling": input_ceiling.resolve_ceiling(repo_root),
+            "tokens": input_ceiling.Projection.estimated(PLAN_ONLY_PREAMBLE + current).tokens,
+            "cumulative": 0,  # no request of this chain was sent: a refused request is never sent
+            "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+        }
+        try:
+            clean, _redacted, _rel = handoff_cli.store(repo_root, handoff_writer(ctx))
+        except HandoffError as e:
+            return _needs_human(result, "%s: %s" % (e.reason_code, e), continuations - 1)
+        current = CONTINUATION_PREFIX + json.dumps(clean, ensure_ascii=False, sort_keys=True, indent=2)
+
+
 async def run_planner_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, families=None, grace_sec=KILL_GRACE_SEC,
-                                    wrap=None, env_for=None, config_dir=None, scope=None, read_tools=False, *, repo_root):
+                                    wrap=None, env_for=None, config_dir=None, scope=None, read_tools=False, *, repo_root,
+                                    handoff_writer=default_handoff, run_id=None):
     """Try to run planner with each family in order, falling back on non-fatal errors.
 
     ``wrap``, ``env_for(family)``, ``scope`` and ``read_tools`` are passed to run_planner (the argv wrapper, the per-family
     environment, the task scope the answer must stay in and whether the read tools are allowed).
+
+    A request over the input ceiling is not sent: ``handoff_writer(ctx)`` returns the handoff document, which is stored
+    under ``repo_root/.simplicio-loop`` and continues the run in the same family and role. ``run_id`` names the lease
+    (default: a new one); a call that reuses a run_id and a family finds its handoff already stored and is ``needs_human``.
+    A chain that cannot continue is ``needs_human`` and no other family is tried.
     """
+    run_id = run_id or uuid.uuid4().hex
     last_result = None
     for family in families or _get_families():
-        result = await run_planner(family, role, prompt, cwd, timeout_sec, grace_sec, wrap=wrap,
-                                   env=env_for(family) if env_for else None, config_dir=config_dir, scope=scope,
-                                   read_tools=read_tools, repo_root=repo_root)
-        if result.reason_code in ("bad_role", "bad_argv") or result.violations or result.is_ok():
+        opts = dict(cwd=cwd, timeout_sec=timeout_sec, grace_sec=grace_sec, wrap=wrap,
+                    env=env_for(family) if env_for else None, config_dir=config_dir, scope=scope, read_tools=read_tools)
+        result = await _run_chain(family, role, prompt, opts, repo_root=repo_root, handoff_writer=handoff_writer,
+                                  run_id=run_id)
+        if result.reason_code in ("bad_role", "bad_argv", "needs_human") or result.violations or result.is_ok():
             return result
         last_result = result
     return last_result or PlannerResult("no_families", "", role, "", "", error="no families")
