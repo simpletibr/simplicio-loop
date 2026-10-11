@@ -7,12 +7,14 @@ request costs the cheap tier, above it the whole request costs five times more.
 Three things live here:
 
 * ``resolve_ceiling``: the configured ceiling. Order: env ``SIMPLICIO_AGENT_INPUT_TOKEN_CEILING``, then key
-  ``agent_input_token_ceiling`` in ``<repo>/.simplicio-loop/loop.toml``, then 98,000. A bad value raises; it never falls
-  back to the default.
+  ``agent_input_token_ceiling`` in ``.simplicio-loop/loop.toml`` as the DEFAULT BRANCH (``origin/HEAD``) has it, then
+  98,000. The working tree is never read: a plan or a PR can edit it. Without ``origin/HEAD`` the built-in value applies
+  and ``explain_ceiling`` says why. A bad value raises; it never falls back to the default.
 * ``estimate_tokens``: a deterministic estimate for hosts that do not report usage. Pure Python, no tokenizer package,
-  no network. It is conservative: on the reference samples it is never below 1.15 x the tiktoken ``o200k_base`` count
-  (tests/fixtures/input_ceiling_reference.json). Error against non-OpenAI tokenizers (Claude) is UNVERIFIED, which is why
-  an estimate is multiplied by SAFETY_PERCENT before it is compared with the ceiling.
+  no network. It is conservative: on every reference sample it is at least 95% (X = 95, ESTIMATOR_FLOOR_PERCENT) of
+  the tiktoken ``o200k_base`` count, and on the typical sample at least 1.15 x (tests/fixtures/input_ceiling_reference.json).
+  Error against non-OpenAI tokenizers (Claude) is UNVERIFIED, which is why an estimate is multiplied by SAFETY_PERCENT
+  before it is compared with the ceiling.
 * ``check_budget``: the one decision function. It compares the PROJECTED total prompt of the NEXT request with the
   ceiling. The total prompt is new input + cache reads + cache writes, never only the uncached part.
 
@@ -28,7 +30,6 @@ from __future__ import annotations
 
 import os
 import re
-import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -44,6 +45,8 @@ SOFT_PERCENT = 90
 # An estimate is multiplied by this before the comparison: tokenizers differ (UNVERIFIED for Claude).
 SAFETY_PERCENT = 120
 ESTIMATOR_LABEL = "conservative-v2"
+# The estimate is never below this share of the tiktoken o200k_base count on any reference sample.
+ESTIMATOR_FLOOR_PERCENT = 95
 
 MEASURED = "MEASURED"
 ESTIMATED = "ESTIMATED"
@@ -76,22 +79,23 @@ def _check_ceiling(value: Any, source: str) -> int:
 
 
 def resolve_ceiling(repo_root: str | Path, environ: Mapping[str, str] | None = None) -> int:
+    return explain_ceiling(repo_root, environ)[0]
+
+
+def explain_ceiling(repo_root: str | Path, environ: Mapping[str, str] | None = None) -> tuple[int, str]:
+    """The ceiling and the source it came from. See the module docstring for the order."""
+    # Lazy: handoff_cli imports this module. The default-branch read is the one piece of I/O here.
+    from .handoff_cli import HandoffError, ceiling_from, default_branch_config
+
     env = os.environ if environ is None else environ
     if ENV_NAME in env:
-        raw = env[ENV_NAME]
-        if not re.fullmatch(r"[0-9]{1,7}", raw):
-            raise CeilingConfigError("%s: %r is not an integer from 1 to %d" % (ENV_NAME, raw, MAX_CEILING))
-        return _check_ceiling(int(raw), ENV_NAME)
-    path = Path(repo_root) / ".simplicio-loop" / "loop.toml"
-    if not path.is_file():
-        return DEFAULT_CEILING
+        return ceiling_from({}, env), "env " + ENV_NAME
     try:
-        data = tomllib.loads(path.read_text(encoding="utf-8"))
-    except (tomllib.TOMLDecodeError, UnicodeDecodeError, OSError) as exc:
-        raise CeilingConfigError("%s: %s" % (path, exc)) from exc
-    if TOML_KEY not in data:
-        return DEFAULT_CEILING
-    return _check_ceiling(data[TOML_KEY], "%s key %s" % (path, TOML_KEY))
+        config = default_branch_config(Path(repo_root))
+    except HandoffError as exc:
+        return DEFAULT_CEILING, "built-in default, the default branch cannot be read (%s)" % exc.args[0]
+    source = "default branch" if TOML_KEY in config else "built-in default"
+    return ceiling_from(config, env), source
 
 
 # --- estimator ---------------------------------------------------------------------------------------------------------
