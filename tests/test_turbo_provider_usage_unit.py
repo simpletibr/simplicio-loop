@@ -87,3 +87,29 @@ def test_a_turbo_call_without_repo_root_writes_no_report(monkeypatch, tmp_path):
     monkeypatch.setattr(turbo_provider, "_http_client", pooled)
     asyncio.run(turbo_provider.complete("a", [{"role": "user", "content": "hi"}], session_id="s", hedge=0))
     assert not (tmp_path / ".simplicio-loop").exists()
+
+
+def test_an_error_reply_records_nothing_in_the_run_report(monkeypatch, tmp_path):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
+    monkeypatch.delenv(ENV_NAME, raising=False)
+    monkeypatch.chdir(tmp_path)
+
+    async def handler(request):
+        return httpx.Response(500, text="upstream exploded")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
+    async def pooled():
+        return client
+
+    monkeypatch.setattr(turbo_provider, "_http_client", pooled)
+    reply = asyncio.run(turbo_provider.complete("a", [{"role": "user", "content": "hi"}], session_id="s", hedge=0,
+                                                repo_root=tmp_path))
+    assert reply["ok"] is False
+    assert [p for p in tmp_path.rglob("*.json")] == []
+
+
+def test_an_absent_completion_count_is_recorded_as_none_not_zero(monkeypatch, tmp_path):
+    _complete(monkeypatch, tmp_path, _MISSING)
+    [task] = execution_report.load_latest(tmp_path)["tasks"]
+    assert task["tokens"]["tokens_out"] is None

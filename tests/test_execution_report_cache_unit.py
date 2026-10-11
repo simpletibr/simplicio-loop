@@ -72,3 +72,12 @@ def test_record_usage_appends_one_request_to_the_latest_report(tmp_path):
     first, second = tasks[0]["tokens"], tasks[1]["tokens"]
     assert (first["tokens_in"], first["tokens_cached"], first["tokens_cache_write"], first["tokens_out"]) == (10, 20, 30, 4)
     assert second["tokens_in"] is None and second["tokens_cached"] is None and second["tokens_cache_write"] is None
+
+
+def test_record_usage_keeps_the_wall_ms_of_the_report_it_appends_to(tmp_path):
+    report = er.new_report(tmp_path)
+    report.pop("_started_monotonic")  # a report reloaded from disk: its wall_ms is the one already recorded
+    report["wall_ms"] = 1201
+    er.write_report(tmp_path, report)
+    er.record_usage(tmp_path, task_id="A", title="a", usage=None)
+    assert er.load_latest(tmp_path)["wall_ms"] == 1201

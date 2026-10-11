@@ -217,9 +217,8 @@ def load_latest(repo: Path) -> Optional[dict[str, Any]]:
     p = _reports_dir(repo) / "latest.json"
     if not p.is_file():
         return None
-    data = json.loads(p.read_text(encoding="utf-8"))
-    data["_started_monotonic"] = time.monotonic()  # approximate if reloaded
-    return data
+    # No `_started_monotonic`: a reloaded report keeps the wall_ms it already recorded, so write_report never recomputes it.
+    return json.loads(p.read_text(encoding="utf-8"))
 
 
 def record_task(
