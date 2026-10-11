@@ -196,6 +196,54 @@ def _llm_startup_orientation():
     return ""
 
 
+def _transcript_events(stdin):
+    path = stdin.get("transcript_path") if isinstance(stdin, dict) else None
+    if not path or not os.path.exists(path):
+        return []
+    events = []
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                try:
+                    events.append(json.loads(line))
+                except ValueError:
+                    continue
+    except OSError:
+        return []
+    return events
+
+
+def input_ceiling_hint(stdin):
+    """#1608: a re-feed note once the session input reaches the soft share of the input ceiling. Fail-open."""
+    try:
+        from simplicio_loop import input_ceiling
+    except Exception:
+        return ""
+    try:
+        messages = [ev.get("message", ev) for ev in _transcript_events(stdin) if isinstance(ev, dict)]
+        usage = next((m["usage"] for m in reversed(messages)
+                      if isinstance(m, dict) and isinstance(m.get("usage"), dict)), None)
+        projection = None
+        if usage is not None:
+            try:
+                projection = input_ceiling.Projection.measured(input_ceiling.PromptUsage.from_usage(usage), "")
+            except ValueError:
+                projection = None
+        if projection is None:
+            content = "\n".join(json.dumps(m["content"], ensure_ascii=False)
+                                for m in messages if isinstance(m, dict) and "content" in m)
+            projection = input_ceiling.Projection.estimated(content)
+        verdict = input_ceiling.check_budget(projection, input_ceiling.explain_ceiling(os.getcwd()).value)
+    except Exception:
+        return ""
+    if verdict.tokens < verdict.soft_limit:
+        return ""
+    note = "" if verdict.basis == input_ceiling.MEASURED else " The host reports no measured usage, so the count is an estimate."
+    return (" Input ceiling %s: %d of %d tokens, at least %d%% of the ceiling.%s Run `simplicio-loop handoff write` "
+            "with a handoff document, then continue the task in a new subagent."
+            % (verdict.basis, verdict.tokens, verdict.ceiling, input_ceiling.SOFT_PERCENT, note))
+
+
 def _refeed_message(header, body):
     """Prepend startup orientation once, without growing the task body each turn."""
     orientation = _llm_startup_orientation()
@@ -1351,8 +1399,9 @@ def main():
         # so the user sees WHERE the loop is even when the model forgets to narrate it. Fail-open:
         # any error -> empty prefix, header identical to before this feature existed.
         progress_prefix = _progress_header_prefix(nxt, max_iter)
-        header = "[simplicio-loop iteration %d.%s%s%s%s%s %s]" % (
-            nxt, progress_prefix, promise_hint, ac_hint, flow_hint, phase_header_hint(), watcher_tag
+        ceiling_hint = input_ceiling_hint(stdin)
+        header = "[simplicio-loop iteration %d.%s%s%s%s%s%s %s]" % (
+            nxt, progress_prefix, promise_hint, ac_hint, flow_hint, ceiling_hint, phase_header_hint(), watcher_tag
         )
         # Issue the NEXT iteration's watcher challenge before re-feeding (#82) — must be on disk
         # before the next turn's agent acts, so a mid-turn `watcher_verify.py` run can read and

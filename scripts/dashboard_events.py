@@ -78,7 +78,7 @@ KIND_CATALOG = {
     "lifecycle": ("run_started", "phase_entered", "phase_exited", "contract_frozen", "map_ready",
                   "plan_frozen"),
     "lanes_tasks": ("worker_claimed", "lease_heartbeat", "lane_progress", "iteration_started", "iteration_finished",
-                    "apply_result"),
+                    "apply_result", "handoff"),
     "quality": ("test_result", "lint_result", "coverage_result", "gate_evaluated"),
     "commands": ("command_started", "command_finished"),
     "recovery": ("retry_scheduled", "stall_detected", "decision_requested"),

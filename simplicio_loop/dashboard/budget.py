@@ -152,6 +152,21 @@ def usage(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
             'by_iteration': by_iteration, 'unattributed_tokens': unattributed, 'by_source': by_source}
 
 
+def continuations(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    '''Continuations started per task: the distinct continuation numbers of the task's handoff events, so one repeated event counts once.'''
+    seen: dict[str, set[int]] = {}
+    for event in events:
+        if not isinstance(event, dict) or event.get('schema') != SCHEMA or event.get('kind') != 'handoff':
+            continue
+        payload = event.get('payload') if isinstance(event.get('payload'), dict) else {}
+        number, task = payload.get('continuation'), _task(event.get('task_id'))
+        if task is None or not isinstance(number, int) or isinstance(number, bool) or number < 1:
+            continue
+        seen.setdefault(task, set()).add(number)
+    by_task = {task: len(numbers) for task, numbers in sorted(seen.items())}
+    return {'total': sum(by_task.values()), 'by_task': by_task}
+
+
 def price_for(models: dict[str, Any], model: str) -> dict[str, Any] | None:
     '''The longest table key that prefixes the model id, so a dated id takes its family's price.
 
@@ -401,7 +416,7 @@ def report(run_dir: str | Path, events: list[dict[str, Any]], prices: dict[str, 
     phase = current_phase(events)
     measured = {'tokens': used['tokens'], 'usd': used['usd'], 'seconds': elapsed_s(events)}
     return {'phase': phase, 'limits': limits, 'usage': used, 'cost': cost_estimate(events, prices),
-            'rows': {key: project(limits[key], measured[key], phase) for key in KEYS}}
+            'continuations': continuations(events), 'rows': {key: project(limits[key], measured[key], phase) for key in KEYS}}
 
 
 COMPARE_FIELDS = ('duration_s', 'tokens', 'cost_usd', 'iterations')

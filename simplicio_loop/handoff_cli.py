@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from .agent_handoff import HandoffError, handoff_path, redact_handoff, validate_handoff
+from .dashboard_events import emit_handoff
 from .input_ceiling import (
     DEFAULT_CEILING, ENV_NAME, MAX_CEILING, TOML_KEY, CeilingConfigError, PromptUsage, Projection, _check_ceiling,
     check_budget, explain_ceiling)
@@ -207,7 +208,9 @@ def store(repo: str | Path, doc: Any) -> tuple[dict, list[str], str]:
     path = handoff_path(root, clean["run_id"], clean["continuation"])
     _walk(root, _parts(clean["run_id"]), create=True)
     _publish(path, json.dumps(clean, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
-    return clean, redacted, path.relative_to(root).as_posix()
+    rel = path.relative_to(root).as_posix()
+    emit_handoff(root, clean, rel)
+    return clean, redacted, rel
 
 
 def _write(args: argparse.Namespace) -> dict:
