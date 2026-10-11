@@ -196,31 +196,63 @@ def _llm_startup_orientation():
     return ""
 
 
-def _transcript_events(stdin):
-    path = stdin.get("transcript_path") if isinstance(stdin, dict) else None
-    if not path or not os.path.exists(path):
-        return []
-    events = []
+_TAIL_FIRST = 1 << 20  # the first block read from the end of the transcript
+_TAIL_CAP = 8 << 20  # the most the hook reads when no usage line is in the first block
+
+
+def _span_events(path, start, end):
+    """The JSON lines inside bytes [start, end) of the transcript; a line cut at either edge fails to parse and is skipped."""
     try:
-        with open(path, encoding="utf-8", errors="replace") as f:
-            for line in f:
-                try:
-                    events.append(json.loads(line))
-                except ValueError:
-                    continue
+        with open(path, "rb") as f:
+            f.seek(start)
+            data = f.read(end - start)
     except OSError:
         return []
+    events = []
+    for line in data.decode("utf-8", errors="replace").split("\n"):
+        try:
+            events.append(json.loads(line))
+        except ValueError:
+            continue
     return events
 
 
+def _transcript_tail(stdin):
+    """The events of the end of the transcript: the last block, widened to the cap only if it holds no usage line."""
+    path = stdin.get("transcript_path") if isinstance(stdin, dict) else None
+    if not path or not os.path.exists(path):
+        return []
+    size = os.path.getsize(path)
+    cut = max(0, size - _TAIL_FIRST)
+    events = _span_events(path, cut, size)
+    if cut and not any(isinstance(m, dict) and isinstance(m.get("usage"), dict) for m in _messages(events)):
+        events = _span_events(path, max(0, size - _TAIL_CAP), cut) + events
+    return events
+
+
+def _messages(events):
+    return [ev.get("message", ev) for ev in events if isinstance(ev, dict)]
+
+
 def input_ceiling_hint(stdin):
-    """#1608: a re-feed note once the session input reaches the soft share of the input ceiling. Fail-open."""
+    """#1608: a re-feed note once the session input reaches the soft share of the input ceiling.
+
+    Fail-open for the transcript and the import (the hook must never block a Stop); an unreadable ceiling is named in the note.
+    """
+    if os.getcwd() not in sys.path:
+        sys.path.insert(0, os.getcwd())
     try:
         from simplicio_loop import input_ceiling
     except Exception:
         return ""
     try:
-        messages = [ev.get("message", ev) for ev in _transcript_events(stdin) if isinstance(ev, dict)]
+        ceiling = input_ceiling.explain_ceiling(os.getcwd()).value
+    except input_ceiling.CeilingUnreadable as exc:
+        return " Input ceiling unreadable: %s" % exc
+    except Exception:
+        return ""
+    try:
+        messages = _messages(_transcript_tail(stdin))
         usage = next((m["usage"] for m in reversed(messages)
                       if isinstance(m, dict) and isinstance(m.get("usage"), dict)), None)
         projection = None
@@ -233,7 +265,7 @@ def input_ceiling_hint(stdin):
             content = "\n".join(json.dumps(m["content"], ensure_ascii=False)
                                 for m in messages if isinstance(m, dict) and "content" in m)
             projection = input_ceiling.Projection.estimated(content)
-        verdict = input_ceiling.check_budget(projection, input_ceiling.explain_ceiling(os.getcwd()).value)
+        verdict = input_ceiling.check_budget(projection, ceiling)
     except Exception:
         return ""
     if verdict.tokens < verdict.soft_limit:
