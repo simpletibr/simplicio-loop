@@ -1,14 +1,15 @@
 """judge (verify, blocking): an ACCEPT/REJECT verdict on the applied diff; a REJECT blocks the PR.
 
-Deterministic checks only, first and cheap: the diff is empty, it touches files outside the plan, it removes or
-skips tests, it carries a secret (``secret_scan.scan_diff``, the scan that already guards the push). The reasons
+Deterministic checks only, first and cheap: the diff is empty, it touches a protected path (``plan_paths``, #1567),
+it touches files outside the plan, it removes or skips tests, it carries a secret (``secret_scan.scan_diff``, the scan
+that already guards the push). The reasons
 become ``review_panel`` findings and the verdict words are the panel's (``pass`` is ACCEPT, ``fix-required`` is
 REJECT). The verdict is saved to ``<run_dir>/judge.json`` for ``delivery_gate``, which does not re-run the scan.
 """
 import json
 import re
 
-from ... import review_panel
+from ... import intake_gate, plan_paths, review_panel
 from .. import proc, secret_scan, state
 from . import _plan
 from .registry import PointContext, PointResult, register
@@ -18,7 +19,7 @@ VERDICT_FILE = "judge.json"
 ACCEPT, REJECT, NO_DIFF = "ACCEPT", "REJECT", "NO_DIFF"
 ROLE = "blast_radius_reviewer"
 _VERDICT = {review_panel.VERDICT_PASS: ACCEPT, review_panel.VERDICT_FIX_REQUIRED: REJECT}
-_STATE_DIRS = (".simplicio-loop/",)  # the loop's own files are never part of the change
+_STATE_DIRS = (".simplicio-loop/",)  # the loop's own scratch files are never part of the change; the opt-in is (#1567)
 _UNTRACKED_CAP = 200_000
 _FILE = re.compile(r"^diff --git a/(.+?) b/(.+)$", re.MULTILINE)
 _TEST_PATH = re.compile(r"(^|/)(tests?|__tests__)/|(^|/)test_[^/]*$|_test\.[^/]+$|\.(test|spec)\.[^/]+$")
@@ -30,11 +31,16 @@ _SKIP = re.compile(
     r"|\b(?:it|test|describe)\.skip\(|\bx(?:it|describe)\(|#\[ignore\]|\bt\.Skip\()", re.MULTILINE)
 
 
+def _scratch(path: str) -> bool:
+    """True for the loop's own scratch files: the state dir, but not the protected opt-in (what `dirty` counts too)."""
+    return path.startswith(_STATE_DIRS) and path != intake_gate.CONFIG_PATH
+
+
 def _segments(diff: str) -> dict[str, str]:
     """The diff split per file (keyed by the new path)."""
     marks = list(_FILE.finditer(diff))
     return {mark.group(2): diff[mark.start():(marks[i + 1].start() if i + 1 < len(marks) else len(diff))]
-            for i, mark in enumerate(marks) if not mark.group(2).startswith(_STATE_DIRS)}
+            for i, mark in enumerate(marks) if not _scratch(mark.group(2))}
 
 
 def _defs(text: str, sign: str) -> set[str]:
@@ -46,7 +52,7 @@ def _changes(status: str) -> tuple[list[str], list[str], list[str]]:
     changed, deleted, untracked = [], [], []
     for line in status.splitlines():
         code, path = line[:2], line[3:].split(" -> ")[-1].strip('"')
-        if not path or path.startswith(_STATE_DIRS) or path == ".gitignore":
+        if not path or _scratch(path) or path == ".gitignore":
             continue
         changed.append(path)
         if "D" in code:
@@ -71,6 +77,7 @@ def _untracked(ctx: PointContext, untracked: list[str]) -> str:
 
 def _review(files: list[str], deleted: list[str], segments: dict[str, str], planned: list[str]) -> dict[str, list[str]]:
     found: dict[str, list[str]] = {
+        "protected_path": [path for path in files if plan_paths.protected_refusal(path)],
         "outside_plan": [path for path in files if planned and path not in planned],
         "test_removed": [path for path in deleted if _TEST_PATH.search(path)],
         "test_skipped": []}
@@ -83,7 +90,7 @@ def _review(files: list[str], deleted: list[str], segments: dict[str, str], plan
     return found
 
 
-_CLASS = {"outside_plan": "blast_radius", "test_removed": "correctness",
+_CLASS = {"protected_path": "blast_radius", "outside_plan": "blast_radius", "test_removed": "correctness",
           "test_skipped": "correctness", "secret_detected": "security"}
 
 

@@ -62,6 +62,15 @@ PROTECTED = [
     pytest.param("simplicio_loop/watcher247/points/judge.py", "simplicio_loop/watcher247/points/judge.py", id="judge"),
     pytest.param("simplicio_loop/watcher247/points/delivery_gate.py",
                  "simplicio_loop/watcher247/points/delivery_gate.py", id="delivery-gate"),
+    # run before any gate (package inits, the interpreter's startup file, the root conftest) or configure a tool (#1567)
+    pytest.param("simplicio_loop/__init__.py", "simplicio_loop/__init__.py", id="package-init"),
+    pytest.param("simplicio_loop/watcher247/__init__.py", "simplicio_loop/watcher247/__init__.py", id="watcher247-init"),
+    pytest.param("simplicio_loop/watcher247/points/__init__.py", "simplicio_loop/watcher247/points/__init__.py", id="points-init"),
+    pytest.param("sitecustomize.py", "sitecustomize.py", id="sitecustomize"),
+    pytest.param("simplicio_loop/core_network_guard.py", "simplicio_loop/core_network_guard.py", id="core-network-guard"),
+    pytest.param(".mcp.json", ".mcp.json", id="mcp-config"),
+    pytest.param(".cursor/mcp.json", ".cursor/mcp.json", id="cursor-mcp-config"),
+    pytest.param("conftest.py", "conftest.py", id="root-conftest"),
 ]
 # The same files spelled the way a forgiving file system reads them.
 SPELLINGS = [
@@ -295,6 +304,7 @@ def test_the_config_path_the_gate_reads_is_protected():
 NOT_IN_THIS_REPO = {
     "CODEOWNERS", "docs/CODEOWNERS", ".claude/settings.json", ".claude/settings.local.json", ".claude/hooks", ".cursor/hooks.json",
     ".kiro/hooks", ".githooks", ".husky", ".pre-commit-config.yaml", ".vscode/tasks.json",
+    ".mcp.json", ".cursor/mcp.json", "conftest.py",
 }
 
 
@@ -375,39 +385,51 @@ PY_GATES = [
     "simplicio_loop/watcher247/squad_flow.py",
     "simplicio_loop/watcher247/points/judge.py",
     "simplicio_loop/watcher247/points/delivery_gate.py",
+    "simplicio_loop/__init__.py",
+    "simplicio_loop/watcher247/__init__.py",
+    "simplicio_loop/watcher247/points/__init__.py",
+    "sitecustomize.py",
+    "simplicio_loop/core_network_guard.py",
+    "conftest.py",
 ]
 
 
+def _dir(gate: str) -> str:
+    """The folder of `gate` with its trailing slash, or "" for a gate at the root (no leading slash: that would be absolute)."""
+    folder = gate.rpartition("/")[0]
+    return f"{folder}/" if folder else ""
+
+
 def _siblings(gate: str) -> list[str]:
-    folder, _, name = gate.rpartition("/")
-    stem = name.removesuffix(".py")
+    prefix, stem = _dir(gate), gate.rpartition("/")[2].removesuffix(".py")
     return [
-        f"{folder}/{stem}",
-        f"{folder}/{stem}/__init__.py",
-        f"{folder}/{stem}/deeper/x.py",
-        f"{folder}/{stem}.so",
-        f"{folder}/{stem}.cpython-314-x86_64-linux-gnu.so",
-        f"{folder}/{stem}.pyc",
-        f"{folder}/{stem}.pyd",
-        f"{folder}/__pycache__/{stem}.cpython-314.pyc",
-        f"{folder.upper()}/{stem.upper()}/__init__.py",
-        f"{folder}/{stem}./__init__.py",
+        f"{prefix}{stem}",
+        f"{prefix}{stem}/__init__.py",
+        f"{prefix}{stem}/deeper/x.py",
+        f"{prefix}{stem}.so",
+        f"{prefix}{stem}.cpython-314-x86_64-linux-gnu.so",
+        f"{prefix}{stem}.pyc",
+        f"{prefix}{stem}.pyd",
+        f"{prefix}__pycache__/{stem}.cpython-314.pyc",
+        f"{prefix.upper()}{stem.upper()}/__init__.py",
+        f"{prefix}{stem}./__init__.py",
     ]
 
 
 def _lookalikes(gate: str) -> list[str]:
-    folder, _, name = gate.rpartition("/")
-    stem = name.removesuffix(".py")
+    folder, stem = gate.rpartition("/")[0], gate.rpartition("/")[2].removesuffix(".py")
+    prefix = _dir(gate)
+    decoy = "/".join("zz" for _ in folder.split("/")) + "/"  # a folder that is not the gate's, at the same depth
     return [
-        f"{folder}/{stem}_x.py",
-        f"{folder}/x{stem}.py",
-        f"{folder}/{stem}x/__init__.py",
-        f"{folder}/x{stem}/__init__.py",
-        f"{folder}/__pycache__/{stem}_x.cpython-314.pyc",
-        f"{folder}/__pycache__/other.cpython-314.pyc",
-        f"{folder}/other/{stem}.py",
-        "/".join("zz" for _ in folder.split("/")) + f"/{stem}.so",
-        "/".join("zz" for _ in folder.split("/")) + f"/__pycache__/{stem}.cpython-314.pyc",
+        f"{prefix}{stem}_x.py",
+        f"{prefix}x{stem}.py",
+        f"{prefix}{stem}x/__init__.py",
+        f"{prefix}x{stem}/__init__.py",
+        f"{prefix}__pycache__/{stem}_x.cpython-314.pyc",
+        f"{prefix}__pycache__/other.cpython-314.pyc",
+        f"{prefix}other/{stem}.py",
+        f"{decoy}{stem}.so",
+        f"{decoy}__pycache__/{stem}.cpython-314.pyc",
     ]
 
 

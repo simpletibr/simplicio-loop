@@ -74,6 +74,14 @@ PROTECTED_PATHS = (
     "simplicio_loop/watcher247/squad_flow.py",
     "simplicio_loop/watcher247/points/judge.py",
     "simplicio_loop/watcher247/points/delivery_gate.py",
+    "simplicio_loop/__init__.py",  # package inits run before any gate
+    "simplicio_loop/watcher247/__init__.py",
+    "simplicio_loop/watcher247/points/__init__.py",
+    "sitecustomize.py",  # python runs it before pytest starts
+    "simplicio_loop/core_network_guard.py",
+    ".mcp.json",  # the MCP servers a host starts
+    ".cursor/mcp.json",
+    "conftest.py",  # pytest runs it before any test
 )
 
 
