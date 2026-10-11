@@ -152,3 +152,21 @@ def test_codex_catalog_models_are_in_the_codex_models_cache() -> None:
     for role, model in expected.items():
         assert codex[role]["model"] == model, f"codex/{role}"
         assert model in model_slugs, f"codex/{role}={model} not in codex models cache: {model_slugs}"
+
+
+@pytest.mark.parametrize("output, reason", [
+    ("Error: Some resource has been exhausted: You are sending requests too quickly. Please slow down", "rate_limited"),
+    ("ERROR: You've hit your usage limit. Upgrade to Plus to continue using Codex", "quota_exhausted"),
+    ("Error: 429 Too Many Requests", "rate_limited"),
+    ("Not logged in. Run `claude login`", "auth_error"),
+])
+def test_probe_names_a_quota_a_rate_limit_or_an_auth_failure_instead_of_a_generic_error(output: str, reason: str) -> None:
+    """The measured grok and codex answers on 2026-10-10: neither is a refused model, and the probe must not say so (#1674)."""
+    row = model_probe.probe("grok", "execution", "grok-4.7", run=lambda _argv: (1, output), which=_which)
+    assert row["status"] == "refused" and row["reason_code"] == reason, row
+
+
+def test_a_refused_model_that_also_says_account_is_still_model_refused() -> None:
+    output = "HTTP 400: The 'gpt-6-luna' model is not supported when using Codex with a ChatGPT account"
+    row = model_probe.probe("codex", "execution", "gpt-6-luna", run=lambda _argv: (1, output), which=_which)
+    assert row["reason_code"] == "model_refused"

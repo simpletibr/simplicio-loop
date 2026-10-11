@@ -109,3 +109,11 @@ def test_every_failure_is_listed_and_the_first_is_the_reason(point_contract, mak
     result = point_contract("delivery_gate", ctx, expect="blocked")
     assert result.reason_code == "verify_failed"
     assert result.evidence["failures"] == ["verify_failed", "judge_missing", "closes_missing"]
+
+
+def test_a_pr_that_touches_a_protected_path_is_not_delivered_even_when_judged_accept(point_contract, make_ctx, tmp_path):
+    # a second guard after judge (#1567): an ACCEPT that still names a protected file does not open the PR
+    judge = {**ACCEPT, "files": ["app.py", ".github/workflows/x.yml"]}
+    result = point_contract("delivery_gate", ctx_for(make_ctx, tmp_path, judge=judge), expect="blocked")
+    assert result.reason_code == "protected_path"
+    assert result.evidence["protected_path"] == [".github/workflows/x.yml"]

@@ -143,3 +143,21 @@ def test_a_git_failure_blocks_instead_of_accepting(make_ctx, tmp_path):
     with pytest.raises(points.PointBlocked) as blocked:
         asyncio.run(points.run("verify", ctx_for(make_ctx, plain, tmp_path)))
     assert blocked.value.reason_code == "git_failed"
+
+
+def test_a_plan_that_edits_a_protected_workflow_rejects(point_contract, make_ctx, repo, tmp_path):
+    # the plan names the workflow, so it is not outside the plan: the protected list alone rejects it (#1567)
+    write(repo, {".github/workflows/x.yml": "on: pull_request_target\n"})
+    plan = {"operations": [{"path": ".github/workflows/x.yml", "find": "", "replace": "on: pull_request_target\n"}]}
+    result = point_contract("judge", ctx_for(make_ctx, repo, tmp_path, plan=plan), expect="blocked")
+    assert result.reason_code == "protected_path"
+    assert result.evidence["protected_path"] == [".github/workflows/x.yml"]
+    assert verdict_file(tmp_path)["verdict"] == "REJECT"
+
+
+def test_the_loop_opt_in_in_the_change_rejects_even_without_a_plan(point_contract, make_ctx, repo, tmp_path):
+    # loop.toml lives in the state dir, which the diff ignores, but it is the protected opt-in: its edit is a change
+    write(repo, {".simplicio-loop/loop.toml": "enabled = true\n"})
+    result = point_contract("judge", ctx_for(make_ctx, repo, tmp_path), expect="blocked")
+    assert result.reason_code == "protected_path"
+    assert result.evidence["protected_path"] == [".simplicio-loop/loop.toml"]
