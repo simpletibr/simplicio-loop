@@ -18,7 +18,7 @@ from typing import Any, Callable, Mapping, Sequence
 from urllib.parse import urlparse
 
 from .evidence import redact_sensitive_text
-from .input_ceiling import CeilingConfigError, InputCeilingExceeded, Projection, enforce_budget, resolve_ceiling
+from .input_ceiling import CeilingConfigError, InputCeilingExceeded, Projection, describe, enforce_budget, explain_ceiling
 
 OPENROUTER_PROVIDER = "openrouter"
 OPENROUTER_MODEL = "deepseek/deepseek-v4.1-flash"
@@ -206,16 +206,17 @@ def _gate_input(prompt: str, repo_root: str | Path | None, env: Mapping[str, str
     """Refuse a request whose projected prompt is above the input-token ceiling (#1608). The worker has no provider usage
     before its one request, so the projection is ESTIMATED and says so. The request is not sent when it is over."""
     try:
-        ceiling = resolve_ceiling(Path.cwd() if repo_root is None else repo_root, env)
-        verdict = enforce_budget(Projection.estimated(prompt), ceiling)
+        ceiling = explain_ceiling(Path.cwd() if repo_root is None else repo_root, env)
+        verdict = enforce_budget(Projection.estimated(prompt), ceiling.value)
     except CeilingConfigError as exc:
         raise ProviderWorkerError(str(exc), reason_code=exc.reason_code) from exc
     except InputCeilingExceeded as exc:
         raise ProviderWorkerError(
-            f"{exc}; the request was not sent, hand off to a fresh worker with a smaller context",
+            f"{exc}; {describe(ceiling)}; the request was not sent, hand off to a fresh worker with a smaller context",
             reason_code=exc.reason_code,
         ) from exc
-    return {"status": verdict.status, "basis": verdict.basis, "tokens": verdict.tokens, "ceiling": verdict.ceiling}
+    return {"status": verdict.status, "basis": verdict.basis, "tokens": verdict.tokens, "ceiling": verdict.ceiling,
+            "ceiling_source": ceiling.source, "ceiling_reason": ceiling.reason}
 
 
 def _decode_proposal(response: Mapping[str, Any], *, max_tokens: int) -> dict[str, Any]:

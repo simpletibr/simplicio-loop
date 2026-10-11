@@ -11,7 +11,8 @@
 The ceiling comes from the DEFAULT BRANCH, never from the working tree: the ``agent_input_token_ceiling`` key of
 ``.simplicio-loop/loop.toml`` as ``origin/HEAD`` has it (as of the last fetch). An agent that edits its own clone cannot
 raise it. The environment variable ``SIMPLICIO_AGENT_INPUT_TOKEN_CEILING`` still wins and then no git is needed.
-A repository without ``origin/HEAD`` and without the variable fails loud: there is no silent default.
+A repository without ``origin/HEAD`` and without the variable uses the built-in 98,000 and says why (``ceiling_source``
+and ``ceiling_reason`` in the output, plus one warning on stderr). Only an INVALID value exits 2.
 
 Exit codes: 0 ok, 3 handoff (write one before the next request), 4 over (do not send), 2 error.
 An error prints ``{"status": "error", "reason_code": ..., "error": ...}`` on stderr and nothing on stdout.
@@ -33,7 +34,7 @@ from typing import Any, Mapping, Sequence
 from .agent_handoff import HandoffError, handoff_path, redact_handoff, validate_handoff
 from .input_ceiling import (
     DEFAULT_CEILING, ENV_NAME, MAX_CEILING, TOML_KEY, CeilingConfigError, PromptUsage, Projection, _check_ceiling,
-    check_budget)
+    check_budget, explain_ceiling)
 
 CONFIG_PATH = ".simplicio-loop/loop.toml"
 # A handoff is at most 6000 estimated tokens (about 24 KB of JSON). A file far above that is not one.
@@ -85,10 +86,6 @@ def default_branch_config(repo: Path) -> dict[str, Any]:
         return tomllib.loads(blob.stdout.decode("utf-8"))
     except (tomllib.TOMLDecodeError, UnicodeDecodeError) as exc:
         raise CeilingConfigError("%s:%s: %s" % (ref, CONFIG_PATH, exc)) from exc
-
-
-def _ceiling(repo: Path) -> int:
-    return ceiling_from({} if ENV_NAME in os.environ else default_branch_config(repo), os.environ)
 
 
 # --- input and output ----------------------------------------------------------------------------------------------------
@@ -234,8 +231,10 @@ def _projection(args: argparse.Namespace) -> Projection:
 
 def _check(args: argparse.Namespace) -> dict:
     projection = _projection(args)
-    verdict = check_budget(projection, _ceiling(_root(args.repo)))
+    ceiling = explain_ceiling(_root(args.repo))
+    verdict = check_budget(projection, ceiling.value)
     return {"status": verdict.status, "basis": verdict.basis, "tokens": verdict.tokens, "ceiling": verdict.ceiling,
+            "ceiling_source": ceiling.source, "ceiling_reason": ceiling.reason,
             "soft_limit": verdict.soft_limit, "headroom": verdict.headroom, "ratio": round(verdict.ratio, 4),
             "measured_base": projection.measured_base, "estimated_tokens": projection.estimated_tokens,
             "estimator": projection.estimator}

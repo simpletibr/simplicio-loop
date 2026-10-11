@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from . import plan_paths
-from .input_ceiling import estimate_tokens, resolve_ceiling
+from .input_ceiling import describe, estimate_tokens, explain_ceiling
 
 FILE_CHARS_MAX = 16_000  # per-file ceiling, before the fair share of the total budget
 MIN_FILE_CHARS = 800
@@ -229,7 +229,8 @@ def build_files(root: Path, tasks: Sequence[Mapping[str, Any]], windows: Sequenc
         if intervals:
             intervals.append((_HEADER_PRIORITY, 1, 1, min(len(lines), HEADER_LINES)))
         sources.append(_Source(name, body, _merge(intervals)))
-    budget = resolve_ceiling(root) * BUDGET_PERCENT // 100
+    ceiling = explain_ceiling(root)
+    budget = ceiling.value * BUDGET_PERCENT // 100
     limit = FILE_CHARS_MAX
     while True:
         files = {s.name: s.render(limit) for s in sources}
@@ -249,7 +250,8 @@ def build_files(root: Path, tasks: Sequence[Mapping[str, Any]], windows: Sequenc
     if used > budget:
         files = best if best is not None else {s.name: s.render(0) for s in sources}
         if _tokens(files) > budget:
-            raise TooManyFilesError(f"{len(sources)} files do not fit {budget} tokens even as outlines: name fewer files")
+            raise TooManyFilesError(f"{len(sources)} files do not fit {budget} tokens even as outlines: name fewer files "
+                                    f"({describe(ceiling)})")
     return files
 
 

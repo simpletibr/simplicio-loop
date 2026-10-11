@@ -45,7 +45,7 @@ def _default_branch_toml(repo: Path, text: str | bytes) -> None:
     path.parent.mkdir(exist_ok=True)
     path.write_bytes(text if isinstance(text, bytes) else text.encode("utf-8"))
     _git(repo, "add", ".simplicio-loop/loop.toml")
-    _git(repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "config")
+    _git(repo, "-c", "commit.gpgsign=false", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "config")
     _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
     _git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
 
@@ -85,7 +85,7 @@ def test_a_committed_change_on_a_feature_branch_is_ignored(tmp_path):
     _default_branch_toml(tmp_path, "agent_input_token_ceiling = 50000\n")
     _git(tmp_path, "checkout", "-q", "-b", "pr")
     _toml(tmp_path, "agent_input_token_ceiling = 999999\n")
-    _git(tmp_path, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-am", "raise")
+    _git(tmp_path, "-c", "commit.gpgsign=false", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-am", "raise")
     assert ic.resolve_ceiling(tmp_path, environ={}) == 50_000
 
 
@@ -98,19 +98,46 @@ def test_default_branch_without_the_key_gives_the_default(tmp_path):
 def test_a_local_loop_toml_without_a_git_remote_is_ignored(tmp_path):
     _toml(tmp_path, "agent_input_token_ceiling = 999999\n")
     assert ic.resolve_ceiling(tmp_path, environ={}) == 98_000
-    assert "origin/HEAD" in ic.explain_ceiling(tmp_path, environ={})[1]
+    assert "origin/HEAD" in ic.explain_ceiling(tmp_path, environ={}).reason
 
 
-def test_no_origin_head_gives_the_default_with_the_reason(tmp_path):
+def test_no_origin_head_gives_the_default_with_the_reason(tmp_path, monkeypatch):
+    monkeypatch.setattr(ic, "_warned", False)
     _git(tmp_path, "init", "-q", "-b", "main")
-    value, reason = ic.explain_ceiling(tmp_path, environ={})
-    assert value == 98_000
-    assert "origin/HEAD" in reason and "built-in" in reason
+    got = ic.explain_ceiling(tmp_path, environ={})
+    assert got.value == 98_000 and got.source == "built-in default"
+    assert "default_branch_unresolved" in got.reason and "origin/HEAD" in got.reason
 
 
 def test_env_wins_over_the_default_branch_without_reading_git(tmp_path):
     _default_branch_toml(tmp_path, "agent_input_token_ceiling = 50000\n")
-    assert ic.explain_ceiling(tmp_path, environ={ic.ENV_NAME: "70000"}) == (70_000, "env " + ic.ENV_NAME)
+    assert ic.explain_ceiling(tmp_path, environ={ic.ENV_NAME: "70000"}) == ic.Ceiling(70_000, "env " + ic.ENV_NAME, "")
+
+
+def test_the_source_is_the_default_branch_when_it_sets_the_key(tmp_path):
+    _default_branch_toml(tmp_path, "agent_input_token_ceiling = 50000\n")
+    assert ic.explain_ceiling(tmp_path, environ={}) == ic.Ceiling(50_000, "default branch", "")
+
+
+def test_the_source_is_built_in_default_when_the_default_branch_has_no_key(tmp_path):
+    _default_branch_toml(tmp_path, 'verify = "pytest -q"\n')
+    assert ic.explain_ceiling(tmp_path, environ={}) == ic.Ceiling(98_000, "built-in default", "")
+
+
+def test_the_fallback_warns_once_per_process_on_stderr(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(ic, "_warned", False)
+    _git(tmp_path, "init", "-q", "-b", "main")
+    ic.explain_ceiling(tmp_path, environ={})
+    ic.explain_ceiling(tmp_path, environ={})
+    err = capsys.readouterr().err
+    assert err.count("built-in default") == 1 and "origin/HEAD" in err
+
+
+def test_no_warning_when_the_default_branch_is_read(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(ic, "_warned", False)
+    _default_branch_toml(tmp_path, "agent_input_token_ceiling = 50000\n")
+    ic.explain_ceiling(tmp_path, environ={})
+    assert capsys.readouterr().err == ""
 
 
 def test_invalid_default_branch_value_fails_loud(tmp_path):
@@ -185,7 +212,7 @@ def test_estimator_is_pure_python_with_no_tokenizer_dependency():
             imported |= {a.name.split(".")[0] for a in node.names}
         elif isinstance(node, ast.ImportFrom):
             imported.add((node.module or "").split(".")[0])
-    assert imported <= {"__future__", "os", "re", "dataclasses", "pathlib", "typing"}
+    assert imported <= {"__future__", "os", "re", "sys", "dataclasses", "pathlib", "typing"}
 
 
 def test_estimate_basics():
@@ -204,15 +231,6 @@ def test_estimate_survives_lone_surrogates_and_control_characters():
 def test_estimate_grows_with_size():
     unit = "def f(x):\n    return x + 1\n"
     assert ic.estimate_tokens(unit * 100) > 50 * ic.estimate_tokens(unit)
-
-
-def test_estimate_is_at_least_the_floor_share_of_the_reference_on_every_sample():
-    """Criterion 3 of #1608: the estimate is never below X = 95% of the reference count, on every fixture entry."""
-    assert ic.ESTIMATOR_FLOOR_PERCENT == 95
-    assert len(REF["samples"]) >= 10
-    short = [(s["name"], ic.estimate_tokens(s["text"]), s["ref_tokens"]) for s in REF["samples"]
-             if ic.estimate_tokens(s["text"]) * 100 < s["ref_tokens"] * ic.ESTIMATOR_FLOOR_PERCENT]
-    assert short == [], "below %d%% of the reference: %r" % (ic.ESTIMATOR_FLOOR_PERCENT, short)
 
 
 @pytest.mark.parametrize("sample", REF["samples"], ids=[s["name"] for s in REF["samples"]])
