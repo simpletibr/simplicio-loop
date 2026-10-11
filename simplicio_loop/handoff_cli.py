@@ -190,14 +190,21 @@ def _highest(run_dir: Path) -> int:
 
 # --- commands ------------------------------------------------------------------------------------------------------------
 
-def _write(args: argparse.Namespace) -> dict:
-    root = _root(args.repo)
-    clean, redacted = redact_handoff(_parse_object(_read_text(args.file), "the input"))
+def store(repo: str | Path, doc: Any) -> tuple[dict, list[str], str]:
+    """Mask, validate and store one handoff under ``repo``. Returns the stored document, the pointers that were masked
+    and the stored path relative to ``repo``. A refused document raises ``HandoffError`` and writes nothing."""
+    root = _root(str(repo))
+    clean, redacted = redact_handoff(doc)
     validate_handoff(clean)  # after the mask: a mask can be longer than what it hides
     path = handoff_path(root, clean["run_id"], clean["continuation"])
     _walk(root, _parts(clean["run_id"]), create=True)
     _publish(path, json.dumps(clean, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
-    return {"path": path.relative_to(root).as_posix(), "continuation": clean["continuation"], "redacted": redacted}
+    return clean, redacted, path.relative_to(root).as_posix()
+
+
+def _write(args: argparse.Namespace) -> dict:
+    clean, redacted, rel = store(args.repo, _parse_object(_read_text(args.file), "the input"))
+    return {"path": rel, "continuation": clean["continuation"], "redacted": redacted}
 
 
 def _read(args: argparse.Namespace) -> dict:
