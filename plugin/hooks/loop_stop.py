@@ -196,6 +196,86 @@ def _llm_startup_orientation():
     return ""
 
 
+_TAIL_FIRST = 1 << 20  # the first block read from the end of the transcript
+_TAIL_CAP = 8 << 20  # the most the hook reads when no usage line is in the first block
+
+
+def _span_events(path, start, end):
+    """The JSON lines inside bytes [start, end) of the transcript; a line cut at either edge fails to parse and is skipped."""
+    try:
+        with open(path, "rb") as f:
+            f.seek(start)
+            data = f.read(end - start)
+    except OSError:
+        return []
+    events = []
+    for line in data.decode("utf-8", errors="replace").split("\n"):
+        try:
+            events.append(json.loads(line))
+        except ValueError:
+            continue
+    return events
+
+
+def _transcript_tail(stdin):
+    """The events of the end of the transcript: the last block, widened to the cap only if it holds no usage line."""
+    path = stdin.get("transcript_path") if isinstance(stdin, dict) else None
+    if not path or not os.path.exists(path):
+        return []
+    size = os.path.getsize(path)
+    cut = max(0, size - _TAIL_FIRST)
+    events = _span_events(path, cut, size)
+    if cut and not any(isinstance(m, dict) and isinstance(m.get("usage"), dict) for m in _messages(events)):
+        events = _span_events(path, max(0, size - _TAIL_CAP), cut) + events
+    return events
+
+
+def _messages(events):
+    return [ev.get("message", ev) for ev in events if isinstance(ev, dict)]
+
+
+def input_ceiling_hint(stdin):
+    """#1608: a re-feed note once the session input reaches the soft share of the input ceiling.
+
+    Fail-open for the transcript and the import (the hook must never block a Stop); an unreadable ceiling is named in the note.
+    """
+    if os.getcwd() not in sys.path:
+        sys.path.insert(0, os.getcwd())
+    try:
+        from simplicio_loop import input_ceiling
+    except Exception:
+        return ""
+    try:
+        ceiling = input_ceiling.explain_ceiling(os.getcwd()).value
+    except input_ceiling.CeilingUnreadable as exc:
+        return " Input ceiling unreadable: %s" % exc
+    except Exception:
+        return ""
+    try:
+        messages = _messages(_transcript_tail(stdin))
+        usage = next((m["usage"] for m in reversed(messages)
+                      if isinstance(m, dict) and isinstance(m.get("usage"), dict)), None)
+        projection = None
+        if usage is not None:
+            try:
+                projection = input_ceiling.Projection.measured(input_ceiling.PromptUsage.from_usage(usage), "")
+            except ValueError:
+                projection = None
+        if projection is None:
+            content = "\n".join(json.dumps(m["content"], ensure_ascii=False)
+                                for m in messages if isinstance(m, dict) and "content" in m)
+            projection = input_ceiling.Projection.estimated(content)
+        verdict = input_ceiling.check_budget(projection, ceiling)
+    except Exception:
+        return ""
+    if verdict.tokens < verdict.soft_limit:
+        return ""
+    note = "" if verdict.basis == input_ceiling.MEASURED else " The host reports no measured usage, so the count is an estimate."
+    return (" Input ceiling %s: %d of %d tokens, at least %d%% of the ceiling.%s Run `simplicio-loop handoff write` "
+            "with a handoff document, then continue the task in a new subagent."
+            % (verdict.basis, verdict.tokens, verdict.ceiling, input_ceiling.SOFT_PERCENT, note))
+
+
 def _refeed_message(header, body):
     """Prepend startup orientation once, without growing the task body each turn."""
     orientation = _llm_startup_orientation()
@@ -1351,8 +1431,9 @@ def main():
         # so the user sees WHERE the loop is even when the model forgets to narrate it. Fail-open:
         # any error -> empty prefix, header identical to before this feature existed.
         progress_prefix = _progress_header_prefix(nxt, max_iter)
-        header = "[simplicio-loop iteration %d.%s%s%s%s%s %s]" % (
-            nxt, progress_prefix, promise_hint, ac_hint, flow_hint, phase_header_hint(), watcher_tag
+        ceiling_hint = input_ceiling_hint(stdin)
+        header = "[simplicio-loop iteration %d.%s%s%s%s%s%s %s]" % (
+            nxt, progress_prefix, promise_hint, ac_hint, flow_hint, ceiling_hint, phase_header_hint(), watcher_tag
         )
         # Issue the NEXT iteration's watcher challenge before re-feeding (#82) — must be on disk
         # before the next turn's agent acts, so a mid-turn `watcher_verify.py` run can read and

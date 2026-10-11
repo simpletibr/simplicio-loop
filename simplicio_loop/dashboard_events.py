@@ -75,6 +75,20 @@ def emit_token_usage(run_dir: Any, only: Optional[str] = None) -> List[Dict[str,
         return []
 
 
+def emit_handoff(repo_root: Any, handoff: Mapping[str, Any], path: str) -> Optional[Dict[str, Any]]:
+    """Append the ``handoff`` event of one stored handoff to the active run. Never raises (fail-open)."""
+    try:
+        module = load()
+        if module is None:
+            return None
+        return module.emit_from_hook(
+            "handoff", cwd=str(repo_root), source="operator", scope="task", task_id=handoff["task_id"],
+            payload={"step": "written", "continuation": handoff["continuation"], "basis": handoff["tokens"]["basis"]},
+            refs=[path])
+    except Exception:
+        return None
+
+
 def read_events(run_dir: Any, since_seq: int = 0) -> List[Dict[str, Any]]:
     """A run's events: the live stream, or the ``derived: true`` reconstruction for older runs."""
     module = load()
