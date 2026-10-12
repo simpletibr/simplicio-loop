@@ -337,7 +337,7 @@ def test_save_token_is_private_atomic_and_locked(tmp_path):
     document = json.loads(path.read_text())
     assert document["schema"] == "simplicio.github-credential/v1" and document["token"] == GOOD and document["login"] == "octocat"
     assert github_cred.load_token(state) == GOOD
-    assert [p.name for p in state.iterdir()] == ["github.json", "github.lock"]  # no temp file left
+    assert sorted(p.name for p in state.iterdir()) == ["github.json", "github.lock"]  # no temp file left
 
 
 def test_save_token_into_a_blocked_folder_is_a_cred_error_not_an_os_error(tmp_path):
