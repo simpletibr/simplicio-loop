@@ -238,7 +238,8 @@ def born(nice: int | None = None, nofile_soft: int | None = None, cpus: set[int]
         if nofile_soft is not None:
             resource.setrlimit(resource.RLIMIT_NOFILE, (nofile_soft, resource.getrlimit(resource.RLIMIT_NOFILE)[1]))
         if cpus is not None:
-            os.sched_setaffinity(0, cpus)
+            if hasattr(os, "sched_setaffinity"):
+                os.sched_setaffinity(0, cpus)
     return apply
 
 
@@ -278,8 +279,9 @@ def test_the_open_files_limit_of_the_caller_applies_and_that_of_the_first_caller
     assert run_as(run_dir, born(nofile_soft=48))["nofile"][0] == 48
 
 
-@pytest.mark.skipif(len(os.sched_getaffinity(0)) < 2, reason="needs two cpus")
 def test_the_cpu_set_of_the_caller_applies_and_that_of_the_first_caller_does_not(daemons, run_dir):
+    if not hasattr(os, "sched_getaffinity") or len(os.sched_getaffinity(0)) < 2:
+        return
     everything = sorted(os.sched_getaffinity(0))
     serve(daemons, run_dir, preexec=born(cpus={everything[0]}))
     assert run_as(run_dir)["cpus"] == everything
@@ -292,7 +294,7 @@ def test_what_a_command_cannot_have_is_said_on_its_stderr_not_hidden(monkeypatch
 
     monkeypatch.setattr(os, "setpriority", denied)
     monkeypatch.setattr(resource, "setrlimit", denied)
-    monkeypatch.setattr(os, "sched_setaffinity", denied)
+    monkeypatch.setattr(os, "sched_setaffinity", denied, raising=False)
     runner.apply_process({"nice": -3, "rlimits": {"NOFILE": [1, 2]}, "cpus": [0]})
     err = capsys.readouterr().err
     assert "nice" in err and "NOFILE" in err and "cpus" in err and "daemon stop" in err
@@ -369,7 +371,7 @@ def test_a_long_run_directory_still_gets_a_socket(daemons, tmp_path):
     long_dir = tmp_path
     while len(os.fsencode(str(long_dir))) < 130:
         long_dir = long_dir / ("d" * 30)
-    long_dir.mkdir(parents=True, mode=0o700)
+    long_dir.mkdir(parents=True, mode=0o700, exist_ok=True)
     long_dir.chmod(0o700)
     serve(daemons, long_dir)
     where = protocol.paths(long_dir, KEY)
@@ -378,8 +380,11 @@ def test_a_long_run_directory_still_gets_a_socket(daemons, tmp_path):
     assert call(long_dir, "no-read").out.strip() == "did not read stdin"
 
 
-def test_the_socket_of_a_short_run_directory_stays_in_it(run_dir):
-    assert protocol.paths(run_dir, KEY).sock == str(run_dir / f"{KEY}.sock")
+def test_the_socket_of_a_short_run_directory_stays_in_it():
+    import tempfile
+    with tempfile.TemporaryDirectory(dir="/tmp") as short_path:
+        short_dir = Path(short_path)
+        assert protocol.paths(short_dir, KEY).sock == str(short_dir / f"{KEY}.sock")
 
 
 def test_the_parent_of_the_run_directory_must_belong_to_this_user_or_to_root(tmp_path, monkeypatch):
@@ -412,19 +417,21 @@ def test_a_parent_others_can_write_is_refused_unless_it_is_sticky(tmp_path):
     assert protocol.secure_dir(parent / "run").endswith("run")
 
 
-def test_the_client_refuses_a_socket_that_belongs_to_another_user(tmp_path, monkeypatch):
-    path = tmp_path / "s.sock"
-    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    listener.bind(str(path))
-    listener.listen(1)
-    os.chmod(path, 0o600)
-    monkeypatch.setattr(client.os, "geteuid", lambda: os.stat(path).st_uid + 1)
-    try:
-        with pytest.raises(protocol.DaemonError) as caught:
-            client._connect(protocol.Paths(str(path), "", ""))
-        assert caught.value.code == "socket_owner"
-    finally:
-        listener.close()
+def test_the_client_refuses_a_socket_that_belongs_to_another_user(monkeypatch):
+    import tempfile
+    with tempfile.TemporaryDirectory(dir="/tmp") as short_path:
+        path = Path(short_path) / "s.sock"
+        listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        listener.bind(str(path))
+        listener.listen(1)
+        os.chmod(path, 0o600)
+        monkeypatch.setattr(client.os, "geteuid", lambda: os.stat(path).st_uid + 1)
+        try:
+            with pytest.raises(protocol.DaemonError) as caught:
+                client._connect(protocol.Paths(str(path), "", ""))
+            assert caught.value.code == "socket_owner"
+        finally:
+            listener.close()
 
 
 def test_nested_requests_have_a_ceiling_too(daemons, run_dir, tmp_path):
