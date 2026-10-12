@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [3.49.0] - 2026-10-10
+
+- The dev login switch `SIMPLICIO_247_NO_LOGIN` is gone. The login gate of the 24/7 tick is the only path again (#1604).
+- A new attempt on an issue that has a branch on origin uses `loop/issue-N-r2`, then `-r3`. The first attempt keeps `loop/issue-N`. The merge train and the review read the real branch of the PR. An issue with an open PR gets no second PR.
+- The review gate runs the PR code in a jail with no network. It refuses a PR that adds or changes a symlink. Production code that is not Python needs a human review (T2).
+- The review gate runs the tests that import a shared test helper when the helper changes. A mutation sample with fewer than 5 live mutants no longer fails on one equivalent mutant.
+- Only comments by an authorized login can carry the independent review marker. The closing keyword check also reads `GH-N` and the URLs of issues and pull requests.
+- The planner CLI of `claude` runs with no tools, no MCP, no skills and no saved session. Each step records `tool_surface` and its reason.
+- `login --no-browser` removes the display variables of the child process. It exits with code 2 when it cannot install the stand-ins for the browser.
+- The model catalog lists only ids that the installed CLIs accept. `python -m simplicio_loop.model_probe` probes each family and role.
+- The dashboard counts `requests_over_tier`. The execution report records the cache read and write tokens that the provider measured.
+
 - `truncate_error_with_cause` now has callers. Four places that cut an error message keep both the start (the cause) and the end of it, with a marker for the cut: the `simplicio-mapper index` failure (`map_service_mapper`), the failed-job message in the fabric journal (`fabric_scheduler`), the tick error in the watcher status (`watcher247/__main__`), and the version-probe error (`strict_mode`). Each has a test (Part of #1665).
 - The 24/7 watcher has a second executor. `SIMPLICIO_247_EXECUTOR=author` runs the author flow in the worktree of the item instead of the plan flow. `SIMPLICIO_247_AUTHOR_ROUNDS` sets the rounds (default 3, maximum 10). An `ok` result uses the same delivery path. A failed result releases the claim with the reason. Another value stops the service at start (Part of #1669).
 - `setup` does not run a program from a PATH entry that is relative, writable by others, or owned by another user. It also skips an entry under a folder anyone can rewrite, and `~/.local/bin` (however spelled or linked). Host detection, the tool checks and the `gh` and `git` GitHub login sources skip these entries. The probes get a PATH without them. `setup` prints each entry with its reason (`path_warnings` in `--json`). It also names an agent CLI that sits only in such an entry (`ignored_hosts`), with the fix. Group write on a folder that root or the user owns (Homebrew, Debian `/usr/local/bin`) stays accepted. `setup` still uses the `gh` and `uv` files that it installed. `setup.json` records their SHA256 (`installs`), taken when it checked them. `setup` runs only that exact file while the SHA256 matches and `~/.local/bin` is private. `git credential fill` and `gh auth token` run in an empty folder outside any repository. A `credential.helper` in the local `.git/config` cannot run code now. A `uv` file that `setup` did not install is no longer run by `uv python install` (Part of #1657).

@@ -88,7 +88,7 @@ def test_no_sandbox_refuses_the_tick(env, monkeypatch):
 
 
 def test_turbo_runs_through_the_sandbox_with_scrubbed_env(env, monkeypatch):
-    monkeypatch.setattr(sandbox.shutil, "which", lambda binary: "/usr/bin/bwrap" if binary == "bwrap" else None)
+    monkeypatch.setattr(sandbox, "engine", lambda which=None, platform=None: "bwrap")
     monkeypatch.setenv("GH_TOKEN", "must-not-leak")
     fake = env(FakeRun({"simplicio-a": [issue(1)]}, diff=False))
     wrapped = []
