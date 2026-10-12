@@ -49,3 +49,9 @@ def test_draft_with_auto_merge_runs_no_train_and_no_merge(env, monkeypatch):
     squads = read_json(config.STATUS)["squads"][REPO]
     assert squads["merge"] == "draft"
     assert fake.ran("gh", "pr", "merge") == [] and fake.tests_run == 0 and fake.ran("git", "merge") == []
+
+def test_systemd_env_example_documents_pr_draft():
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[2] / "packaging" / "systemd" / "simplicio-loop-247.env.example"
+    lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines()]
+    assert "SIMPLICIO_247_PR_DRAFT=1" in lines
