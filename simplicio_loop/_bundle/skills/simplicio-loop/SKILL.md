@@ -776,6 +776,19 @@ missing/corrupt `spindle.json` as fail-open (no handoff). Full state machine, pr
 guardrails: **`references/spindle-handoff.md`**.
 
 
+## Input ceiling: 98,000 input tokens per request (issue #1608)
+
+No request to a model sends more than 98,000 input tokens. The ceiling comes from `agent_input_token_ceiling` in
+the default branch `loop.toml`, or from `SIMPLICIO_AGENT_INPUT_TOKEN_CEILING`. When the session reaches 90% of it,
+the Stop hook adds a note to the re-feed header. The note says if the count is measured or an estimate.
+Then do this:
+
+- `simplicio-loop handoff write` stores the handoff document under `.simplicio-loop/orchestrator/handoff/`.
+- `simplicio-loop handoff read` prints it for the new subagent.
+- `simplicio-loop handoff check` tells if the next request fits the ceiling.
+
+Continue the task in a new subagent of the same family and role with only the handoff and the task contract.
+
 ## Guardrails
 
 - Always set `max_iterations` for manual runs — never run truly unbounded by accident.

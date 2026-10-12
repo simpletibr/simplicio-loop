@@ -1,5 +1,7 @@
 """The OpenRouter worker does not send a request above the input-token ceiling (#1608, part C)."""
 from __future__ import annotations
+import subprocess
+
 
 import json
 from io import BytesIO
@@ -33,6 +35,22 @@ def repo(tmp_path, monkeypatch):
 
 
 def _write_toml(root, body):
+    """The ceiling comes from the DEFAULT BRANCH: commit the file on `main` and point origin/HEAD at it."""
+    root.mkdir(parents=True, exist_ok=True)
+    git = ["git", "-C", str(root)]
+    subprocess.run([*git, "init", "-q", "-b", "main"], check=True, capture_output=True)
+    (root / ".simplicio-loop").mkdir(exist_ok=True)
+    (root / ".simplicio-loop" / "loop.toml").write_text(body, encoding="utf-8")
+    subprocess.run([*git, "add", "-f", ".simplicio-loop/loop.toml"], check=True, capture_output=True)
+    subprocess.run([*git, "-c", "commit.gpgsign=false", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty",
+                    "-m", "config"], check=True, capture_output=True)
+    subprocess.run([*git, "update-ref", "refs/remotes/origin/main", "HEAD"], check=True, capture_output=True)
+    subprocess.run([*git, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"], check=True,
+                   capture_output=True)
+
+
+def _write_working_toml(root, body):
+    """A loop.toml in the working tree only: the ceiling never reads it."""
     (root / ".simplicio-loop").mkdir(exist_ok=True)
     (root / ".simplicio-loop" / "loop.toml").write_text(body, encoding="utf-8")
 
@@ -95,7 +113,7 @@ def test_a_bad_loop_toml_ceiling_fails_loud_without_sending(repo):
 
 def test_the_loop_toml_of_the_cwd_is_not_the_one_read(repo):
     """A call that names its repo never reads the loop.toml of the cwd."""
-    _write_toml(Path.cwd(), "%s = 1\n" % TOML_KEY)
+    _write_working_toml(Path.cwd(), "%s = 1\n" % TOML_KEY)
     opener, calls = _counting_opener()
     assert _dispatch(opener, repo)["input_budget"]["ceiling"] == 98_000 and len(calls) == 1
 

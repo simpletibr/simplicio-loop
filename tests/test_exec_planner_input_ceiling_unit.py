@@ -1,5 +1,7 @@
 """The exec planner does not send a request above the input-token ceiling (#1608, part C)."""
 from __future__ import annotations
+import subprocess
+
 
 import asyncio
 import json
@@ -25,6 +27,22 @@ def repo(tmp_path, monkeypatch):
 
 
 def _write_toml(root, body):
+    """The ceiling comes from the DEFAULT BRANCH: commit the file on `main` and point origin/HEAD at it."""
+    root.mkdir(parents=True, exist_ok=True)
+    git = ["git", "-C", str(root)]
+    subprocess.run([*git, "init", "-q", "-b", "main"], check=True, capture_output=True)
+    (root / ".simplicio-loop").mkdir(exist_ok=True)
+    (root / ".simplicio-loop" / "loop.toml").write_text(body, encoding="utf-8")
+    subprocess.run([*git, "add", "-f", ".simplicio-loop/loop.toml"], check=True, capture_output=True)
+    subprocess.run([*git, "-c", "commit.gpgsign=false", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty",
+                    "-m", "config"], check=True, capture_output=True)
+    subprocess.run([*git, "update-ref", "refs/remotes/origin/main", "HEAD"], check=True, capture_output=True)
+    subprocess.run([*git, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"], check=True,
+                   capture_output=True)
+
+
+def _write_working_toml(root, body):
+    """A loop.toml in the working tree only: the ceiling never reads it."""
     (root / ".simplicio-loop").mkdir(exist_ok=True)
     (root / ".simplicio-loop" / "loop.toml").write_text(body, encoding="utf-8")
 
@@ -120,17 +138,27 @@ def test_the_fallback_passes_the_repo_root_to_every_family(repo, monkeypatch):
     calls = []
 
     async def mock_run(*args, **kwargs):
-        calls.append(args)
+        calls.append((args, kwargs))
         return "{}", "", 0
 
     monkeypatch.setattr("simplicio_loop.exec_planner._run_subprocess", mock_run)
     monkeypatch.setattr("simplicio_loop.exec_planner._find_cli", lambda x: f"/usr/bin/{x}")
     monkeypatch.setenv(ENV_NAME, "1000")
 
+    # A task this long does not fit the default handoff's objective (needs_human); a model-style checkpoint stands in.
+    def checkpoint(ctx):
+        return exec_planner.default_handoff({**ctx, "prompt": "checkpoint"})
+
     result = asyncio.run(exec_planner.run_planner_with_fallback(
-        "coordination", "word " * 5000, cwd=str(repo), families=["claude", "codex"], repo_root=repo))
-    assert result.reason_code == "input_ceiling_exceeded"
-    assert calls == []
+        "coordination", "word " * 5000, cwd=str(repo), families=["claude", "codex"], repo_root=repo, run_id="run-f",
+        handoff_writer=checkpoint))
+    # The 1000 ceiling of the repo applies to each family: each one's first request is refused, a handoff is stored
+    # under its own run, and the continuation is the only request each family sends. Codex takes its prompt on stdin.
+    assert len(calls) == 2
+    assert all(exec_planner.CONTINUATION_PREFIX in " ".join(a[0]) + (kw.get("stdin_text") or "") for a, kw in calls)
+    stored = sorted(p.parent.name for p in (repo / ".simplicio-loop").rglob("1.json"))
+    assert stored == ["run-f-claude", "run-f-codex"]
+    assert result.reason_code == "bad_plan" and result.family == "codex"
 
 
 def test_both_planner_entries_require_the_repo_root():
@@ -159,7 +187,7 @@ def test_a_none_repo_root_does_not_skip_the_ceiling(repo, monkeypatch):
 
 def test_the_loop_toml_of_the_cwd_is_not_the_one_read(repo, monkeypatch):
     """A call that names its repo never reads the loop.toml of the cwd."""
-    _write_toml(Path.cwd(), f"{TOML_KEY} = 1\n")
+    _write_working_toml(Path.cwd(), f"{TOML_KEY} = 1\n")
     calls = []
     
     async def mock_run(*args, **kwargs):
@@ -177,3 +205,26 @@ def test_the_loop_toml_of_the_cwd_is_not_the_one_read(repo, monkeypatch):
         assert len(calls) == 1
     
     asyncio.run(test_impl())
+
+
+def test_a_refusal_over_the_built_in_default_names_the_source_and_reason(tmp_path, monkeypatch):
+    """No origin/HEAD: the built-in ceiling applies and the refusal receipt says why (#1608)."""
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    subprocess.run(["git", "-C", str(plain), "init", "-q", "-b", "main"], check=True, capture_output=True)
+    calls = []
+
+    async def mock_run(*args, **kwargs):
+        calls.append((args, kwargs))
+        return "{}", "", 0
+
+    monkeypatch.delenv(ENV_NAME, raising=False)
+    monkeypatch.setattr("simplicio_loop.input_ceiling._warned", False)
+    monkeypatch.setattr("simplicio_loop.exec_planner._run_subprocess", mock_run)
+    monkeypatch.setattr("simplicio_loop.exec_planner._find_cli", lambda x: f"/usr/bin/{x}")
+    result = asyncio.run(exec_planner.run_planner(
+        "claude", "coordination", "word " * 150_000, repo_root=plain, cwd=str(plain)))
+    assert result.reason_code == "input_ceiling_exceeded" and calls == []
+    receipt = result.to_dict()
+    assert receipt["ceiling_source"] == "built-in default"
+    assert "origin/HEAD" in receipt["ceiling_reason"]

@@ -99,3 +99,18 @@ def test_map_gc_bases_handles_work_missing(tmp_path, monkeypatch):
     # Should not crash, just return
     tick._map_gc_bases()
     assert calls == [], f"Should handle missing WORK gracefully: {calls}"
+
+
+def test_map_gc_bases_skips_item_folders_whatever_the_case_of_the_suffix(tmp_path, monkeypatch):
+    """A case-insensitive disk folds `X.WT` onto `x.wt`: the item folders are skipped in any case (#1656 item 5)."""
+    monkeypatch.setattr(config, "WORK", tmp_path / "work")
+    config.WORK.mkdir()
+    for name in ("repo-a.WT", "repo-b.Wt", "repo-c.STATE", "repo-d.State"):
+        (config.WORK / name).mkdir()
+        (config.WORK / name / ".git").mkdir()
+    base = config.WORK / "base-clone"
+    (base / ".git").mkdir(parents=True)
+    calls = []
+    monkeypatch.setattr(map_gc_auto, "maybe_gc", lambda path: calls.append(path))
+    tick._map_gc_bases()
+    assert calls == [str(base)]

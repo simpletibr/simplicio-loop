@@ -31,7 +31,7 @@ Ids are derived from `run_id`, `task_id` and `event_id`, so a re-export of the s
 
 ## Enable it
 
-1. Install the extra: `pip install "simplicio-loop[langfuse]"`. The exporter itself needs no third-party package (it speaks OTLP/JSON over stdlib HTTP); the extra is the documented install switch.
+1. There is nothing to install. Langfuse is optional and off by default: the exporter speaks OTLP/JSON over stdlib HTTP and needs no third-party package or extra. The loop runs normally without Langfuse; skip this section if you do not use it.
 2. In `.simplicio-loop/loop.toml` of the repo:
 
    ```toml

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import subprocess
 from pathlib import Path
 
 import httpx
@@ -46,6 +47,22 @@ def sent(monkeypatch, tmp_path, repo):
 
 
 def _write_toml(root: Path, body: str) -> None:
+    """The ceiling comes from the DEFAULT BRANCH: commit the file on `main` and point origin/HEAD at it."""
+    root.mkdir(parents=True, exist_ok=True)
+    git = ["git", "-C", str(root)]
+    subprocess.run([*git, "init", "-q", "-b", "main"], check=True, capture_output=True)
+    (root / ".simplicio-loop").mkdir(exist_ok=True)
+    (root / ".simplicio-loop" / "loop.toml").write_text(body, encoding="utf-8")
+    subprocess.run([*git, "add", "-f", ".simplicio-loop/loop.toml"], check=True, capture_output=True)
+    subprocess.run([*git, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty",
+                    "-m", "config"], check=True, capture_output=True)
+    subprocess.run([*git, "update-ref", "refs/remotes/origin/main", "HEAD"], check=True, capture_output=True)
+    subprocess.run([*git, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"], check=True,
+                   capture_output=True)
+
+
+def _write_working_toml(root: Path, body: str) -> None:
+    """A loop.toml in the working tree only: the ceiling never reads it."""
     (root / ".simplicio-loop").mkdir(exist_ok=True)
     (root / ".simplicio-loop" / "loop.toml").write_text(body, encoding="utf-8")
 
@@ -65,6 +82,15 @@ def test_a_prompt_over_the_ceiling_is_not_sent(sent, monkeypatch):
     assert raised.value.reason_code == "input_ceiling_exceeded" and sent == []
 
 
+def test_a_system_and_user_prompt_overflowing_only_in_the_system_message_is_not_sent(sent, monkeypatch):
+    """The first message alone is above the ceiling; the short user message after it must not hide that."""
+    monkeypatch.setenv(ENV_NAME, "1000")
+    messages = [{"role": "system", "content": "word " * 5000}, {"role": "user", "content": "hello"}]
+    with pytest.raises(turbo_provider.TurboProviderError) as raised:
+        _complete(messages)
+    assert raised.value.reason_code == "input_ceiling_exceeded" and sent == []
+
+
 def test_the_ceiling_of_loop_toml_applies(sent, repo):
     _write_toml(repo, "%s = 1000\n" % TOML_KEY)
     with pytest.raises(turbo_provider.TurboProviderError) as raised:
@@ -73,7 +99,7 @@ def test_the_ceiling_of_loop_toml_applies(sent, repo):
 
 
 def test_the_loop_toml_of_the_cwd_is_not_the_one_read(sent, repo):
-    _write_toml(Path.cwd(), "%s = 1\n" % TOML_KEY)
+    _write_working_toml(Path.cwd(), "%s = 1\n" % TOML_KEY)
     assert _complete(_SMALL, repo_root=repo)["ok"] and len(sent) == 1
 
 
@@ -156,6 +182,6 @@ def test_turbo_cli_fails_loud_on_an_invalid_ceiling_of_its_repo(sent, monkeypatc
 
 
 def test_turbo_cli_ignores_the_loop_toml_of_the_cwd(sent, monkeypatch, repo, capsys):
-    _write_toml(Path.cwd(), "%s = 1\n" % TOML_KEY)
+    _write_working_toml(Path.cwd(), "%s = 1\n" % TOML_KEY)
     rc, errors = _production_complete(monkeypatch, repo, [_SMALL])
     assert errors == [] and len(sent) == 1

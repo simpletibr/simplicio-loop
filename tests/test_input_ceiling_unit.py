@@ -16,6 +16,7 @@ from __future__ import annotations
 import ast
 import json
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -30,6 +31,23 @@ REF = json.loads((Path(__file__).parent / "fixtures" / "input_ceiling_reference.
 def _toml(repo: Path, text: str) -> None:
     (repo / ".simplicio-loop").mkdir(exist_ok=True)
     (repo / ".simplicio-loop" / "loop.toml").write_text(text, encoding="utf-8")
+
+
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+
+
+def _default_branch_toml(repo: Path, text: str | bytes) -> None:
+    """Commit `text` as .simplicio-loop/loop.toml on `main` and point origin/HEAD at it, as a fetch leaves the clone."""
+    repo.mkdir(parents=True, exist_ok=True)
+    _git(repo, "init", "-q", "-b", "main")
+    path = repo / ".simplicio-loop" / "loop.toml"
+    path.parent.mkdir(exist_ok=True)
+    path.write_bytes(text if isinstance(text, bytes) else text.encode("utf-8"))
+    _git(repo, "add", ".simplicio-loop/loop.toml")
+    _git(repo, "-c", "commit.gpgsign=false", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "config")
+    _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    _git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
 
 
 def test_constants():
@@ -51,9 +69,83 @@ def test_default_when_toml_exists_without_the_key(tmp_path):
     assert ic.resolve_ceiling(tmp_path, environ={}) == 98_000
 
 
-def test_toml_value_is_used(tmp_path):
-    _toml(tmp_path, "agent_input_token_ceiling = 50000\n")
+def test_default_branch_value_is_used(tmp_path):
+    _default_branch_toml(tmp_path, "agent_input_token_ceiling = 50000\n")
     assert ic.resolve_ceiling(tmp_path, environ={}) == 50_000
+
+
+def test_a_local_loop_toml_raising_the_ceiling_is_ignored(tmp_path):
+    """The working tree is what a plan or a PR can edit: an uncommitted 999999 never applies."""
+    _default_branch_toml(tmp_path, "agent_input_token_ceiling = 50000\n")
+    _toml(tmp_path, "agent_input_token_ceiling = 999999\n")
+    assert ic.resolve_ceiling(tmp_path, environ={}) == 50_000
+
+
+def test_a_committed_change_on_a_feature_branch_is_ignored(tmp_path):
+    _default_branch_toml(tmp_path, "agent_input_token_ceiling = 50000\n")
+    _git(tmp_path, "checkout", "-q", "-b", "pr")
+    _toml(tmp_path, "agent_input_token_ceiling = 999999\n")
+    _git(tmp_path, "-c", "commit.gpgsign=false", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-am", "raise")
+    assert ic.resolve_ceiling(tmp_path, environ={}) == 50_000
+
+
+def test_default_branch_without_the_key_gives_the_default(tmp_path):
+    _default_branch_toml(tmp_path, 'verify = "pytest -q"\n')
+    _toml(tmp_path, "agent_input_token_ceiling = 999999\n")
+    assert ic.resolve_ceiling(tmp_path, environ={}) == 98_000
+
+
+def test_a_local_loop_toml_without_a_git_remote_is_ignored(tmp_path):
+    _toml(tmp_path, "agent_input_token_ceiling = 999999\n")
+    assert ic.resolve_ceiling(tmp_path, environ={}) == 98_000
+    assert "origin/HEAD" in ic.explain_ceiling(tmp_path, environ={}).reason
+
+
+def test_no_origin_head_gives_the_default_with_the_reason(tmp_path, monkeypatch):
+    monkeypatch.setattr(ic, "_warned", False)
+    _git(tmp_path, "init", "-q", "-b", "main")
+    got = ic.explain_ceiling(tmp_path, environ={})
+    assert got.value == 98_000 and got.source == "built-in default"
+    assert "default_branch_unresolved" in got.reason and "origin/HEAD" in got.reason
+
+
+def test_env_wins_over_the_default_branch_without_reading_git(tmp_path):
+    _default_branch_toml(tmp_path, "agent_input_token_ceiling = 50000\n")
+    assert ic.explain_ceiling(tmp_path, environ={ic.ENV_NAME: "70000"}) == ic.Ceiling(70_000, "env " + ic.ENV_NAME, "")
+
+
+def test_the_source_is_the_default_branch_when_it_sets_the_key(tmp_path):
+    _default_branch_toml(tmp_path, "agent_input_token_ceiling = 50000\n")
+    assert ic.explain_ceiling(tmp_path, environ={}) == ic.Ceiling(50_000, "default branch", "")
+
+
+def test_the_source_is_built_in_default_when_the_default_branch_has_no_key(tmp_path):
+    _default_branch_toml(tmp_path, 'verify = "pytest -q"\n')
+    assert ic.explain_ceiling(tmp_path, environ={}) == ic.Ceiling(98_000, "built-in default", "")
+
+
+def test_the_fallback_warns_once_per_process_on_stderr(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(ic, "_warned", False)
+    _git(tmp_path, "init", "-q", "-b", "main")
+    ic.explain_ceiling(tmp_path, environ={})
+    ic.explain_ceiling(tmp_path, environ={})
+    err = capsys.readouterr().err
+    assert err.count("built-in default") == 1 and "origin/HEAD" in err
+
+
+def test_no_warning_when_the_default_branch_is_read(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(ic, "_warned", False)
+    _default_branch_toml(tmp_path, "agent_input_token_ceiling = 50000\n")
+    ic.explain_ceiling(tmp_path, environ={})
+    assert capsys.readouterr().err == ""
+
+
+def test_invalid_default_branch_value_fails_loud(tmp_path):
+    _default_branch_toml(tmp_path, 'agent_input_token_ceiling = "98k"\n')
+    _toml(tmp_path, "agent_input_token_ceiling = 50000\n")
+    with pytest.raises(ic.CeilingConfigError) as exc:
+        ic.resolve_ceiling(tmp_path, environ={})
+    assert exc.value.reason_code == "ceiling_invalid"
 
 
 def test_env_beats_toml(tmp_path):
@@ -84,7 +176,7 @@ def test_invalid_env_fails_loud_even_when_toml_is_valid(tmp_path, bad):
 @pytest.mark.parametrize("bad", ['"98000"', '"98k"', "98000.0", "1e5", "true", "false", "0", "-1", "1000001", "[1]",
                                  "{ a = 1 }", "1979-05-27"])
 def test_invalid_toml_fails_loud(tmp_path, bad):
-    _toml(tmp_path, "agent_input_token_ceiling = %s\n" % bad)
+    _default_branch_toml(tmp_path, "agent_input_token_ceiling = %s\n" % bad)
     with pytest.raises(ic.CeilingConfigError) as exc:
         ic.resolve_ceiling(tmp_path, environ={})
     assert exc.value.reason_code == "ceiling_invalid"
@@ -92,7 +184,7 @@ def test_invalid_toml_fails_loud(tmp_path, bad):
 
 
 def test_malformed_toml_fails_loud(tmp_path):
-    _toml(tmp_path, "agent_input_token_ceiling = \n")
+    _default_branch_toml(tmp_path, "agent_input_token_ceiling = \n")
     with pytest.raises(ic.CeilingConfigError) as exc:
         ic.resolve_ceiling(tmp_path, environ={})
     assert exc.value.reason_code == "ceiling_invalid"
@@ -101,6 +193,65 @@ def test_malformed_toml_fails_loud(tmp_path):
 def test_valid_env_wins_without_reading_a_broken_toml(tmp_path):
     _toml(tmp_path, "agent_input_token_ceiling = \n")
     assert ic.resolve_ceiling(tmp_path, environ={ic.ENV_NAME: "70000"}) == 70_000
+
+
+# --- continuation chain limit (#1608): the same reader, its own key, 1 to 20 -------------------------------------------
+
+CHAIN_ENV = "SIMPLICIO_AGENT_CONTINUATION_CHAIN_LIMIT"
+CHAIN_KEY = "agent_continuation_chain_limit"
+
+
+def test_chain_limit_default_is_five(tmp_path):
+    assert ic.resolve_chain_limit(tmp_path, environ={}) == 5
+
+
+def test_chain_limit_default_branch_value_is_used(tmp_path):
+    _default_branch_toml(tmp_path, "agent_continuation_chain_limit = 3\n")
+    assert ic.resolve_chain_limit(tmp_path, environ={}) == 3
+
+
+def test_chain_limit_a_local_loop_toml_is_ignored(tmp_path):
+    _default_branch_toml(tmp_path, 'verify = "pytest -q"\n')
+    _toml(tmp_path, "agent_continuation_chain_limit = 20\n")
+    assert ic.resolve_chain_limit(tmp_path, environ={}) == 5
+
+
+def test_chain_limit_env_wins_over_the_default_branch_without_reading_git(tmp_path):
+    _default_branch_toml(tmp_path, "agent_continuation_chain_limit = 3\n")
+    assert ic.resolve_chain_limit(tmp_path, environ={CHAIN_ENV: "7"}) == 7
+
+
+def test_chain_limit_env_default_reads_the_process_environment(tmp_path, monkeypatch):
+    monkeypatch.setenv(CHAIN_ENV, "2")
+    assert ic.resolve_chain_limit(tmp_path) == 2
+
+
+@pytest.mark.parametrize("value", [1, 20])
+def test_chain_limit_bounds_are_accepted(tmp_path, value):
+    assert ic.resolve_chain_limit(tmp_path, environ={CHAIN_ENV: str(value)}) == value
+
+
+@pytest.mark.parametrize("bad", ["0", "21", "-1", "+5", "5.0", "", " 5", "5 ", "five", "1_0", "true"])
+def test_chain_limit_invalid_env_fails_loud_even_when_toml_is_valid(tmp_path, bad):
+    _default_branch_toml(tmp_path, "agent_continuation_chain_limit = 3\n")
+    with pytest.raises(ic.CeilingConfigError) as exc:
+        ic.resolve_chain_limit(tmp_path, environ={CHAIN_ENV: bad})
+    assert CHAIN_ENV in str(exc.value)
+
+
+@pytest.mark.parametrize("bad", ["0", "21", '"5"', "true", "2.5", "[1]", "-1"])
+def test_chain_limit_invalid_default_branch_value_fails_loud(tmp_path, bad):
+    _default_branch_toml(tmp_path, "agent_continuation_chain_limit = %s\n" % bad)
+    with pytest.raises(ic.CeilingConfigError) as exc:
+        ic.resolve_chain_limit(tmp_path, environ={})
+    assert CHAIN_KEY in str(exc.value)
+
+
+def test_chain_limit_unreadable_default_branch_with_a_remote_fails_closed(tmp_path):
+    _git(tmp_path, "init", "-q", "-b", "main")
+    _git(tmp_path, "remote", "add", "origin", str(tmp_path / "remote.git"))
+    with pytest.raises(ic.CeilingUnreadable):
+        ic.resolve_chain_limit(tmp_path, environ={})
 
 
 def test_never_reads_the_dot_simplicio_directory(tmp_path):
@@ -112,14 +263,15 @@ def test_never_reads_the_dot_simplicio_directory(tmp_path):
 # --- estimator -------------------------------------------------------------------------------------------------------
 
 def test_estimator_is_pure_python_with_no_tokenizer_dependency():
+    """Module-level imports are standard library only. The default-branch read is imported inside explain_ceiling."""
     tree = ast.parse(Path(ic.__file__).read_text(encoding="utf-8"))
     imported = set()
-    for node in ast.walk(tree):
+    for node in tree.body:
         if isinstance(node, ast.Import):
             imported |= {a.name.split(".")[0] for a in node.names}
         elif isinstance(node, ast.ImportFrom):
             imported.add((node.module or "").split(".")[0])
-    assert imported <= {"__future__", "os", "re", "tomllib", "dataclasses", "pathlib", "typing"}
+    assert imported <= {"__future__", "os", "re", "sys", "dataclasses", "pathlib", "typing"}
 
 
 def test_estimate_basics():
@@ -344,8 +496,7 @@ def test_soft_limit_is_the_first_handoff_token(ceiling):
     assert at(soft) != ic.OK and (soft == 0 or at(soft - 1) == ic.OK)
 
 
-def test_toml_with_bytes_that_are_not_utf8_is_a_config_error(tmp_path):
-    (tmp_path / ".simplicio-loop").mkdir()
-    (tmp_path / ".simplicio-loop" / "loop.toml").write_bytes(b"agent_input_token_ceiling = \xff\xfe")
+def test_default_branch_toml_with_bytes_that_are_not_utf8_is_a_config_error(tmp_path):
+    _default_branch_toml(tmp_path, b"agent_input_token_ceiling = \xff\xfe")
     with pytest.raises(ic.CeilingConfigError):
         ic.resolve_ceiling(tmp_path, {})

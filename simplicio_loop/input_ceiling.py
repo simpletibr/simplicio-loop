@@ -6,13 +6,19 @@ request costs the cheap tier, above it the whole request costs five times more.
 
 Three things live here:
 
-* ``resolve_ceiling``: the configured ceiling. Order: env ``SIMPLICIO_AGENT_INPUT_TOKEN_CEILING``, then key
-  ``agent_input_token_ceiling`` in ``<repo>/.simplicio-loop/loop.toml``, then 98,000. A bad value raises; it never falls
-  back to the default.
+* ``explain_ceiling`` (and ``resolve_ceiling``, its value alone): the configured ceiling. Order: env
+  ``SIMPLICIO_AGENT_INPUT_TOKEN_CEILING``, then key ``agent_input_token_ceiling`` in ``.simplicio-loop/loop.toml`` as the
+  DEFAULT BRANCH (``origin/HEAD``) has it, then 98,000. The working tree is never read: a plan or a PR can edit it. When
+  the default branch cannot be read and the repository has NO remote, the built-in value applies, the result carries the
+  reason, and the first such fallback per process is printed on stderr. When the repository HAS a remote and the default
+  branch cannot be read, ``CeilingUnreadable`` is raised and every sender refuses (fail closed; no bypass flag). A bad
+  value raises; it never falls back.
+  Every caller (``handoff check`` and the five senders) goes through this one function.
 * ``estimate_tokens``: a deterministic estimate for hosts that do not report usage. Pure Python, no tokenizer package,
-  no network. It is conservative: on the reference samples it is never below 1.15 x the tiktoken ``o200k_base`` count
-  (tests/fixtures/input_ceiling_reference.json). Error against non-OpenAI tokenizers (Claude) is UNVERIFIED, which is why
-  an estimate is multiplied by SAFETY_PERCENT before it is compared with the ceiling.
+  no network. It is conservative: on every reference sample it is at least 1.15 x the tiktoken ``o200k_base`` count
+  (tests/fixtures/input_ceiling_reference.json; pinned by ``test_estimate_never_undercounts_the_reference_and_is_not_absurd``).
+  Error against non-OpenAI tokenizers (Claude) is UNVERIFIED, which is why an estimate is multiplied by SAFETY_PERCENT
+  before it is compared with the ceiling.
 * ``check_budget``: the one decision function. It compares the PROJECTED total prompt of the NEXT request with the
   ceiling. The total prompt is new input + cache reads + cache writes, never only the uncached part.
 
@@ -28,22 +34,27 @@ from __future__ import annotations
 
 import os
 import re
-import tomllib
+import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, NamedTuple
 
 DEFAULT_CEILING = 98_000
 # Largest context window in use today. A ceiling above it can never trigger, so it is a typing error.
 MAX_CEILING = 1_000_000
 ENV_NAME = "SIMPLICIO_AGENT_INPUT_TOKEN_CEILING"
 TOML_KEY = "agent_input_token_ceiling"
+DEFAULT_CHAIN_LIMIT = 5
+MAX_CHAIN_LIMIT = 20
+CHAIN_ENV_NAME = "SIMPLICIO_AGENT_CONTINUATION_CHAIN_LIMIT"
+CHAIN_TOML_KEY = "agent_continuation_chain_limit"
 
 # At or above this share of the ceiling the agent must hand off before it sends the next request.
 SOFT_PERCENT = 90
 # An estimate is multiplied by this before the comparison: tokenizers differ (UNVERIFIED for Claude).
 SAFETY_PERCENT = 120
 ESTIMATOR_LABEL = "conservative-v2"
+UNREADABLE_SOURCE = "default branch unreadable"
 
 MEASURED = "MEASURED"
 ESTIMATED = "ESTIMATED"
@@ -54,6 +65,18 @@ class CeilingConfigError(ValueError):
     """The configured ceiling is not an integer from 1 to MAX_CEILING."""
 
     reason_code = "ceiling_invalid"
+
+
+class CeilingUnreadable(CeilingConfigError):
+    """The repository has a remote, but its default-branch config cannot be read and no env var sets the ceiling. The
+    ceiling is not guessed: a human sets ``SIMPLICIO_AGENT_INPUT_TOKEN_CEILING`` or repairs ``origin/HEAD``."""
+
+    reason_code = "ceiling_unreadable"
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.ceiling_source = UNREADABLE_SOURCE
+        self.ceiling_reason = reason
 
 
 class InputCeilingExceeded(Exception):
@@ -69,29 +92,80 @@ class InputCeilingExceeded(Exception):
 
 # --- configuration -----------------------------------------------------------------------------------------------------
 
-def _check_ceiling(value: Any, source: str) -> int:
-    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_CEILING:
-        raise CeilingConfigError("%s: %r is not an integer from 1 to %d" % (source, value, MAX_CEILING))
+def _check_ceiling(value: Any, source: str, maximum: int = MAX_CEILING) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= maximum:
+        raise CeilingConfigError("%s: %r is not an integer from 1 to %d" % (source, value, maximum))
     return value
 
 
+class Ceiling(NamedTuple):
+    """The ceiling, its source (``env <ENV_NAME>``, ``default branch`` or ``built-in default``) and, when the default
+    branch could not be read, the reason the built-in value applies (empty otherwise)."""
+
+    value: int
+    source: str
+    reason: str = ""
+
+
+# The first fallback to the built-in value is printed on stderr; later ones in the same process are not.
+_warned = False
+
+
+def describe(ceiling: Ceiling) -> str:
+    """The ceiling, its source and, when it is the fallback, the reason: for a refusal message."""
+    return "ceiling %d from %s%s" % (ceiling.value, ceiling.source, " (%s)" % ceiling.reason if ceiling.reason else "")
+
+
 def resolve_ceiling(repo_root: str | Path, environ: Mapping[str, str] | None = None) -> int:
+    return explain_ceiling(repo_root, environ).value
+
+
+def _default_branch_config(repo_root: str | Path) -> tuple[dict[str, Any], str]:
+    """The default branch's loop.toml, and the reason when it cannot be read and the repository has no remote (then the
+    config is empty). With a remote, an unreadable default branch raises CeilingUnreadable: nothing is guessed."""
+    # Lazy: handoff_cli imports this module. The default-branch read is the one piece of I/O here.
+    from .handoff_cli import HandoffError, default_branch_config, has_remote
+
+    try:
+        return default_branch_config(Path(repo_root)), ""
+    except HandoffError as exc:
+        if has_remote(Path(repo_root)):
+            raise CeilingUnreadable(str(exc)) from exc
+        return {}, str(exc)
+
+
+def explain_ceiling(repo_root: str | Path, environ: Mapping[str, str] | None = None) -> Ceiling:
+    """The ceiling with its source and reason. See the module docstring for the order."""
+    global _warned
+    from .handoff_cli import ceiling_from
+
     env = os.environ if environ is None else environ
     if ENV_NAME in env:
-        raw = env[ENV_NAME]
-        if not re.fullmatch(r"[0-9]{1,7}", raw):
-            raise CeilingConfigError("%s: %r is not an integer from 1 to %d" % (ENV_NAME, raw, MAX_CEILING))
-        return _check_ceiling(int(raw), ENV_NAME)
-    path = Path(repo_root) / ".simplicio-loop" / "loop.toml"
-    if not path.is_file():
-        return DEFAULT_CEILING
-    try:
-        data = tomllib.loads(path.read_text(encoding="utf-8"))
-    except (tomllib.TOMLDecodeError, UnicodeDecodeError, OSError) as exc:
-        raise CeilingConfigError("%s: %s" % (path, exc)) from exc
-    if TOML_KEY not in data:
-        return DEFAULT_CEILING
-    return _check_ceiling(data[TOML_KEY], "%s key %s" % (path, TOML_KEY))
+        return Ceiling(ceiling_from({}, env), "env " + ENV_NAME)
+    config, reason = _default_branch_config(repo_root)
+    if reason:
+        if not _warned:
+            _warned = True
+            print("simplicio input ceiling: %s; the built-in default %d applies" % (reason, DEFAULT_CEILING),
+                  file=sys.stderr)
+        return Ceiling(DEFAULT_CEILING, "built-in default", reason)
+    source = "default branch" if TOML_KEY in config else "built-in default"
+    return Ceiling(ceiling_from(config, env), source)
+
+
+def resolve_chain_limit(repo_root: str | Path, environ: Mapping[str, str] | None = None) -> int:
+    """The continuation chain limit. Order: env ``SIMPLICIO_AGENT_CONTINUATION_CHAIN_LIMIT``, then the key
+    ``agent_continuation_chain_limit`` on the default branch, then 5. Same reader and failure rules as the ceiling."""
+    env = os.environ if environ is None else environ
+    if CHAIN_ENV_NAME in env:
+        raw = env[CHAIN_ENV_NAME]
+        if not re.fullmatch(r"[0-9]{1,2}", raw):
+            raise CeilingConfigError("%s: %r is not an integer from 1 to %d" % (CHAIN_ENV_NAME, raw, MAX_CHAIN_LIMIT))
+        return _check_ceiling(int(raw), CHAIN_ENV_NAME, MAX_CHAIN_LIMIT)
+    config, _reason = _default_branch_config(repo_root)
+    if CHAIN_TOML_KEY not in config:
+        return DEFAULT_CHAIN_LIMIT
+    return _check_ceiling(config[CHAIN_TOML_KEY], "default branch loop.toml key " + CHAIN_TOML_KEY, MAX_CHAIN_LIMIT)
 
 
 # --- estimator ---------------------------------------------------------------------------------------------------------
@@ -161,6 +235,10 @@ def estimate_tokens(text: str) -> int:
 
 # --- measured total prompt and projection ------------------------------------------------------------------------------
 
+def _is_count(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
 def _count(value: Any, name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ValueError("%s must be an integer >= 0, got %r" % (name, value))
@@ -197,6 +275,26 @@ class PromptUsage:
         if missing:
             raise ValueError("usage lacks %s" % ", ".join(missing))
         return cls(*(usage[n] for n in names))
+
+    @classmethod
+    def from_chat_usage(cls, usage: Any) -> PromptUsage | None:
+        """The counts of a chat-completions ``usage`` object (OpenRouter's shape, usage included).
+
+        ``prompt_tokens`` is the WHOLE prompt, cache reads and writes included, so the new input is what is left after
+        them. None unless all three counts are integers the provider reported: an absent count is not a zero.
+        """
+        if not isinstance(usage, Mapping):
+            return None
+        details = usage.get("prompt_tokens_details")
+        if not isinstance(details, Mapping):
+            return None
+        whole, read, written = usage.get("prompt_tokens"), details.get("cached_tokens"), details.get("cache_write_tokens")
+        if not all(_is_count(v) for v in (whole, read, written)) or whole - read - written < 0:
+            return None
+        try:
+            return cls(whole - read - written, read, written)
+        except ValueError:  # an empty prompt: the provider did not measure one
+            return None
 
 
 def _scaled(text: str) -> int:

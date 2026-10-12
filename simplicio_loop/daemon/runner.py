@@ -91,7 +91,11 @@ def apply_process(proc: Mapping[str, Any]) -> None:
     for name, limits in proc.get("rlimits", {}).items():
         attempt(f"{name} limit {limits[0]}/{limits[1]}", resource.setrlimit, getattr(resource, "RLIMIT_" + name), tuple(limits))
     if proc.get("cpus"):
-        attempt(f"cpus {proc['cpus']}", os.sched_setaffinity, 0, proc["cpus"])
+        setaffinity = getattr(os, "sched_setaffinity", None)
+        if setaffinity is not None:
+            attempt(f"cpus {proc['cpus']}", setaffinity, 0, proc["cpus"])
+        else:
+            refused.append(f"cpus {proc['cpus']} (os.sched_setaffinity not available)")
     if refused:
         print("simplicio-loop: daemon: this command runs with the daemon's own priority, limits and cpus, not its "
               f"caller's: the system refused {', '.join(refused)}; run `simplicio-loop daemon stop` and start the "

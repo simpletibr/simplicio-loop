@@ -11,8 +11,6 @@ import re
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-import jsonschema
-
 from .dashboard.runs import redact_command
 from .input_ceiling import estimate_tokens
 
@@ -32,6 +30,8 @@ class HandoffError(ValueError):
 
 
 def _schema_error(doc: Any) -> str | None:
+    import jsonschema  # lazy: the turbo hot path imports this module and must not pay for jsonschema (#1590)
+
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     error = jsonschema.exceptions.best_match(jsonschema.Draft202012Validator(schema).iter_errors(doc))
     if error is None:

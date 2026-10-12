@@ -74,11 +74,12 @@ def task_text(repo: str, issue: dict, fix: str = "", retry: str = "") -> str:
 
 
 async def dirty(dest: Path) -> bool:
-    """True when the worktree has changes beyond the loop state dirs and .gitignore."""
+    """True when the worktree has changes beyond the loop's scratch files and .gitignore. The opt-in (loop.toml) is
+    protected (#1567), so a change to it counts even though it lives in the state dir."""
     result = await proc.run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=dest)
     for line in result.stdout.splitlines():
         path = line[3:] if len(line) > 3 else line
-        if path.startswith(_STATE_DIRS) or path == ".gitignore":
+        if (path.startswith(_STATE_DIRS) and path != intake_gate.CONFIG_PATH) or path == ".gitignore":
             continue
         return True
     return False
@@ -408,7 +409,7 @@ async def _enqueue_fixes(runner, name: str, fixes: dict) -> None:
 def _map_gc_bases() -> None:
     """`map gc` (default policy) for each base clone under config.WORK, at most once an hour per repo (#1671). Never raises."""
     try:
-        bases = sorted(p for p in config.WORK.iterdir() if p.is_dir() and not p.name.endswith((".wt", ".state")) and (p / ".git").exists())
+        bases = sorted(p for p in config.WORK.iterdir() if p.is_dir() and not p.name.lower().endswith((".wt", ".state")) and (p / ".git").exists())
     except OSError:
         return
     for base in bases:

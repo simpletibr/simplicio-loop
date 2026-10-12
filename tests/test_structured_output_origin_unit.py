@@ -337,20 +337,23 @@ def _complete(**kwargs):
     return asyncio.run(turbo_provider.complete("a", [], session_id="s", api_key="k", hedge=0, **kwargs))
 
 
-def test_complete_sends_response_format_and_max_tokens(monkeypatch):
+def test_complete_sends_response_format_and_max_tokens(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)  # a directory with no remote: the ceiling gate uses the built-in default
     bodies = _post_bodies(monkeypatch)
     fmt = {"type": "json_schema", "json_schema": {"name": "n", "strict": True, "schema": {}}}
     _complete(response_format=fmt, max_tokens=500)
     assert bodies[0]["response_format"] == fmt and bodies[0]["max_tokens"] == 500
 
 
-def test_complete_without_response_format_sends_none(monkeypatch):
+def test_complete_without_response_format_sends_none(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)  # a directory with no remote: the ceiling gate uses the built-in default
     bodies = _post_bodies(monkeypatch)
     _complete(max_tokens=500)
     assert "response_format" not in bodies[0]
 
 
-def test_the_one_token_warm_up_never_carries_a_response_format(monkeypatch):
+def test_the_one_token_warm_up_never_carries_a_response_format(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)  # a directory with no remote: the ceiling gate uses the built-in default
     bodies = _post_bodies(monkeypatch)
     _complete(response_format={"type": "json_schema"}, max_tokens=1)
     assert "response_format" not in bodies[0] and bodies[0]["max_tokens"] == 1

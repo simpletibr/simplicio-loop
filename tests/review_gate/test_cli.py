@@ -56,7 +56,7 @@ def test_json_prints_a_parseable_report_with_approved_false_and_the_same_exit_co
     data = json.loads(capsys.readouterr().out)
     assert code == 1 and data["approved"] is False and data["schema"] == "simplicio.review-gate/v1"
     assert data["pr"] == 11 and data["issue"] == 7 and data["head"] == head and data["level"] == "T1"
-    assert [c["name"] for c in data["checks"]][:2] == ["redgreen", "mutation"]
+    assert [c["name"] for c in data["checks"]][:3] == ["redgreen", "line_coverage", "mutation"]
     saved = repo / ".simplicio-loop" / "review-gate" / f"pr-11-{head[:7]}.json"
     assert json.loads(saved.read_text(encoding="utf-8")) == data
 

@@ -73,6 +73,22 @@ def run(repo, cli, task="fix it"):
 
 
 def _write_toml(root, body):
+    """The ceiling comes from the DEFAULT BRANCH: commit the file on `main` and point origin/HEAD at it."""
+    root.mkdir(parents=True, exist_ok=True)
+    git = ["git", "-C", str(root)]
+    subprocess.run([*git, "init", "-q", "-b", "main"], check=True, capture_output=True)
+    (root / ".simplicio-loop").mkdir(exist_ok=True)
+    (root / ".simplicio-loop" / "loop.toml").write_text(body, encoding="utf-8")
+    subprocess.run([*git, "add", "-f", ".simplicio-loop/loop.toml"], check=True, capture_output=True)
+    subprocess.run([*git, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty",
+                    "-m", "config"], check=True, capture_output=True)
+    subprocess.run([*git, "update-ref", "refs/remotes/origin/main", "HEAD"], check=True, capture_output=True)
+    subprocess.run([*git, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"], check=True,
+                   capture_output=True)
+
+
+def _write_working_toml(root, body):
+    """A loop.toml in the working tree only: the ceiling never reads it."""
     (root / ".simplicio-loop").mkdir(exist_ok=True)
     (root / ".simplicio-loop" / "loop.toml").write_text(body, encoding="utf-8")
 
@@ -131,7 +147,7 @@ def test_a_bad_loop_toml_ceiling_fails_loud_before_any_process(repo, home, cli):
 
 
 def test_the_loop_toml_of_the_cwd_is_not_read(repo, home, cli):
-    _write_toml(Path.cwd(), f"{TOML_KEY} = 1\n")
+    _write_working_toml(Path.cwd(), f"{TOML_KEY} = 1\n")
     result = run(repo, cli)
     assert result.status == "ok"
     assert len(cli.started) == 1
@@ -159,3 +175,23 @@ def test_a_correction_above_the_ceiling_starts_no_further_round(repo, home, cli,
     refused = author()
     assert (refused.status, refused.reason_code) == ("failed", "input_ceiling_exceeded")
     assert len(cli.built) == 1 and len(cli.started) == 1
+
+
+def test_the_refusal_names_the_env_ceiling_source(repo, home, cli, monkeypatch):
+    """A refused prompt says where its ceiling came from: the env var, with no reason (Parte de #1608)."""
+    monkeypatch.setenv(ENV_NAME, "100")
+    result = run(repo, cli, task="word " * 5000)
+    assert result.reason_code == "input_ceiling_exceeded"
+    failure = result.failures[0]
+    assert failure["ceiling_source"] == "env " + ENV_NAME and failure["ceiling_reason"] == ""
+    assert cli.built == [] and cli.started == []
+
+
+def test_the_refusal_names_the_built_in_default_and_its_reason(repo, home, cli):
+    """No remote, no env: the built-in 98,000 applies and the refusal says why (Parte de #1608)."""
+    result = run(repo, cli, task="word " * 150_000)
+    assert result.reason_code == "input_ceiling_exceeded"
+    failure = result.failures[0]
+    assert failure["ceiling_source"] == "built-in default"
+    assert "origin/HEAD" in failure["ceiling_reason"]
+    assert cli.built == [] and cli.started == []

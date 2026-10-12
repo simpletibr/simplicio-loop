@@ -102,8 +102,9 @@ def limits() -> int:
     """What this command runs with: priority, open-files limit and allowed cpus."""
     import resource
 
+    cpus = sorted(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else list(range(os.cpu_count() or 1))
     print(json.dumps({"nice": os.getpriority(os.PRIO_PROCESS, 0), "nofile": list(resource.getrlimit(resource.RLIMIT_NOFILE)),
-                      "cpus": sorted(os.sched_getaffinity(0))}))
+                      "cpus": cpus}))
     return 0
 
 

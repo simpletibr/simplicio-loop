@@ -9,7 +9,7 @@ from simplicio_loop.review_gate.diffs import FileChange
 import pytest
 
 from simplicio_loop.review_gate.model import ERROR, FAIL, PASS, SKIPPED
-from simplicio_loop.review_gate.mutation import KILLED, SURVIVED, TIMEOUT, Mutant, _Stamp, check_mutation, generate, run_mutants, sample
+from simplicio_loop.review_gate.mutation import KILLED, SURVIVED, TIMEOUT, Mutant, Outcome, _Stamp, check_mutation, generate, run_mutants, sample
 
 PYTEST = [sys.executable, "-m", "pytest", "-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", "tests"]
 
@@ -91,10 +91,10 @@ def make_project(tmp_path: Path, app: str, test: str) -> Path:
 def test_run_mutants_kills_survives_and_restores(tmp_path):
     root = make_project(tmp_path, "def f(x):\n    return x == 0\n", "from app import f\n\ndef test_f():\n    assert f(0) and not f(1)\n")
     killer = generate("app.py", (root / "app.py").read_text(), [2])
-    assert [s for _, s in run_mutants(root, killer, PYTEST, 60)] == [KILLED] * len(killer)
+    assert [o.status for o in run_mutants(root, killer, PYTEST, 60)] == [KILLED] * len(killer)
     assert (root / "app.py").read_text() == "def f(x):\n    return x == 0\n"
     (root / "tests" / "test_app.py").write_text("from app import f\n\ndef test_f():\n    assert True\n")
-    assert {s for _, s in run_mutants(root, killer, PYTEST, 60)} == {SURVIVED}
+    assert {o.status for o in run_mutants(root, killer, PYTEST, 60)} == {SURVIVED}
 
 
 def test_two_writes_in_the_same_second_get_different_whole_second_mtimes(tmp_path):
@@ -113,8 +113,8 @@ def test_the_mutant_source_keeps_the_size_of_a_canonical_file(tmp_path):
 
 def test_a_timeout_is_reported_and_is_not_a_kill(tmp_path):
     root = make_project(tmp_path, "def f(x):\n    return x == 0\n", "import time\nfrom app import f\n\ndef test_slow():\n    time.sleep(10)\n    assert f(0)\n")
-    ((_, status),) = run_mutants(root, generate("app.py", (root / "app.py").read_text(), [2])[:1], PYTEST, 1)
-    assert status == TIMEOUT
+    (outcome,) = run_mutants(root, generate("app.py", (root / "app.py").read_text(), [2])[:1], PYTEST, 1)
+    assert outcome.status == TIMEOUT and outcome.killers == ()
 
 
 def test_the_file_is_restored_when_the_run_fails(tmp_path):
@@ -129,7 +129,7 @@ def test_the_file_is_restored_when_the_run_fails(tmp_path):
 
 def test_no_tests_collected_is_a_survivor(tmp_path):
     root = make_project(tmp_path, "def f(x):\n    return x == 0\n", "x = 1\n")
-    assert {s for _, s in run_mutants(root, generate("app.py", (root / "app.py").read_text(), [2]), PYTEST, 60)} == {SURVIVED}
+    assert {o.status for o in run_mutants(root, generate("app.py", (root / "app.py").read_text(), [2]), PYTEST, 60)} == {SURVIVED}
 
 
 def test_no_mutable_production_line_is_skipped(tmp_path):
@@ -184,7 +184,7 @@ def test_the_tests_see_the_path_of_the_host_even_when_the_gate_passes_only_pytho
 def fake_tests(monkeypatch, killed: set[str]) -> None:
     """A deterministic test run: the mutant whose whole source is in `killed` fails the tests, every other run passes."""
     def run(root, argv, timeout, wrap, env, home):
-        return 1 if (root / "app.py").read_text(encoding="utf-8") in killed else 0
+        return (1 if (root / "app.py").read_text(encoding="utf-8") in killed else 0), ""
     monkeypatch.setattr(mutation, "_run", run)
 
 
@@ -240,6 +240,101 @@ def test_equivalent_mutants_are_at_most_half_of_the_sample(tmp_path, monkeypatch
     assert result.status == FAIL and "equivalentes 2/3" in result.reasons[0] and result.measured["equivalent"] == 2
 
 
+def fake_killers(monkeypatch, original: str, kills) -> None:
+    """A deterministic test run: the unmutated file passes; a mutant fails the tests `kills(mutated_text)` names (`FAILED` lines, as -rfE prints)."""
+    def run(root, argv, timeout, wrap, env, home):
+        text = (root / "app.py").read_text(encoding="utf-8")
+        failed = [] if text == original else list(kills(text))
+        return (1 if failed else 0), "".join(f"FAILED {node} - assert 0\n" for node in failed)
+    monkeypatch.setattr(mutation, "_run", run)
+
+
+ATTR = "def f(x, y):\n    return x == y\n"
+ATTR_TESTS = "from app import f\n\ndef test_new():\n    assert f(1, 1)\n\ndef test_other():\n    assert not f(1, 2)\n"
+NEW_RED = ["tests/test_app.py::test_new"]
+
+
+def test_a_new_test_that_fails_on_main_and_kills_no_mutant_is_rejected(tmp_path, monkeypatch):
+    root = make_project(tmp_path, ATTR, ATTR_TESTS)
+    fake_killers(monkeypatch, ATTR, lambda text: ["tests/test_app.py::test_other"])
+    result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, seed="s", red=NEW_RED)
+    assert result.status == FAIL
+    assert result.reasons[-1].startswith("test_kills_no_mutant:") and "tests/test_app.py::test_new" in result.reasons[-1]
+    assert result.measured["unattributed"] == NEW_RED and set(result.measured["killers"]) == {"tests/test_app.py::test_other"}
+
+
+def test_a_new_test_that_kills_a_mutant_is_attributed_and_the_sample_passes(tmp_path, monkeypatch):
+    root = make_project(tmp_path, ATTR, ATTR_TESTS)
+    fake_killers(monkeypatch, ATTR, lambda text: ["tests/test_app.py::test_new"])
+    result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, seed="s", red=NEW_RED)
+    assert result.status == PASS, result.reasons
+    assert result.measured["unattributed"] == [] and len(result.measured["killers"]["tests/test_app.py::test_new"]) == result.measured["total"]
+
+
+def test_a_new_failing_test_with_no_mutable_production_line_is_skipped_with_a_reason(tmp_path):
+    root = make_project(tmp_path, "X = 'a'\n", "")
+    result = check_mutation(root, [FileChange("app.py", "A", (1,))], PYTEST, red=NEW_RED)
+    assert result.status == SKIPPED and result.reasons[0].startswith("test_kills_no_mutant pulado:")
+    assert result.measured["skipped"] == NEW_RED
+
+
+def test_a_small_sample_does_not_exempt_a_new_red_test_that_kills_nothing(tmp_path, monkeypatch):
+    """Combined case: fewer than MIN_LIVE_TO_JUDGE live mutants (the ratio does not judge) AND a new red test that kills no mutant."""
+    root = make_project(tmp_path, ATTR, ATTR_TESTS)
+    fake_killers(monkeypatch, ATTR, lambda text: ["tests/test_app.py::test_other"])
+    result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, seed="s", red=NEW_RED)
+    assert result.measured["judged"] is False and result.measured["total"] < mutation.MIN_LIVE_TO_JUDGE
+    assert result.status == FAIL and result.reasons[-1].startswith("test_kills_no_mutant:")
+    assert result.measured["unattributed"] == NEW_RED
+
+
+def test_a_collection_error_of_a_mutant_kills_it_but_credits_no_test_of_its_file(tmp_path, monkeypatch):
+    """A mutant that breaks the import of the test file is a collection ERROR: it kills the mutant, yet no test caught the change."""
+    root = make_project(tmp_path, ATTR, ATTR_TESTS)
+
+    def run(root, argv, timeout, wrap, env, home):
+        text = (root / "app.py").read_text(encoding="utf-8")
+        if text == ATTR:
+            return 0, ""
+        if "None" in text:  # the mutant `return None` does not even import
+            return 1, "ERROR tests/test_app.py - ImportError\n"
+        return 1, "FAILED tests/test_app.py::test_other - assert 0\n"
+    monkeypatch.setattr(mutation, "_run", run)
+    result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, n=12, seed="s", red=NEW_RED)
+    assert result.measured["killed"] == result.measured["total"]  # the ERROR still kills its mutant
+    assert set(result.measured["killers"]) == {"tests/test_app.py::test_other"}
+    assert result.measured["unattributed"] == NEW_RED and result.status == FAIL
+    assert result.reasons[-1].startswith("test_kills_no_mutant:")
+
+
+def test_no_red_argument_keeps_the_sample_check_as_it_was(tmp_path, monkeypatch):
+    root = make_project(tmp_path, ATTR, ATTR_TESTS)
+    fake_killers(monkeypatch, ATTR, lambda text: [])
+    result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, seed="s")
+    assert result.measured["unattributed"] == [] and not any("test_kills_no_mutant" in r for r in result.reasons)
+
+
+def test_real_pytest_names_every_test_that_fails_under_a_mutant(tmp_path):
+    """Killers come from real `-rfE` output, not a fake: no `-x`, so every failing test of a killed mutant is credited."""
+    root = make_project(tmp_path, "def f(x):\n    return x == 0\n",
+                        "from app import f\n\ndef test_first():\n    assert f(0)\n\ndef test_second():\n    assert not f(1) and f(0)\n")
+    (flip,) = [m for m in generate("app.py", (root / "app.py").read_text(), [2]) if m.kind == "flip_cmp"]
+    no_x = [sys.executable, "-m", "pytest", "-q", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", "tests"]
+    (outcome,) = run_mutants(root, [flip], no_x, 60)
+    assert outcome.status == KILLED
+    assert outcome.killers == ("tests/test_app.py::test_first", "tests/test_app.py::test_second")
+
+
+def test_a_red_test_that_kills_only_a_mutant_outside_the_sample_is_probed_and_attributed(tmp_path, monkeypatch):
+    """The sample is bounded by seed: a new test can miss it. Unattributed red tests are probed with the other mutants, up to a cap."""
+    root = make_project(tmp_path, ATTR, ATTR_TESTS)
+    mutants = generate("app.py", ATTR, [2])
+    seed = next(s for s in map(str, range(200)) if "None" in sample(mutants, 1, s)[0].replacement)  # the sample holds only `return None`
+    fake_killers(monkeypatch, ATTR, lambda text: ["tests/test_app.py::test_other"] if "None" in text else ["tests/test_app.py::test_new"])
+    result = check_mutation(root, [FileChange("app.py", "A", (2,))], PYTEST, n=1, seed=seed, red=NEW_RED)
+    assert result.status == PASS, result.reasons
+    assert result.measured["total"] == 1 and result.measured["probes"] >= 1 and result.measured["unattributed"] == []
+    assert set(result.measured["killers"]) == {"tests/test_app.py::test_other", "tests/test_app.py::test_new"}
 TWO_REACHABLE = "def f(x):\n    if x:\n        return x\n"  # two live candidates: `negate_cond` on line 2, `return_none` on line 3
 SIX_REACHABLE = "def f(x, y):\n    a = x == 1\n    b = y < 2\n    c = x and y\n    return a and b and c\n"  # 7 live candidates; n=6 samples 6
 

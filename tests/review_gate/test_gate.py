@@ -17,7 +17,7 @@ WORKER = identity.Agent("worker-1", "worker", "haiku-5.5", "local")
 INDEPENDENT = identity.Agent("rev-2", "independent-reviewer", "opus-5.5", "other-host")
 ISSUE_BODY = "Limitar valores.\n\n- [ ] `clamp` existe em `mod.py` e `app.total` usa\n"
 PR_BODY = "Entrega `clamp` em `mod.py`.\n\nParte de #7\n"
-ORDER = ["redgreen", "mutation", "usage", "coverage", "docs", "identity"]
+ORDER = ["redgreen", "line_coverage", "mutation", "usage", "coverage", "docs", "identity"]
 
 
 class Run(NamedTuple):
@@ -169,18 +169,23 @@ def _wrapped_runs(tmp_path, name, **overrides):
 
 def test_the_sandbox_wrapper_is_built_for_the_head_tree_and_wraps_every_pytest_run(tmp_path):
     run, seen = _wrapped_runs(tmp_path, "dead", n_mutants=2)
-    assert [root.name for root, _ in seen] == ["head", "base", "head", "head", "head"]  # each run wrapped for the tree it runs in (the sandbox chdirs there)
+    # each run wrapped for the tree it runs in (the sandbox chdirs there): redgreen head+main, line_coverage probe+run, mutation x3
+    assert [root.name for root, _ in seen] == ["head", "base", "head", "head", "head", "head", "head"]
     assert all(root.parent.name == f"pr-11-{run.head[:7]}" for root, _ in seen)
-    assert all(argv[1] == "-c" and "pytest.main" in argv[2] for _, argv in seen)
-    assert len(seen) == 2 + 1 + 2  # redgreen on head and on main, the unmutated tree, two mutants
+    code = [argv[argv.index("-c") + 1] for _, argv in seen]  # every run is `python [-P] -c <code>`, the code after the flag
+    assert all("-c" in argv for _, argv in seen)
+    assert code.count("import coverage") == 1  # the one probe; every other run is a pytest run
+    assert all("pytest.main" in c for c in code if c != "import coverage")
+    assert [argv[1] for _, argv in seen[2:4]] == ["-P", "-P"]  # line_coverage's probe and run import from the interpreter's own path
+    assert len(seen) == 2 + 2 + 3  # redgreen on head and on main, line_coverage probe and run, the unmutated tree, two mutants
 
 
 def test_the_mutants_run_the_changed_tests_then_the_neighbors_and_never_a_conftest(tmp_path):
     run, seen = _wrapped_runs(tmp_path, "good", n_mutants=1)
     mutation_argv = seen[-1][1]  # the last run is a mutant
-    assert mutation_argv[3:] == ["-q", "-x", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", "--confcutdir", ".", "-c", "/dev/null", "--rootdir", ".", "tests/test_clamp.py", "tests/test_add.py"]
+    assert mutation_argv[3:] == ["-q", "--tb=no", "-p", "no:cacheprovider", "-o", "addopts=", "--confcutdir", ".", "-c", "/dev/null", "--rootdir", ".", "tests/test_clamp.py", "tests/test_add.py", "-rfE"]
     run, seen = _wrapped_runs(tmp_path / "conf", "withconf", n_mutants=1)
-    assert seen[-1][1][-1:] == ["tests/test_dead.py"] and not any("conftest.py" in a for a in seen[-1][1])
+    assert seen[-1][1][-2:] == ["tests/test_dead.py", "-rfE"] and not any("conftest.py" in a for a in seen[-1][1])
 
 
 def test_the_limits_of_the_input_reach_the_checks(tmp_path):
@@ -193,6 +198,20 @@ def test_the_limits_of_the_input_reach_the_checks(tmp_path):
     slow = _run(tmp_path / "c", "dead", test_timeout_s=0.001, mutant_timeout_s=0.001)
     assert _check(slow, "redgreen").status == ERROR and "timeout of 0.001s" in _check(slow, "redgreen").reasons[0]
     assert _check(slow, "mutation").status == ERROR and "saida None" in _check(slow, "mutation").reasons[0]
+
+
+def test_the_mutation_check_gets_the_new_red_tests_for_the_attribution_rule(tmp_path, monkeypatch):
+    """The attribution rule (test_kills_no_mutant) reads the new red tests of the red/green check: a gate that drops them skips the rule."""
+    got = {}
+    real = gate.mutation.check_mutation
+
+    def wrapper(*args, **kw):
+        got["red"] = kw.get("red", "not passed")
+        return real(*args, **kw)
+
+    monkeypatch.setattr(gate.mutation, "check_mutation", wrapper)
+    _run(tmp_path, "dead")
+    assert got["red"] == ["tests/test_dead.py::test_double"]
 
 
 def test_each_check_gets_the_inputs_it_needs(tmp_path, monkeypatch):

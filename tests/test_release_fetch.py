@@ -2,16 +2,18 @@
 from __future__ import annotations
 
 import hashlib
+import http.server
 import io
 import os
 import stat
 import tarfile
+import threading
 import zipfile
 
 import httpx
 import pytest
 
-from simplicio_loop import release_fetch
+from simplicio_loop import release_fetch, setup_cli
 from simplicio_loop.release_fetch import FetchError
 
 BASE = "https://github.com/cli/cli/releases/download/v1.2.3/"
@@ -306,6 +308,39 @@ def test_get_refuses_a_3xx_without_location_as_a_fetch_error_not_a_key_error(mon
     with pytest.raises(FetchError) as caught:
         release_fetch.default_get(BASE + "x")
     assert caught.value.reason_code == "unsafe_url" and "Location" in str(caught.value) and len(seen) == 1
+
+
+def test_a_302_without_location_from_a_real_local_server_is_a_fetch_error_and_after_install_stays_silent(monkeypatch):
+    """#1637 point 1 over a real socket: no MockTransport, so httpx itself reads the 302 off the wire."""
+
+    class NoLocation(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(302)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), NoLocation)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        # The local address is not a release host, so it is admitted for this test only; the redirect check still runs.
+        monkeypatch.setattr(release_fetch, "allowed_url", lambda url: url.startswith("http://127.0.0.1:"))
+        monkeypatch.setattr(release_fetch, "_transport", None)
+        monkeypatch.setattr(setup_cli, "read_summary", lambda: None)
+        with pytest.raises(FetchError) as caught:
+            release_fetch.default_get(f"http://127.0.0.1:{server.server_address[1]}/release")
+        assert caught.value.reason_code == "unsafe_url"
+        assert "no Location header" in str(caught.value)
+        out = io.StringIO()
+        setup_cli.after_install(interactive=False, out=out)  # must not raise
+        assert "Next: run" in out.getvalue()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(5)
 
 
 def test_get_refuses_a_first_url_outside_github_and_a_redirect_loop(monkeypatch):

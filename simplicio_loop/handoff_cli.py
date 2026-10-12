@@ -8,10 +8,12 @@
   counters of the last request (``--input-tokens``, ``--cache-read``, ``--cache-write``; MEASURED) and, optionally, the
   text that will be added (``--added-file``). A host that reports no usage gives ``--prompt-file`` instead (ESTIMATED).
 
-The ceiling comes from the DEFAULT BRANCH, never from the working tree: the ``agent_input_token_ceiling`` key of
-``.simplicio-loop/loop.toml`` as ``origin/HEAD`` has it (as of the last fetch). An agent that edits its own clone cannot
-raise it. The environment variable ``SIMPLICIO_AGENT_INPUT_TOKEN_CEILING`` still wins and then no git is needed.
-A repository without ``origin/HEAD`` and without the variable fails loud: there is no silent default.
+The ceiling rule, one line: the env var ``SIMPLICIO_AGENT_INPUT_TOKEN_CEILING`` wins; else the
+``agent_input_token_ceiling`` key of ``.simplicio-loop/loop.toml`` as ``origin/HEAD`` has it (never the working tree);
+else the built-in 98,000, but ONLY when the repository has no remote. A repository WITH a remote whose default branch
+cannot be read fails closed (``ceiling_unreadable``, exit 2): set the env var or repair ``origin/HEAD``. No flag bypasses
+it. The built-in fallback carries ``ceiling_source`` and ``ceiling_reason`` in the output and one warning on stderr.
+Only an INVALID or unreadable ceiling exits 2.
 
 Exit codes: 0 ok, 3 handoff (write one before the next request), 4 over (do not send), 2 error.
 An error prints ``{"status": "error", "reason_code": ..., "error": ...}`` on stderr and nothing on stdout.
@@ -31,9 +33,10 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from .agent_handoff import HandoffError, handoff_path, redact_handoff, validate_handoff
+from .dashboard_events import emit_handoff
 from .input_ceiling import (
     DEFAULT_CEILING, ENV_NAME, MAX_CEILING, TOML_KEY, CeilingConfigError, PromptUsage, Projection, _check_ceiling,
-    check_budget)
+    check_budget, explain_ceiling)
 
 CONFIG_PATH = ".simplicio-loop/loop.toml"
 # A handoff is at most 6000 estimated tokens (about 24 KB of JSON). A file far above that is not one.
@@ -65,6 +68,16 @@ def _git(repo: Path, *args: str) -> subprocess.CompletedProcess:
         raise HandoffError("default_branch_unresolved", "git failed in %s: %s" % (repo, exc)) from exc
 
 
+def has_remote(repo: Path) -> bool:
+    """True when the repository lists a remote. Not a repository counts as none. When git cannot run, a ``.git`` entry
+    in the directory still may hold a remote, so it counts as one; without it there is no repository to protect."""
+    try:
+        listed = _git(repo, "remote")
+    except HandoffError:
+        return (repo / ".git").exists()
+    return listed.returncode == 0 and bool(listed.stdout.strip())
+
+
 def default_branch_config(repo: Path) -> dict[str, Any]:
     """The parsed ``.simplicio-loop/loop.toml`` of ``origin/HEAD`` (empty when that branch has no such file)."""
     head = _git(repo, "symbolic-ref", "refs/remotes/origin/HEAD")
@@ -85,10 +98,6 @@ def default_branch_config(repo: Path) -> dict[str, Any]:
         return tomllib.loads(blob.stdout.decode("utf-8"))
     except (tomllib.TOMLDecodeError, UnicodeDecodeError) as exc:
         raise CeilingConfigError("%s:%s: %s" % (ref, CONFIG_PATH, exc)) from exc
-
-
-def _ceiling(repo: Path) -> int:
-    return ceiling_from({} if ENV_NAME in os.environ else default_branch_config(repo), os.environ)
 
 
 # --- input and output ----------------------------------------------------------------------------------------------------
@@ -190,14 +199,23 @@ def _highest(run_dir: Path) -> int:
 
 # --- commands ------------------------------------------------------------------------------------------------------------
 
-def _write(args: argparse.Namespace) -> dict:
-    root = _root(args.repo)
-    clean, redacted = redact_handoff(_parse_object(_read_text(args.file), "the input"))
+def store(repo: str | Path, doc: Any) -> tuple[dict, list[str], str]:
+    """Mask, validate and store one handoff under ``repo``. Returns the stored document, the pointers that were masked
+    and the stored path relative to ``repo``. A refused document raises ``HandoffError`` and writes nothing."""
+    root = _root(str(repo))
+    clean, redacted = redact_handoff(doc)
     validate_handoff(clean)  # after the mask: a mask can be longer than what it hides
     path = handoff_path(root, clean["run_id"], clean["continuation"])
     _walk(root, _parts(clean["run_id"]), create=True)
     _publish(path, json.dumps(clean, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
-    return {"path": path.relative_to(root).as_posix(), "continuation": clean["continuation"], "redacted": redacted}
+    rel = path.relative_to(root).as_posix()
+    emit_handoff(root, clean, rel)
+    return clean, redacted, rel
+
+
+def _write(args: argparse.Namespace) -> dict:
+    clean, redacted, rel = store(args.repo, _parse_object(_read_text(args.file), "the input"))
+    return {"path": rel, "continuation": clean["continuation"], "redacted": redacted}
 
 
 def _read(args: argparse.Namespace) -> dict:
@@ -234,8 +252,10 @@ def _projection(args: argparse.Namespace) -> Projection:
 
 def _check(args: argparse.Namespace) -> dict:
     projection = _projection(args)
-    verdict = check_budget(projection, _ceiling(_root(args.repo)))
+    ceiling = explain_ceiling(_root(args.repo))
+    verdict = check_budget(projection, ceiling.value)
     return {"status": verdict.status, "basis": verdict.basis, "tokens": verdict.tokens, "ceiling": verdict.ceiling,
+            "ceiling_source": ceiling.source, "ceiling_reason": ceiling.reason,
             "soft_limit": verdict.soft_limit, "headroom": verdict.headroom, "ratio": round(verdict.ratio, 4),
             "measured_base": projection.measured_base, "estimated_tokens": projection.estimated_tokens,
             "estimator": projection.estimator}

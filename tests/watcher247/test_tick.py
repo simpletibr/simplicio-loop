@@ -310,6 +310,8 @@ def test_tick_error_is_recorded_in_status(env, monkeypatch):
     (" M .gitignore\n", False),
     (" M src/app.py\n", True),
     ("?? .simplicio-loop/x\n M src/app.py\n", True),
+    (" M .simplicio-loop/loop.toml\n", True),  # the opt-in is protected (#1567): its edit is a change
+    (" M .simplicio-loop/x\n", False),  # the rest of the state dir stays scratch
 ])
 def test_dirty(env, porcelain, expected):
     async def fake(argv, timeout=120, cwd=None):

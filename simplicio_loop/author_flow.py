@@ -236,12 +236,16 @@ class _Run:
     def ceiling_refusal(self, prompt: str) -> AuthorResult | None:
         """The refusal of a prompt above the input-token ceiling (or a bad ceiling setting), or None: nothing is sent for it."""
         try:
-            ceiling = input_ceiling.resolve_ceiling(self.worktree)
-            input_ceiling.enforce_budget(input_ceiling.Projection.estimated(prompt), ceiling)
+            ceiling = input_ceiling.explain_ceiling(self.worktree)
+            input_ceiling.enforce_budget(input_ceiling.Projection.estimated(prompt), ceiling.value)
         except input_ceiling.CeilingConfigError as e:
-            return self.fail("ceiling_invalid", str(e))
+            return self.result("failed", e.reason_code, [{
+                "kind": e.reason_code, "detail": str(e), "ceiling_source": getattr(e, "ceiling_source", "invalid"),
+                "ceiling_reason": getattr(e, "ceiling_reason", str(e))}])
         except input_ceiling.InputCeilingExceeded:
-            return self.fail("input_ceiling_exceeded", "prompt exceeds ceiling")
+            return self.result("failed", "input_ceiling_exceeded", [{
+                "kind": "input_ceiling_exceeded", "detail": "prompt exceeds " + input_ceiling.describe(ceiling),
+                "ceiling_source": ceiling.source, "ceiling_reason": ceiling.reason}])
         return None
 
     def wrap(self, argv: list[str], view: sandbox.HomeView) -> list[str]:

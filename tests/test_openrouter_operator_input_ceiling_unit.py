@@ -1,5 +1,7 @@
 """The OpenRouter operator does not send a request above the input-token ceiling (#1608, part C)."""
 from __future__ import annotations
+import subprocess
+
 
 import json
 from pathlib import Path
@@ -24,6 +26,22 @@ def repo(tmp_path, monkeypatch):
 
 
 def _write_toml(root, body):
+    """The ceiling comes from the DEFAULT BRANCH: commit the file on `main` and point origin/HEAD at it."""
+    root.mkdir(parents=True, exist_ok=True)
+    git = ["git", "-C", str(root)]
+    subprocess.run([*git, "init", "-q", "-b", "main"], check=True, capture_output=True)
+    (root / ".simplicio-loop").mkdir(exist_ok=True)
+    (root / ".simplicio-loop" / "loop.toml").write_text(body, encoding="utf-8")
+    subprocess.run([*git, "add", "-f", ".simplicio-loop/loop.toml"], check=True, capture_output=True)
+    subprocess.run([*git, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty",
+                    "-m", "config"], check=True, capture_output=True)
+    subprocess.run([*git, "update-ref", "refs/remotes/origin/main", "HEAD"], check=True, capture_output=True)
+    subprocess.run([*git, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"], check=True,
+                   capture_output=True)
+
+
+def _write_working_toml(root, body):
+    """A loop.toml in the working tree only: the ceiling never reads it."""
     (root / ".simplicio-loop").mkdir(exist_ok=True)
     (root / ".simplicio-loop" / "loop.toml").write_text(body, encoding="utf-8")
 
@@ -156,7 +174,7 @@ def test_a_bad_ceiling_fails_loud_without_sending(repo, monkeypatch):
 
 def test_the_loop_toml_of_the_cwd_is_not_the_one_read(repo, monkeypatch):
     """A call that names its repo never reads the loop.toml of the cwd."""
-    _write_toml(Path.cwd(), f"{TOML_KEY} = 1\n")
+    _write_working_toml(Path.cwd(), f"{TOML_KEY} = 1\n")
     calls = []
     
     def mock_urlopen(request, timeout):
@@ -230,3 +248,19 @@ def test_a_bad_ceiling_leaves_the_refusal_in_the_receipt(repo, monkeypatch):
     assert receipt["status"] == "ceiling_invalid"
     assert receipt["error_code"] == "ceiling_invalid"
     assert receipt["request_sent"] is False
+
+
+def test_a_refusal_over_the_built_in_default_names_the_source_and_reason(tmp_path, monkeypatch):
+    """No origin/HEAD: the built-in ceiling applies and the refusal receipt says why (#1608)."""
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    subprocess.run(["git", "-C", str(plain), "init", "-q", "-b", "main"], check=True, capture_output=True)
+    _configure_provider(monkeypatch)
+    monkeypatch.delenv(ENV_NAME, raising=False)
+    monkeypatch.setattr("simplicio_loop.input_ceiling._warned", False)
+    with pytest.raises(InputCeilingExceeded) as info:
+        _creation_request(plain, "word " * 150_000)
+    receipt = info.value.receipt
+    assert receipt["status"] == "input_ceiling_exceeded"
+    assert receipt["ceiling_source"] == "built-in default"
+    assert "origin/HEAD" in receipt["ceiling_reason"]

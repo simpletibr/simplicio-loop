@@ -8,8 +8,9 @@ rules: The JSON schema next to this file is authoritative. Mutable data lives in
 # `simplicio.agent-handoff/v1`
 
 Owner rule: no LLM request of a loop agent carries more than 98,000 input tokens. The default ceiling is 98,000.
-Set it with the key `agent_input_token_ceiling` in `<repo>/.simplicio-loop/loop.toml` or with the environment
-variable `SIMPLICIO_AGENT_INPUT_TOKEN_CEILING`. The variable wins over the key.
+Set it with the key `agent_input_token_ceiling` in `.simplicio-loop/loop.toml` on the default branch (`origin/HEAD`)
+or with the environment variable `SIMPLICIO_AGENT_INPUT_TOKEN_CEILING`. The variable wins over the key. The working
+tree is never read, so a local edit cannot raise the ceiling.
 
 The ceiling applies to the total prompt of one request: new input tokens, cache reads and cache writes.
 The price tier depends on the whole prompt.

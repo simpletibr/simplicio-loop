@@ -4,7 +4,7 @@ import textwrap
 
 import pytest
 
-from simplicio_loop.review_gate import diffs, redgreen
+from simplicio_loop.review_gate import diffs, mutation, redgreen
 from simplicio_loop.review_gate.model import ERROR, FAIL, PASS, SKIPPED
 
 OLD = "def add(a, b):\n    return a\n"
@@ -306,3 +306,63 @@ def test_a_skip_caused_by_non_python_production_says_so_and_a_real_tests_only_pr
     assert docs.status == SKIPPED and docs.reasons[0] == "sem codigo de producao nem teste alterado"
     deleted = redgreen.check_redgreen(base, head, [diffs.FileChange("web/app.js", "D", ())], python=sys.executable)
     assert deleted.reasons[0] == "sem codigo de producao nem teste alterado"  # a deleted file is not a production change that went unchecked
+
+
+# Attribution (#1649): the red set of the real red/green run feeds the mutation sample, and each new test that fails on main must kill a mutant.
+# The mutants of `mod.py` line 2 are `return a - b` (flip) and `return None`; the test run is a fake that names which tests fail for each.
+TWO_NEW = textwrap.dedent('''\
+    from mod import add
+
+
+    def test_add_sums():
+        assert add(1, 2) == 3
+
+
+    def test_add_zero():
+        assert add(0, 5) == 5
+    ''')
+CHARACTERIZED = TWO_NEW.replace("def test_add_zero():", 'def test_add_zero_characterization():\n    """characterization: declared as already true on main"""')
+
+
+def _attribute(tmp_path, monkeypatch, test, kills):
+    """The red/green result of `test` over OLD and the mutation sample over NEW; `kills(mutated_text)` names the tests that fail."""
+    base = _tree(tmp_path / "base", OLD, "")
+    head = _tree(tmp_path / "head", NEW, test)
+    changes = _changes(test)
+    red = redgreen.check_redgreen(base, head, changes, python=sys.executable, env={"PYTHONPATH": "."})
+
+    def run(root, argv, timeout, wrap, env, home):
+        text = (root / "mod.py").read_text(encoding="utf-8")
+        failed = [] if text == NEW else list(kills(text))
+        return (1 if failed else 0), "".join(f"FAILED {node} - assert 0\n" for node in failed)
+
+    monkeypatch.setattr(mutation, "_run", run)
+    sampled = mutation.check_mutation(head, changes, [sys.executable, "-m", "pytest", "tests"], n=12, seed="s", red=red.measured["red"])
+    return red, sampled
+
+
+def _kill_by_op(add_fails, none_fails):
+    return lambda text: add_fails if "a - b" in text else none_fails
+
+
+def test_a_new_test_that_fails_on_main_and_kills_no_mutant_is_rejected_with_its_id(tmp_path, monkeypatch):
+    red, sampled = _attribute(tmp_path, monkeypatch, TWO_NEW,
+                              _kill_by_op(["tests/test_mod.py::test_add_sums"], ["tests/test_mod.py::test_add_sums"]))
+    assert red.status == PASS and red.measured["red"] == ["tests/test_mod.py::test_add_sums", "tests/test_mod.py::test_add_zero"]
+    assert sampled.status == FAIL and sampled.reasons[-1].startswith("test_kills_no_mutant:")
+    assert "tests/test_mod.py::test_add_zero" in sampled.reasons[-1] and "test_add_sums" not in sampled.reasons[-1]
+
+
+def test_a_new_test_that_fails_on_main_and_kills_a_mutant_is_attributed_and_passes(tmp_path, monkeypatch):
+    _, sampled = _attribute(tmp_path, monkeypatch, TWO_NEW,
+                            _kill_by_op(["tests/test_mod.py::test_add_sums"], ["tests/test_mod.py::test_add_zero"]))
+    assert sampled.status == PASS, sampled.reasons
+    assert sampled.measured["unattributed"] == []
+
+
+def test_a_characterization_test_is_exempt_from_the_kill_rule(tmp_path, monkeypatch):
+    red, sampled = _attribute(tmp_path, monkeypatch, CHARACTERIZED,
+                              _kill_by_op(["tests/test_mod.py::test_add_sums"], ["tests/test_mod.py::test_add_sums"]))
+    assert red.measured["exempt"] == ["tests/test_mod.py::test_add_zero_characterization"]
+    assert red.measured["red"] == ["tests/test_mod.py::test_add_sums"] and sampled.status == PASS, sampled.reasons
+
