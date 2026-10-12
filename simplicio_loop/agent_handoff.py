@@ -12,6 +12,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .dashboard.runs import redact_command
+from .auth import RUNTIME_DIR
 from .input_ceiling import estimate_tokens
 
 MAX_HANDOFF_TOKENS = 6000
@@ -40,13 +41,13 @@ def _schema_error(doc: Any) -> str | None:
 
 
 def _bad_path(path: str) -> bool:
-    """True unless ``path`` is a clean POSIX path relative to the repository and outside ``.simplicio/``."""
+    """True unless ``path`` is a clean POSIX path relative to the repository and outside the runtime state directory."""
     if "\x00" in path or "\\" in path or re.match(r"[A-Za-z]:", path):
         return True
     parts = path.split("/")  # an absolute path or a double slash gives an empty part
     if any(part in ("", ".", "..") for part in parts):
         return True
-    return parts[0].casefold() == ".simplicio"
+    return parts[0].casefold() == RUNTIME_DIR.casefold()
 
 
 def validate_handoff(doc: Any) -> None:
@@ -64,7 +65,7 @@ def validate_handoff(doc: Any) -> None:
     for entry in doc["done"]["files"]:
         if _bad_path(entry["path"]):
             raise HandoffError("handoff_path_invalid",
-                               "%r must be relative to the repository, without '..', outside .simplicio/" % entry["path"])
+                               "%r must be relative to the repository, without '..', outside %s/" % (entry["path"], RUNTIME_DIR))
     tokens = doc["tokens"]
     if tokens["basis"] == "MEASURED":
         total = tokens["input_tokens"] + tokens["cache_read_input_tokens"] + tokens["cache_creation_input_tokens"]
