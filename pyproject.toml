@@ -86,9 +86,9 @@ include = ["simplicio_loop*", "simplicio_mapper*", "simplicio", "simplicio.*"]
 namespaces = true
 
 [tool.setuptools.package-data]
-simplicio_loop = ["_bundle/**/*", "_contracts/**/*.json", "_catalog/*.json", "setup_pins.json"]
+simplicio_loop = ["_bundle/**/*", "_contracts/**/*", "_catalog/*.json", "setup_pins.json"]
 "simplicio_loop._bundle" = ["**/*"]
-"simplicio_loop._contracts" = ["**/*.json", "*.json"]
+"simplicio_loop._contracts" = ["**/*"]
 "simplicio_loop._catalog" = ["*.json"]
 # Simplicio Live web components + catalog (issue #1399): static files served as-is, no build step.
 "simplicio_loop.dashboard" = ["static/**/*", "prices.json"]
