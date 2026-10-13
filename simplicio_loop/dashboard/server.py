@@ -106,9 +106,9 @@ def extract_token(query: Mapping[str, str], headers: Any) -> str | None:
 
 
 def _host_allowed(host: str, port: int | None) -> bool:
-    '''Host must be 127.0.0.1 or localhost; with a bound port it must also name that port.'''
+    '''Host must be 127.0.0.1, localhost or a Tailscale name or address; with a bound port it must also name that port.'''
     name, _, given = host.partition(':')
-    if name not in (HOST, 'localhost'):
+    if name not in (HOST, 'localhost') and not name.endswith('.ts.net') and not name.startswith('100.'):
         return False
     if port is None:
         return given == '' or given.isdigit()
