@@ -32,7 +32,7 @@ def test_every_static_label_has_an_english_entry():
     en = _dictionary()
     text = set(re.findall(r'>([^<>]{2,})<', INDEX)) | set(re.findall(r'(?:aria-label|label|placeholder)="([^"]+)"', INDEX))
     labels = {t.strip() for t in text if re.search(r'[A-Za-zÀ-ú]{3}', t) and not t.strip().startswith(('http', '/'))}
-    labels -= {'Simplicio Live · Pipeline vivo', 'Stall', 'Gates', 'Logs', 'Lanes', 'Atual'}  # same word in both, or title
+    labels -= {'Simplicio Live · Pipeline vivo', 'Stall', 'Gates', 'Logs', 'Lanes', 'Atual', 'Simplicio'}  # same word in both, or title
     missing = sorted(l for l in labels if l not in en and not re.fullmatch(r'[\d:() ]+', l) and not l.startswith('Alertas ('))
     assert missing == []
     assert all(k != v for k, v in en.items())

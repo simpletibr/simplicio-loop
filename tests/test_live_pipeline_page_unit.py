@@ -136,11 +136,12 @@ def test_css_animations_sit_only_inside_reduced_motion_no_preference():
         assert inside, css[max(0, decl.start() - 60):decl.start() + 60]
 
 
-def test_live_directory_gzips_under_40_kib():
+# 40 KiB until the app shell: its sidebar and the Painel/Tarefas sections add about 0.6 KiB of page markup.
+def test_live_directory_gzips_under_42_kib():
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode='w:gz') as archive:
         archive.add(str(LIVE), arcname='live')
-    assert buffer.getbuffer().nbytes < 40 * 1024, buffer.getbuffer().nbytes
+    assert buffer.getbuffer().nbytes < 42 * 1024, buffer.getbuffer().nbytes
 
 
 NEW_DOM_TAGS = {'lanes': 'ol', 'drill': 'aside', 'drill-logs': 'sl-log-viewer', 'palette': 'sl-command-palette', 'follow': 'button', 'live-extras': 'section'}

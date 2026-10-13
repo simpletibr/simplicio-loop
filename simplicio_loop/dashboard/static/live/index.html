@@ -9,8 +9,21 @@
 <link rel="stylesheet" href="/static/history/history.css">
 <link rel="stylesheet" href="/static/coordination/coordination.css">
 <link rel="stylesheet" href="/static/extras/extras.css">
+<link rel="stylesheet" href="/static/shell/shell.css">
 </head>
 <body class="sl-page">
+<div class="shell">
+<nav id="shell-nav" class="shell-nav" aria-label="Seções">
+<p class="shell-brand">Simplicio</p>
+<a href="#painel" data-view-link="painel">Painel</a>
+<a href="#tarefas" data-view-link="tarefas">Tarefas <span class="shell-badge" data-badge="tarefas" hidden>0</span></a>
+<a href="#tarefa" data-view-link="tarefa">Tarefa</a>
+<a href="#caixa" data-view-link="caixa">Caixa de entrada <span class="shell-badge" data-badge="caixa" hidden>0</span></a>
+<a href="#decisoes" data-view-link="decisoes">Decisões <span class="shell-badge" data-badge="decisoes" hidden>0</span></a>
+<a href="#custos" data-view-link="custos">Custos</a>
+<a href="#historico" data-view-link="historico">Histórico</a>
+</nav>
+<div class="shell-body">
 <header class="live-head">
 <h1>Pipeline vivo</h1>
 <sl-connection-dot id="conn" status="connecting"></sl-connection-dot>
@@ -24,21 +37,21 @@
 <main class="live-main">
 <section class="panel board-panel" aria-labelledby="board-title"><h2 id="board-title">Quadro por etapa</h2><p id="board-status" role="status"></p><div id="board" class="board"></div></section>
 <section class="panel coord-panel" aria-labelledby="coord-title"><h2 id="coord-title">Fila e coordenação</h2><p id="coord-status" role="status"></p><div id="coord-kanban" class="coord-kanban" tabindex="0" role="region" aria-label="Fila por estado"></div><div id="coord-dag" class="coord-dag"></div><div id="coord-drain" class="coord-drain"></div><div id="coord-slots" class="coord-slots"></div></section>
-<section class="panel rail-panel" aria-labelledby="rail-title">
+<section class="panel rail-panel" data-view="tarefa" aria-labelledby="rail-title">
 <h2 id="rail-title">Fases</h2>
 <sl-stage-rail id="rail" phase="intake" status="RUNNING" label="Fases do run"></sl-stage-rail>
 <p id="phase-status" class="sr-only" role="status"></p>
 <ul id="phase-stats" class="phase-stats"></ul>
 </section>
-<section class="panel lanes-panel" aria-labelledby="lanes-title">
+<section class="panel lanes-panel" data-view="tarefa" aria-labelledby="lanes-title">
 <h2 id="lanes-title">Lanes</h2>
 <ol id="lanes" class="lanes" aria-label="Lanes do run"></ol>
 </section>
-<section class="panel">
+<section class="panel" data-view="tarefa">
 <h2>Progresso</h2>
 <sl-donut id="ring" label="Progresso do run" center="0%" data-percent="0"></sl-donut>
 </section>
-<section class="panel">
+<section class="panel" data-view="tarefa">
 <h2>Agora</h2>
 <div id="agora" class="agora">
 <p><span>Atual</span><strong data-field="current"></strong></p>
@@ -47,34 +60,34 @@
 <p><span>Tempo na fase</span><strong data-field="timer">00:00</strong></p>
 </div>
 </section>
-<section id="live-extras" aria-label="Sinais do worker" class="panel"></section>
-<section class="panel">
+<section id="live-extras" data-view="tarefa" aria-label="Sinais do worker" class="panel"></section>
+<section class="panel" data-view="tarefa">
 <h2>Gates</h2>
 <ul id="gates" class="gates"></ul>
 </section>
-<section class="kpis" aria-label="Indicadores">
+<section class="kpis" data-view="tarefa" aria-label="Indicadores">
 <sl-kpi-card id="kpi-epm" label="Eventos por minuto" value="0"></sl-kpi-card>
 <sl-kpi-card id="kpi-heartbeat" label="Último heartbeat" value="–" unit="s"></sl-kpi-card>
 <sl-kpi-card id="kpi-stall" label="Stall" value="Não" state="PASS"></sl-kpi-card>
 </section>
-<section class="panel iterations-panel" aria-labelledby="iterations-title">
+<section class="panel iterations-panel" data-view="tarefa" aria-labelledby="iterations-title">
 <h2 id="iterations-title">Iterações</h2>
 <sl-timeline id="iterations" label="Iterações do run"></sl-timeline>
 </section>
-<section class="panel convergence-panel" aria-labelledby="convergence-title">
+<section class="panel convergence-panel" data-view="tarefa" aria-labelledby="convergence-title">
 <h2 id="convergence-title">Convergência</h2>
 <sl-sparkline id="convergence" label="Gates pendentes por iteração"></sl-sparkline>
 <p id="convergence-note" class="note"></p>
 </section>
-<section class="panel dod-panel" aria-labelledby="dod-title">
+<section class="panel dod-panel" data-view="tarefa" aria-labelledby="dod-title">
 <h2 id="dod-title">Definição de pronto</h2>
 <ul id="dod" class="checks" aria-label="Definição de pronto"></ul>
 </section>
-<section class="panel quality-panel" aria-labelledby="quality-title">
+<section class="panel quality-panel" data-view="tarefa" aria-labelledby="quality-title">
 <h2 id="quality-title">Qualidade</h2>
 <ul id="quality" class="checks" aria-label="Qualidade"></ul>
 </section>
-<section id="economy" class="panel economy-panel" aria-labelledby="economy-title">
+<section id="economy" class="panel economy-panel" data-view="custos" aria-labelledby="economy-title">
 <h2 id="economy-title">Economia de tokens</h2>
 <sl-donut id="economy-gauge" label="Economia de tokens" center="–"></sl-donut>
 <div class="kpis">
@@ -85,18 +98,48 @@
 <sl-sparkline id="economy-series" label="Economia acumulada" state="UNVERIFIED"></sl-sparkline>
 <p id="economy-note" class="note"></p>
 </section>
-<section class="panel history-panel" aria-labelledby="history-title"><h2 id="history-title">Histórico e tendências</h2><p id="history-status" role="status"></p><div id="history-root"></div></section>
-<section class="panel agents-panel" aria-labelledby="agents-title">
+<section class="panel history-panel" data-view="historico" aria-labelledby="history-title"><h2 id="history-title">Histórico e tendências</h2><p id="history-status" role="status"></p><div id="history-root"></div></section>
+<section class="panel agents-panel" data-view="custos" aria-labelledby="agents-title">
 <h2 id="agents-title">Agentes, modelos e custo</h2>
 <ul id="agents-cost" class="checks" aria-label="Agentes, modelos e custo"></ul>
 </section>
-<section id="alerts-panel" class="panel alerts-panel" aria-labelledby="alerts-title" hidden>
+<section id="alerts-panel" class="panel alerts-panel" data-view="tarefa caixa" aria-labelledby="alerts-title" hidden>
 <h2 id="alerts-title">Alertas do run</h2>
 <p id="alerts-status" role="status"></p>
 <button id="alerts-notify" type="button" hidden>Ativar notificações do navegador</button>
 <ul id="alerts-list" class="checks" aria-label="Alertas ativos"></ul>
 </section>
-<p id="empty" role="status">Aguardando eventos…</p>
+<section class="panel" data-view="painel" aria-labelledby="painel-title">
+<h2 id="painel-title">Painel</h2>
+<div class="shell-kpis">
+<sl-kpi-card id="kpi-ativas" label="Tarefas ativas" value="0"></sl-kpi-card>
+<sl-kpi-card id="kpi-falhas" label="Pedem ação" value="0" state="FAIL"></sl-kpi-card>
+<sl-kpi-card id="kpi-concluidas" label="Concluídas" value="0"></sl-kpi-card>
+<sl-kpi-card id="kpi-total" label="Total de runs" value="0"></sl-kpi-card>
+</div>
+<h3>Últimas tarefas</h3>
+<ol id="painel-recent" class="shell-list" aria-label="Últimas tarefas"></ol>
+</section>
+<section class="panel" data-view="tarefas" aria-labelledby="tarefas-title">
+<h2 id="tarefas-title">Tarefas</h2>
+<div id="tarefas-tabs" class="shell-tabs" role="tablist" aria-label="Estado das tarefas"></div>
+<ol id="tarefas-list" class="shell-list" aria-label="Tarefas"></ol>
+</section>
+<section class="panel" data-view="caixa" aria-labelledby="caixa-title">
+<h2 id="caixa-title">Caixa de entrada</h2>
+<div id="caixa-tabs" class="shell-tabs" role="tablist" aria-label="Filtros da caixa"></div>
+<ol id="caixa-list" class="shell-list" aria-label="Itens da caixa"></ol>
+</section>
+<section class="panel" data-view="decisoes" aria-labelledby="decisoes-title">
+<h2 id="decisoes-title">Decisões e aprovações</h2>
+<p class="shell-muted">Runs bloqueados que esperam uma escolha. Aprovar ou rejeitar ainda acontece no terminal: o painel não tem endpoint de aprovação.</p>
+<ol id="decisoes-list" class="shell-list" aria-label="Decisões pendentes"></ol>
+</section>
+<section class="panel" data-view="tarefa" aria-labelledby="props-title">
+<h2 id="props-title">Propriedades</h2>
+<dl id="props-list" class="shell-props"></dl>
+</section>
+<p id="empty" data-view="tarefa" role="status">Aguardando eventos…</p>
 </main>
 <aside id="drill" class="drill" aria-labelledby="drill-title" hidden>
 <div class="drill-head">
@@ -133,6 +176,8 @@
 <sl-json-tree id="drill-context" label="Contexto do mapeamento"></sl-json-tree>
 </section>
 </aside>
+</div>
+</div>
 <script type="module" src="/static/i18n/i18n.js"></script>
 <script type="module" src="/static/live/app.js"></script>
 </body>
