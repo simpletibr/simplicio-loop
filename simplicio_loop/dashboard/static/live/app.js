@@ -14,7 +14,6 @@ import { startCoordination } from '/static/coordination/boot.js';
 import { startBudget, startExtras } from '/static/extras/extras.js';
 import { startHistory } from '/static/history/history-page.js';
 import { nextRunId, rotationMs, runCommands, runUrl } from '/static/live/runs-nav.js';
-import '/static/shell/shell.js'; // the sidebar and the Painel/Tarefas views, loaded with the page
 
 const SUMMARY_DEBOUNCE_MS = 250;
 const TICK_MS = 1000;
