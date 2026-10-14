@@ -122,19 +122,33 @@ def _copy_tree(src: Path, dst: Path) -> int:
 def _resync_hosts(root: Path, apply: bool) -> dict:
     """Skills and host rules of every host that ALREADY has them (#1480): refresh them, or only list what is stale."""
     from .host_rules import resync_installed_rules, stale_rules
+    from .host_rules import resync_installed_rules, stale_rules
     from .skill_sync import resync_installed_skills, stale_skills
+    stale_s, stale_r = stale_skills(root), stale_rules(root)
+    skills_counts: dict[str, int] = {}
+    for entry in stale_s:
+        skills_counts[entry["host"]] = skills_counts.get(entry["host"], 0) + 1
+    rules_counts: dict[str, int] = {}
+    for entry in stale_r:
+        rules_counts[entry["surface"]] = rules_counts.get(entry["surface"], 0) + 1
+
     if apply:  # skills first: the rule sync rewrites the rule ref inside the installed loop skill
         skills, rules = resync_installed_skills(root), resync_installed_rules(root)
-        return {"skills": skills["synced"], "rules": rules["synced"], "errors": skills["errors"] + rules["errors"],
+        return {"skills": skills["synced"], "rules": rules["synced"],
+                "skills_counts": skills_counts, "rules_counts": rules_counts,
+                "errors": skills["errors"] + rules["errors"],
                 "pending": 0}
-    skills, rules = stale_skills(root), stale_rules(root)
-    return {"skills": sorted({entry["host"] for entry in skills}), "rules": [entry["surface"] for entry in rules],
-            "errors": [], "pending": len(skills) + len(rules)}
+    return {"skills": sorted({entry["host"] for entry in stale_s}),
+            "rules": [entry["surface"] for entry in stale_r],
+            "skills_counts": skills_counts, "rules_counts": rules_counts,
+            "errors": [], "pending": len(stale_s) + len(stale_r)}
 
 
-def _install_lines(result: dict, host: str, head: str, resync: Optional[dict]) -> list:
+def _install_lines(result: dict, host: str, head: str, resync: Optional[dict],
+                   prune_project: Optional[dict] = None) -> list:
     changes = result["changes"]
-    lines = [f"simplicio-loop {__version__} {head}:", f"  host   -> {host}", f"  owned  -> {len(result['owned'])} files",
+    owned_files = sorted(set(result.get("owned") or []))
+    lines = [f"simplicio-loop {__version__} {head}:", f"  host   -> {host}", f"  owned  -> {len(owned_files)} files",
              f"  changed -> {len(changes['created'])} created, {len(changes['updated'])} updated, "
              f"{changes['unchanged']} unchanged"]
     for label in ("created", "updated"):
@@ -142,20 +156,66 @@ def _install_lines(result: dict, host: str, head: str, resync: Optional[dict]) -
         if len(changes[label]) > 8:
             lines.append(f"    {label}: ... and {len(changes[label]) - 8} more")
     if changes["left_alone"]:
-        shown = ", ".join(changes["left_alone"][:5])
-        more = len(changes["left_alone"]) - 5
-        lines.append(f"  left alone -> {len(changes['left_alone'])} not owned by Loop: {shown}" + (f" (+{more} more)" if more > 0 else ""))
+        left = changes["left_alone"]
+        total = len(left)
+        prefix = f"  left alone -> {total} not owned by Loop: "
+        shown_items: list[str] = []
+        cur_len = len(prefix)
+        for i, item in enumerate(left):
+            sep = ", " if shown_items else ""
+            added = len(sep) + len(item)
+            if i >= 5 or (shown_items and cur_len + added + 12 > 80):
+                break
+            shown_items.append(item)
+            cur_len += added
+        shown = ", ".join(shown_items)
+        more = total - len(shown_items)
+        lines.append(prefix + shown + (f" (+{more} more)" if more > 0 else ""))
     if resync is not None and (resync["skills"] or resync["rules"] or resync["errors"]):
-        verb = "stale" if head.startswith(("check", "dry_run")) else "resynced"
-        lines.append(f"  {verb} -> skills: {', '.join(resync['skills']) or '-'}; rules: {', '.join(resync['rules']) or '-'}")
+        is_stale = head.startswith(("check", "dry_run"))
+        verb = ("stale (installed host copies differing from package, pending update)"
+                if is_stale else
+                "resynced (installed host copies refreshed to match package)")
+        skills_counts = resync.get("skills_counts") or {}
+        rules_counts = resync.get("rules_counts") or {}
+        if skills_counts:
+            skills_str = ", ".join(f"{h} ({skills_counts[h]})" for h in sorted(skills_counts))
+        else:
+            skills_str = ", ".join(resync["skills"]) or "-"
+        if rules_counts:
+            rules_str = ", ".join(f"{r} ({rules_counts[r]})" for r in sorted(rules_counts))
+        else:
+            rules_str = ", ".join(resync["rules"]) or "-"
+        lines.append(f"  {verb} -> skills: {skills_str}; rules: {rules_str}")
         lines += [f"  resync error: {err['host']}: {err['error']}" for err in resync["errors"]]
+    if prune_project is not None:
+        verb = "would prune" if head.startswith(("check", "dry_run")) else "pruned"
+        removed_list = prune_project.get("removed") or []
+        n_pruned = len(removed_list)
+        if n_pruned > 0:
+            prefix = f"  {verb} project copies -> {n_pruned} stale files: "
+            shown_items = []
+            cur_len = len(prefix)
+            for i, item in enumerate(removed_list):
+                sep = ", " if shown_items else ""
+                added = len(sep) + len(item)
+                if i >= 5 or (shown_items and cur_len + added + 12 > 80):
+                    break
+                shown_items.append(item)
+                cur_len += added
+            more = n_pruned - len(shown_items)
+            lines.append(prefix + ", ".join(shown_items) + (f" (+{more} more)" if more > 0 else ""))
+        else:
+            lines.append("  project copies -> 0 stale files found")
     return lines
 
 
 def install(target: Path, globally: bool, host: str = "claude",
             dry_run: bool = False, uninstall: bool = False, verify: bool = False,
-            check: bool = False, as_json: bool = False) -> int:
+            check: bool = False, as_json: bool = False,
+            prune_project_copies: bool = False) -> int:
     from .install.planner import InstallError, apply_plan, plan_install
+    from .install.planner import prune_project_copies as prune_fn
     from .install.planner import uninstall as remove_owned
     from .install.planner import verify_plan
 
@@ -187,10 +247,13 @@ def install(target: Path, globally: bool, host: str = "claude",
         print(f"error: {exc}", flush=True)
         return 1
     resync = _resync_hosts(root, apply=not (dry_run or check)) if globally else None
+    prune_result = prune_fn(target, dry_run=dry_run or check) if (globally and prune_project_copies) else None
     pending = not result["up_to_date"] or bool(resync and resync["pending"])
     if as_json:
-        print(json.dumps({**result, "host": host, "version": __version__, "resynced": resync},
-                         ensure_ascii=False, sort_keys=True))
+        payload = {**result, "host": host, "version": __version__, "resynced": resync}
+        if prune_result is not None:
+            payload["pruned_project"] = prune_result
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
         return 10 if check and pending else 0
     if check:
         head = "check: changes pending" if pending else "check: up to date"
@@ -198,7 +261,7 @@ def install(target: Path, globally: bool, host: str = "claude",
         head = "dry_run (nothing written)"
     else:
         head = "already up to date" if result["up_to_date"] else "installed"
-    print("\n".join(_install_lines(result, host, head, resync)))
+    print("\n".join(_install_lines(result, host, head, resync, prune_project=prune_result)))
     if not (dry_run or check):
         print("")
         print("Use it in your agent runtime (Claude Code, Cursor, ...):")
@@ -2810,7 +2873,7 @@ def main(argv=None) -> int:
     # Bare `simplicio-loop` (no subcommand at all) falls through to `install` below with these
     # defaults — mirror p_install's own defaults here so that fallback doesn't crash with
     # AttributeError when no subparser ever ran to populate args.target/args.globally.
-    parser.set_defaults(target=".", globally=False)
+    parser.set_defaults(target=".", globally=False, prune_project_copies=False)
     sub = parser.add_subparsers(dest="command", parser_class=_Parser)
 
     p_install = sub.add_parser("install", help="install bundled skills + hooks into a runtime")
@@ -2824,6 +2887,8 @@ def main(argv=None) -> int:
     p_install.add_argument("--json", action="store_true", help="emit one machine-readable JSON document")
     p_install.add_argument("--verify", action="store_true", help="validate plan version/digest")
     p_install.add_argument("--uninstall", action="store_true", help="remove only what install registered; with --dry-run, list it and remove nothing")
+    p_install.add_argument("--prune-project-copies", action="store_true",
+                           help="detect and remove stale project-scope copies when installing globally")
 
     p_turbo = sub.add_parser(
         "turbo",
@@ -3017,7 +3082,15 @@ def main(argv=None) -> int:
     p_stack_verify.add_argument("--components", required=True, help="JSON component observations")
     p_stack_verify.add_argument("--route", choices=("standalone",), default=None)
 
-    p_doctor = sub.add_parser("doctor", help="inspect the installed stack or storage routing")
+    p_doctor = sub.add_parser(
+        "doctor",
+        help="inspect the installed stack or storage routing (default: stack health overview)",
+        description=(
+            "Inspect stack health and component readiness. "
+            "Running without a subcommand executes the general stack health overview "
+            "(equivalent to 'doctor all') without requiring --storage or a subcommand."
+        ),
+    )
     p_doctor.set_defaults(doctor_command=None, stack_json=False, doctor_json=False, all_json=False, all_online=False,
                           login_json=False, online=False)
     p_doctor.add_argument("--online", action="store_true",
@@ -3029,7 +3102,11 @@ def main(argv=None) -> int:
     p_doctor.add_argument("--repo", default=".", help="repository root for cutover diagnostics")
     p_doctor.add_argument("--require-capability", action="append", default=[])
     p_doctor.add_argument("--json", action="store_true", help="emit machine-readable JSON")
-    doctor_sub = p_doctor.add_subparsers(dest="doctor_command")
+    doctor_sub = p_doctor.add_subparsers(
+        dest="doctor_command",
+        title="subcommands",
+        description="subcommands for targeted component inspection (default: runs overview)",
+    )
     p_doctor_stack = doctor_sub.add_parser(
         "stack", help="report installed component identity and route readiness"
     )
@@ -3469,11 +3546,12 @@ def main(argv=None) -> int:
     if command == "doctor" and getattr(args, "doctor_command", None) in {"all", "login"}:
         from .doctor_overview import run as doctor_overview
         if args.doctor_command == "login":
-            return doctor_overview(as_json=args.login_json, only="login")
-        return doctor_overview(as_json=args.all_json, online=args.all_online)
-    if command == "doctor" and not args.storage:  # a bare `doctor` is the overview
+            return doctor_overview(as_json=getattr(args, "login_json", False) or getattr(args, "json", False), only="login")
+        return doctor_overview(as_json=getattr(args, "all_json", False) or getattr(args, "json", False),
+                               online=getattr(args, "all_online", False) or getattr(args, "online", False))
+    if command == "doctor" and not getattr(args, "storage", False):  # bare `doctor` executes overview (same as `doctor all`)
         from .doctor_overview import run as doctor_overview
-        return doctor_overview(as_json=args.json, online=args.online)
+        return doctor_overview(as_json=getattr(args, "json", False), online=getattr(args, "online", False))
     if command in {"doctor", "inspect"}:
         from .store_adapter import storage_cli
         forwarded = ["--route", args.route]
@@ -3619,6 +3697,7 @@ def main(argv=None) -> int:
         getattr(args, "verify", False),
         getattr(args, "check", False),
         getattr(args, "json", False),
+        prune_project_copies=getattr(args, "prune_project_copies", False),
     )
 
 

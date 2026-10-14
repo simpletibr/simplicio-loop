@@ -22,13 +22,14 @@ import shutil
 import stat
 import subprocess
 import sys
+import sysconfig
 import tempfile
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any, Callable, Iterator, Optional, Sequence, Tuple
+from typing import Any, Callable, Iterator, Mapping, Optional, Sequence, Tuple
 
 from . import auth, distribution
 from .stack_manifest import installed_legacy_distributions
@@ -46,6 +47,83 @@ Http = Callable[[str], Any]
 
 class Refused(Exception):
     """The update stops before it changes anything (or after it put everything back)."""
+
+
+def is_pep668_environment(
+    *,
+    prefix: Optional[str] = None,
+    base_prefix: Optional[str] = None,
+    environ: Optional[Mapping[str, str]] = None,
+) -> Tuple[bool, Optional[str]]:
+    """Detect if the Python environment is externally managed per PEP 668.
+
+    Returns (True, details) if externally managed and PEP 668 protection is active,
+    or (False, None) otherwise.
+    """
+    env = os.environ if environ is None else environ
+    if env.get("PIP_BREAK_SYSTEM_PACKAGES") == "1":
+        return False, None
+
+    pfx = sys.prefix if prefix is None else prefix
+    bpfx = getattr(sys, "base_prefix", sys.prefix) if base_prefix is None else base_prefix
+
+    # Inside a virtual environment, sys.prefix != sys.base_prefix
+    if pfx != bpfx or (prefix is None and hasattr(sys, "real_prefix")):
+        return False, None
+
+    candidate_paths: list[Path] = []
+    if prefix is None:
+        try:
+            stdlib = sysconfig.get_path("stdlib")
+            if stdlib:
+                candidate_paths.append(Path(stdlib) / "EXTERNALLY-MANAGED")
+        except Exception:
+            pass
+
+    try:
+        candidate_paths.append(
+            Path(pfx) / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "EXTERNALLY-MANAGED"
+        )
+    except Exception:
+        pass
+
+    for candidate in candidate_paths:
+        try:
+            if candidate.is_file():
+                try:
+                    content = candidate.read_text(encoding="utf-8")
+                except OSError:
+                    content = ""
+                return True, content
+        except OSError:
+            continue
+
+    return False, None
+
+
+def pep668_diagnostic_message(details: Optional[str] = None) -> str:
+    msg = [
+        "update: detected externally-managed-environment (PEP 668).",
+        "Direct pip execution in this system Python environment is restricted to protect system packages.",
+    ]
+    if details:
+        clean = details.strip()
+        if clean:
+            msg.append(f"\nSystem manager explanation:\n{clean}\n")
+    msg.extend([
+        "Recommended remediation options:",
+        "  1. Use a virtual environment (recommended):",
+        "       python3 -m venv ~/.venvs/simplicio-loop",
+        "       source ~/.venvs/simplicio-loop/bin/activate",
+        "       pip install -U simplicio-loop",
+        "  2. Use uv pip:",
+        "       uv tool install simplicio-loop (or: uv pip install --system -U simplicio-loop)",
+        "  3. Use pipx:",
+        "       pipx install simplicio-loop (or: pipx upgrade simplicio-loop)",
+        "  4. If authorized, override PEP 668 protection with --break-system-packages:",
+        "       PIP_BREAK_SYSTEM_PACKAGES=1 simplicio-loop update",
+    ])
+    return "\n".join(msg)
 
 
 def parse_version(text: str) -> Tuple[int, ...]:
@@ -375,6 +453,7 @@ def run_update(
     probe: Callable[[Path], str] = _probe_version,
     record: Optional[Callable[[dict], None]] = None,
     state_dir: Optional[Path] = None,
+    externally_managed: Optional[bool] = None,
 ) -> int:
     if installed is None:
         from . import __version__ as installed
@@ -400,11 +479,19 @@ def run_update(
     info = {"installed": installed, "latest": label, "update_available": available, "kind": label_kind}
     if not dry_run:
         record(info)
+    is_pep668, pep668_details = (
+        (bool(externally_managed), None)
+        if externally_managed is not None
+        else is_pep668_environment()
+    )
     if latest <= current and not force:
         print(f"simplicio-loop {installed} is up to date (latest release {label})")
         stale = list(installed_legacy_distributions() if legacy is None else legacy)
         if not stale or check or source:
             return 0
+        if is_pep668:
+            print(pep668_diagnostic_message(pep668_details))
+            return 2
         # `pip install -U` from 3.43.x leaves the standalone distributions on top of the
         # wheel's files; remove them and restore the wheel's copies of those files.
         print("update: removing standalone " + ", ".join(stale) + " (now bundled in simplicio-loop)")
@@ -418,6 +505,9 @@ def run_update(
         return EXIT_UPDATE_AVAILABLE if available else 0
     if source:
         print("update: editable checkout install; run `git pull` in the repo, then `bash scripts/dev_install.sh`.")
+        return 2
+    if is_pep668:
+        print(pep668_diagnostic_message(pep668_details))
         return 2
     stale = list(installed_legacy_distributions() if legacy is None else legacy)
     if stale:
