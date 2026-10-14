@@ -192,7 +192,7 @@ def apply_plan(
         "written": 0 if dry_run else pending,
         "up_to_date": pending == 0,
         "changes": changes,
-        "owned": sorted(owned),
+        "owned": sorted(set(owned)),
         "ownership": ownership,
         "digest": plan["digest"],
     }
@@ -283,3 +283,126 @@ def verify_plan(plan: Mapping[str, Any], expected_version: str = __version__) ->
             f"descriptor version mismatch: plan={plan.get('version')} wheel={expected_version}"
         )
     return {"ok": True, "version": expected_version, "digest": plan.get("digest")}
+
+
+def prune_project_copies(target: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
+    """Detect and remove legacy/stale project-scope copies when Loop is installed globally.
+
+    Scans the project target for:
+    - Files registered in .simplicio-loop/install-ownership.json (if present)
+    - Project-scope simplicio-* skill directories (.claude/skills, .cursor/skills, etc.)
+    - Project-scope Loop rule files (.claude/rules, .cursor/rules, .github, etc.)
+    - Project-scope hooks installed by Loop
+    - The .simplicio-loop directory itself
+
+    Never deletes foreign user files or unmanaged user directories.
+    """
+    root = Path(target).resolve()
+    removed: list[str] = []
+    removed_dirs: list[str] = []
+    kept: list[str] = []
+
+    receipt_data = None
+    marker = root / RECEIPT
+    if marker.is_file():
+        try:
+            payload = json.loads(marker.read_text(encoding="utf-8"))
+            if payload.get("owner") == "simplicio-loop":
+                receipt_data = payload
+        except (OSError, ValueError):
+            pass
+
+    candidates: set[Path] = set()
+    dirs_to_check: set[Path] = set()
+
+    if receipt_data:
+        for rel in receipt_data.get("paths") or []:
+            p = root / rel
+            if p.is_file():
+                candidates.add(p)
+        for rel in receipt_data.get("dirs") or []:
+            dirs_to_check.add(root / rel)
+        candidates.add(marker)
+        dirs_to_check.add(marker.parent)
+
+    from ..host_rules import project_destinations
+    for _name, rule_path in project_destinations(root):
+        if rule_path.is_file():
+            candidates.add(rule_path)
+            dirs_to_check.add(rule_path.parent)
+
+    kiro_entry = root / ".kiro" / "steering" / "simplicio-loop.md"
+    if kiro_entry.is_file():
+        candidates.add(kiro_entry)
+        dirs_to_check.add(kiro_entry.parent)
+
+    from ..skill_sync import SKILLS
+    for skill_parent in (root / ".claude" / "skills", root / ".cursor" / "skills"):
+        if skill_parent.is_dir():
+            for skill in SKILLS:
+                s_dir = skill_parent / skill
+                if s_dir.is_dir():
+                    for p in s_dir.rglob("*"):
+                        if p.is_file():
+                            candidates.add(p)
+                    dirs_to_check.add(s_dir)
+            dirs_to_check.add(skill_parent)
+
+    hooks_dir = root / "hooks"
+    if hooks_dir.is_dir():
+        for p in hooks_dir.iterdir():
+            if p.is_file() and p.name.startswith("loop_"):
+                candidates.add(p)
+        dirs_to_check.add(hooks_dir)
+
+    simplicio_dir = root / ".simplicio-loop"
+    if simplicio_dir.is_dir():
+        for p in simplicio_dir.rglob("*"):
+            if p.is_file():
+                candidates.add(p)
+        dirs_to_check.add(simplicio_dir)
+
+    gone: set[Path] = set()
+    for file_path in sorted(candidates):
+        if file_path.is_file():
+            rel = file_path.relative_to(root).as_posix()
+            removed.append(rel)
+            gone.add(file_path)
+            if not dry_run:
+                try:
+                    file_path.unlink()
+                except OSError:
+                    pass
+
+    all_dirs: set[Path] = set()
+    for d in dirs_to_check:
+        cur = d
+        while cur != root and cur.parent != cur:
+            all_dirs.add(cur)
+            cur = cur.parent
+
+    for dir_path in sorted(all_dirs, key=lambda d: len(d.parts), reverse=True):
+        if not dir_path.exists() or not dir_path.is_dir():
+            continue
+        try:
+            remaining_children = [c for c in dir_path.iterdir() if c not in gone]
+            if not remaining_children:
+                rel = dir_path.relative_to(root).as_posix()
+                removed_dirs.append(rel)
+                gone.add(dir_path)
+                if not dry_run:
+                    dir_path.rmdir()
+            else:
+                rel = dir_path.relative_to(root).as_posix()
+                if rel not in kept:
+                    kept.append(rel)
+        except OSError:
+            pass
+
+    return {
+        "schema": OWNERSHIP_SCHEMA,
+        "status": "dry_run" if dry_run else "removed",
+        "removed": sorted(removed),
+        "removed_dirs": sorted(removed_dirs),
+        "kept": sorted(kept),
+    }
