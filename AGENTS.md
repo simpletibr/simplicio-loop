@@ -140,6 +140,18 @@ do not explore, list or read files, and do not run the tests yourself. Then run 
 PR re-query. No provider and no API key. Never hand-edit; Dev CLI makes every edit.
 Execution is always standalone; there is no Runtime/MCP backend.
 
+### Squads & Multi-Issue Planning
+
+For >3 issues or multi-issue batch flows:
+1. Run `simplicio-loop squads plan --issues <file.json|-> --family <family> --json`. The `--issues` option accepts a `.json` file path, `-` for stdin, or an inline JSON list. The planner parses issue dependencies (`depends on #N`, `Parte de #N`, full GitHub URLs), orders issues across waves, and outputs explicit `contracts` and `blocked_by` constraints.
+2. **Mandatory preview before spawn or merge:** You MUST present a full preview (assigned squads/roles/effort, file ownership boundaries, and topological merge policy) before starting worker execution or opening PRs. Merges to `main` always require explicit authorized human approval via `simplicio-loop squads gate --approver LOGIN`.
+
+### Operational Utilities
+
+- **Health check:** `simplicio-loop doctor` runs the general stack overview by default (equivalent to `doctor all`), verifying login, distribution, runtime, and disk space without requiring `--storage` or subcommands.
+- **Dashboard:** `simplicio-loop dashboard` reuses any active server and preserves `state.json` without token loss. For remote Tailscale access, pass `--allow-host <hostname>` or access via `*.ts.net` with the assigned token.
+- **Global cleanup:** `simplicio-loop install --global --prune-project-copies` detects and removes stale project-scope copies when upgrading or installing globally.
+
 ## Extension points (bind native when available)
 
 The skill defines **50 named extension points** (see the Step 1b table in `SKILL.md`).
@@ -316,7 +328,7 @@ The complete installed-entry-point and `simplicio-loop` command map is
 `--help` before invoking a command (not `simplicio-loop turbo` for a task run: the skill and the quick flow
 above give its two commands in full). Every new public command must have
 meaningful `help=` text, documentation in that file, and a help regression
-check. Current release: Loop 3.46.0 (Mapper 0.26.34 and Dev CLI 0.18.16 are bundled).
+check. Current release: Loop 3.49.0 (Mapper 0.26.34 and Dev CLI 0.18.16 are bundled).
 
 For GitHub work items, keep the body focused on objective, implementation,
 deployment, and tests. Do not add an Acceptance Criteria section to new or
