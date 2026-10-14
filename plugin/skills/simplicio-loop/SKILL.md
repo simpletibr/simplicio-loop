@@ -31,6 +31,18 @@ For queue/body-of-work runs, pair this file with the shared deep references unde
 `references/` for extension points, orchestration, token economy, delivery,
 and safety details.
 
+## Execution mode and governance decision matrix
+
+| Input | Execution mode | Squad sizing | Mandatory human approval required |
+|---|---|---|---|
+| **1 issue** | `single` | None (single worker / 1 session) | Scope / frozen AC changes; PR merge to `main`; issue closure. |
+| **2–3 issues** | `squads` | 1 squad (1 coordinator + 1–3 workers, direct parallelism) | Scope / frozen AC changes; PR merge to `main`; issue closure. |
+| **>3 issues** | `prism` | Auto-sized (`--squads auto`: 1 general coordinator + N squads of 1 coordinator and up to 4 workers, governed by machine capacity) | Scope / frozen AC changes; PR merge to `main` (via `squads gate` with authorized approver); issue closure. |
+
+- **Scope changes:** Scope and acceptance criteria are frozen at intake; any modification, expansion, or re-scoping requires an explicit owner decision and re-anchoring (`task_anchor.py`).
+- **Merges to main:** Workers and squad coordinators never merge directly to `main`. Only the general coordinator merges following authorized human approval (`simplicio-loop squads gate --approver LOGIN`).
+- **Issue closure:** An issue is never closed before merged evidence satisfies all frozen ACs on the canonical branch (`main`).
+
 ## GitHub coordination default
 
 When the project remote is hosted on GitHub, GitHub is the default coordination and source-of-truth
@@ -266,11 +278,16 @@ The loop sizes the squads itself (`--squads auto`, the default), from the demand
 Override with `--squads N` (or `SIMPLICIO_SQUADS=N`). Under load it shrinks (run `squads plan` again between waves). Below the free-disk floor it runs 1 worker and reports the disk as the limit. An override above what the machine allows prints a `WARN:` line (`warnings` in the JSON). It never changes what may merge.
 
 1. Run `simplicio-loop squads plan --issues <json|-> --family <family> --json`. The plan lists the agents (role, model, effort), the squads, the owner of each file, the shared files and the merge order.
-2. Spawn each agent from the plan with its `model` and `effort`. Claude Code: Agent tool with `model` and `effort: high`. Codex, Grok and Gemini: the model of that role in the plan. Record each agent with `execution_report record-task --role R --model M --effort E`.
-3. Workers (`execution`) edit only their own files. A worker that fails twice moves up one role (`escalation.py`).
-4. The squad coordinator (`coordination`) reviews the squad PRs: tests on the branch against main, mutation check, file ownership. It runs the automatic review gate (`python -m simplicio_loop.review_gate`). If the gate approves, the coordinator comments `REVISÃO AUTOMÁTICA: APROVADA (nível N)` with the evidence, the squash lines and the roles of the author and the reviewer. If it rejects, it comments `REVISÃO AUTOMÁTICA: REPROVADA` with the cause. A security PR (level 2) needs one more comment: `REVISAO INDEPENDENTE: APROVADA` for the current head, from a reviewer who is not the author.
-5. Only the general coordinator (`planning`) merges, one PR at a time, in the plan's merge order. Before each merge, run `simplicio-loop squads gate --pr N --repo R --approver "$(gh api user --jq .login)" --json`. Merge only on exit 0: the approval was written by an `--approver` login (or a `--trusted-association` OWNER/MEMBER/COLLABORATOR) and is newer than the last commit that is not a clean merge of `origin/main`. Without `--approver` the gate rejects every approval.
-6. Shared files (SKILL.md mirrors, pins, conftest, version, CHANGELOG, `cli_impl.py`) are edited only by the general coordinator. Stacked PRs run `git merge origin/main`. Never force-push.
+2. **Mandatory preview before mutation or agent spawn:** The coordinator MUST present a comprehensive preview to the operator before spawning workers or opening PRs. The preview MUST explicitly display:
+   - **Plan:** Assigned squads, coordinator and worker assignments, role distribution, model family, and effort levels.
+   - **Impacted file scope:** Exact file ownership boundaries per squad/worker, and shared files (`SKILL.md` mirrors, pins, conftest, version, CHANGELOG, `cli_impl.py`) reserved strictly for the general coordinator.
+   - **Merge policy:** Topological merge order, merge train batching policy (`merge_train.plan_train`), review gate criteria (`python -m simplicio_loop.review_gate`), and the mandatory human approval gate (`simplicio-loop squads gate --approver`) required before any PR merges to `main`.
+   Workers MUST NOT be spawned and PRs MUST NOT be opened or merged until this preview has been presented and validated.
+3. Spawn each agent from the plan with its `model` and `effort`. Claude Code: Agent tool with `model` and `effort: high`. Codex, Grok and Gemini: the model of that role in the plan. Record each agent with `execution_report record-task --role R --model M --effort E`.
+4. Workers (`execution`) edit only their own files. A worker that fails twice moves up one role (`escalation.py`).
+5. The squad coordinator (`coordination`) reviews the squad PRs: tests on the branch against main, mutation check, file ownership. It runs the automatic review gate (`python -m simplicio_loop.review_gate`). If the gate approves, the coordinator comments `REVISÃO AUTOMÁTICA: APROVADA (nível N)` with the evidence, the squash lines and the roles of the author and the reviewer. If it rejects, it comments `REVISÃO AUTOMÁTICA: REPROVADA` with the cause. A security PR (level 2) needs one more comment: `REVISAO INDEPENDENTE: APROVADA` for the current head, from a reviewer who is not the author.
+6. Only the general coordinator (`planning`) merges, one PR at a time, in the plan's merge order. Before each merge, run `simplicio-loop squads gate --pr N --repo R --approver "$(gh api user --jq .login)" --json`. Merge only on exit 0: the approval was written by an `--approver` login (or a `--trusted-association` OWNER/MEMBER/COLLABORATOR) and is newer than the last commit that is not a clean merge of `origin/main`. Without `--approver` the gate rejects every approval.
+7. Shared files (SKILL.md mirrors, pins, conftest, version, CHANGELOG, `cli_impl.py`) are edited only by the general coordinator. Stacked PRs run `git merge origin/main`. Never force-push.
 
 Three rules make squads cheaper and faster (details in `docs/SQUADS.md`):
 
@@ -480,7 +497,6 @@ detector below. It is the difference between a loop that converges and one that 
    `max_iterations` safety net for manual runs; use `0` only when a durable scheduler and STOP
    signal own cancellation.
 2. **Triage the live state FIRST (mandatory).** Before any action each turn, re-read the ground
-   - If every open issue returns DEFER_ACTIVE_CLAIM (all claimed), do NOT idle — review open PRs against the 7-dimension DoD and the underlying issue frozen ACs using scripts/pr_dod_review.py, and comment what remains for the claiming agent (convention: references/multi-agent-coordination.md).
    truth — the **`simplicio-mapper` survey**, `git status`/`git diff`, the scratchpad, AND the
    source of record (issues/PRs, branches, `.simplicio-loop/orchestrator/loop/done`). **Read the attempt memory
    FIRST**: `python3 scripts/loop_journal.py resume` (dead-ends to AVOID; `since` for incremental
@@ -496,9 +512,10 @@ detector below. It is the difference between a loop that converges and one that 
    **`references/triage-verify-detail.md`**. On a multi-session/multi-worktree repo, also run
    `scripts/coordinator.py survey`+`decide` per candidate issue — `OWN`/`CONTINUE_OWN`/
    `RECLAIM_STALE` license work, `DEFER_ACTIVE_CLAIM` means don't duplicate a sibling session's
-   claim. If EVERY issue comes back deferred, switch to reviewing open PRs against the DoD +
-   issue ACs (`scripts/pr_dod_review.py check --post`) instead of idling. Full detail:
-   **`references/multi-agent-coordination.md`**.
+   claim. If EVERY open issue returns `DEFER_ACTIVE_CLAIM` (all claimed by sibling sessions), do NOT
+   idle — switch to reviewing open PRs against the 7-dimension DoD and the underlying issue frozen ACs
+   using `scripts/pr_dod_review.py check --post`, and comment what remains for the claiming agent.
+   Full detail: **`references/multi-agent-coordination.md`**.
 3. **Work the goal** each turn against that triaged state. The model DECIDES the AC-scoped change;
    the **`simplicio-dev-cli` operator APPLIES and verifies it** — never hand-edit inside the loop.
    End EVERY iteration with a concrete verification. **After the operator passes, run the watcher
