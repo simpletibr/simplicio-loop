@@ -93,6 +93,19 @@ flowchart LR
 
 Details: [docs/WATCHER_247.md](docs/WATCHER_247.md).
 
+**Live Dashboard (Simplicio Live):**
+
+```bash
+simplicio-loop dashboard                  # start or reuse dashboard on 127.0.0.1:8765
+simplicio-loop dashboard --status         # check dashboard status
+simplicio-loop dashboard --stop           # stop the dashboard
+```
+
+Remote access routes:
+- **Local / SSH tunnel (recommended)**: `ssh -L 8765:127.0.0.1:8765 user@remote` then open `http://127.0.0.1:8765/?t=<token>`.
+- **Tailscale**: Connect via Tailscale MagicDNS (`http://<node>.ts.net:8765/?t=<token>` or HTTPS `https://<node>.ts.net/?t=<token>`) with a valid access token.
+- **Custom host**: Allow specific Host headers with `--allow-host <hostname>` (e.g. `simplicio-loop dashboard --allow-host mybox.internal`).
+
 ## How it works
 
 <p align="center">

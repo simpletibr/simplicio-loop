@@ -69,9 +69,24 @@ def _state_repos(state: dict[str, Any]) -> list[str]:
     return [str(repo) for repo in raw] if isinstance(raw, list) else []
 
 
+def find_free_port() -> int:
+    '''Find an available loopback TCP port.'''
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(('127.0.0.1', 0))
+        return int(sock.getsockname()[1])
+
+
 def _forget_state() -> None:
     try:
-        runs.state_file_path().unlink()
+        path = runs.state_file_path()
+        if not path.exists():
+            return
+        state = runs.read_state_file(path)
+        port = state.get('port')
+        if isinstance(port, int) and _health(port) is not None:
+            return
+        path.unlink()
     except OSError:
         pass
 
@@ -87,12 +102,21 @@ def _health(port: int) -> dict[str, Any] | None:
 
 
 def _live(state: dict[str, Any]) -> dict[str, Any] | None:
-    '''The health answer when the state file names a live dashboard whose pid matches; None otherwise.'''
-    port, pid = state.get('port'), state.get('pid')
-    if not isinstance(port, int) or not isinstance(pid, int) or not state.get('token'):
+    '''The health answer when the state file names a live dashboard; None otherwise.'''
+    port = state.get('port')
+    if not isinstance(port, int) or not state.get('token'):
         return None
     info = _health(port)
-    return info if info is not None and info.get('pid') == pid else None
+    if info is not None and isinstance(info, dict) and 'pid' in info:
+        pid = state.get('pid')
+        if pid != info['pid']:
+            state['pid'] = info['pid']
+            try:
+                runs.write_state_file(state)
+            except OSError:
+                pass
+        return info
+    return None
 
 
 def status_payload() -> dict[str, Any]:
@@ -102,6 +126,12 @@ def status_payload() -> dict[str, Any]:
     info = _live(state)
     base = {'schema': STATUS_SCHEMA, 'version': __version__, 'repos': _state_repos(state),
             'state_file': str(path) if path.exists() else None}
+    if info is None and isinstance(state.get('port'), int):
+        port = int(state['port'])
+        health = _health(port)
+        if health is not None and isinstance(health, dict) and 'pid' in health:
+            return dict(base, running=True, stale=False, url='http://127.0.0.1:%d/' % port, port=port,
+                        pid=int(health['pid']), uptime_s=health.get('uptime_s'), observed_runs=health.get('observed_runs'))
     if info is None:
         return dict(base, running=False, stale=bool(state), url=None, port=None, pid=None, uptime_s=None,
                     observed_runs=None)
@@ -132,8 +162,19 @@ def _holder_pid(port: int) -> int | None:
                 next(fh, None)
                 for line in fh:
                     fields = line.split()
-                    if fields[3] == '0A' and int(fields[1].rsplit(':', 1)[1], 16) == port:
-                        inodes.add('socket:[%s]' % fields[9])
+                    if fields[3] != '0A':
+                        continue
+                    addr_hex, port_hex = fields[1].rsplit(':', 1)
+                    if int(port_hex, 16) != port:
+                        continue
+                    if table.endswith('tcp'):
+                        if addr_hex not in ('0100007F', '00000000'):
+                            continue
+                    else:
+                        if addr_hex not in ('0' * 32, '00000000000000000000000001000000',
+                                            '0000000000000000FFFF00000100007F'):
+                            continue
+                    inodes.add('socket:[%s]' % fields[9])
         except (OSError, ValueError, IndexError):
             continue
     if not inodes:
@@ -171,11 +212,13 @@ def _startup(log: Path) -> tuple[int, str] | None:
     return (int(match.group(1)), match.group(2)) if match else None
 
 
-def _spawn(port: int, repos: list[str], log: Path) -> subprocess.Popen:
+def _spawn(port: int, repos: list[str], log: Path, allow_hosts: list[str] | None = None) -> subprocess.Popen:
     '''Start the server detached. The token stays out of argv: the server makes it and prints it to the log.'''
     argv = [sys.executable, '-m', 'simplicio_loop.dashboard.server', '--port', str(port)]
     for repo in repos:
         argv += ['--repo', repo]
+    for host in (allow_hosts or []):
+        argv += ['--allow-host', host]
     if os.name == 'posix':
         detach = {'start_new_session': True}
     else:
@@ -229,13 +272,15 @@ def _start_failed(code: int | None, port: int, log: Path) -> int:
     if code == 3:
         holder = _holder_pid(port)
         who = ' by pid %d' % holder if holder else ''
-        print('error: port %d is in use on 127.0.0.1%s' % (port, who), file=sys.stderr)
+        free = find_free_port()
+        print('error: port %d is in use on 127.0.0.1%s (try --port %d or --port auto)' % (port, who, free), file=sys.stderr)
         return 3
     print('error: the dashboard exited with code %s before it started' % code, file=sys.stderr)
     return code if code in (1, 2) else 1
 
 
-def _serve(port: int | None, repos: list[str], run_id: str | None, open_browser: bool) -> int:
+def _serve(port: int | None, repos: list[str], run_id: str | None, open_browser: bool,
+           allow_hosts: list[str] | None = None, repos_specified: bool = False) -> int:
     '''Start the dashboard for ``repos``, or reuse the one already running. Exit codes are in the module doc.'''
     if run_id is not None:
         try:
@@ -245,7 +290,7 @@ def _serve(port: int | None, repos: list[str], run_id: str | None, open_browser:
             return 2
     state = runs.read_state_file()
     if _live(state) is not None:
-        if {os.path.abspath(repo) for repo in _state_repos(state)} != set(repos):
+        if repos_specified and {os.path.abspath(repo) for repo in _state_repos(state)} != set(repos):
             print('error: the dashboard running as pid %s watches other repos; run --stop first' % state['pid'],
                   file=sys.stderr)
             return 2
@@ -257,7 +302,7 @@ def _serve(port: int | None, repos: list[str], run_id: str | None, open_browser:
     log = runs.state_file_path().parent / LOG_NAME
     log.parent.mkdir(parents=True, exist_ok=True)
     wanted = DEFAULT_PORT if port is None else port
-    proc = _spawn(wanted, repos, log)
+    proc = _spawn(wanted, repos, log, allow_hosts=allow_hosts)
     deadline = time.monotonic() + STARTUP_TIMEOUT_S
     started = _startup(log)
     while started is None:
@@ -289,6 +334,10 @@ def _stop() -> int:
     health = _health(port) if isinstance(port, int) else None
     if health is None:
         _forget_state()
+        try:
+            runs.state_file_path().unlink()
+        except OSError:
+            pass
         print('dashboard is not running')
         return 0
     if health.get('pid') != pid:
@@ -304,6 +353,10 @@ def _stop() -> int:
         return 1
     _wait_gone(port)
     _forget_state()
+    try:
+        runs.state_file_path().unlink()
+    except OSError:
+        pass
     print('dashboard stopped (pid %d)' % pid)
     return 0
 
@@ -427,12 +480,14 @@ def _tokens(port: int | None, open_browser: bool, stop: bool) -> int:
 
 
 def _port(value: str) -> int:
+    if str(value).lower() == 'auto':
+        return 0
     try:
         port = int(value)
     except ValueError:
-        raise argparse.ArgumentTypeError('port must be a whole number from 0 to 65535') from None
+        raise argparse.ArgumentTypeError('port must be a whole number from 0 to 65535, or "auto"') from None
     if not 0 <= port <= 65535:
-        raise argparse.ArgumentTypeError('port must be a whole number from 0 to 65535')
+        raise argparse.ArgumentTypeError('port must be a whole number from 0 to 65535, or "auto"')
     return port
 
 
@@ -442,13 +497,15 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--repo', action='append', metavar='PATH',
                         help='repository root to watch; repeatable (default: the current directory)')
     parser.add_argument('--port', type=_port, default=None,
-                        help='loopback port for the server (default: %d; 0 picks a free port)' % DEFAULT_PORT)
+                        help='loopback port for the server (default: %d; 0 or "auto" picks a free port)' % DEFAULT_PORT)
+    parser.add_argument('--allow-host', action='append', default=[], metavar='HOST',
+                        help='additional host header to allow for remote access; repeatable')
     parser.add_argument('--no-browser', action='store_true', help='do not open the panel in a browser')
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument('--stop', action='store_true', help='stop the running dashboard')
     modes.add_argument('--status', action='store_true', help='print the dashboard status as JSON (never the token)')
     modes.add_argument('--snapshot', metavar='OUT',
-                       help='write a static HTML snapshot of a run to OUT, without starting a server')
+                        help='write a static HTML snapshot of a run to OUT, without starting a server')
     parser.add_argument('--history', action='store_true',
                         help='with --snapshot: write the run history, trends and heatmap page instead of one run')
     modes.add_argument('--tui', action='store_true', help='stream a run in the terminal')
@@ -465,6 +522,7 @@ def run(args: argparse.Namespace) -> int:
     if args.history and args.snapshot is None:
         print('error: --history requires --snapshot', file=sys.stderr)
         return 2
+    repos_specified = bool(args.repo)
     repos = [os.path.abspath(repo) for repo in (args.repo or [os.getcwd()])]
     if args.stop:
         return _stop()
@@ -474,13 +532,17 @@ def run(args: argparse.Namespace) -> int:
         return _snapshot(args.snapshot, repos, args.run, args.history)
     if args.tui:
         return _tui(repos, args.run)
-    return _serve(args.port, repos, args.run, not args.no_browser)
+    return _serve(args.port, repos, args.run, not args.no_browser,
+                  allow_hosts=getattr(args, 'allow_host', None),
+                  repos_specified=repos_specified)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog='simplicio-loop dashboard',
-        description='Simplicio Live: the run dashboard on 127.0.0.1, read-only and token-gated.')
+        description='Simplicio Live: the run dashboard on 127.0.0.1, read-only and token-gated.\n'
+                    'Remote access: connect via Tailscale (*.ts.net), SSH tunnel (-L 8765:127.0.0.1:8765), '
+                    'or specify --allow-host <hostname>.')
     add_arguments(parser)
     return run(parser.parse_args(argv))
 

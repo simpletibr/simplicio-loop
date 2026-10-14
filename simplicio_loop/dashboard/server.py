@@ -105,14 +105,34 @@ def extract_token(query: Mapping[str, str], headers: Any) -> str | None:
     return _header(headers, 'X-Simplicio-Token') or None
 
 
-def _host_allowed(host: str, port: int | None) -> bool:
-    '''Host must be 127.0.0.1, localhost or a Tailscale name or address; with a bound port it must also name that port.'''
-    name, _, given = host.partition(':')
-    if name not in (HOST, 'localhost') and not name.endswith('.ts.net') and not name.startswith('100.'):
+def _host_allowed(host: str, port: int | None, allowed_hosts: Any = None) -> bool:
+    '''Host must be 127.0.0.1, localhost, a Tailscale name (.ts.net) or IP (100.x), or in allowed_hosts.'''
+    if not host:
         return False
+    name, _, given = host.partition(':')
+    name = name.lower()
+
+    custom_allowed = set()
+    if allowed_hosts:
+        for h in allowed_hosts:
+            h_name, _, _ = str(h).lower().partition(':')
+            custom_allowed.add(h_name)
+            custom_allowed.add(str(h).lower())
+
+    is_custom = name in custom_allowed or host.lower() in custom_allowed
+    is_ts = name.endswith('.ts.net') or (name.startswith('100.') and all(p.isdigit() for p in name.split('.')))
+    is_loopback = name in (HOST, 'localhost')
+
+    if not (is_loopback or is_ts or is_custom):
+        return False
+
     if port is None:
         return given == '' or given.isdigit()
-    return given == str(port)
+
+    if is_ts or is_custom:
+        return given == '' or given.isdigit()
+
+    return given == str(port) or given == ''
 
 
 def _is_public(path: str) -> bool:
@@ -121,14 +141,26 @@ def _is_public(path: str) -> bool:
 
 
 def guard(method: str, path: str, headers: Any, query: Mapping[str, str], token: str,
-          port: int | None = None) -> int:
+          port: int | None = None, allowed_hosts: Any = None) -> int:
     '''Gate for one request: 403 (Host, Origin), 401 (token), 405 (not GET), else 200.'''
     host = _header(headers, 'Host') or ''
-    if not _host_allowed(host, port):
+    if not _host_allowed(host, port, allowed_hosts):
         return 403
     origin = _header(headers, 'Origin')
-    if origin is not None and origin != 'http://' + host:
-        return 403
+    if origin is not None:
+        try:
+            parts = urllib.parse.urlsplit(origin)
+            origin_name = (parts.hostname or '').lower()
+            origin_port = parts.port
+            host_name, _, host_port_str = host.partition(':')
+            host_port = int(host_port_str) if host_port_str.isdigit() else None
+            if parts.scheme in ('http', 'https') and origin_name == host_name.lower():
+                if origin_port is not None and host_port is not None and origin_port != host_port:
+                    return 403
+            else:
+                return 403
+        except Exception:
+            return 403
     if not _is_public(path) and not token_matches(extract_token(query, headers), token):
         return 401
     return 200 if method == 'GET' else 405
@@ -391,10 +423,10 @@ def _api(server: Any, path: str, query: Mapping[str, str]) -> Any:
     raise HttpError(404, 'no such route')
 
 class _Server(http.server.ThreadingHTTPServer):
-    '''Threaded server bound to 127.0.0.1 with no address reuse, so a second instance fails loudly.'''
+    '''Threaded server bound to 127.0.0.1 with address reuse, so TIME_WAIT does not block restart.'''
 
     daemon_threads = True
-    allow_reuse_address = False
+    allow_reuse_address = True
 
     def server_bind(self) -> None:
         # HTTPServer.server_bind resolves the FQDN, which a fixed loopback address does not need.
@@ -434,7 +466,12 @@ class _Handler(http.server.BaseHTTPRequestHandler):
     def _dispatch(self) -> None:
         raw_path, _, raw_query = self.path.partition('?')
         query = {key: values[0] for key, values in urllib.parse.parse_qs(raw_query).items()}
-        status = guard(self.command, raw_path, self.headers, query, self.server.token, self.server.server_port)
+        host = _header(self.headers, 'Host') or ''
+        allowed_hosts = getattr(self.server, 'allowed_hosts', ())
+        if not _host_allowed(host, self.server.server_port, allowed_hosts):
+            self._send_json(403, {'error': 'Host header not allowed; use 127.0.0.1, an SSH tunnel, or configure --allow-host'})
+            return
+        status = guard(self.command, raw_path, self.headers, query, self.server.token, self.server.server_port, allowed_hosts)
         if status != 200:
             self._send_json(status, {'error': HTTPStatus(status).phrase})
             return
@@ -627,7 +664,8 @@ def _webhook_for(server: Any) -> Any:
 
 
 def start(repo_root: Any, host: str = HOST, port: int = 0, token: str = '',
-          heartbeat_seconds: float = HEARTBEAT_SECONDS) -> ServerHandle:
+          heartbeat_seconds: float = HEARTBEAT_SECONDS,
+          allowed_hosts: Iterable[str] | None = None) -> ServerHandle:
     '''Serve one repo root or several on 127.0.0.1:``port`` (0 picks a free port) in a daemon thread.
 
     Raises OSError with EADDRINUSE when the port is taken.
@@ -640,6 +678,7 @@ def start(repo_root: Any, host: str = HOST, port: int = 0, token: str = '',
     server = _Server((HOST, port), _Handler)
     server.repos = tuple(str(Path(root)) for root in roots)
     server.token = token
+    server.allowed_hosts = tuple(allowed_hosts or ())
     server.started_at = time.monotonic()
     server.stop_event = threading.Event()
     server.heartbeat_seconds = heartbeat_seconds
@@ -647,6 +686,14 @@ def start(repo_root: Any, host: str = HOST, port: int = 0, token: str = '',
     thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval': 0.1}, daemon=True)
     thread.start()
     return ServerHandle(server, thread)
+
+
+def find_free_port() -> int:
+    '''Find an available loopback TCP port.'''
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(('127.0.0.1', 0))
+        return int(sock.getsockname()[1])
 
 
 def _request(port: int, method: str, path: str, headers: Mapping[str, str] | None = None) -> tuple[int, bytes]:
@@ -699,12 +746,17 @@ def selftest() -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog='simplicio_loop.dashboard.server',
-                                     description='Simplicio Live dashboard server: read-only, 127.0.0.1 only.')
-    parser.add_argument('--port', type=int, default=8765, help='TCP port on 127.0.0.1 (0 picks a free port)')
+    parser = argparse.ArgumentParser(
+        prog='simplicio_loop.dashboard.server',
+        description='Simplicio Live dashboard server: read-only, 127.0.0.1 only.\n'
+                    'Remote access: connect via Tailscale (*.ts.net), SSH tunnel (-L 8765:127.0.0.1:8765), '
+                    'or specify --allow-host <hostname>.')
+    parser.add_argument('--port', default='8765', help='TCP port on 127.0.0.1 (0 or "auto" picks a free port)')
     parser.add_argument('--repo', action='append', help='repository root to watch; repeatable (default: current directory)')
     parser.add_argument('--host', default=HOST, help='bind address; only 127.0.0.1 is accepted')
     parser.add_argument('--token', default='', help='access token (default: a random one, printed at start)')
+    parser.add_argument('--allow-host', action='append', default=[],
+                        help='additional Host header to allow (e.g. for remote access); repeatable')
     parser.add_argument('--selftest', action='store_true', help='check the gate and one read route, then exit')
     args = parser.parse_args(argv)
     if args.selftest:
@@ -712,13 +764,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.host != HOST:
         parser.error('--host must be 127.0.0.1')
     token = args.token or secrets.token_urlsafe(24)
+    port_arg = str(args.port).lower()
+    port_num = 0 if port_arg == 'auto' else int(args.port)
     try:
-        handle = start(args.repo or [os.getcwd()], port=args.port, token=token)
+        handle = start(args.repo or [os.getcwd()], port=port_num, token=token, allowed_hosts=args.allow_host)
     except OSError as exc:
         if exc.errno != errno.EADDRINUSE:
             raise
-        print('simplicio-live: port %d is in use on %s; holder: %s'
-              % (args.port, HOST, probe_holder(args.port)), file=sys.stderr)
+        free = find_free_port()
+        print('simplicio-live: port %d is in use on %s; holder: %s (suggested free port: %d or use --port auto)'
+              % (port_num, HOST, probe_holder(port_num), free), file=sys.stderr)
         return 3
     print('simplicio-live: http://%s:%d/?t=%s' % (HOST, handle.port, token), flush=True)
     try:
