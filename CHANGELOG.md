@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [3.50.0] - 2026-10-14
+
+- **Multi-Issue Planning & Squads**:
+  - `simplicio-loop squads plan` accepts file paths, stdin `-`, and inline JSON (#1803).
+  - Topological dependency resolution parses `Blocked by:`, `Depends on:`, and contract markers from issue bodies, computes non-conflicting execution waves (`wave_index`), and passes contracts to agents (#1804).
+  - Agent loop triage step and governance decision matrix in `SKILL.md` require mandatory preview before squad execution and merges (#1810).
+- **Self-Update & Installation**:
+  - `simplicio-loop self-update` detects PEP 668 externally managed environments (`EXTERNALLY-MANAGED`) and safely routes via pipx or `--break-system-packages` with warnings (#1802).
+  - `simplicio-loop install` deduplicates `owned ->` paths, resets stale/resynced counters per pass, wraps long target lists cleanly, and adds `--prune-project-copies` (#1808).
+- **Diagnostics & Observability**:
+  - Bare `simplicio-loop doctor` runs the full system and stack health overview by default (#1809).
+- **Dashboard Reliability & Networking**:
+  - Daemon restart preserves `state.json` and active auth tokens without resetting sessions (#1805).
+  - Port binding filters specifically on `LISTEN` status and `127.0.0.1`, applies `SO_REUSEADDR`, and supports automatic port assignment via `--port auto` (#1806).
+  - Remote access supports `--allow-host`, automatic Tailscale `.ts.net` host recognition, and returns structured 403 responses explaining security requirements (#1807).
+- **Agent Governance**:
+  - Updated `AGENTS.md` with guidelines for multi-issue squad workflows, dependency waves, and operational utilities.
+
 ## [3.49.0] - 2026-10-10
 
 - The dev login switch `SIMPLICIO_247_NO_LOGIN` is gone. The login gate of the 24/7 tick is the only path again (#1604).
