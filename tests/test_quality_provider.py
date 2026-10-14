@@ -30,6 +30,9 @@ from simplicio_loop.quality_provider import (
     load_quality_provider,
     run_quality_gate,
 )
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 
 # --------------------------------------------------------------------------
@@ -293,9 +296,9 @@ def test_conduct_run_order_quality_before_verify(monkeypatch):
             "manifest": {"head": "h", "diff_hash": "d"},
         }
 
-    monkeypatch.setattr(runner_mod, "execute_operator_batch", fake_execute_batch)
+    patch_runner(monkeypatch, "execute_operator_batch", fake_execute_batch)
     monkeypatch.setattr(runner_mod, "verify_run", fake_verify)
-    monkeypatch.setattr(runner_mod, "read_status", fake_read_status)
+    patch_runner(monkeypatch, "read_status", fake_read_status)
     monkeypatch.setattr(runner_mod, "arm_run", lambda *a, **k: {"manifest": {"run_id": "r1"},
                                                                "state": {"phase": "executing"}})
     # quality provider itself just records (patch the module-level symbol that
@@ -350,15 +353,15 @@ def test_conduct_run_without_provider_skips_quality_and_verifies(monkeypatch):
         transitions.append((to_phase, reason))
         called["transition"] = to_phase
 
-    monkeypatch.setattr(runner_mod, "execute_operator_batch", fake_batch)
+    patch_runner(monkeypatch, "execute_operator_batch", fake_batch)
     monkeypatch.setattr(runner_mod, "verify_run", fake_verify)
-    monkeypatch.setattr(runner_mod, "read_status",
+    patch_runner(monkeypatch, "read_status",
                         lambda r, rid: {"run_dir": "d",
                                         "state": {"phase": "executing", "attempt": 1},
                                         "manifest": {}})
     monkeypatch.setattr(runner_mod, "arm_run", lambda *a, **k: {"manifest": {"run_id": "r"},
                                                                "state": {"phase": "executing"}})
-    monkeypatch.setattr(runner_mod, "_transition", fake_transition)
+    patch_runner(monkeypatch, "_transition", fake_transition)
 
     runner_mod.conduct_run(".", "task.md", "verified", 1)  # no quality_provider
     assert called["verify"] is True

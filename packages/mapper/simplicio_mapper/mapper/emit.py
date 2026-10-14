@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import secrets
 import re
 import shutil
 from collections.abc import Callable
@@ -341,10 +342,18 @@ def _write_json_stable(file: str, data: Any) -> None:
     directory = os.path.dirname(file)
     if directory:
         os.makedirs(directory, exist_ok=True)
-    tmp = f"{file}.tmp"
-    with open(tmp, "wb") as handle:
-        handle.write(orjson.dumps(data, option=_JSON_WRITE_OPTIONS))
-    os.replace(tmp, file)
+    # A unique temp name per writer: a shared "<file>.tmp" makes two writers of one file race on
+    # os.replace (FileNotFoundError, issue #1574 review).
+    tmp = f"{file}.{os.getpid()}.{secrets.token_hex(4)}.tmp"
+    try:
+        with open(tmp, "wb") as handle:
+            handle.write(orjson.dumps(data, option=_JSON_WRITE_OPTIONS))
+        os.replace(tmp, file)
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
 
 def write_mapping_artifacts(cwd: str, meta: dict | None = None, incremental: bool = False,
                             output_dir: str = ".simplicio-loop",
@@ -375,6 +384,12 @@ def write_mapping_artifacts(cwd: str, meta: dict | None = None, incremental: boo
     # Publish the manifest last: readers can reject any in-flight mixed set by
     # validating the commit marker against the five artifact digests.
     _write_json_stable(artifact_manifest_path, artifact_manifest)
+    # A full set supersedes the worktree's overlay state (issue #1574); a stale overlay.json
+    # would keep pinning a central base this worktree no longer reads.
+    try:
+        os.remove(os.path.join(abs_out, "overlay.json"))
+    except OSError:
+        pass
     if execution_plan:
         _write_json_stable(execution_plan_path, execution_plan)
     log(f"-> wrote {os.path.relpath(project_map_path, abs_cwd)} "

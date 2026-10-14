@@ -84,6 +84,7 @@
   --sl-state-stalled: light-dark(#6b3fb8, #c3a1ff);
   --sl-state-blocked: light-dark(#a64200, #ff9254);
   --sl-state-pending: light-dark(#7d9597, #5e7d83);
+  --sl-state-estimated: light-dark(#1f6f86, #7fd3e6);
 }
 
 /* Automatic theme selection when nothing is forced. */
@@ -118,6 +119,7 @@
   --sl-state-stalled: #e2b8ff;
   --sl-state-blocked: #ffa24a;
   --sl-state-pending: #bdbdbd;
+  --sl-state-estimated: #7fe3f5;
   --sl-weight-body: 500;
 }
 @media (prefers-contrast: more) {

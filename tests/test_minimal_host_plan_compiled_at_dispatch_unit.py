@@ -65,7 +65,7 @@ def test_an_ambiguous_anchor_is_reported_not_applied(tmp_path):
     (repo / "ops.py").write_text(
         "def add(a, b):\n    return a + b\n\n\ndef add2(a, b):\n    return a + b\n", encoding="utf-8",
     )
-    subprocess.run(["git", "-C", str(repo), "commit", "-aqm", "dup"], check=True)
+    subprocess.run(["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-aqm", "dup"], check=True)
     plan_path = tmp_path / "edit-plan-1.json"
     plan_path.write_text(json.dumps({"operations": [
         {"path": "ops.py", "find": "    return a + b\n", "replace": "x"}]}))

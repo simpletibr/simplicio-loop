@@ -1,0 +1,29 @@
+{
+  "schema": "simplicio.agent-handoff/v1",
+  "run_id": "run-20261009T161000Z",
+  "task_id": "T-1608-A",
+  "continuation": 2,
+  "reason": "input_ceiling",
+  "agent": {"family": "claude", "role": "execution", "model": "claude-haiku-5-5"},
+  "objective": "Add the input ceiling module and its unit tests.",
+  "acceptance_criteria": ["resolve_ceiling fails loud on an invalid value", "check_budget returns over above 98000"],
+  "done": {
+    "files": [{"path": "simplicio_loop/input_ceiling.py", "sha256": "45bfa05469f7bfca7ad73c572d437544172557dbb9259e8166b5d96ae6f586ed"}],
+    "commands": [{"command": "python3 -m pytest tests/test_input_ceiling_unit.py -q", "exit_code": 0, "summary": "31 passed"}]
+  },
+  "next_steps": ["Write tests/test_agent_handoff_contract_unit.py", "Run the gates"],
+  "open_questions": [],
+  "tokens": {
+    "basis": "MEASURED",
+    "estimator": null,
+    "prompt_tokens": 88820,
+    "input_tokens": 120,
+    "cache_read_input_tokens": 88000,
+    "cache_creation_input_tokens": 700,
+    "output_tokens": 1540,
+    "ceiling": 98000,
+    "cumulative_prompt_tokens": 190000
+  },
+  "lease": {"key": "issue-1608", "owner": "worker-t-a"},
+  "created_at": "2026-10-09T16:10:00Z"
+}

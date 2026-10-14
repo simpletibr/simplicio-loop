@@ -214,6 +214,35 @@ def test_gh_transport_failure_on_create_raises_merge_executor_error():
         assert exc.reason_code == "GH_CLI_FAILED"
 
 
+
+def test_ensure_pr_converts_sanitize_runtime_error_to_merge_executor_error():
+    """When sanitize raises RuntimeError (closing word survived), convert it to MergeExecutorError."""
+    import unittest.mock as mock
+    import simplicio_loop.merge_executor as me_module
+    
+    runner = ScriptedRunner([
+        (0, "[]", ""),  # pr list -> none existing
+    ])
+    ex = MergeExecutor(repo="o/r", runner=runner)
+    
+    # Monkeypatch sanitize to raise RuntimeError
+    original_sanitize = me_module.sanitize
+    def failing_sanitize(text, what):
+        raise RuntimeError(f"{what} still has a GitHub closing word after rewrite: refusing to publish")
+    
+    me_module.sanitize = failing_sanitize
+    try:
+        try:
+            ex.ensure_pr(branch="feat/x", base="main", title="Fixes #5", body="Closes #6")
+            raise AssertionError("expected MergeExecutorError")
+        except MergeExecutorError as exc:
+            assert exc.reason_code == "CLOSING_WORD_REFUSED", f"got {exc.reason_code}"
+            assert "PR title" in str(exc) or "PR body" in str(exc)
+        except RuntimeError as e:
+            raise AssertionError(f"should convert RuntimeError to MergeExecutorError, got: {e}")
+    finally:
+        me_module.sanitize = original_sanitize
+
 if __name__ == "__main__":
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from _selfrun import run_module

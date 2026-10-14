@@ -165,6 +165,14 @@ simplicio-mapper doctor --contracts
 
 If you already have a repository, install the Python package. If you are bootstrapping a project, the npm starter is the convenient entry point; it is not a substitute for a fresh mapper index after the project evolves.
 
+## Single source
+
+This package is the only source of the Mapper that `simplicio-loop` uses. It is built into the
+`simplicio-loop` wheel and is not published on its own. Each build records its origin and source
+commit (`simplicio_mapper/_build_stamp.json`), so two builds with the same version are told apart.
+`simplicio-loop doctor mapper` reports when the installed Mapper is not this build. Install and
+replacement steps are in [docs/packaging-environment.md](../../docs/packaging-environment.md#single-source-of-the-mapper).
+
 ## Ecosystem
 
 `mapper` provides grounded repository context to the rest of Simplicio:

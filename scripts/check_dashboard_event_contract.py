@@ -29,7 +29,7 @@ CONTRACT = os.path.join(REPO, "contracts", "dashboard-event", "v1")
 SCHEMA_PATH = os.path.join(CONTRACT, "schema.json")
 FIXTURES = os.path.join(CONTRACT, "fixtures")
 DOC = os.path.join(REPO, "docs", "DASHBOARD_EVENTS.md")
-GENERATED = ("runner-lifecycle.jsonl", "hook-events.jsonl", "derived-legacy-run.jsonl")
+GENERATED = ("runner-lifecycle.jsonl", "hook-events.jsonl", "derived-legacy-run.jsonl", "watcher-lease.jsonl")
 INVALID = "invalid.jsonl"
 VOLATILE = ("event_id", "ts", "producer_version")
 
@@ -178,6 +178,21 @@ def generate_derived(root):
     return de.read_events(run_dir)
 
 
+def generate_watcher(root):
+    """The watcher's real lease producer: a run opened at intake, two renewals of the lease, then its loss."""
+    from pathlib import Path
+    from simplicio_loop.watcher247 import events
+    run_id = events.open_run(Path(root), "fixture", 7)
+    if run_id is None:
+        raise RuntimeError("watcher run not opened")
+    events.lease_beat("fixture#7", "renewed", beats=1, ttl_s=180)
+    events.lease_beat("fixture#7", "renewed", beats=2, ttl_s=180)
+    events.lease_beat("fixture#7", "lost", beats=2, ttl_s=180)
+    events.close_run(Path(root), run_id, "failed")
+    run_dir = os.path.join(root, ".simplicio-loop", "orchestrator", "runs", run_id)
+    return [dict(row, run_id="run-fixture-watcher") for row in de.read_live_events(run_dir)]  # the id carries a clock and a random part
+
+
 def generate_all():
     with tempfile.TemporaryDirectory() as root, \
             _env(SIMPLICIO_LOOP_GITHUB_LIFECYCLE_SYNC="0", SIMPLICIO_DASHBOARD_EVENTS="1",
@@ -187,6 +202,7 @@ def generate_all():
             "runner-lifecycle.jsonl": generate_runner(root),
             "hook-events.jsonl": generate_hooks(root),
             "derived-legacy-run.jsonl": generate_derived(root),
+            "watcher-lease.jsonl": generate_watcher(root),
         }
 
 

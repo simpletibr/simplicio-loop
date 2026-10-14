@@ -1,0 +1,739 @@
+"""Squad execution pattern (#1502): a general coordinator plus squads of 1 coordinator and up to 4 workers.
+
+roles come from `model_roles.resolve` (planning / coordination / execution); the escalation ladder comes from
+`escalation.ESCALATION_LADDER`. This module only plans (pure, deterministic) and checks the merge gate:
+
+  * `plan_squads()`   groups issues into squads, assigns file ownership and a topological merge order, and emits
+                      one interface contract (`squad_contracts.contracts_for`) per dependency edge between squads.
+  * `squad_gate()`    approves a merge only when a `REVISÃO AUTOMÁTICA: APROVADA (nível N)` comment by an authorized approver (#1534) is
+                      newer than the latest commit that is not a clean merge of the base branch. Pure over
+                      `gh pr view --json commits,comments`.
+  * `squad_gate_for_pr()` async wrapper that fetches that JSON through `gh`.
+
+The host spawns the agents (see the "Squads" section of the skill); only the general coordinator merges.
+"""
+from __future__ import annotations
+
+import argparse
+import asyncio
+import dataclasses
+import fnmatch
+import heapq
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Any, Callable, Dict, Iterable, List, Mapping, NamedTuple, Optional, Sequence, Tuple
+
+from . import model_roles, squad_capacity, squad_metrics
+from .escalation import ESCALATION_LADDER
+from .review_gate import comment as review_comment, identity
+from .squad_contracts import Contract, contracts_for
+
+PLAN_SCHEMA = "simplicio.squad-plan/v1"
+DEFAULT_GROUP = "geral"
+DEFAULT_MAX_WORKERS = 4
+# A worker that fails this many times moves up one role of the escalation ladder.
+ESCALATE_AFTER_FAILURES = 2
+APPROVAL_PHRASE = "REVISÃO AUTOMÁTICA: APROVADA"  # followed by "(nível N)": the level of the review (review_gate)
+# Only the general coordinator edits these (mirrors, pins, conftest, version, changelog, the shared CLI file).
+SHARED_FILE_PATTERNS = (
+    ".claude/skills/**/SKILL.md",
+    "plugin/**",
+    "simplicio_loop/_bundle/**",
+    "docs/LLM_ORIENTATION.toon",
+    "scripts/refresh_orientation_pins.py",
+    "tests/conftest.py",
+    "pyproject.toml",
+    "CHANGELOG.md",
+    "simplicio_loop/cli_impl.py",
+)
+
+_DEP_PREFIX = re.compile(
+    r"(?:"
+    r"depends?\s+on|dependent\s+on|dependency\s+on|"
+    r"depende\s+de|dependem\s+de|depend[êe]ncias?\s+de?|"
+    r"parte\s+de|part\s+of|"
+    r"blocked\s+by|bloquead[oa]\s+por|"
+    r"requires?|requer(?:e)?|requisitos?\s+de?|"
+    r"prerequisites?|pr[ée]-requisitos?|"
+    r"after|ap[oó]s|"
+    r"subtask\s+of|subtarefa\s+de|"
+    r"cross-ref(?:erence)?s?|refer[êe]ncias?\s+cruzadas?|refs?|"
+    r"needs?|precisa\s+de"
+    r")\s*:?\s*"
+    r"([^\n;]+)",
+    re.IGNORECASE,
+)
+_DEP_HEADINGS = {
+    "dependency", "dependencies", "dependencia", "dependencias", "dependência", "dependências",
+    "blocked by", "bloqueado por", "bloqueada por",
+    "prerequisite", "prerequisites", "pre-requisito", "pre-requisitos", "pré-requisito", "pré-requisitos",
+    "requisito", "requisitos", "cross-reference", "cross-references", "cross reference", "cross references",
+    "referencia cruzada", "referencias cruzadas", "referência cruzada", "referências cruzadas",
+}
+_LABEL_PREFIXES = ("area:", "squad:", "area/", "squad/")
+# Merge branch 'main' | Merge remote-tracking branch 'origin/main' | Merge branch 'origin/main' | Merge origin/main into | Merge main into
+_CLEAN_BASE_MERGE = re.compile(r"^Merge (?:(?:remote-tracking )?branch '(?:origin/)?main'|(?:origin/)?main(?=\s|$))")
+_CONFLICTS = re.compile(r"^#?\s*Conflicts:", re.MULTILINE)
+# GitHub `authorAssociation` values a caller may trust to approve; anything else (CONTRIBUTOR, NONE, ...) never does.
+TRUSTABLE_ASSOCIATIONS = ("OWNER", "MEMBER", "COLLABORATOR")
+FULL_OID = re.compile(r"[0-9a-f]{40}")
+_APPROVAL_OIDS = re.compile(r"<!-- simplicio-loop:squad-approval:([0-9a-f]{40}) -->")
+_APPROVAL_LINE = re.compile(r"^[ \t*_#]*" + re.escape(APPROVAL_PHRASE) + r"\s*\(n[íi]vel ([0-2])\)", re.MULTILINE)
+
+
+class SquadPlanError(ValueError):
+    """The issues or options cannot be planned."""
+
+
+class SquadCycleError(SquadPlanError):
+    """The declared dependencies contain a cycle; `cycle` lists the issue numbers in it."""
+
+    def __init__(self, cycle: Sequence[int]):
+        self.cycle = tuple(cycle)
+        super().__init__("dependency cycle among issues: %s" % ", ".join("#%d" % n for n in self.cycle))
+
+
+class SquadGateError(RuntimeError):
+    """The PR data could not be fetched or parsed."""
+
+
+# ---------------------------------------------------------------------------------------------- plan model
+
+
+@dataclass(frozen=True)
+class Agent:
+    id: str
+    role: str
+    model: str
+    effort: str
+    issues: Tuple[int, ...] = ()
+    owned_paths: Tuple[str, ...] = ()
+    blocked_by: Tuple[int, ...] = ()
+
+
+@dataclass(frozen=True)
+class Squad:
+    id: str
+    name: str
+    coordinator: Agent
+    workers: Tuple[Agent, ...]
+    issues: Tuple[int, ...]
+    owned_paths: Tuple[str, ...]
+    blocked_by: Tuple[str, ...] = ()
+    wave: int = 1
+
+
+@dataclass(frozen=True)
+class MergeStep:
+    issue: int
+    squad: str
+    blocked_by: Tuple[int, ...] = ()
+
+
+@dataclass(frozen=True)
+class EscalationPolicy:
+    ladder: Tuple[str, ...] = tuple(ESCALATION_LADDER)
+    max_failures: int = ESCALATE_AFTER_FAILURES
+
+
+@dataclass(frozen=True)
+class SquadPlan:
+    family: str
+    max_workers: int
+    general_coordinator: Agent
+    squads: Tuple[Squad, ...]
+    merge_order: Tuple[MergeStep, ...]
+    shared_files: Tuple[str, ...]
+    escalation: EscalationPolicy = EscalationPolicy()
+    schema: str = PLAN_SCHEMA
+    contracts: Tuple[Contract, ...] = ()
+    waves: Tuple[Tuple[str, ...], ...] = ()
+
+    def agents(self) -> List[Agent]:
+        out = [self.general_coordinator]
+        for squad in self.squads:
+            out.append(squad.coordinator)
+            out.extend(squad.workers)
+        return out
+
+    def to_dict(self) -> Dict[str, Any]:
+        data = dataclasses.asdict(self)
+        for contract in data["contracts"]:
+            contract.pop("test_template")  # bulky and regenerated by `write_contracts`
+        data["agents"] = [
+            {"id": a.id, "role": a.role, "model": a.model, "effort": a.effort, "blocked_by": list(a.blocked_by)}
+            for a in self.agents()
+        ]
+        return json.loads(json.dumps(data))
+
+
+# ---------------------------------------------------------------------------------------------- planning
+
+
+def _number(value: Any) -> int:
+    if isinstance(value, bool):
+        raise SquadPlanError("invalid issue number: %r" % (value,))
+    text = str(value).strip().lstrip("#")
+    if not text.isdigit():
+        raise SquadPlanError("invalid issue number: %r" % (value,))
+    return int(text)
+
+
+def _clean_path(path: Any) -> str:
+    text = str(path).strip().replace("\\", "/")
+    while text.startswith("./"):
+        text = text[2:]
+    return text
+
+
+def _label_names(issue: Mapping[str, Any]) -> List[str]:
+    names = []
+    for label in issue.get("labels") or []:
+        name = label.get("name") if isinstance(label, Mapping) else label
+        if name:
+            names.append(str(name).strip())
+    return sorted(names)
+
+
+def _parse_body_deps(body: str) -> List[int]:
+    deps: List[int] = []
+    # 1. Inline pattern matching
+    for match in _DEP_PREFIX.finditer(body):
+        segment = match.group(1)
+        for num in re.findall(r"(?:#|/issues/|issue\s+)(\d+)", segment, re.IGNORECASE):
+            deps.append(int(num))
+    # 2. Heading and list item matching
+    heading = False
+    for line in body.splitlines():
+        trimmed = line.strip()
+        if trimmed.startswith("#"):
+            heading_title = trimmed.lstrip("#").strip().rstrip(":").lower()
+            heading = heading_title in _DEP_HEADINGS
+            continue
+        if heading:
+            if trimmed.startswith(("-", "*")) or re.match(r"^\d+[.)]", trimmed):
+                for num in re.findall(r"(?:#|/issues/|issue\s+)(\d+)", trimmed, re.IGNORECASE):
+                    deps.append(int(num))
+            elif trimmed and not trimmed.startswith(("-", "*")):
+                heading = False
+    return deps
+
+
+def _declared_deps(issue: Mapping[str, Any]) -> List[int]:
+    deps: List[int] = []
+    for key in ("depends_on", "blocked_by", "dependencies"):
+        val = issue.get(key)
+        if val is not None:
+            if isinstance(val, (int, str)):
+                val = [val]
+            deps.extend(_number(n) for n in val)
+    body = str(issue.get("body") or "")
+    if body:
+        deps.extend(_parse_body_deps(body))
+    return deps
+
+
+def _dependency_map(by_number: Mapping[int, Mapping[str, Any]]) -> Dict[int, set]:
+    """Declared dependencies of each issue, limited to the issues being planned (no self-dependency)."""
+    return {n: {d for d in _declared_deps(i) if d in by_number and d != n} for n, i in by_number.items()}
+
+
+def dependencies(issues: Sequence[Mapping[str, Any]]) -> Dict[int, Tuple[int, ...]]:
+    """issue number -> the issues of this batch it depends on (sorted); the same edges `plan_squads` orders the merge by."""
+    deps = _dependency_map({_number(i.get("number")): i for i in issues})
+    return {n: tuple(sorted(d)) for n, d in deps.items()}
+
+
+def _matches_any(path: str, patterns: Sequence[str]) -> bool:
+    return any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
+
+
+def _group_key(issue: Mapping[str, Any], paths: Sequence[str], ownership: Optional[Mapping[str, Sequence[str]]]) -> str:
+    if ownership:
+        best, best_hits = "", 0
+        for owner in sorted(ownership):
+            hits = sum(1 for p in paths if _matches_any(p, list(ownership[owner])))
+            if hits > best_hits:
+                best, best_hits = owner, hits
+        if best:
+            return best
+    area = str(issue.get("area") or "").strip()
+    if area:
+        return area
+    for name in _label_names(issue):
+        lowered = name.lower()
+        for prefix in _LABEL_PREFIXES:
+            if lowered.startswith(prefix) and name[len(prefix):].strip():
+                return name[len(prefix):].strip()
+    return DEFAULT_GROUP
+
+
+def _merge_order(deps: Mapping[int, set]) -> List[int]:
+    """Kahn's algorithm, smallest issue number first among the ready ones."""
+    remaining = {n: set(d) for n, d in deps.items()}
+    dependents: Dict[int, List[int]] = {n: [] for n in deps}
+    for n, d in deps.items():
+        for dep in d:
+            dependents[dep].append(n)
+    ready = [n for n, d in remaining.items() if not d]
+    heapq.heapify(ready)
+    order: List[int] = []
+    while ready:
+        n = heapq.heappop(ready)
+        order.append(n)
+        for child in dependents[n]:
+            remaining[child].discard(n)
+            if not remaining[child]:
+                heapq.heappush(ready, child)
+    if len(order) != len(deps):
+        left = {n for n in deps if n not in set(order)}
+        node = min(left)
+        seen: List[int] = []
+        while node not in seen:
+            seen.append(node)
+            node = min(deps[node] & left)
+        raise SquadCycleError(sorted(seen[seen.index(node):]))
+    return order
+
+
+def _partition_group(members: Sequence[int], deps: Mapping[int, set], max_workers: int) -> List[List[int]]:
+    if not members:
+        return []
+    if len(members) <= max_workers:
+        return [list(members)]
+    remaining = list(members)
+    chunks: List[List[int]] = []
+    while remaining:
+        chunk: List[int] = []
+        placed_set = {n for c in chunks for n in c}
+        first = remaining.pop(0)
+        chunk.append(first)
+        placed_set.add(first)
+        while len(chunk) < max_workers and remaining:
+            cand_idx = None
+            for idx, cand in enumerate(remaining):
+                cand_deps = deps.get(cand, set()) & set(members)
+                if cand_deps.issubset(placed_set) and (cand_deps & set(chunk)):
+                    cand_idx = idx
+                    break
+            if cand_idx is None:
+                for idx, cand in enumerate(remaining):
+                    cand_deps = deps.get(cand, set()) & set(members)
+                    if cand_deps.issubset(placed_set):
+                        cand_idx = idx
+                        break
+            if cand_idx is None:
+                cand_idx = 0
+            picked = remaining.pop(cand_idx)
+            chunk.append(picked)
+            placed_set.add(picked)
+        chunks.append(chunk)
+    return chunks
+
+
+def _slug(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-") or "x"
+
+
+def plan_squads(
+    issues: Sequence[Mapping[str, Any]],
+    ownership: Optional[Mapping[str, Sequence[str]]] = None,
+    family: str = "claude",
+    max_workers: int = DEFAULT_MAX_WORKERS,
+) -> SquadPlan:
+    """Plan squads for `issues` (dicts with number, and optionally title/body/labels/area/paths/depends_on).
+
+    `ownership` maps an owner name to path globs. Grouping precedence: path ownership (when given and matching),
+    then the declared `area`, then an `area:`/`squad:` label, then the `geral` group. Each group is split into
+    squads of at most `max_workers` issues, one worker per issue. Raises `model_roles.ModelRoleError` for an unknown
+    family, `SquadCycleError` for a dependency cycle and `SquadPlanError` for any other bad input.
+    """
+    if not isinstance(max_workers, int) or isinstance(max_workers, bool) or max_workers < 1:
+        raise SquadPlanError("max_workers must be an integer >= 1")
+    roles = {role: model_roles.resolve(family, role) for role in model_roles.ROLES}
+
+    by_number: Dict[int, Mapping[str, Any]] = {}
+    for issue in issues:
+        number = _number(issue.get("number"))
+        if number in by_number:
+            raise SquadPlanError("duplicate issue number: #%d" % number)
+        by_number[number] = issue
+    deps = _dependency_map(by_number)
+    order = _merge_order(deps)
+
+    paths = {n: sorted({_clean_path(p) for p in (i.get("paths") or []) if str(p).strip()}) for n, i in by_number.items()}
+    groups: Dict[str, List[int]] = {}
+    for n in order:
+        groups.setdefault(_group_key(by_number[n], paths[n], ownership), []).append(n)
+
+    chunks: List[Tuple[str, str, List[int]]] = []  # (id, name, issues)
+    used_ids = set()
+    for key in sorted(groups):
+        members = groups[key]
+        parts = _partition_group(members, deps, max_workers)
+        for index, part in enumerate(parts, 1):
+            name = key if len(parts) == 1 else "%s-%d" % (key, index)
+            squad_id = "sq-" + _slug(name)
+            while squad_id in used_ids:
+                squad_id += "-x"
+            used_ids.add(squad_id)
+            chunks.append((squad_id, name, part))
+
+    claimed: Dict[str, set] = {}
+    for squad_id, _name, part in chunks:
+        for n in part:
+            for p in paths[n]:
+                claimed.setdefault(p, set()).add(squad_id)
+    conflicts = {p for p, owners in claimed.items() if len(owners) > 1}
+    shared_paths = {p for p in claimed if _matches_any(p, SHARED_FILE_PATTERNS)}
+    excluded = conflicts | shared_paths
+
+    squad_of: Dict[int, str] = {}
+    for squad_id, _name, part in chunks:
+        for n in part:
+            squad_of[n] = squad_id
+
+    squad_blocked_by: Dict[str, Tuple[str, ...]] = {}
+    for squad_id, _name, part in chunks:
+        dep_squad_ids = sorted({
+            squad_of[d] for n in part for d in deps[n] if squad_of[d] != squad_id
+        })
+        squad_blocked_by[squad_id] = tuple(dep_squad_ids)
+
+    squad_wave: Dict[str, int] = {}
+    remaining_deps = {sid: set(squad_blocked_by[sid]) for sid, _name, _part in chunks}
+    current_wave = 1
+    while remaining_deps:
+        ready = sorted(sid for sid, d in remaining_deps.items() if not d)
+        if not ready:
+            ready = [sorted(remaining_deps.keys())[0]]
+        for sid in ready:
+            squad_wave[sid] = current_wave
+            del remaining_deps[sid]
+        for d in remaining_deps.values():
+            d.difference_update(ready)
+        current_wave += 1
+
+    max_w = max(squad_wave.values()) if squad_wave else 0
+    waves = tuple(
+        tuple(sid for sid, _name, _part in chunks if squad_wave[sid] == w)
+        for w in range(1, max_w + 1)
+    )
+
+    squads: List[Squad] = []
+    for squad_id, name, part in chunks:
+        owned = tuple(sorted({p for n in part for p in paths[n]} - excluded))
+        workers = tuple(
+            Agent(
+                id="%s-w%d" % (squad_id, k), role="execution", **roles["execution"],
+                issues=(n,), owned_paths=tuple(p for p in paths[n] if p not in excluded),
+                blocked_by=tuple(sorted(deps.get(n, ()))),
+            )
+            for k, n in enumerate(part, 1)
+        )
+        coordinator = Agent(
+            id="%s-coord" % squad_id, role="coordination", **roles["coordination"],
+            issues=tuple(part), owned_paths=owned,
+        )
+        squads.append(
+            Squad(
+                squad_id, name, coordinator, workers, tuple(part), owned,
+                blocked_by=squad_blocked_by[squad_id],
+                wave=squad_wave[squad_id],
+            )
+        )
+
+    # Producer squad = squad of the dependency, consumer squad = squad of the dependent issue.
+    edges = sorted({(squad_of[d], squad_of[n]) for n, ds in deps.items() for d in ds if squad_of[d] != squad_of[n]})
+
+    general = Agent(id="general", role="planning", **roles["planning"], issues=tuple(order))
+    return SquadPlan(
+        family=family,
+        max_workers=max_workers,
+        general_coordinator=general,
+        squads=tuple(squads),
+        merge_order=tuple(MergeStep(n, squad_of[n], blocked_by=tuple(sorted(deps.get(n, ())))) for n in order),
+        shared_files=tuple(sorted(set(SHARED_FILE_PATTERNS) | conflicts)),
+        contracts=tuple(contracts_for(edges)),
+        waves=waves,
+    )
+
+
+class AutoPlan(NamedTuple):
+    plan: SquadPlan
+    capacity: squad_capacity.CapacityPlan
+
+
+def plan_squads_auto(
+    issues: Sequence[Mapping[str, Any]],
+    ownership: Optional[Mapping[str, Sequence[str]]] = None,
+    family: str = "claude",
+    probe: Optional[squad_capacity.Probe] = None,
+    limits: Optional[squad_capacity.Limits] = None,
+    root: str = ".",
+) -> AutoPlan:
+    """`plan_squads` plus the automatic sizing (DEFAULT): how many squads and workers may run at the same time.
+
+    The plan is the one `plan_squads` makes (squads of at most `limits.max_workers_per_squad`, ownership, merge order,
+    contracts); the capacity says how many of them to run at once, from the demand of `issues` and the MEASURED machine
+    (`squad_capacity.recommend`). Sizing never changes the plan or what may merge. `probe=None` measures `root` once;
+    pass the tick's sample to avoid a second measurement. `limits=None` reads SIMPLICIO_SQUADS and the worker env knobs.
+    Raises what `plan_squads` raises, and ValueError for SIMPLICIO_SQUADS=0 or any other bad value.
+    """
+    limits = limits or squad_capacity.Limits.from_env()
+    plan = plan_squads(issues, ownership, family, limits.max_workers_per_squad)  # validates first: family, numbers, cycles
+    return AutoPlan(plan, squad_capacity.recommend(issues, probe or squad_capacity.measure(root), limits))
+
+
+# ---------------------------------------------------------------------------------------------- gate
+
+
+def _parse_time(value: Any) -> Optional[datetime]:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _is_clean_base_merge(commit: Mapping[str, Any]) -> bool:
+    headline = str(commit.get("messageHeadline") or "").strip()
+    if not headline:
+        headline = str(commit.get("message") or "").strip().split("\n", 1)[0]
+    body = str(commit.get("messageBody") or "")
+    return bool(_CLEAN_BASE_MERGE.match(headline)) and not _CONFLICTS.search(body)
+
+
+def _verdict(approved: bool, reason: str, **extra: Any) -> Dict[str, Any]:
+    out = {"approved": approved, "reason": reason, "approval_comment_id": None, "approval_at": None,
+           "last_commit_oid": None, "last_commit_at": None}
+    out.update(extra)
+    return out
+
+
+def _each(values: Any) -> Tuple[Any, ...]:
+    """A str is ONE value (never its characters: `"wesley"` must not authorize logins `w`, `e`, ...); None is none."""
+    if values is None:
+        return ()
+    return (values,) if isinstance(values, (str, bytes)) else tuple(values)
+
+
+def _fold(text: str) -> str:
+    """Lower-case ASCII only: GitHub logins are ASCII, so unicode folds (Kelvin sign -> k) must not collide."""
+    return "".join(chr(ord(ch) + 32) if "A" <= ch <= "Z" else ch for ch in text)
+
+
+def logins(values: Any) -> frozenset:
+    """Folded, non-empty str logins (GitHub logins are case-insensitive). None, empty or non-str entries give nothing."""
+    return frozenset(_fold(v.strip()) for v in _each(values) if isinstance(v, str) and v.strip())
+
+
+def authorized(comment: Mapping[str, Any], approvers: frozenset, associations: frozenset) -> bool:
+    author = comment.get("author")
+    login = author.get("login") if isinstance(author, Mapping) else None
+    if not isinstance(login, str) or not login:
+        return False
+    return _fold(login) in approvers or comment.get("authorAssociation") in associations
+
+
+def _has_independent_review(approval: Mapping[str, Any], comments: Sequence[Mapping[str, Any]], head: Any, approvers: frozenset,
+                            associations: frozenset) -> bool:
+    """T2 (security): an authorized comment carries the marker of a reviewer other than the PR author and the automatic gate."""
+    if not isinstance(head, str) or not head:
+        return False
+    author = review_comment.parse_author_id(str(approval.get("body") or ""))
+    independent = identity.parse_independent_marker([c for c in comments if authorized(c, approvers, associations)], head)
+    return (independent is not None and independent.agent_id != author and independent.role != identity.AUTO_REVIEWER.role
+            and independent.agent_id != identity.AUTO_REVIEWER.agent_id)
+
+
+def squad_gate(
+    pr_view_json: Any,
+    approvers: Optional[Iterable[str]] = None,
+    trusted_associations: Iterable[str] = (),
+) -> Dict[str, Any]:
+    """Approve a merge only when an authorized approval is newer than the latest commit that is not a clean base merge.
+
+    `pr_view_json` is the dict (or JSON text) of `gh pr view --json commits,comments`. A merge commit whose headline
+    is "Merge remote-tracking branch 'origin/main'..." or "Merge branch 'main'..." and whose body lists no
+    conflicts does not invalidate the approval; the same holds for "Merge origin/main into ..." and "Merge main
+    into ...". Anything unparseable fails closed.
+
+    Who wrote the approval (#1534): a comment counts only when its `author.login` is in `approvers` (compared
+    case-insensitively) or its `authorAssociation` is in `trusted_associations` (a subset of OWNER, MEMBER,
+    COLLABORATOR; anything else raises ValueError). The default is FAIL CLOSED: with `approvers=None` (or empty) and
+    no trusted association, every approval is rejected with reason `unauthorized_approval`. The watcher passes its
+    own gh login; the CLI takes `--approver` and `--trusted-association`. An unauthorized comment is ignored, so it
+    can neither approve nor shadow a real approval.
+
+    Limit: `gh pr view --json commits` does not expose commit parents, so a merge is recognised by its title only.
+    """
+    data = json.loads(pr_view_json) if isinstance(pr_view_json, (str, bytes)) else pr_view_json
+    if not isinstance(data, Mapping):
+        raise SquadGateError("pr data must be a JSON object")
+    associations = frozenset(a.strip().upper() for a in _each(trusted_associations) if isinstance(a, str) and a.strip())
+    unknown = associations - set(TRUSTABLE_ASSOCIATIONS)
+    if unknown:
+        raise ValueError("trusted association must be one of %s, got %s" % (", ".join(TRUSTABLE_ASSOCIATIONS), ", ".join(sorted(unknown))))
+    allowed = logins(approvers)
+    commits = list(data.get("commits") or [])
+    comments = list(data.get("comments") or [])
+    if not commits:
+        return _verdict(False, "no_commits")
+
+    head = commits[-1].get("oid")
+    if not isinstance(head, str) or not FULL_OID.fullmatch(head):  # the approval is tied to one commit: no full oid, no head
+        return _verdict(False, "head_unknown")
+    approvals, seen, other_head = [], 0, 0
+    for comment in comments:
+        body = str(comment.get("body") or "")
+        if not _APPROVAL_LINE.search(body):
+            continue
+        seen += 1
+        if not authorized(comment, allowed, associations):
+            continue
+        if head not in _APPROVAL_OIDS.findall(body):  # compared exactly, never by prefix or by commit date
+            other_head += 1
+            continue
+        approvals.append((_parse_time(comment.get("createdAt")) or datetime.min.replace(tzinfo=timezone.utc), comment))
+    if not approvals:
+        return _verdict(False, "approval_not_for_head" if other_head else "unauthorized_approval" if seen else "no_approval")
+    _, approval = max(approvals, key=lambda pair: pair[0])
+    level = int(_APPROVAL_LINE.search(str(approval.get("body") or "")).group(1))
+    files = data.get("files")
+    floor = identity.paths_level([str(f.get("path") or "") for f in files if isinstance(f, Mapping)]) if isinstance(files, list) else 0
+    common = {"approval_comment_id": approval.get("id"), "approval_at": approval.get("createdAt"), "level": max(level, floor),
+              "last_commit_oid": head}
+    if level < floor:  # the level is recomputed from the diff, never taken from the text of the comment
+        return _verdict(False, "level_below_diff", **common)
+    if level == 2 and not _has_independent_review(approval, comments, head, allowed, associations):
+        return _verdict(False, "independent_review_missing", **common)
+    return _verdict(True, "ok", **common)
+
+
+async def squad_gate_for_pr(
+    repo: Optional[str], pr: int, *, approvers: Optional[Iterable[str]] = None,
+    trusted_associations: Iterable[str] = (), runner: Optional[Callable[..., Any]] = None, timeout: int = 30,
+) -> Dict[str, Any]:
+    """Fetch `gh pr view --json commits,comments` and run `squad_gate` on it. `repo` is owner/name (None = current).
+
+    `approvers` and `trusted_associations` are those of `squad_gate`: without them every approval is rejected."""
+    argv = ["gh", "pr", "view", str(pr)]
+    if repo:
+        argv += ["--repo", repo]
+    argv += ["--json", "commits,comments,files"]
+    run = runner or subprocess.run
+    completed = await asyncio.to_thread(
+        run, argv, capture_output=True, text=True, timeout=timeout, check=False, encoding="utf-8", errors="replace"
+    )
+    if completed.returncode != 0:
+        raise SquadGateError("gh pr view failed: %s" % ((completed.stderr or completed.stdout or "").strip() or "unknown error"))
+    try:
+        return squad_gate(completed.stdout, approvers, trusted_associations)
+    except ValueError as exc:
+        raise SquadGateError("gh pr view returned invalid JSON: %s" % exc)
+
+
+# ---------------------------------------------------------------------------------------------- CLI
+
+
+def _emit(payload: Mapping[str, Any]) -> None:
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+
+
+def _load_issues(raw: str) -> List[Mapping[str, Any]]:
+    format_help = (
+        "Accepted formats: file path, '-' for stdin, or inline JSON. "
+        "Expected fields: number, title, body, labels, depends_on, paths."
+    )
+    if raw == "-":
+        text = sys.stdin.read()
+    elif os.path.isfile(raw):
+        try:
+            with open(raw, "r", encoding="utf-8") as handle:
+                text = handle.read()
+        except OSError as exc:
+            raise SquadPlanError(f"Cannot read issues file '{raw}': {exc}. {format_help}")
+    elif raw.endswith(".json") and not os.path.exists(raw):
+        raise SquadPlanError(f"Issues file '{raw}' not found. {format_help}")
+    else:
+        text = raw
+
+    try:
+        data = json.loads(text)
+    except Exception as exc:
+        raise SquadPlanError(f"Failed to parse --issues JSON ({exc}). {format_help}") from exc
+
+    if isinstance(data, Mapping):
+        data = data.get("issues")
+    if not isinstance(data, list) or not all(isinstance(i, Mapping) for i in data):
+        raise SquadPlanError(
+            f"--issues must be a JSON list of issue objects (or {{\"issues\": [...]}}). {format_help}"
+        )
+    return data
+
+
+def configure_commands(subparsers: argparse._SubParsersAction) -> None:
+    plan = subparsers.add_parser("plan", help="plan squads, file ownership and merge order for a set of issues")
+    plan.add_argument(
+        "--issues",
+        required=True,
+        help="path to .json file, '-' for stdin, or inline JSON list of issues",
+    )
+    plan.add_argument("--family", default="claude", help="runtime family of model_roles (default: claude)")
+    plan.add_argument("--squads", default=None, metavar="auto|N",
+                      help="how many squads run at once: auto (default) sizes them from the demand of the issues and the "
+                           "measured machine, N >= 1 forces N squads (also SIMPLICIO_SQUADS=N; the flag wins)")
+    plan.add_argument("--max-workers", type=int, default=None,
+                      help="workers per squad, at most (default: %d)" % DEFAULT_MAX_WORKERS)
+    plan.add_argument("--ownership", default="", help='JSON {"owner": ["path/glob", ...]}')
+    plan.add_argument("--json", action="store_true", help="machine-readable output (always JSON)")
+    gate = subparsers.add_parser(
+        "gate", help="check an authorized squad approval is newer than the last real commit of a PR (fails closed)")
+    gate.add_argument("--pr", type=int, required=True)
+    gate.add_argument("--repo", default="", help="owner/name (default: current repository)")
+    gate.add_argument("--approver", action="append", default=[], metavar="LOGIN",
+                      help="gh login allowed to approve (repeatable; e.g. $(gh api user --jq .login)); with no --approver "
+                           "and no --trusted-association every approval is rejected")
+    gate.add_argument("--trusted-association", action="append", default=[], choices=TRUSTABLE_ASSOCIATIONS,
+                      metavar="ASSOC", help="also accept comments whose authorAssociation is this (repeatable): "
+                                            + ", ".join(TRUSTABLE_ASSOCIATIONS))
+    gate.add_argument("--json", action="store_true", help="machine-readable output (always JSON)")
+    metrics = subparsers.add_parser(
+        "metrics", help="escalation rate and dependency wait from squad execution-reports (measured values only)")
+    metrics.add_argument("--reports", nargs="+", metavar="PATH",
+                         help="execution-report/v1 files, or directories searched for *.json (latest.json is skipped)")
+    metrics.add_argument("--compare", nargs=2, metavar=("BEFORE", "AFTER"),
+                         help="two `metrics --json` outputs (or report files), baseline first then v2: numbers side by side, each side labeled with its mode, with n and warnings; refuses two runs of the same mode")
+    metrics.add_argument("--json", action="store_true", help="machine-readable output")
+
+
+def dispatch(args: argparse.Namespace) -> int:
+    """plan: 0 ok, 2 blocked. gate: 0 approved, 1 not approved, 2 error. metrics: 0 ok, 2 error."""
+    if args.squads_command == "metrics":
+        return squad_metrics.dispatch(args)
+    try:
+        if args.squads_command == "plan":
+            ownership = json.loads(args.ownership) if args.ownership else None
+            limits = squad_capacity.Limits.from_env(
+                squads_option=args.squads, max_workers_per_squad=DEFAULT_MAX_WORKERS if args.max_workers is None else args.max_workers)
+            auto = plan_squads_auto(_load_issues(args.issues), ownership, args.family, limits=limits)
+            for warning in auto.capacity.warnings:  # stdout stays the JSON; a human reading a terminal sees the warning
+                print(warning, file=sys.stderr)
+            _emit({**auto.plan.to_dict(), "capacity": auto.capacity.to_dict()})
+            return 0
+        result = asyncio.run(squad_gate_for_pr(
+            args.repo or None, args.pr, approvers=args.approver, trusted_associations=args.trusted_association))
+        _emit(result)
+        return 0 if result["approved"] else 1
+    except (SquadPlanError, SquadGateError, model_roles.ModelRoleError, ValueError, OSError) as exc:
+        _emit({"status": "BLOCKED", "error": type(exc).__name__, "reason": str(exc)})
+        return 2

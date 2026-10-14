@@ -11,7 +11,7 @@ def test_check_only_reports_without_installing(capsys):
     calls = []
     rc = su.run_update(check=True, installed="3.43.16", fetch=lambda: "v3.43.17",
                        runner=lambda cmd: calls.append(cmd) or 0, editable=False)
-    assert rc == 0 and calls == []
+    assert rc == 10 and calls == []  # #1575: 10 = an update is available (0 = up to date, 2 = error)
     assert "3.43.16 -> 3.43.17" in capsys.readouterr().out
 
 
@@ -26,7 +26,7 @@ def test_up_to_date_is_noop(capsys):
 def test_update_installs_tag_then_refreshes_global():
     calls = []
     rc = su.run_update(installed="3.43.16", fetch=lambda: "v3.43.17",
-                       runner=lambda cmd: calls.append(cmd) or 0, editable=False)
+                       runner=lambda cmd: calls.append(cmd) or 0, editable=False, legacy=[])
     assert rc == 0 and len(calls) == 2
     assert "git+https://github.com/simpletibr/simplicio-loop@v3.43.17" in calls[0][-1]
     assert calls[1][-3:] == ["simplicio_loop.cli", "install", "--global"] or "--global" in calls[1]

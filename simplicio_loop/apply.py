@@ -31,11 +31,12 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from . import command_events, plan_paths, quality_events
+from .effort import next_effort_for_status
+from .runner import _repo_fingerprint, _repo_state_equivalent
 from .survey import MISSING_HINT as SURVEY_MISSING_HINT
 from .survey import MISSING_REASON as SURVEY_MISSING_REASON
 from .survey import provenance as survey_provenance
-from .effort import next_effort_for_status
-from .runner import _repo_fingerprint, _repo_state_equivalent
 
 APPLY_SCHEMA = "simplicio.loop-apply/v1"
 APPLY_RECEIPT_SCHEMA = "simplicio.loop-apply-receipt/v1"
@@ -80,6 +81,8 @@ def _normalize_tasks(ops: Mapping[str, Any]) -> list[dict[str, Any]]:
         for op in operations:
             if not isinstance(op, Mapping) or not all(k in op for k in ("path", "find", "replace")):
                 raise ApplyValidationError(f"task {task_id!r} has a malformed operation")
+            if reason := plan_paths.refusal(str(op["path"])) or plan_paths.protected_refusal(str(op["path"])):  # before any task writes
+                raise ApplyValidationError(f"task {task_id!r}: {reason}")
             normalized_ops.append({"path": str(op["path"]), "find": str(op["find"]), "replace": str(op["replace"])})
         out.append({
             "id": task_id,
@@ -191,6 +194,12 @@ def validate_ops(root: Path, tasks: Sequence[Mapping[str, Any]], chains: Sequenc
             for idx, op in enumerate(task["operations"]):
                 path = op["path"]
                 find_text = op["find"]
+                if plan_paths.refusal(path, root):  # nothing is read for it: no count, no existence
+                    problems.append({"task": task_id, "path": path, "op_index": idx, "reason": "unsafe_path"})
+                    continue
+                if plan_paths.protected_refusal(path, root):  # also through a symlink; blocks the whole file before task one writes
+                    problems.append({"task": task_id, "path": path, "op_index": idx, "reason": "protected_path"})
+                    continue
                 current = read(path)
                 if find_text == "":
                     if (root / path).exists() and current:
@@ -235,6 +244,9 @@ def _resolve_dev_cli() -> str:
 def _apply_task_devcli(root: Path, task: Mapping[str, Any], run_dir: Path) -> dict[str, Any]:
     """Apply one task's operations through simplicio-dev-cli's 2-step
     contract (compile pins hashes without mutating; apply mutates)."""
+    if reason := plan_paths.operations_refusal(task["operations"], root):
+        code = "protected_path" if reason.startswith("protected_path:") else "unsafe_path"
+        return {"ok": False, "steps": [{"step": "guard", "ok": False, "error": reason}], "reason_code": code}
     dev_cli = _resolve_dev_cli()
     minimal_path = run_dir / f"{task['id']}.ops.json"
     compiled_path = run_dir / f"{task['id']}.plan.json"
@@ -283,11 +295,15 @@ async def _run_check(root: Path, check: str, *, run_id: str, task_id: str) -> di
             await proc.communicate()
             return {"ok": False, "reason_code": "check_timeout", "duration_s": time.monotonic() - started}
         ok = proc.returncode == 0
+        stdout_text = stdout.decode("utf-8", "replace")
+        stderr_text = stderr.decode("utf-8", "replace")
+        duration_s = time.monotonic() - started
+        quality_events.emit_check(task_id, check, stdout_text, stderr_text, proc.returncode, duration_s)
         return {
             "ok": ok, "returncode": proc.returncode,
-            "stdout_tail": stdout.decode("utf-8", "replace")[-2000:],
-            "stderr_tail": stderr.decode("utf-8", "replace")[-2000:],
-            "duration_s": time.monotonic() - started,
+            "stdout_tail": stdout_text[-2000:],
+            "stderr_tail": stderr_text[-2000:],
+            "duration_s": duration_s,
         }
     except OSError as exc:
         return {"ok": False, "reason_code": "check_spawn_failed", "error": str(exc),
@@ -317,7 +333,8 @@ async def _run_chain(root: Path, chain: Sequence[str], by_id: Mapping[str, Mappi
             break
         check = task.get("check")
         if check:
-            check_result = await _run_check(root, check, run_id=run_id, task_id=task_id)
+            check_result = await command_events.around(
+                task_id, check, _run_check(root, check, run_id=run_id, task_id=task_id))
             record["check"] = check_result
             record["status"] = "PASS" if check_result["ok"] else "FAIL"
         else:
@@ -445,6 +462,7 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".", ops_path: str | Path 
 
     after_state = _repo_fingerprint(root, ignore_paths=ignore_paths)
     diff = _measure_diff(root, before_state)
+    quality_events.emit_diff("apply", diff)
 
     # Key order (issue #1336): content that is the SAME across two runs of
     # the same ops.json on an unchanged tree (schema/ops_sha/chains/tasks/

@@ -121,7 +121,7 @@ def test_port_up_false_for_unused_port():
 
 def test_stop_dashboard_when_not_running_reports_not_running(tmp_path, monkeypatch, capsys):
     fake_pid_file = tmp_path / "pid"
-    monkeypatch.setattr(cli_mod, "PID_FILE", fake_pid_file)
+    monkeypatch.setattr(cli_mod, "_pid_file", lambda: fake_pid_file)
     monkeypatch.setattr(cli_mod.subprocess, "run", lambda *a, **k: None)
 
     rc = cli_mod._stop_dashboard()

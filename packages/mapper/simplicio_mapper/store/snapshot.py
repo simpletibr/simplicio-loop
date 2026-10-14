@@ -579,7 +579,6 @@ def source_files(root: Path) -> list[Path]:
         "__pycache__",
         ".simplicio-fast",
         ".simplicio-loop",
-        ".simplicio",
         "node_modules",
     }
     suffixes = {".py", ".pyi", ".ts", ".tsx", ".js", ".jsx", ".rs", ".cs"}
@@ -892,7 +891,7 @@ def build_snapshot(
         raise ValueError("max_file_bytes must be positive")
     root = Path(root).resolve()
     output = Path(output).resolve()
-    if os.path.isfile(root / ".simplicio-loop" / "fast-handoff.json") or os.path.isfile(root / ".simplicio" / "fast-handoff.json"):
+    if os.path.isfile(root / ".simplicio-loop" / "fast-handoff.json"):
         raise SnapshotProvenanceError(
             "canonical Mapper handoff is present; compile a Mapper projection instead"
         )
@@ -1156,10 +1155,7 @@ def build_snapshot_from_artifacts(
     """
     root_path = Path(root).resolve()
     if output is None:
-        if (root_path / ".simplicio-loop").is_dir():
-            out_path = root_path / ".simplicio-loop" / "project.sfast"
-        else:
-            out_path = root_path / ".simplicio" / "project.sfast"
+        out_path = root_path / ".simplicio-loop" / "project.sfast"
     else:
         out_path = Path(output).resolve()
 
@@ -1300,10 +1296,8 @@ def compile_mapper_artifacts(
     root_path = Path(root).resolve()
     if artifacts_dir:
         art_dir = Path(artifacts_dir).resolve()
-    elif (root_path / ".simplicio-loop").is_dir():
-        art_dir = (root_path / ".simplicio-loop").resolve()
     else:
-        art_dir = (root_path / ".simplicio").resolve()
+        art_dir = (root_path / ".simplicio-loop").resolve()
 
     def _load_json(name: str) -> dict:
         target = art_dir / name

@@ -140,8 +140,7 @@ def cmd_build(args: argparse.Namespace) -> int:
         # #284: project the just-built receipt onto the #285 canonical status
         # comment (PLANNED when ready_for_mutation, BLOCKED otherwise) instead of
         # leaving that wiring as a documented-but-disconnected capability.
-        sys.path.insert(0, os.path.join(REPO, "scripts"))
-        from pr_evidence import publish_comment  # local import: scripts/ has no package __init__
+        from simplicio_loop.pr_evidence import publish_comment
 
         lifecycle_receipt = publish_planning_receipt(receipt, publish_comment_fn=publish_comment)
         if lifecycle_receipt is not None:

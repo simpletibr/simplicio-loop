@@ -48,7 +48,7 @@ def test_mapper_binary_is_actually_reachable() -> None:
 
 def test_run_mapper_index_produces_a_real_project_map(tmp_path: Path) -> None:
     _init_repo(tmp_path)
-    envelope = run_mapper_index(str(tmp_path))
+    envelope = asyncio.run(run_mapper_index(str(tmp_path)))
     assert envelope["schema"] == "simplicio.mapper-index/v1"
     assert envelope["counts"]["files"] == 1
     assert (tmp_path / ".simplicio-loop" / "project-map.json").is_file()
@@ -56,17 +56,17 @@ def test_run_mapper_index_produces_a_real_project_map(tmp_path: Path) -> None:
 
 def test_mapper_tree_snapshot_changes_when_file_content_changes(tmp_path: Path) -> None:
     _init_repo(tmp_path)
-    hash_1, files_1 = mapper_tree_snapshot(str(tmp_path))
+    hash_1, files_1 = asyncio.run(mapper_tree_snapshot(str(tmp_path)))
     assert files_1 == [str((tmp_path / "app.py").resolve())]
 
     (tmp_path / "app.py").write_text("def hello():\n    return 2\n", encoding="utf-8")
-    hash_2, _ = mapper_tree_snapshot(str(tmp_path))
+    hash_2, _ = asyncio.run(mapper_tree_snapshot(str(tmp_path)))
     assert hash_2 != hash_1, "real content change must change the mapper-derived tree hash"
 
 
 def test_mapper_index_on_a_non_existent_path_fails_closed() -> None:
     with pytest.raises(FileNotFoundError):
-        mapper_tree_snapshot("/no/such/path/at/all")
+        asyncio.run(mapper_tree_snapshot("/no/such/path/at/all"))
 
 
 def test_missing_binary_raises_mapper_unavailable(monkeypatch, tmp_path: Path) -> None:
@@ -79,44 +79,49 @@ def test_missing_binary_raises_mapper_unavailable(monkeypatch, tmp_path: Path) -
         mod.mapper_binary_path()
 
 
+def _fake_mapper_process(monkeypatch, mod, *, returncode: int, stdout: str, stderr: str) -> None:
+    """Make ``asyncio.create_subprocess_exec`` hand back a finished process with this output."""
+    class _Proc:
+        pass
+
+    async def communicate():
+        return stdout.encode(), stderr.encode()
+
+    async def fake_exec(*_argv, **_kwargs):
+        proc = _Proc()
+        proc.returncode = returncode
+        proc.communicate = communicate
+        return proc
+
+    monkeypatch.setattr(mod.asyncio, "create_subprocess_exec", fake_exec)
+
+
 def test_non_zero_exit_raises_mapper_index_error(monkeypatch, tmp_path: Path) -> None:
     import simplicio_loop.map_service_mapper as mod
 
-    class _FailedRun:
-        returncode = 2
-        stdout = ""
-        stderr = "boom"
-
-    monkeypatch.setattr(mod.subprocess, "run", lambda *a, **kw: _FailedRun())
+    _fake_mapper_process(monkeypatch, mod, returncode=2, stdout="", stderr="boom")
     with pytest.raises(mod.MapperIndexError, match="boom"):
-        mod.run_mapper_index(str(tmp_path))
+        asyncio.run(mod.run_mapper_index(str(tmp_path)))
 
 
 def test_non_json_stdout_raises_mapper_index_error(monkeypatch, tmp_path: Path) -> None:
     import simplicio_loop.map_service_mapper as mod
 
-    class _GarbageRun:
-        returncode = 0
-        stdout = "not json at all"
-        stderr = ""
-
-    monkeypatch.setattr(mod.subprocess, "run", lambda *a, **kw: _GarbageRun())
+    _fake_mapper_process(monkeypatch, mod, returncode=0, stdout="not json at all", stderr="")
     with pytest.raises(mod.MapperIndexError, match="valid JSON"):
-        mod.run_mapper_index(str(tmp_path))
+        asyncio.run(mod.run_mapper_index(str(tmp_path)))
 
 
 def test_error_field_in_envelope_raises_mapper_index_error(monkeypatch, tmp_path: Path) -> None:
     import json as json_module
     import simplicio_loop.map_service_mapper as mod
 
-    class _ErrorRun:
-        returncode = 0
-        stdout = json_module.dumps({"schema": "simplicio.mapper-index/v1", "error": "disk full"})
-        stderr = ""
-
-    monkeypatch.setattr(mod.subprocess, "run", lambda *a, **kw: _ErrorRun())
+    _fake_mapper_process(
+        monkeypatch, mod, returncode=0, stderr="",
+        stdout=json_module.dumps({"schema": "simplicio.mapper-index/v1", "error": "disk full"}),
+    )
     with pytest.raises(mod.MapperIndexError, match="disk full"):
-        mod.run_mapper_index(str(tmp_path))
+        asyncio.run(mod.run_mapper_index(str(tmp_path)))
 
 
 def test_missing_project_map_after_reported_success_raises(monkeypatch, tmp_path: Path) -> None:
@@ -125,14 +130,12 @@ def test_missing_project_map_after_reported_success_raises(monkeypatch, tmp_path
     import json as json_module
     import simplicio_loop.map_service_mapper as mod
 
-    class _SuccessNoFileRun:
-        returncode = 0
-        stdout = json_module.dumps({"schema": "simplicio.mapper-index/v1", "error": None})
-        stderr = ""
-
-    monkeypatch.setattr(mod.subprocess, "run", lambda *a, **kw: _SuccessNoFileRun())
+    _fake_mapper_process(
+        monkeypatch, mod, returncode=0, stderr="",
+        stdout=json_module.dumps({"schema": "simplicio.mapper-index/v1", "error": None}),
+    )
     with pytest.raises(mod.MapperIndexError, match="does not exist"):
-        mod.mapper_tree_snapshot(str(tmp_path))
+        asyncio.run(mod.mapper_tree_snapshot(str(tmp_path)))
 
 
 def test_two_real_worktrees_indexed_by_the_real_mapper_share_one_canonical_build(tmp_path: Path) -> None:
@@ -147,8 +150,8 @@ def test_two_real_worktrees_indexed_by_the_real_mapper_share_one_canonical_build
 
     main_identity = resolve_repository_identity(str(main_root))
     wt_identity = resolve_repository_identity(str(worktree_root))
-    tree_hash_main, files_main = mapper_tree_snapshot(str(main_root))
-    tree_hash_wt, _ = mapper_tree_snapshot(str(worktree_root))
+    tree_hash_main, files_main = asyncio.run(mapper_tree_snapshot(str(main_root)))
+    tree_hash_wt, _ = asyncio.run(mapper_tree_snapshot(str(worktree_root)))
     assert tree_hash_main == tree_hash_wt, (
         "two real worktrees at the identical commit must produce the identical "
         "mapper-derived tree hash"

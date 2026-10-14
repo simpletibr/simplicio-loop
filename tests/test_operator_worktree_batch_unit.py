@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from simplicio_loop import runner
+from tests.runner_patch import patch_runner
 
 pytestmark = pytest.mark.usefixtures("admitting_capacity")  # host pressure must not decide these dispatch tests
 
@@ -175,7 +176,7 @@ def test_dispatch_allocates_and_persists_isolated_context_without_git(monkeypatc
         calls.append((repo, run_id, task_index))
         return _success(repo, run_id, task_index)
 
-    monkeypatch.setattr(runner, "execute_operator", fake_execute)
+    patch_runner(monkeypatch, "execute_operator", fake_execute)
     result = runner.dispatch_operator_batch(
         [
             {"repo": str(tmp_path), "run_id": "run-1", "task_index": 1, "task_id": "A",
@@ -208,7 +209,7 @@ def test_dispatch_partitions_independent_impacts_into_multiple_prism_slots(monke
     def fake_execute(repo, run_id, task_index, **_kwargs):
         return _success(repo, run_id, task_index)
 
-    monkeypatch.setattr(runner, "execute_operator", fake_execute)
+    patch_runner(monkeypatch, "execute_operator", fake_execute)
     result = runner.dispatch_operator_batch(
         [
             {"repo": str(tmp_path), "run_id": "run-1", "task_index": index,
@@ -255,7 +256,7 @@ def test_dispatch_serializes_explicit_shared_queue_context(monkeypatch, tmp_path
         calls.append(task_index)
         return _success(repo, run_id, task_index)
 
-    monkeypatch.setattr(runner, "execute_operator", fake_execute)
+    patch_runner(monkeypatch, "execute_operator", fake_execute)
     result = runner.dispatch_operator_batch(
         [
             {"repo": str(tmp_path), "run_id": "run-2", "task_index": 1, "task_id": "A",
@@ -282,7 +283,7 @@ def test_dispatch_queue_context_error_fails_closed(monkeypatch, tmp_path):
             raise RuntimeError("context store offline")
 
     calls = []
-    monkeypatch.setattr(runner, "execute_operator", lambda *args, **kwargs: calls.append(args))
+    patch_runner(monkeypatch, "execute_operator", lambda *args, **kwargs: calls.append(args))
     result = runner.dispatch_operator_batch(
         [{"repo": str(tmp_path), "run_id": "run-3", "task_index": 1, "task_id": "A"}],
         max_workers=1,

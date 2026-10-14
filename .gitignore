@@ -1,4 +1,5 @@
 .simplicio-loop/*
+!.simplicio-loop/loop.toml
 .venv/
 !.simplicio-loop/orchestrator/
 .simplicio-loop/orchestrator/*

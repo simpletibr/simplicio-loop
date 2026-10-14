@@ -224,10 +224,13 @@ def _fake_project(tmp_path, check_rc=0, core_gate_only=True):
     return proj
 
 
-def _run_pre_push(proj, extra_args=()):
+def _run_pre_push(proj, extra_args=(), gate=None):
+    env = {k: v for k, v in os.environ.items() if k != "SIMPLICIO_PREPUSH_GATE"}
+    if gate is not None:
+        env["SIMPLICIO_PREPUSH_GATE"] = gate
     return subprocess.run(
         [sys.executable, str(proj / "hooks" / "action_gate.py"), "pre-push", *extra_args],
-        capture_output=True, text=True, cwd=str(proj), stdin=subprocess.DEVNULL,
+        capture_output=True, text=True, cwd=str(proj), stdin=subprocess.DEVNULL, env=env,
     )
 
 
@@ -271,13 +274,37 @@ def test_pre_push_blocks_on_secret_in_push_diff(tmp_path):
     assert "secret" in r.stdout.lower()
 
 
-def test_pre_push_missing_check_py_skips_gate_step(tmp_path):
-    # A project that doesn't ship scripts/check.py (this hook copied somewhere unusual) must
-    # not block a push it has no gate to verify against — only the secret-scan still applies.
-    proj = _fake_project(tmp_path, check_rc=1)  # rc=1 would block IF check.py were invoked
+def test_pre_push_without_any_gate_fails_loud(tmp_path):
+    # #1410: a consumer has no scripts/check.py. Skipping the gate silently made the hook a
+    # false "verified" - with no gate configured the push must be blocked and say how to fix it.
+    proj = _fake_project(tmp_path, check_rc=0)
     os.remove(str(proj / "scripts" / "check.py"))
     r = _run_pre_push(proj)
+    assert r.returncode == 2, r.stdout + r.stderr
+    assert "block" in r.stdout.lower()
+    assert "SIMPLICIO_PREPUSH_GATE" in r.stdout
+
+
+def _gate_script(proj, rc):
+    (proj / "gate.py").write_text(
+        "import sys\nopen('gate-ran', 'w').close()\nsys.exit(%d)\n" % rc, encoding="utf-8",
+    )
+    return '"%s" gate.py' % sys.executable
+
+
+def test_pre_push_runs_configured_gate_when_check_py_is_missing(tmp_path):
+    proj = _fake_project(tmp_path, check_rc=1)
+    os.remove(str(proj / "scripts" / "check.py"))
+    r = _run_pre_push(proj, gate=_gate_script(proj, 0))
     assert r.returncode == 0, r.stdout + r.stderr
+    assert (proj / "gate-ran").exists()
+
+
+def test_pre_push_blocks_when_configured_gate_fails(tmp_path):
+    proj = _fake_project(tmp_path, check_rc=0)
+    r = _run_pre_push(proj, gate=_gate_script(proj, 1))
+    assert r.returncode == 2, r.stdout + r.stderr
+    assert "SIMPLICIO_PREPUSH_GATE" in r.stdout
 
 
 def test_push_diff_scans_new_branch_without_upstream(tmp_path):

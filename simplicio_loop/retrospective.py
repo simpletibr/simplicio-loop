@@ -21,7 +21,7 @@ def _iter_records(root: Path, run_id: str | None) -> Iterable[tuple[Path, dict[s
     base = root / ".simplicio-loop" / "orchestrator" / "trajectory"
     paths = sorted(base.glob("*.jsonl")) if base.exists() else []
     if run_id:
-        paths = [p for p in paths if p.stem == run_id or run_id in p.stem]
+        paths = [p for p in paths if p.stem == run_id]
     for path in paths:
         for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
             try:

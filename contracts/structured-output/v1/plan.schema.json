@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "simplicio.model-plan/v1",
+  "title": "Edit plan returned by the model (closed: no prose, no extra fields)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["operations"],
+  "properties": {
+    "operations": {
+      "type": "array",
+      "maxItems": 40,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "replace"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1, "maxLength": 260},
+          "find": {"type": "string", "maxLength": 100000},
+          "replace": {"type": "string", "maxLength": 400000}
+        }
+      }
+    },
+    "need": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "start", "end"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1, "maxLength": 260},
+          "start": {"type": "integer", "minimum": 1, "maximum": 9000},
+          "end": {"type": "integer", "minimum": 1, "maximum": 9000}
+        }
+      }
+    }
+  },
+  "if": {"required": ["need"], "properties": {"need": {"minItems": 1}}},
+  "else": {"properties": {"operations": {"minItems": 1}}}
+}

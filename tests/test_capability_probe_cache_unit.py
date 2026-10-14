@@ -4,6 +4,7 @@ from __future__ import annotations
 import subprocess
 
 from simplicio_loop import runner as runner_mod
+from tests.runner_patch import patch_runner
 
 
 def _mapper_completed(argv, **_kwargs):
@@ -32,7 +33,7 @@ def test_preflight_mapper_probes_once_per_run_root(tmp_path, monkeypatch):
             return _mapper_completed(argv)
         return real_run_cmd(argv, cwd)
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run_cmd)
+    patch_runner(monkeypatch, "_run_cmd", fake_run_cmd)
 
     for _ in range(5):
         receipt = runner_mod._preflight_mapper(repo, run_root)
@@ -49,10 +50,10 @@ def test_preflight_mapper_recomputes_repo_state_every_call(tmp_path, monkeypatch
     repo.mkdir()
     run_root.mkdir()
     monkeypatch.delenv("SIMPLICIO_LOOP_FAKE_MAPPER_PREFLIGHT_JSON", raising=False)
-    monkeypatch.setattr(runner_mod, "_run_cmd", lambda argv, cwd: _mapper_completed(argv))
+    patch_runner(monkeypatch, "_run_cmd", lambda argv, cwd: _mapper_completed(argv))
 
     fingerprints = iter([{"tree_hash": "a"}, {"tree_hash": "b"}])
-    monkeypatch.setattr(runner_mod, "_repo_fingerprint", lambda _repo: next(fingerprints))
+    patch_runner(monkeypatch, "_repo_fingerprint", lambda _repo: next(fingerprints))
 
     first = runner_mod._preflight_mapper(repo, run_root)
     second = runner_mod._preflight_mapper(repo, run_root)
@@ -79,7 +80,7 @@ def test_preflight_mapper_cache_is_scoped_per_run_root(tmp_path, monkeypatch):
             return _mapper_completed(argv)
         return real_run_cmd(argv, cwd)
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run_cmd)
+    patch_runner(monkeypatch, "_run_cmd", fake_run_cmd)
 
     runner_mod._preflight_mapper(repo, run_a)
     runner_mod._preflight_mapper(repo, run_a)
@@ -118,7 +119,7 @@ def test_preflight_operator_uses_in_process_manifest_with_zero_subprocess_calls(
     # _devcli_env()'s PATH-candidate resolution is a separate, pre-existing concern
     # (which `simplicio-dev-cli` on PATH to use) -- stub it so this test isolates
     # only the --help/--version capability-probe subprocesses this change removes.
-    monkeypatch.setattr(runner_mod, "_devcli_command_path", lambda: "simplicio-dev-cli")
+    patch_runner(monkeypatch, "_devcli_command_path", lambda: "simplicio-dev-cli")
 
     calls = []
     real_subprocess_run = runner_mod.subprocess.run
@@ -152,7 +153,7 @@ def test_preflight_operator_fails_closed_with_no_legacy_fallback(tmp_path, monke
     run_root.mkdir()
     monkeypatch.delenv("SIMPLICIO_LOOP_FAKE_DEVCLI_PREFLIGHT_JSON", raising=False)
     monkeypatch.setitem(__import__("sys").modules, "simplicio.capabilities", None)
-    monkeypatch.setattr(runner_mod, "_devcli_command_path", lambda: "simplicio-dev-cli")
+    patch_runner(monkeypatch, "_devcli_command_path", lambda: "simplicio-dev-cli")
 
     calls = []
     real_subprocess_run = runner_mod.subprocess.run

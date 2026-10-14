@@ -15,6 +15,8 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from .map_service_gc import DEFAULT_KEEP, STALE_AFTER_SECONDS, apply_gc, plan_gc, startup_gc
+from .map_service_git import GitIdentityError
 from .map_service_status import default_status_path, load_status_file
 
 BUILD_RELATIVE = (".simplicio-loop/orchestrator", "map", "build.json")
@@ -81,7 +83,46 @@ def session_status(repo: str, status_file: str = "", as_json: bool = False) -> i
     return 0
 
 
-def run(command: str, *, repo: str = ".", mode: str = "canonical", tree_hash: str = "", files: Optional[list[str]] = None, trace_id: str = "", as_json: bool = False) -> int:
+def _gc(repo: str, *, dry_run: bool, keep: int, max_age: float, as_json: bool) -> int:
+    """List (``dry_run``) or remove what is safe to remove from the repository-central stores."""
+    schema = "simplicio.map-gc/v1"
+    try:
+        plan = plan_gc(repo, keep=keep, max_age=max_age)
+    except (GitIdentityError, OSError, subprocess.SubprocessError):
+        return _emit({
+            "schema": "simplicio.map-service-cli/v1", "command": "gc", "status": "READY",
+            "removed": [], "fallback": True, "reason_code": "standalone_no_store",
+        }, as_json)
+    result = apply_gc(plan) if not dry_run else None
+    items = [item.to_dict() for item in plan.items]
+    payload = {
+        "schema": schema, "command": "gc", "status": "READY", "dry_run": dry_run,
+        "keep": plan.keep, "max_age_seconds": plan.max_age, "items": items,
+        "would_free_bytes": plan.would_free_bytes,
+        "removed": result.removed if result else [],
+        "freed_bytes": result.removed_bytes if result else 0,
+        "errors": plan.errors + (result.errors if result else []),
+    }
+    if as_json:
+        return _emit(payload, True)
+    print("map-service gc%s: %d item(s), %s bytes %s" % (
+        " (dry run)" if dry_run else "", len(items),
+        payload["would_free_bytes"] if dry_run else payload["freed_bytes"],
+        "would be freed" if dry_run else "freed",
+    ))
+    for item in items:
+        if item["action"] == "remove":
+            print("  %s %s %s (%d bytes, %s)" % (
+                "would remove" if dry_run else "remove", item["kind"], item["path"],
+                item["bytes"], item["reason"],
+            ))
+    return 0
+
+
+def run(command: str, *, repo: str = ".", mode: str = "canonical", tree_hash: str = "", files: Optional[list[str]] = None, trace_id: str = "", as_json: bool = False, dry_run: bool = False, keep: int = DEFAULT_KEEP, max_age: float = STALE_AFTER_SECONDS) -> int:
+    if command == "gc":
+        return _gc(repo, dry_run=dry_run, keep=keep, max_age=max_age, as_json=as_json)
+    startup_gc(repo)
     target = _path(repo)
     if command == "status":
         if not target.exists():
@@ -114,10 +155,6 @@ def run(command: str, *, repo: str = ".", mode: str = "canonical", tree_hash: st
         except (OSError, ValueError):
             ok = False
         return _emit({"schema": "simplicio.map-service-cli/v1", "command": command, "status": "READY" if ok else "INVALID", "fallback": True, "path": str(target)}, as_json)
-    if command == "gc":
-        # Without a snapshot store, standalone GC is deliberately a no-op and
-        # reports that fact instead of deleting unknown files.
-        return _emit({"schema": "simplicio.map-service-cli/v1", "command": command, "status": "READY", "removed": [], "fallback": True, "reason_code": "standalone_no_store"}, as_json)
     if command == "doctor":
         return _emit({"schema": "simplicio.map-service-cli/v1", "command": command, "status": "READY", "fallback": not target.exists(), "build_receipt": str(target) if target.exists() else None}, as_json)
     raise ValueError("unknown map command: %s" % command)
@@ -133,10 +170,24 @@ def configure_commands(subparsers: argparse._SubParsersAction) -> None:
         help="explicit status file (default: <repo>/.simplicio-loop/orchestrator/map/status.json)",
     )
     status.add_argument("--json", action="store_true", help="emit machine-readable JSON")
-    for command in ("verify", "gc", "doctor"):
+    for command in ("verify", "doctor"):
         child = subparsers.add_parser(command, help="map-service %s" % command)
         child.add_argument("--repo", default=".", help="repository root")
         child.add_argument("--json", action="store_true")
+    gc = subparsers.add_parser(
+        "gc", help="remove stale map scratch, orphan locks and old bases (--dry-run lists them)"
+    )
+    gc.add_argument("--repo", default=".", help="repository root")
+    gc.add_argument("--dry-run", action="store_true", help="list what would be removed, remove nothing")
+    gc.add_argument(
+        "--keep", type=int, default=DEFAULT_KEEP,
+        help="newest bases to keep besides those a live worktree references (default %d)" % DEFAULT_KEEP,
+    )
+    gc.add_argument(
+        "--max-age", type=float, default=STALE_AFTER_SECONDS,
+        help="seconds without a write before scratch or a lock is stale (default %d)" % STALE_AFTER_SECONDS,
+    )
+    gc.add_argument("--json", action="store_true")
     build = subparsers.add_parser("build", help="build a canonical or worktree map receipt")
     build.add_argument("--repo", default=".")
     build.add_argument("--mode", choices=("canonical", "overlay"), default="canonical")
@@ -153,28 +204,6 @@ def dispatch(args: argparse.Namespace) -> int:
         args.map_command, repo=args.repo, mode=getattr(args, "mode", "canonical"),
         tree_hash=getattr(args, "tree_hash", ""), files=getattr(args, "files", []),
         trace_id=getattr(args, "trace_id", ""), as_json=args.json,
+        dry_run=getattr(args, "dry_run", False), keep=getattr(args, "keep", DEFAULT_KEEP),
+        max_age=getattr(args, "max_age", STALE_AFTER_SECONDS),
     )
-
-
-def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="simplicio-loop map")
-    sub = parser.add_subparsers(dest="command", required=True)
-    command_help = {
-        "status": "report map-service counters and watcher state",
-        "verify": "verify the current map receipt",
-        "gc": "garbage-collect standalone map artifacts",
-        "doctor": "check map-service readiness and fallback state",
-    }
-    for command in ("status", "verify", "gc", "doctor"):
-        child = sub.add_parser(command, help=command_help[command])
-        child.add_argument("--repo", default=".")
-        child.add_argument("--json", action="store_true")
-    build = sub.add_parser("build", help="build a canonical or overlay map receipt")
-    build.add_argument("--repo", default=".")
-    build.add_argument("--mode", choices=("canonical", "overlay"), default="canonical")
-    build.add_argument("--tree-hash", default="")
-    build.add_argument("--file", dest="files", action="append", default=[])
-    build.add_argument("--trace-id", default="")
-    build.add_argument("--json", action="store_true")
-    args = parser.parse_args(argv)
-    return run(args.command, repo=args.repo, mode=getattr(args, "mode", "canonical"), tree_hash=getattr(args, "tree_hash", ""), files=getattr(args, "files", []), trace_id=getattr(args, "trace_id", ""), as_json=args.json)

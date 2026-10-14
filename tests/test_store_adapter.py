@@ -13,6 +13,7 @@ from simplicio_loop.store_adapter import (
     probe_mapper,
     storage_doctor,
 )
+from tests.runner_patch import patch_runner
 
 
 def fake_mapper(monkeypatch, version="0.26.9"):
@@ -57,7 +58,7 @@ def test_runner_hookwall_route_uses_legacy_only_when_requested(monkeypatch, tmp_
             selected.append((database, kwargs))
 
     monkeypatch.setenv("SIMPLICIO_STORAGE_ROUTE", "legacy")
-    monkeypatch.setattr(runner, "HookwallEffectLedger", FakeLedger)
+    patch_runner(monkeypatch, "HookwallEffectLedger", FakeLedger)
     runner._hookwall_ledger(tmp_path)
     assert selected == [(tmp_path / ".simplicio-loop" / "orchestrator" / "hookwall.sqlite3", {})]
 

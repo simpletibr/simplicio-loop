@@ -46,6 +46,26 @@ def test_prism_slots_machine_max_scales_with_cpu(monkeypatch):
     assert ep.recommend_prism_slots(16) == 2
 
 
+def test_static_prism_slots_ignore_the_ram_available_right_now(monkeypatch):
+    # The tightening by free RAM moves with the load of the host; the static figure (cpu and total RAM) does not.
+    monkeypatch.setattr(ep, "_ram_gb", lambda: (32.0, 2.0))
+    assert ep.recommend_prism_slots(16) == 2  # public behaviour is unchanged
+    assert ep.recommend_prism_slots_static(16) == 15
+    monkeypatch.setattr(ep, "_ram_gb", lambda: (32.0, 20.0))
+    assert ep.recommend_prism_slots_static(16) == ep.recommend_prism_slots(16) == 15
+    monkeypatch.setattr(ep, "_ram_gb", lambda: (8.0, 1.0))
+    assert ep.recommend_prism_slots_static(16) == 4  # total RAM still caps it
+    monkeypatch.setattr(ep, "_ram_gb", lambda: (None, None))
+    assert ep.recommend_prism_slots_static(4) == ep.recommend_prism_slots(4) == 3
+
+
+def test_every_exported_prism_value_is_at_or_below_the_static_figure(monkeypatch):
+    for total, avail in [(32.0, 40.0), (32.0, 2.0), (8.0, 1.0), (4.0, 0.2), (None, None), (64.0, 2.4)]:
+        monkeypatch.setattr(ep, "_ram_gb", lambda total=total, avail=avail: (total, avail))
+        for cpu in (1, 2, 3, 4, 10, 16, 64):
+            assert ep.recommend_prism_slots(cpu) <= ep.recommend_prism_slots_static(cpu)
+
+
 def test_economy_env_is_always_standalone():
     env = ep.economy_parallel_env(prism_slots=4, operator_workers=6)
     assert env["SIMPLICIO_EXECUTION_PROFILE"] == "standalone"

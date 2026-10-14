@@ -22,9 +22,7 @@ from tests._contract_only_hookwall import ContractOnlyHookwallLedger
 
 @pytest.fixture(autouse=True)
 def _contract_only_hookwall(monkeypatch):
-    monkeypatch.setattr(
-        runner_mod,
-        "_hookwall_ledger",
+    patch_runner(monkeypatch, "_hookwall_ledger",
         lambda *_args, **_kwargs: ContractOnlyHookwallLedger(),
     )
 from simplicio_loop.plan_contract import validate_plan
@@ -32,6 +30,8 @@ from simplicio_loop.planning_gate import build_planning_receipt, content_hash, r
 
 from tests.test_runner_cli_integration import _arm_deterministic_preflight_fixture
 from tests.planning_gate_fixtures import stage_valid_planning_receipt
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 ENV_FLAG = "SIMPLICIO_REQUIRE_MUTATION_AUTHORITY"
 
@@ -200,7 +200,7 @@ def test_batch_default_unset_blocks_without_receipt_fail_closed(tmp_path, monkey
     def fake_dispatch(items, **kwargs):
         raise AssertionError("dispatch must not be reached without a valid mutation authority")
 
-    monkeypatch.setattr(runner_mod, "dispatch_operator_batch", fake_dispatch)
+    patch_runner(monkeypatch, "dispatch_operator_batch", fake_dispatch)
     with patch.dict(os.environ, {}, clear=False):
         os.environ.pop(ENV_FLAG, None)
         with pytest.raises(RuntimeError, match="mutation authority required"):
@@ -218,7 +218,7 @@ def test_batch_explicit_opt_out_restores_zero_behavior_change(tmp_path, monkeypa
         dispatched.extend(list(items))
         return {"failed_task_indices": [], "dead_letter_task_indices": []}
 
-    monkeypatch.setattr(runner_mod, "dispatch_operator_batch", fake_dispatch)
+    patch_runner(monkeypatch, "dispatch_operator_batch", fake_dispatch)
     with patch.dict(os.environ, {ENV_FLAG: "0"}, clear=False):
         result = runner_mod.execute_operator_batch(
             str(repo), armed["manifest"]["run_id"], max_workers=1,
@@ -236,7 +236,7 @@ def test_batch_flag_set_without_receipt_blocks_fail_closed(tmp_path, monkeypatch
     def fake_dispatch(items, **kwargs):
         raise AssertionError("dispatch must not be reached without a valid mutation authority")
 
-    monkeypatch.setattr(runner_mod, "dispatch_operator_batch", fake_dispatch)
+    patch_runner(monkeypatch, "dispatch_operator_batch", fake_dispatch)
     with patch.dict(os.environ, {ENV_FLAG: "1"}, clear=False):
         with pytest.raises(RuntimeError, match="mutation authority required"):
             runner_mod.execute_operator_batch(
@@ -258,7 +258,7 @@ def test_batch_flag_set_with_valid_receipt_dispatches(tmp_path, monkeypatch):
         dispatched.extend(list(items))
         return {"failed_task_indices": [], "dead_letter_task_indices": []}
 
-    monkeypatch.setattr(runner_mod, "dispatch_operator_batch", fake_dispatch)
+    patch_runner(monkeypatch, "dispatch_operator_batch", fake_dispatch)
     with patch.dict(os.environ, {ENV_FLAG: "1"}, clear=False):
         result = runner_mod.execute_operator_batch(
             str(repo), run_id, max_workers=1,

@@ -1,0 +1,78 @@
+name: Publish to PyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Immutable vX.Y.Z tag to publish"
+        required: true
+        default: "v3.50.0"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-pypi-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify tag and package version
+        id: release
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          tag="$RELEASE_TAG"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected immutable vX.Y.Z tag" >&2
+            exit 1
+          fi
+          git fetch --force --tags origin "$tag"
+          version="${tag#v}"
+          VERSION="$version" python3 - <<'PY'
+          import os
+          import pathlib
+          import tomllib
+
+          project = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
+          assert project["project"]["version"] == os.environ["VERSION"], f"Mismatch: {project['project']['version']} != {os.environ['VERSION']}"
+          print(f"Verified version parity for {os.environ['VERSION']}")
+          PY
+
+      - name: Install build tools
+        run: python3 -m pip install --upgrade build twine
+
+      - name: Build distributions
+        run: python3 -m build
+
+      - name: Check distribution metadata
+        run: python3 -m twine check dist/*
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${TWINE_PASSWORD:-}" ]]; then
+            echo "PYPI_API_TOKEN secret is not configured" >&2
+            exit 1
+          fi
+          python3 -m twine upload --non-interactive dist/*

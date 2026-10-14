@@ -20,7 +20,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.uninstall:
-            payload = uninstall(args.target)
+            payload = uninstall(args.target, dry_run=args.dry_run)
         else:
             plan = plan_install(args.target, host=args.host, globally=args.globally)
             if args.verify:

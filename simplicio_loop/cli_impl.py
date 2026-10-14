@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import contextlib
 import hashlib
 import io
@@ -35,19 +36,26 @@ from .drain import (
     load_drain_receipt,
     persist_drain_receipt,
 )
-from .runner import (
-    arm_run,
-    conduct_run,
-    apply_human_decision,
-    change_phase,
-    defer_maintenance_backlog_only,
-    execute_operator,
-    execute_operator_batch,
-    read_status,
-    reconcile_delivery,
-    sync_source_state,
-    verify_run,
-)
+def _lazy_runner(name: str):
+    """The ``runner`` function ``name``, looked up on first call: importing ``runner`` costs ~140 ms and most commands never call it."""
+    def call(*args, **kwargs):
+        from . import runner
+        return getattr(runner, name)(*args, **kwargs)
+    call.__name__ = call.__qualname__ = name
+    return call
+
+
+arm_run = _lazy_runner("arm_run")
+conduct_run = _lazy_runner("conduct_run")
+apply_human_decision = _lazy_runner("apply_human_decision")
+change_phase = _lazy_runner("change_phase")
+defer_maintenance_backlog_only = _lazy_runner("defer_maintenance_backlog_only")
+execute_operator = _lazy_runner("execute_operator")
+execute_operator_batch = _lazy_runner("execute_operator_batch")
+read_status = _lazy_runner("read_status")
+reconcile_delivery = _lazy_runner("reconcile_delivery")
+sync_source_state = _lazy_runner("sync_source_state")
+verify_run = _lazy_runner("verify_run")
 from .loop_execution_receipt import (
     SCHEMA as LOOP_EXECUTION_SCHEMA,
     publish_loop_execution_for_flow,
@@ -73,15 +81,21 @@ from .economy_profile import (
     prism_is_eligible,
     resolve_prism_batch_size,
 )
+from .auth_cli import configure_commands as configure_auth_commands, dispatch as dispatch_auth
+from . import setup_cli
+from .distribution import bundle_root
 from .map_service_cli import configure_commands as configure_map_commands, dispatch as dispatch_map
+from .squads import configure_commands as configure_squads_commands, dispatch as dispatch_squads
 from .serverless_deploy import build_plan as build_serverless_plan, execute_plan as execute_serverless_plan
 from .json_order import stable_first
 
-BUNDLE = Path(__file__).resolve().parent / "_bundle"
+BUNDLE = bundle_root()  # importlib.resources, not a source-tree path: the same call works from a frozen binary
 DASHBOARD = BUNDLE / "hooks" / "simplicio_dashboard.py"
-# Cross-platform temp dir (Windows has no /tmp) — must match hooks/simplicio_dashboard.py.
-PID_FILE = Path(tempfile.gettempdir()) / "simplicio-token-monitor.pid"
-DEFAULT_DASH_PORT = int(os.environ.get("SIMPLICIO_MONITOR_PORT", "9090"))
+
+
+def _pid_file() -> Path:
+    """Cross-platform temp dir (Windows has no /tmp) — must match hooks/simplicio_dashboard.py. Read at call time."""
+    return Path(tempfile.gettempdir()) / "simplicio-token-monitor.pid"
 
 
 def _gui_available() -> bool:
@@ -105,20 +119,122 @@ def _copy_tree(src: Path, dst: Path) -> int:
     return count
 
 
+def _resync_hosts(root: Path, apply: bool) -> dict:
+    """Skills and host rules of every host that ALREADY has them (#1480): refresh them, or only list what is stale."""
+    from .host_rules import resync_installed_rules, stale_rules
+    from .host_rules import resync_installed_rules, stale_rules
+    from .skill_sync import resync_installed_skills, stale_skills
+    stale_s, stale_r = stale_skills(root), stale_rules(root)
+    skills_counts: dict[str, int] = {}
+    for entry in stale_s:
+        skills_counts[entry["host"]] = skills_counts.get(entry["host"], 0) + 1
+    rules_counts: dict[str, int] = {}
+    for entry in stale_r:
+        rules_counts[entry["surface"]] = rules_counts.get(entry["surface"], 0) + 1
+
+    if apply:  # skills first: the rule sync rewrites the rule ref inside the installed loop skill
+        skills, rules = resync_installed_skills(root), resync_installed_rules(root)
+        return {"skills": skills["synced"], "rules": rules["synced"],
+                "skills_counts": skills_counts, "rules_counts": rules_counts,
+                "errors": skills["errors"] + rules["errors"],
+                "pending": 0}
+    return {"skills": sorted({entry["host"] for entry in stale_s}),
+            "rules": [entry["surface"] for entry in stale_r],
+            "skills_counts": skills_counts, "rules_counts": rules_counts,
+            "errors": [], "pending": len(stale_s) + len(stale_r)}
+
+
+def _install_lines(result: dict, host: str, head: str, resync: Optional[dict],
+                   prune_project: Optional[dict] = None) -> list:
+    changes = result["changes"]
+    owned_files = sorted(set(result.get("owned") or []))
+    lines = [f"simplicio-loop {__version__} {head}:", f"  host   -> {host}", f"  owned  -> {len(owned_files)} files",
+             f"  changed -> {len(changes['created'])} created, {len(changes['updated'])} updated, "
+             f"{changes['unchanged']} unchanged"]
+    for label in ("created", "updated"):
+        lines += [f"    {label}: {path}" for path in changes[label][:8]]
+        if len(changes[label]) > 8:
+            lines.append(f"    {label}: ... and {len(changes[label]) - 8} more")
+    if changes["left_alone"]:
+        left = changes["left_alone"]
+        total = len(left)
+        prefix = f"  left alone -> {total} not owned by Loop: "
+        shown_items: list[str] = []
+        cur_len = len(prefix)
+        for i, item in enumerate(left):
+            sep = ", " if shown_items else ""
+            added = len(sep) + len(item)
+            if i >= 5 or (shown_items and cur_len + added + 12 > 80):
+                break
+            shown_items.append(item)
+            cur_len += added
+        shown = ", ".join(shown_items)
+        more = total - len(shown_items)
+        lines.append(prefix + shown + (f" (+{more} more)" if more > 0 else ""))
+    if resync is not None and (resync["skills"] or resync["rules"] or resync["errors"]):
+        is_stale = head.startswith(("check", "dry_run"))
+        verb = ("stale (installed host copies differing from package, pending update)"
+                if is_stale else
+                "resynced (installed host copies refreshed to match package)")
+        skills_counts = resync.get("skills_counts") or {}
+        rules_counts = resync.get("rules_counts") or {}
+        if skills_counts:
+            skills_str = ", ".join(f"{h} ({skills_counts[h]})" for h in sorted(skills_counts))
+        else:
+            skills_str = ", ".join(resync["skills"]) or "-"
+        if rules_counts:
+            rules_str = ", ".join(f"{r} ({rules_counts[r]})" for r in sorted(rules_counts))
+        else:
+            rules_str = ", ".join(resync["rules"]) or "-"
+        lines.append(f"  {verb} -> skills: {skills_str}; rules: {rules_str}")
+        lines += [f"  resync error: {err['host']}: {err['error']}" for err in resync["errors"]]
+    if prune_project is not None:
+        verb = "would prune" if head.startswith(("check", "dry_run")) else "pruned"
+        removed_list = prune_project.get("removed") or []
+        n_pruned = len(removed_list)
+        if n_pruned > 0:
+            prefix = f"  {verb} project copies -> {n_pruned} stale files: "
+            shown_items = []
+            cur_len = len(prefix)
+            for i, item in enumerate(removed_list):
+                sep = ", " if shown_items else ""
+                added = len(sep) + len(item)
+                if i >= 5 or (shown_items and cur_len + added + 12 > 80):
+                    break
+                shown_items.append(item)
+                cur_len += added
+            more = n_pruned - len(shown_items)
+            lines.append(prefix + ", ".join(shown_items) + (f" (+{more} more)" if more > 0 else ""))
+        else:
+            lines.append("  project copies -> 0 stale files found")
+    return lines
+
+
 def install(target: Path, globally: bool, host: str = "claude",
-            dry_run: bool = False, uninstall: bool = False, verify: bool = False) -> int:
+            dry_run: bool = False, uninstall: bool = False, verify: bool = False,
+            check: bool = False, as_json: bool = False,
+            prune_project_copies: bool = False) -> int:
     from .install.planner import InstallError, apply_plan, plan_install
+    from .install.planner import prune_project_copies as prune_fn
     from .install.planner import uninstall as remove_owned
     from .install.planner import verify_plan
 
     root = Path.home() if globally else target
     if uninstall:
         try:
-            payload = remove_owned(root)
+            payload = remove_owned(root, dry_run=dry_run)
         except InstallError as exc:
             print(f"error: {exc}", flush=True)
             return 1
-        print(f"simplicio-loop uninstalled {len(payload.get('removed') or [])} owned paths")
+        verb = "would remove" if dry_run else "removed"
+        print(f"simplicio-loop uninstall {'dry_run (nothing removed)' if dry_run else 'applied'}: "
+              f"{verb} {len(payload['removed'])} files, {len(payload['removed_dirs'])} empty directories")
+        print("\n".join(f"  {verb}: {rel}" for rel in payload["removed"] + [f"{rel}/" for rel in payload["removed_dirs"]]))
+        if payload["kept"]:
+            print(f"  kept (not empty, holds files Loop did not install): {', '.join(payload['kept'])}")
+        if globally:
+            print("  not removed (outside the ownership receipt): the simplicio-* skills and Loop rule files that "
+                  "install --global refreshes in other hosts; remove them by hand")
         return 0
     try:
         plan = plan_install(root, host=host, globally=globally)
@@ -126,19 +242,32 @@ def install(target: Path, globally: bool, host: str = "claude",
             verify_plan(plan)
             print(f"simplicio-loop install plan ok host={host} digest={plan['digest']}")
             return 0
-        result = apply_plan(plan, dry_run=dry_run, bundle=BUNDLE)
+        result = apply_plan(plan, dry_run=dry_run or check, bundle=BUNDLE)
     except InstallError as exc:
         print(f"error: {exc}", flush=True)
         return 1
-    status = "installed" if result["status"] == "applied" else result["status"]
-    print(f"simplicio-loop {__version__} {status}:")
-    print(f"  host   -> {host}")
-    print(f"  owned  -> {', '.join(result['owned'])}")
-    print(f"  files  -> {result['written']}")
-    print("")
-    print("Use it in your agent runtime (Claude Code, Cursor, ...):")
-    print("  /simplicio-loop finish all the open issues")
-    return 0
+    resync = _resync_hosts(root, apply=not (dry_run or check)) if globally else None
+    prune_result = prune_fn(target, dry_run=dry_run or check) if (globally and prune_project_copies) else None
+    pending = not result["up_to_date"] or bool(resync and resync["pending"])
+    if as_json:
+        payload = {**result, "host": host, "version": __version__, "resynced": resync}
+        if prune_result is not None:
+            payload["pruned_project"] = prune_result
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+        return 10 if check and pending else 0
+    if check:
+        head = "check: changes pending" if pending else "check: up to date"
+    elif dry_run:
+        head = "dry_run (nothing written)"
+    else:
+        head = "already up to date" if result["up_to_date"] else "installed"
+    print("\n".join(_install_lines(result, host, head, resync, prune_project=prune_result)))
+    if not (dry_run or check):
+        print("")
+        print("Use it in your agent runtime (Claude Code, Cursor, ...):")
+        print("  /simplicio-loop finish all the open issues")
+        setup_cli.after_install()
+    return 10 if check and pending else 0
 
 
 def _port_up(port: int) -> bool:
@@ -153,7 +282,7 @@ def _stop_dashboard() -> int:
     """Best-effort stop: kill the PID the dashboard recorded, then any stray server."""
     killed = False
     try:
-        pid = int(PID_FILE.read_text().strip())
+        pid = int(_pid_file().read_text().strip())
         os.kill(pid, 15)
         killed = True
     except (OSError, ValueError):
@@ -165,7 +294,7 @@ def _stop_dashboard() -> int:
         except OSError:
             pass
     try:
-        PID_FILE.unlink()
+        _pid_file().unlink()
     except OSError:
         pass
     print("⬡ Token Monitor stopped." if killed else "⬡ dashboard was not running.")
@@ -483,7 +612,7 @@ def _current_tree_state(root: Path) -> str | None:
     return f"{tree.stdout.strip()}:{dirty}"
 
 
-def _ensure_project_map(root: Path, *, budget: float | None = None) -> None:
+async def _ensure_project_map(root: Path, *, budget: float | None = None) -> None:
     """Guarantee the single artifact ``survey.provenance()`` (and therefore
     ``prepare``) requires as proof of a Mapper survey: `.simplicio-loop/project-map.json`.
 
@@ -533,17 +662,20 @@ def _ensure_project_map(root: Path, *, budget: float | None = None) -> None:
             return
     if budget is None:
         try:
-            from .map_service_mapper import run_mapper_index
-            run_mapper_index(str(root), timeout=_mapper_index_timeout_seconds())
+            from .map_service_mapper import run_mapper_map, MapperUnavailableError, materialize_project_map
+            envelope = await run_mapper_map(str(root), timeout=_mapper_index_timeout_seconds())
+            materialize_project_map(str(root), envelope)
+            
             if current_state is not None:
                 state_file.parent.mkdir(parents=True, exist_ok=True)
                 state_file.write_text(
                     json.dumps({"tree_state": current_state}, ensure_ascii=False), encoding="utf-8"
                 )
-        except Exception:
+        except (MapperUnavailableError, FileNotFoundError, OSError):
+            # Binary missing or path doesn't exist: swallowed, same policy as before
             pass
         return
-    _ensure_project_map_bounded(root, project_map, state_file, current_state, budget)
+    await _ensure_project_map_bounded(root, project_map, state_file, current_state, budget)
 
 
 _MAPPER_INDEX_LOCK_NAME = "mapper-index.lock"
@@ -574,6 +706,12 @@ def _mapper_index_running_info(lock_file: Path) -> dict[str, Any] | None:
         except OSError:
             pass
         return None
+    try:
+        # Reap the index if it is our own child and has finished: otherwise it stays a zombie, which
+        # ``os.kill(pid, 0)`` below reports as alive (the Popen that spawned it is long out of scope).
+        os.waitpid(pid, os.WNOHANG)
+    except OSError:
+        pass  # not our child (another process started it)
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -628,7 +766,13 @@ def _mapper_index_reconcile_finished(log_path: Path, project_map: Path, state_fi
     return True
 
 
-def _ensure_project_map_bounded(root: Path, project_map: Path, state_file: Path,
+async def _wait_for_exit(proc: subprocess.Popen) -> None:
+    """Yield to the event loop until ``proc`` exits; callers bound it with ``asyncio.wait_for``."""
+    while proc.poll() is None:
+        await asyncio.sleep(0.1)
+
+
+async def _ensure_project_map_bounded(root: Path, project_map: Path, state_file: Path,
                                  current_state: str | None, budget: float) -> None:
     """The ``budget``-bounded branch of ``_ensure_project_map`` (issue #1339).
     Never blocks past ``budget`` seconds: a cold index is started detached
@@ -649,28 +793,32 @@ def _ensure_project_map_bounded(root: Path, project_map: Path, state_file: Path,
     if _mapper_index_reconcile_finished(log_path, project_map, state_file, current_state):
         return
     try:
-        from .map_service_mapper import mapper_binary_path
+        from .map_service_gc import startup_gc
+        from .map_service_mapper import index_argv, mapper_binary_path
         binary = mapper_binary_path()
     except Exception:
         return  # binary missing: swallowed, same policy as the unbounded path above
+    startup_gc(str(root))  # stale build scratch and orphan locks (never a base); never raises
     map_dir.mkdir(parents=True, exist_ok=True)
     resolved = str(root.resolve())
     popen_kwargs: dict[str, Any] = {}
     if hasattr(os, "setsid"):
         popen_kwargs["start_new_session"] = True
+    # Only the SPAWN is a plain Popen (it returns at once; the wait below is awaited, so the loop stays
+    # free). An asyncio subprocess transport kills its child when it is closed or garbage collected, and
+    # this index has to outlive the call: that is the detached mode of #1339.
     with open(log_path, "wb") as log_handle:
         proc = subprocess.Popen(
-            [binary, "index", resolved, "--json"],
+            index_argv(binary, resolved),
             stdout=log_handle, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
             close_fds=True, **popen_kwargs,
         )
     lock_file.write_text(
         json.dumps({"pid": proc.pid, "started_at": time.time()}, ensure_ascii=False), encoding="utf-8",
     )
-    deadline = time.monotonic() + budget
-    while time.monotonic() < deadline and proc.poll() is None:
-        time.sleep(0.1)
-    if proc.poll() is None:
+    try:
+        await asyncio.wait_for(_wait_for_exit(proc), timeout=budget)
+    except asyncio.TimeoutError:
         raise MapperIndexTimedOut(
             f"simplicio-mapper index exceeded the {budget:.0f}s orient budget "
             f"(pid={proc.pid}); continuing in the background, log at {log_path}"
@@ -1192,7 +1340,7 @@ def _orient_core(root: Path, task: str, targets: list[str] | None,
     # same-tree determinism `orient --brief` promises. May raise
     # ``MapperIndexTimedOut``/``MapperIndexRunning``; callers handle those.
     deadline = _orient_deadline() if deadline is None else deadline
-    _ensure_project_map(root, budget=_orient_remaining(deadline))
+    asyncio.run(_ensure_project_map(root, budget=_orient_remaining(deadline)))
     mapper = _mapper_orient_fallback(root, str(task), timeout=_orient_remaining(deadline))
     status = "READY" if mapper.get("status") == "READY" else "BLOCKED"
     payload = {"schema": ORIENT_SCHEMA, "status": status,
@@ -2292,6 +2440,14 @@ def progress(repo: str, run_id: str, fmt: str, once: bool, interval: float,
         print(json.dumps({"schema": "simplicio.progress/v1", "status": "UNVERIFIED",
                           "reason_code": "run_missing"}, ensure_ascii=False))
         return 2
+    if fmt != "json":
+        try:
+            from .dashboard import cli as dashboard_cli
+            hint = dashboard_cli.panel_hint()
+            if hint is not None:
+                print(hint, file=sys.stderr)
+        except Exception:
+            pass
     stream_progress(status["run_dir"], fmt=fmt, once=once, interval=interval,
                     no_animation=no_animation, ascii_only=ascii_only)
     return 0
@@ -2635,14 +2791,55 @@ def _redirect_run_to_wave(argv: Sequence[str]) -> int:
     return int(outcome["exit_code"]) if int(outcome.get("exit_code") or 0) != 0 else 2
 
 
+def _prose_words(argv: Sequence[str]) -> list[str]:
+    return list(itertools.takewhile(lambda item: not item.startswith("-"), argv))
+
+
 def _prose_as_turbo(argv: Sequence[str]) -> list[str]:
     """`simplicio-loop "<task>" [flags]` runs `simplicio-loop turbo --repo . --task "<task>" [flags]`."""
-    words = list(itertools.takewhile(lambda item: not item.startswith("-"), argv))
+    words = _prose_words(argv)
     return ["turbo", "--repo", ".", "--task", " ".join(words), *argv[len(words):]]
+
+
+_WATCH247_QUIET = ("The GitHub token is never an argument: pipe it to --github-token-stdin (with --email), "
+                   "or run `watch247 setup` in a terminal for a hidden prompt. See --help.")
+
+
+class _Parser(argparse.ArgumentParser):
+    """``ArgumentParser`` whose ``quiet`` instances never repeat what the user typed.
+
+    argparse puts the offending value into its own errors (``ignored explicit argument 'ghp_...'``, ``invalid
+    choice: 'ghp_...'``, ``unrecognized arguments: ...``, ``ambiguous option: --x=ghp_... could match``). For a command
+    that is asked for a secret, a slip of the keys would print that secret in the user's terminal. A quiet parser prints
+    its usage and a fixed message. The parent reports the arguments a subcommand left unrecognized, so it is quiet too
+    whenever the command line names that subcommand.
+    """
+
+    def __init__(self, *args: Any, quiet: str = "", **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._quiet = quiet
+
+    def error(self, message: str):  # type: ignore[override]
+        if not self._quiet:
+            super().error(message)
+        self.print_usage(sys.stderr)
+        self.exit(2, f"{self.prog}: error: invalid arguments; what you typed is not repeated. {self._quiet}\n")
+
+
+def _finish_pending_update() -> None:
+    """Windows binary: a verified file that `update` staged replaces the running one at the next start."""
+    from .self_update import apply_pending
+    try:
+        if apply_pending():
+            print("simplicio-loop: the staged update is in place. Run: simplicio-loop install --global", file=sys.stderr)
+    except OSError as exc:
+        print(f"simplicio-loop: could not apply the staged update: {exc}", file=sys.stderr)
 
 
 def main(argv=None) -> int:
     argv_list = list(argv) if argv is not None else list(sys.argv[1:])
+    if os.name == "nt" and getattr(sys, "frozen", False):
+        _finish_pending_update()
     if argv_list[:1] == ["hub-drain-plan"]:
         from .github_drain_intake_cli import main as drain_intake_main
         forwarded = argv_list[1:]
@@ -2653,21 +2850,31 @@ def main(argv=None) -> int:
     if argv_list[:1] == ["intake"]:
         from .intake_cli import main as intake_main
         return intake_main(argv_list[1:])
+    if argv_list[:1] == ["handoff"]:
+        from .handoff_cli import main as handoff_main
+        return handoff_main(argv_list[1:])
+    if argv_list[:1] == ["author"]:
+        from .author_cli import main as author_main
+        return author_main(argv_list[1:])
     if argv_list[:1] == ["run"]:
         return _redirect_run_to_wave(argv_list[1:])
-    parser = argparse.ArgumentParser(
+    if argv_list[:1] == ["daemon"]:  # never a task: the frozen binary and Windows reach this parser with it (#1633)
+        from .frozen import daemon_command
+        return daemon_command(argv_list[1:])
+    parser = _Parser(
         prog="simplicio-loop",
         description=(
             "Install the simplicio-loop super-plugin, open the Token Monitor dashboard, "
             "or compile task markdown into a canonical task contract."
         ),
+        quiet=_WATCH247_QUIET if "watch247" in argv_list else setup_cli.QUIET if "setup" in argv_list else "",  # a flag typed before the subcommand is echoed by this parser
     )
     parser.add_argument("-V", "--version", action="version", version=f"simplicio-loop {__version__}")
     # Bare `simplicio-loop` (no subcommand at all) falls through to `install` below with these
     # defaults — mirror p_install's own defaults here so that fallback doesn't crash with
     # AttributeError when no subparser ever ran to populate args.target/args.globally.
-    parser.set_defaults(target=".", globally=False)
-    sub = parser.add_subparsers(dest="command")
+    parser.set_defaults(target=".", globally=False, prune_project_copies=False)
+    sub = parser.add_subparsers(dest="command", parser_class=_Parser)
 
     p_install = sub.add_parser("install", help="install bundled skills + hooks into a runtime")
     p_install.add_argument("--target", default=".", help="project directory to install into")
@@ -2675,8 +2882,13 @@ def main(argv=None) -> int:
                            help="install into ~/.claude instead of the project")
     p_install.add_argument("--host", default="claude", help="host id or 'all'")
     p_install.add_argument("--dry-run", action="store_true", help="plan only; write nothing")
+    p_install.add_argument("--check", action="store_true",
+                           help="write nothing; exit 0 when the install is up to date, 10 when changes are pending")
+    p_install.add_argument("--json", action="store_true", help="emit one machine-readable JSON document")
     p_install.add_argument("--verify", action="store_true", help="validate plan version/digest")
-    p_install.add_argument("--uninstall", action="store_true", help="remove Loop-owned files only")
+    p_install.add_argument("--uninstall", action="store_true", help="remove only what install registered; with --dry-run, list it and remove nothing")
+    p_install.add_argument("--prune-project-copies", action="store_true",
+                           help="detect and remove stale project-scope copies when installing globally")
 
     p_turbo = sub.add_parser(
         "turbo",
@@ -2705,24 +2917,35 @@ def main(argv=None) -> int:
     p_turbo.add_argument("--context", action="append", default=[],
                          help="with one --task: another file the model must see; repeatable")
     p_turbo.add_argument("--tasks-file", help="JSON list of {text, target?, context?, depends_on?}")
+    p_turbo.add_argument("--window", action="append", default=[], metavar="PATH:START-END",
+                         help="request: also show these lines of a file too big to be shown whole; repeatable")
     p_turbo.add_argument("--verify", help="shell command run in the repo after the plan is applied, e.g. tests")
     p_turbo.add_argument("--apply", metavar="PLAN",
                          help="command 2: apply this JSON find/replace plan through dev-cli, then run --verify; "
                               "`-` reads the plan from stdin (a heredoc), anything else is a file")
+    p_turbo.add_argument("--run-id", metavar="ID",
+                         help="continue the run the request printed: its stage events and receipts join that run")
+    p_turbo.add_argument("--leave-open", action="store_true",
+                         help="with --apply and --run-id: an ok run stays open after verify, for the caller to close "
+                              "(the 24/7 watcher writes its pr stage, then done)")
     p_turbo.add_argument("--provider", choices=["openrouter"],
                          help="headless automation only; agents invoking the skill must not use it "
                               "(asks this provider for the plan, needs OPENROUTER_API_KEY)")
 
     p_update = sub.add_parser("update", help="install the latest GitHub release of simpletibr/simplicio-loop")
-    p_update.add_argument("--check", action="store_true", help="only report installed vs latest; change nothing")
-    p_update.add_argument("--force", action="store_true", help="reinstall even when already on the latest release")
+    p_update.add_argument("--check", action="store_true",
+                          help="change nothing; exit 0 when up to date, 10 when an update is available, 2 on error")
+    p_update.add_argument("--dry-run", action="store_true", help="print what would run; change nothing")
+    p_update.add_argument("--force", action="store_true",
+                          help="reinstall even when already on the latest release; allows a downgrade")
 
-    p_dashboard = sub.add_parser("dashboard", help="open or stop the Token Monitor dashboard")
-    p_dashboard.add_argument("--port", type=int, default=DEFAULT_DASH_PORT,
-                             help="dashboard port (default: %(default)s)")
-    p_dashboard.add_argument("--no-browser", dest="no_browser", action="store_true",
-                             help="start the server but do not open a browser")
-    p_dashboard.add_argument("--stop", action="store_true", help="stop a running Token Monitor")
+    configure_auth_commands(sub)  # login, logout, auth status: one login shared with the Simplicio Runtime
+    setup_cli.configure(sub)  # setup: prerequisites, agent CLIs and the GitHub login, after install
+
+    p_dashboard = sub.add_parser("dashboard", help="open the Simplicio Live panel; --tokens opens the Token Monitor")
+    if "dashboard" in argv_list:  # its flags are only read for this command; importing them costs ~170 ms for every other one
+        from .dashboard import cli as dashboard_cli
+        dashboard_cli.add_arguments(p_dashboard)
 
     p_task = sub.add_parser("task", help="compile, validate, or preview markdown task contracts")
     p_task.add_argument("task_args", nargs=argparse.REMAINDER,
@@ -2859,8 +3082,19 @@ def main(argv=None) -> int:
     p_stack_verify.add_argument("--components", required=True, help="JSON component observations")
     p_stack_verify.add_argument("--route", choices=("standalone",), default=None)
 
-    p_doctor = sub.add_parser("doctor", help="inspect the installed stack or storage routing")
-    p_doctor.set_defaults(doctor_command=None, stack_json=False, doctor_json=False)
+    p_doctor = sub.add_parser(
+        "doctor",
+        help="inspect the installed stack or storage routing (default: stack health overview)",
+        description=(
+            "Inspect stack health and component readiness. "
+            "Running without a subcommand executes the general stack health overview "
+            "(equivalent to 'doctor all') without requiring --storage or a subcommand."
+        ),
+    )
+    p_doctor.set_defaults(doctor_command=None, stack_json=False, doctor_json=False, all_json=False, all_online=False,
+                          login_json=False, online=False)
+    p_doctor.add_argument("--online", action="store_true",
+                          help="overview: ask GitHub for the latest release (offline by default)")
     p_doctor.add_argument("--storage", action="store_true",
                           help="inspect the Loop storage adapter boundary")
     p_doctor.add_argument("--route", choices=("legacy", "shadow", "mapper"), default="mapper")
@@ -2868,7 +3102,11 @@ def main(argv=None) -> int:
     p_doctor.add_argument("--repo", default=".", help="repository root for cutover diagnostics")
     p_doctor.add_argument("--require-capability", action="append", default=[])
     p_doctor.add_argument("--json", action="store_true", help="emit machine-readable JSON")
-    doctor_sub = p_doctor.add_subparsers(dest="doctor_command")
+    doctor_sub = p_doctor.add_subparsers(
+        dest="doctor_command",
+        title="subcommands",
+        description="subcommands for targeted component inspection (default: runs overview)",
+    )
     p_doctor_stack = doctor_sub.add_parser(
         "stack", help="report installed component identity and route readiness"
     )
@@ -2886,6 +3124,22 @@ def main(argv=None) -> int:
     p_doctor_source.add_argument("--json", dest="doctor_json", action="store_true",
                                  help="emit machine-readable JSON")
 
+    p_doctor_all = doctor_sub.add_parser(
+        "all", help="overview: login, update, distribution, Runtime, PATH operators, disk (same as bare `doctor`)"
+    )
+    p_doctor_all.add_argument("--json", dest="all_json", action="store_true", help="emit machine-readable JSON")
+    p_doctor_all.add_argument("--online", dest="all_online", action="store_true",
+                              help="ask GitHub for the latest release (offline by default)")
+    p_doctor_login = doctor_sub.add_parser("login", help="only the login check (shared with the Runtime)")
+    p_doctor_login.add_argument("--json", dest="login_json", action="store_true", help="emit machine-readable JSON")
+
+    p_doctor_mapper = doctor_sub.add_parser(
+        "mapper", help="check that the installed simplicio_mapper is the expected build"
+    )
+    p_doctor_mapper.add_argument("--repo", default=".", help="monorepo checkout to compare the commit with")
+    p_doctor_mapper.add_argument("--json", dest="mapper_json", action="store_true",
+                                 help="emit machine-readable JSON")
+
     p_inspect = sub.add_parser("inspect", help="inspect storage routing and MapperStore capabilities")
     p_inspect.add_argument("--storage", action="store_true", required=True,
                            help="inspect the Loop storage adapter boundary")
@@ -2898,6 +3152,9 @@ def main(argv=None) -> int:
     p_map = sub.add_parser("map", help="map-service cross-module status")
     map_sub = p_map.add_subparsers(dest="map_command", required=True)
     configure_map_commands(map_sub)
+
+    p_squads = sub.add_parser("squads", help="plan squads and check the squad merge gate")
+    configure_squads_commands(p_squads.add_subparsers(dest="squads_command", required=True))
 
     p_preflight = sub.add_parser(
         "preflight", help="verify bound operators (mapper/dev-cli) are installed")
@@ -2962,6 +3219,20 @@ def main(argv=None) -> int:
     p_verify = sub.add_parser("verify", help="run the independent watcher and delivery gates")
     p_verify.add_argument("--repo", default=".", help="repository root")
     p_verify.add_argument("run_id", help="run id to verify")
+
+    p_watch247 = sub.add_parser(
+        "watch247", help="run the 24/7 watcher for simplicio-* repos", allow_abbrev=False,
+        quiet=_WATCH247_QUIET)
+    p_watch247.add_argument("action", nargs="?", choices=["login-check", "setup"],
+                            help="login-check: exec CLI logins (#1467); setup: first-run credentials")
+    p_watch247.add_argument("--email", help="setup: the Simplicio account e-mail")
+    p_watch247.add_argument("--github-token-stdin", action="store_true",
+                            help="setup: read the GitHub token from stdin (never an argument: argv shows in ps)")
+    p_watch247.add_argument("--check", action="store_true",
+                            help="setup: only check the Simplicio account step (after the login); no token is asked")
+    p_watch247.add_argument("--once", action="store_true", help="run one tick and exit")
+    p_watch247.add_argument("--dry-run", action="store_true", help="simulate without mutations")
+    p_watch247.add_argument("--state-dir", help="override state directory")
 
     p_progress = sub.add_parser("progress", help="render visual progress for a run")
     p_progress.add_argument("--repo", default=".", help="repository root")
@@ -3196,6 +3467,11 @@ def main(argv=None) -> int:
         ):
             return drain_intake_main(argv_list)
         if not argv_list[0].startswith("-") and argv_list[0] not in sub.choices:
+            words = _prose_words(argv_list)
+            if len(words) == 1 and not any(char.isspace() for char in words[0]):  # a mistyped command, not a task
+                print(f"simplicio-loop: unknown command {words[0]!r}; valid commands: {', '.join(sorted(sub.choices))}; "
+                      'a task is more than one word: simplicio-loop "<task>"', file=sys.stderr)
+                return 2
             argv_list = _prose_as_turbo(argv_list)
     args = parser.parse_args(argv_list)
     command = args.command or "install"
@@ -3203,12 +3479,18 @@ def main(argv=None) -> int:
         from .turbo_cli import run as run_turbo_cli
         return run_turbo_cli(args.repo, args.task, target=args.target, context=args.context,
                              tasks_file=args.tasks_file, verify=args.verify, apply=args.apply,
-                             provider=args.provider)
+                             provider=args.provider, run_id=args.run_id,
+                             leave_open=args.leave_open, windows=args.window)
     if command == "update":
-        from .self_update import run_update
-        return run_update(check=args.check, force=args.force)
+        from .self_update import run_update, write_check
+        return run_update(check=args.check, force=args.force, dry_run=args.dry_run, record=write_check)
+    if command in {"login", "logout", "auth"}:
+        return dispatch_auth(args)
+    if command == "setup":
+        return setup_cli.main(args)
     if command == "dashboard":
-        return dashboard(args.port, not args.no_browser, args.stop)
+        from .dashboard import cli as dashboard_cli
+        return dashboard_cli.run(args)
     if command == "task":
         forwarded = list(args.task_args or [])
         if forwarded and forwarded[0] == "--":
@@ -3255,9 +3537,22 @@ def main(argv=None) -> int:
         return stack_doctor_command(args)
     if command == "doctor" and getattr(args, "doctor_command", None) == "source":
         return source_doctor_command(args)
+    if command == "doctor" and getattr(args, "doctor_command", None) == "mapper":
+        from .mapper_doctor import main as mapper_doctor_main
+        forwarded = ["--repo", args.repo]
+        if args.mapper_json:
+            forwarded.append("--json")
+        return mapper_doctor_main(forwarded)
+    if command == "doctor" and getattr(args, "doctor_command", None) in {"all", "login"}:
+        from .doctor_overview import run as doctor_overview
+        if args.doctor_command == "login":
+            return doctor_overview(as_json=getattr(args, "login_json", False) or getattr(args, "json", False), only="login")
+        return doctor_overview(as_json=getattr(args, "all_json", False) or getattr(args, "json", False),
+                               online=getattr(args, "all_online", False) or getattr(args, "online", False))
+    if command == "doctor" and not getattr(args, "storage", False):  # bare `doctor` executes overview (same as `doctor all`)
+        from .doctor_overview import run as doctor_overview
+        return doctor_overview(as_json=getattr(args, "json", False), online=getattr(args, "online", False))
     if command in {"doctor", "inspect"}:
-        if command == "doctor" and not args.storage:
-            parser.error("doctor requires --storage or the stack subcommand")
         from .store_adapter import storage_cli
         forwarded = ["--route", args.route]
         if args.data_dir:
@@ -3269,6 +3564,8 @@ def main(argv=None) -> int:
         return storage_cli(forwarded)
     if command == "map":
         return dispatch_map(args)
+    if command == "squads":
+        return dispatch_squads(args)
     if command == "preflight":
         return preflight(args.repo, args.json, strict=bool(getattr(args, "strict", False)))
     if command == "ecc":
@@ -3297,6 +3594,20 @@ def main(argv=None) -> int:
         return economy_command(args)
     if command == "verify":
         return verify(args.repo, args.run_id)
+    if command == "watch247" and args.action == "login-check":
+        from .watcher247.login_check import main as login_check_main
+        return login_check_main()
+    if command == "watch247" and args.action == "setup":
+        from .watcher247.onboarding import main as setup_main
+        return setup_main(email=args.email, token_stdin=args.github_token_stdin,
+                          state_dir=args.state_dir, check_only=args.check)
+    if command == "watch247":
+        import asyncio
+        from .watcher247 import config as watcher247_config
+        from .watcher247.__main__ import main as watcher247_main
+        if args.state_dir:
+            watcher247_config.set_state_dir(args.state_dir)
+        return asyncio.run(watcher247_main(once=args.once, dry_run=args.dry_run))
     if command == "progress":
         run_id = args.run_id or args.run_flag
         # An omitted run id means the latest run in --repo, matching the
@@ -3384,6 +3695,9 @@ def main(argv=None) -> int:
         getattr(args, "dry_run", False),
         getattr(args, "uninstall", False),
         getattr(args, "verify", False),
+        getattr(args, "check", False),
+        getattr(args, "json", False),
+        prune_project_copies=getattr(args, "prune_project_copies", False),
     )
 
 

@@ -46,7 +46,9 @@ import os
 import re
 import sys
 import tempfile
+import threading
 import time
+from collections import OrderedDict
 from datetime import datetime, timezone
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -75,9 +77,10 @@ OPTIONAL_FIELDS = ("derived",)
 KIND_CATALOG = {
     "lifecycle": ("run_started", "phase_entered", "phase_exited", "contract_frozen", "map_ready",
                   "plan_frozen"),
-    "lanes_tasks": ("worker_claimed", "lane_progress", "iteration_started", "iteration_finished",
-                    "apply_result"),
+    "lanes_tasks": ("worker_claimed", "lease_heartbeat", "lane_progress", "iteration_started", "iteration_finished",
+                    "apply_result", "handoff"),
     "quality": ("test_result", "lint_result", "coverage_result", "gate_evaluated"),
+    "commands": ("command_started", "command_finished"),
     "recovery": ("retry_scheduled", "stall_detected", "decision_requested"),
     "delivery_cost": ("delivery_reconciled", "pr_opened", "token_usage", "cost_sample"),
     "end": ("run_finished",),
@@ -754,27 +757,238 @@ def _event_files(run_dir):
     return [p for _, p in sorted(rotated, reverse=True)] + [path]
 
 
+# Incremental reading (issue #1565). The dashboard polls a live run every few seconds, and a run holds up to ~100k events, so
+# re-reading and re-parsing the whole stream on each poll cost ~2 s. Each events file is cached after it is parsed: the parsed
+# events, the byte offset consumed (always the end of a newline-terminated line) and a fingerprint of the bytes consumed. The next
+# read parses only the bytes appended since. A file that was truncated, replaced, rewritten or whose consumed prefix changed is read
+# again in full, so the result is always what a fresh full read returns.
+#
+# Memory is bounded: READ_CACHE_MAX_FILES files and READ_CACHE_MAX_EVENTS parsed events in all (least recently used files go first;
+# the default rotation of 16 MiB x (3 + live) holds about 160k events, about 150 MB parsed). A file with more events than the cap is
+# not kept and is parsed again on each read, as before. The events returned are shared with the cache: callers must not mutate them.
+READ_CACHE_MAX_FILES = 8
+READ_CACHE_MAX_EVENTS = 200000
+_SIGNATURE_BYTES = 4096        # head and tail of the consumed prefix kept to recognise a different file under the same inode
+_BLOCK_BYTES = 8 * 1024 * 1024  # a read never holds more than this (plus one partial line) of raw bytes
+_RACY_SECONDS = 2.0            # a file modified this recently may change without a new mtime/ctime tick: verify the fingerprint
+_INTERN_MAX = 65536            # entries of the per-read interner of keys and short values
+
+_SEGMENTS = OrderedDict()      # (st_dev, st_ino) -> _Segment, least recently used first
+_SEGMENTS_LOCK = threading.Lock()
+
+
+class _Segment(object):
+    """What is known about one events file: parsed events, bytes consumed, and a fingerprint of them."""
+    __slots__ = ("lock", "path", "events", "pending", "offset", "size", "mtime", "ctime", "head", "tail", "ordered", "first", "last")
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.path = ""       # where the file was last read from (a rotation renames it)
+        self.reset()
+
+    def reset(self):
+        self.events = []     # events of the complete (newline-terminated) lines, in file order
+        self.pending = []    # events of an unterminated last line that already parses; re-read every time, never consumed
+        self.offset = 0      # bytes consumed: the end of the last complete line
+        self.size = -1       # the file size this state corresponds to (-1: nothing read yet)
+        self.mtime = self.ctime = 0
+        self.head = b""      # first bytes of the consumed prefix
+        self.tail = b""      # last bytes of the consumed prefix
+        self.ordered = True  # the seq of ``events`` never goes down, so no sort is needed
+        self.first = self.last = None  # seq of the first and of the last event
+
+
+def clear_read_cache():
+    """Forget every cached events file (tests, and a reader that wants a cold start)."""
+    with _SEGMENTS_LOCK:
+        _SEGMENTS.clear()
+
+
+def read_cache_info():
+    """How many files and parsed events the incremental reader holds right now."""
+    with _SEGMENTS_LOCK:
+        return {"files": len(_SEGMENTS), "events": sum(len(seg.events) for seg in _SEGMENTS.values())}
+
+
+def _share(obj, interner):
+    """The same event with its keys (and those of its payload) and its short string values shared through ``interner``.
+
+    ``json.loads`` makes new strings for every line; sharing them takes a parsed event from ~2.4 KB to ~0.95 KB."""
+    share = interner.setdefault
+    return {share(key, key): (share(value, value) if type(value) is str and len(value) <= 40 else
+                              {share(k, k): v for k, v in value.items()} if type(value) is dict else value)
+            for key, value in obj.items()}
+
+
+def _parse_lines(text, interner, out):
+    """Append to ``out`` the dashboard events among the lines of ``text`` (torn lines and foreign records are skipped)."""
+    if "\r" in text:  # the old line-by-line text reader translated \r and \r\n to \n
+        text = text.replace("\r\n", "\n").replace("\r", "\n")
+    for raw in text.split("\n"):
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            obj = json.loads(raw)
+        except ValueError:
+            continue
+        if isinstance(obj, dict) and obj.get("schema") == SCHEMA and _is_int(obj.get("seq")):
+            if len(interner) > _INTERN_MAX:  # a stream of ever-new ids: start over rather than grow without bound
+                interner.clear()
+            out.append(_share(obj, interner))
+
+
+def _scan(fh, start, end):
+    """Parse the bytes ``[start, end)`` of an open file.
+
+    Returns (events of the complete lines, consumed end offset, consumed head/tail fingerprint pieces, events of the unterminated
+    tail). Nothing is stored here, so a failure half way leaves the cached state untouched."""
+    fh.seek(start)
+    events, interner, pos, carry = [], {}, start, b""
+    consumed_end, head, tail = start, b"", b""
+    while pos < end:
+        block = fh.read(min(_BLOCK_BYTES, end - pos))
+        if not block:  # the file shrank under us: take what is there, the next read sorts it out
+            end = pos
+            break
+        pos += len(block)
+        data = carry + block if carry else block
+        cut = data.rfind(b"\n")
+        if cut < 0:
+            carry = data
+            continue
+        complete, carry = data[:cut + 1], data[cut + 1:]
+        _parse_lines(complete.decode("utf-8", "replace"), interner, events)
+        consumed_end += len(complete)
+        if len(head) < _SIGNATURE_BYTES:
+            head = (head + complete)[:_SIGNATURE_BYTES]
+        tail = (tail + complete[-_SIGNATURE_BYTES:])[-_SIGNATURE_BYTES:]
+    pending = []
+    if carry:
+        _parse_lines(carry.decode("utf-8", "replace"), interner, pending)
+    return events, consumed_end, head, tail, pending, end
+
+
+def _same_prefix(fh, seg):
+    """True when the bytes already consumed are still the ones in the file (compared at both ends)."""
+    try:
+        for want, at in ((seg.head, 0), (seg.tail, seg.offset - len(seg.tail))):
+            if want:
+                fh.seek(at)
+                if fh.read(len(want)) != want:
+                    return False
+    except (OSError, ValueError):
+        return False
+    return True
+
+
+def _refresh(seg, fh, st):
+    """Bring ``seg`` up to date with the open file whose ``fstat`` is ``st``; parse only what was appended when that is provable."""
+    size = st.st_size
+    unchanged = size == seg.size and st.st_mtime_ns == seg.mtime and st.st_ctime_ns == seg.ctime
+    if unchanged:
+        recent = time.time() - st.st_mtime_ns / 1e9 < _RACY_SECONDS
+        if not recent or _same_prefix(fh, seg):
+            return
+        seg.reset()
+    elif seg.size < 0 or size < seg.offset or (size == seg.size) or not _same_prefix(fh, seg):
+        # first read, truncated, rewritten in place at the same size, or a different file under a reused inode
+        seg.reset()
+    events, offset, head, tail, pending, end = _scan(fh, seg.offset, size)
+    seg.events.extend(events)
+    seg.ordered, seg.first, seg.last = _ordering(events, seg.ordered, seg.first, seg.last)
+    seg.pending = pending
+    seg.offset = offset
+    seg.head = seg.head if len(seg.head) >= _SIGNATURE_BYTES else (seg.head + head)[:_SIGNATURE_BYTES]
+    seg.tail = (seg.tail + tail)[-_SIGNATURE_BYTES:]
+    seg.size, seg.mtime, seg.ctime = end, st.st_mtime_ns, st.st_ctime_ns
+
+
+def _ordering(events, ordered, first, last):
+    """(ordered, first seq, last seq) after ``events`` follow the ones already seen."""
+    for event in events:
+        seq = event["seq"]
+        if last is not None and seq < last:
+            ordered = False
+        if first is None:
+            first = seq
+        last = seq
+    return ordered, first, last
+
+
+def _evict():
+    with _SEGMENTS_LOCK:
+        total = sum(len(seg.events) for seg in _SEGMENTS.values())
+        while _SEGMENTS and (len(_SEGMENTS) > READ_CACHE_MAX_FILES or total > READ_CACHE_MAX_EVENTS):
+            _, seg = _SEGMENTS.popitem(last=False)
+            total -= len(seg.events)
+
+
+def _forget_gone(directory, seen):
+    """Drop the cached files of ``directory`` that are no longer in it (a rotated-out or deleted segment keeps its inode key)."""
+    with _SEGMENTS_LOCK:
+        for key, seg in list(_SEGMENTS.items()):
+            if key not in seen and os.path.dirname(seg.path) == directory:
+                del _SEGMENTS[key]
+
+
+def _read_file_events(path):
+    """(events, ordered by seq, first seq, last seq, cache key) of one file: cached and refreshed incrementally."""
+    try:
+        fh = open(path, "rb")
+    except OSError:
+        return [], True, None, None, None
+    with fh:
+        st = os.fstat(fh.fileno())
+        key = (st.st_dev, st.st_ino)
+        if not st.st_ino:  # no usable file identity: nothing to key a cache on
+            seg = _Segment()
+        else:
+            with _SEGMENTS_LOCK:
+                seg = _SEGMENTS.get(key)
+                if seg is None:
+                    seg = _SEGMENTS[key] = _Segment()
+                else:
+                    _SEGMENTS.move_to_end(key)
+        try:
+            with seg.lock:
+                seg.path = path
+                _refresh(seg, fh, st)
+                found = seg.events + seg.pending
+                ordered, first, last = _ordering(seg.pending, seg.ordered, seg.first, seg.last)
+        except OSError:
+            return [], True, None, None, None
+    _evict()
+    return found, ordered, first, last, key if st.st_ino else None
+
+
 def read_live_events(run_dir):
     """Every ``dashboard-event/v1`` line of the run (rotated files first), ordered by ``seq``.
-    Torn lines and foreign records (older progress events) are skipped."""
-    events = []
+    Torn lines and foreign records (older progress events) are skipped.
+
+    Incremental: a file read before is not parsed again, only the bytes appended to it (see the notes above). The list is new on
+    every call; the events in it are shared with the cache and must not be mutated."""
+    events, ordered, last, seen = [], True, None, set()
     for path in _event_files(run_dir):
-        try:
-            with open(path, encoding="utf-8", errors="replace") as fh:
-                for raw in fh:
-                    raw = raw.strip()
-                    if not raw:
-                        continue
-                    try:
-                        obj = json.loads(raw)
-                    except ValueError:
-                        continue
-                    if isinstance(obj, dict) and obj.get("schema") == SCHEMA and _is_int(obj.get("seq")):
-                        events.append(obj)
-        except OSError:
+        found, in_order, first, end, key = _read_file_events(path)
+        seen.add(key)
+        if not found:
             continue
-    events.sort(key=lambda e: e["seq"])
+        if not in_order or (last is not None and first < last):
+            ordered = False
+        last = end
+        if events:
+            events.extend(found)
+        else:
+            events = found
+    _forget_gone(os.path.dirname(os.path.join(os.fspath(run_dir), EVENTS_FILE)), seen)
+    if not ordered:  # the usual case (one file, or rotated files that follow one another) needs no sort
+        events.sort(key=_seq_of)
     return events
+
+
+def _seq_of(event):
+    return event["seq"]
 
 
 def _load_json(path):
@@ -823,6 +1037,113 @@ def _receipt_event(run_dir, name, step):
     return event
 
 
+PROVIDER_RECEIPT_SCHEMA = "simplicio.provider-worker-receipt/v1"
+# Measured provider usage a receipt may carry besides the input/output counts. Absent keys are not written.
+PROVIDER_OPTIONAL_USAGE = ("cached_tokens", "cache_write_tokens", "reasoning_tokens", "cost")
+
+
+def _usage_block(record):
+    """The measured usage of one run record: the execution-route ``token_usage`` block, or a provider receipt's counts."""
+    if not isinstance(record, dict):
+        return None
+    if isinstance(record.get("token_usage"), dict):
+        return record["token_usage"]
+    if record.get("schema") == PROVIDER_RECEIPT_SCHEMA and record.get("usage_status") == "measured":
+        return {k: record.get(k) for k in ("input_tokens", "output_tokens", *PROVIDER_OPTIONAL_USAGE)}
+    return None
+
+
+def _provider_attribution(run_dir, record):
+    """What a provider receipt records about its call, as spec fields and payload keys; nothing the run did not write.
+
+    ``iteration`` is the receipt's attempt number (the runner's repair loop of the task), ``requests`` its provider call
+    count (one HTTP call per dispatch) and ``source`` marks the counts as the provider's own report. The receipt has no task
+    or route, so those come from the sibling ``execution-route-<task_index>.json`` of the same task.
+    """
+    spec = {}
+    payload = {"source": "provider"}
+    calls, attempt = record.get("provider_call_count"), record.get("attempt")
+    if _is_int(calls) and calls >= 1:
+        payload["requests"] = calls
+    if _is_int(attempt) and attempt >= 0:
+        spec["iteration"] = attempt
+    index = record.get("task_index")
+    if _is_int(index):
+        route = _load_json(os.path.join(run_dir, "execution-route-%d.json" % index))
+        if isinstance(route, dict):
+            for field, key in (("task_id", "task_id"), ("lane", "route")):
+                if isinstance(route.get(key), str) and route[key]:
+                    spec[field] = route[key]
+    return spec, payload
+
+
+def token_usage_specs(run_dir, only=None):
+    """``token_usage`` specs from the run's ``execution-route*.json`` and ``provider-worker-*.json`` records.
+
+    Only counts the run recorded become events: integer input/output tokens, and optionally the provider's cached,
+    cache-write and reasoning tokens and its reported cost. A record with null counts (route decided before any
+    provider call) or without measured usage yields nothing: counts are never invented. Every spec carries the phase
+    the run's ``state.json`` names, and a provider receipt also carries its task, lane, attempt and call count.
+    """
+    run_dir = os.fspath(run_dir)
+    try:
+        names = sorted(n for n in os.listdir(run_dir)
+                       if (n.startswith("execution-route") or n.startswith("provider-worker-")) and n.endswith(".json")
+                       and (only is None or n == only))
+    except OSError:
+        return []
+    state = _load_json(os.path.join(run_dir, "state.json"))
+    phase = state.get("phase") if isinstance(state, dict) and isinstance(state.get("phase"), str) else None
+    specs = []
+    for name in names:
+        path = os.path.join(run_dir, name)
+        record = _load_json(path)
+        usage = _usage_block(record)
+        if not isinstance(usage, dict):
+            continue
+        counts = {k: usage.get(k) for k in ("input_tokens", "output_tokens")}
+        if not all(_is_int(v) and v >= 0 for v in counts.values()):
+            continue
+        payload = dict(counts)
+        for key in PROVIDER_OPTIONAL_USAGE:
+            value = usage.get(key)
+            if key == "cost" and isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0:
+                payload[key] = value
+            elif key != "cost" and _is_int(value) and value >= 0:
+                payload[key] = value
+        for key in ("model",):
+            if isinstance(record.get(key), str) and record[key]:
+                payload[key] = record[key]
+        if isinstance(usage.get("reason"), str):
+            payload["reason"] = usage["reason"]
+        spec = {"kind": "token_usage", "source": "runner", "payload": payload, "refs": [path]}
+        if record.get("schema") == PROVIDER_RECEIPT_SCHEMA:
+            extra, provider_payload = _provider_attribution(run_dir, record)
+            spec.update(extra)
+            payload.update(provider_payload)
+        if phase:
+            spec["phase"] = phase
+        if isinstance(record.get("task_id"), str) and record["task_id"]:
+            spec["task_id"] = record["task_id"]
+        if isinstance(record.get("route"), str) and record["route"]:
+            spec["lane"] = record["route"]
+        try:
+            spec["ts"] = format_ts(os.path.getmtime(path))
+        except OSError:
+            pass
+        specs.append(spec)
+    return specs
+
+
+def emit_token_usage(run_dir, only=None):
+    """Emit recorded token usage (one route file when ``only`` is set) to the live stream, fail-open."""
+    try:
+        specs = token_usage_specs(run_dir, only=only)
+        return emit_batch(run_dir, specs) if specs else []
+    except Exception:  # telemetry never blocks the loop
+        return []
+
+
 def derive_events(run_dir):
     """Rebuild a run's stream from ``transitions.jsonl`` + ``state.json`` events + receipts.
 
@@ -855,6 +1176,7 @@ def derive_events(run_dir):
             event = _receipt_event(run_dir, name, step)
             if event:
                 specs.extend(specs_from_runner_event(event, state, run_dir=run_dir))
+    specs.extend(token_usage_specs(run_dir))
     ordered = []
     for index, spec in enumerate(specs):
         stamp = parse_ts(spec.get("ts")) if spec.get("ts") else None

@@ -28,7 +28,7 @@
 | Gates | focused test / doctor / `git diff --check` | Full-repo fmt/test for residual noise |
 | Review | 0–1 self-check on small diffs | 3-reviewer panels per metadata PR |
 | Claims | `MEASURED\|` / `UNVERIFIED\|` | Invent open=0, timings, savings |
-| Exit | real AC + PR/`Closes #N` when required | Theater stubs / false promise |
+| Exit | real AC + PR/`Parte de #N` when required | Theater stubs / false promise |
 
 **Cadence every message:** end with exactly one of
 `DONE | NEXT(<one step>) | BLOCKED(<code>)`.
@@ -93,7 +93,7 @@ Prism routing (Loop): **1–3 tasks → direct parallelism**; **>3 → Prism**. 
    fix the plan once from the reported reason and excerpt and run the same `apply` command again.
 5. Smallest gate proving AC.
 6. Drain waves: `python3 scripts/arm_drain_prism.py --repo . --slots 0 --batch-size N --json`
-7. Claim → implement → PR `Closes #N` → merge → **reconcile** → next wave
+7. Claim → implement → PR `Parte de #N` → merge → **reconcile** → next wave (the issue is closed by hand, after a comment with the evidence: a closing word in a PR closes it on merge, even a quoted one)
 8. `simplicio.execution-report/v1` (never invent metrics)
 
 ---
@@ -118,7 +118,7 @@ Per-issue worker micro-prompt:
 ```text
 Issue #N only. STRICT. `simplicio-loop turbo` (request, then apply with your plan as the heredoc).
 Lease + worktree only. No hand-edit. Smallest gate for AC.
-Done = evidence (+ PR Closes #N when required). BLOCKED = one reason code.
+Done = evidence (+ PR Parte de #N when required). BLOCKED = one reason code.
 ```
 
 ---

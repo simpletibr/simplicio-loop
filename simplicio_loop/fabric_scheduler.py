@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, Iterable, List, Mapping, Optional
 
+from .error_truncation import truncate_error_with_cause
 
 FABRIC_SCHEMA = "simplicio.fabric-scheduler/v1"
 JOURNAL_SCHEMA = "simplicio.fabric-transition/v1"
@@ -345,7 +346,7 @@ class AsyncFabricScheduler:
         except Exception as exc:
             self._states[job.job_id] = "failed"
             self.journal.append(
-                job.job_id, "failed", reason=type(exc).__name__, message=str(exc)[:500]
+                job.job_id, "failed", reason=type(exc).__name__, message=truncate_error_with_cause(str(exc))
             )
             if not item.future.done():
                 item.future.set_exception(exc)

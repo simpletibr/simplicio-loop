@@ -1,0 +1,142 @@
+/* Extras panel: one bordered row per signal. The state word carries the meaning; the border colour only repeats it. */
+.extras-list {
+  display: grid;
+  gap: var(--sl-space-2);
+  margin: 0;
+}
+.extras-list > div {
+  display: grid;
+  gap: var(--sl-space-1);
+  padding: var(--sl-space-2);
+  border: 1px solid var(--sl-line-soft);
+  border-inline-start: 4px solid var(--sl-line);
+  border-radius: var(--sl-radius-plate);
+  background: var(--sl-raised);
+}
+.extras-list > div[data-state="PASS"] { border-inline-start-color: var(--sl-state-pass); }
+.extras-list > div[data-state="UNVERIFIED"] { border-inline-start-color: var(--sl-state-unverified); }
+.extras-list > div[data-state="ESTIMADO"] { border-inline-start-color: var(--sl-state-estimated); }
+.extras-list dt {
+  font-size: var(--sl-step--1);
+  font-weight: var(--sl-weight-strong);
+  color: var(--sl-ink);
+}
+.extras-list dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sl-space-2);
+  margin: 0;
+  font-size: var(--sl-step--1);
+  color: var(--sl-ink-muted);
+  overflow-wrap: anywhere;
+}
+.extras-state {
+  font-family: var(--sl-font-mono);
+  font-weight: var(--sl-weight-strong);
+}
+.extras-list > div[data-state="PASS"] .extras-state { color: var(--sl-state-pass); }
+.extras-list > div[data-state="UNVERIFIED"] .extras-state { color: var(--sl-state-unverified); }
+.extras-list > div[data-state="ESTIMADO"] .extras-state { color: var(--sl-state-estimated); }
+
+/* Breakdown widgets (issue #1550): a stacked bar of segments whose width is set through the CSSOM, and its legend. */
+.extras-bar {
+  display: flex;
+  flex: 1 1 100%;
+  block-size: var(--sl-space-3);
+  overflow: hidden;
+  border-radius: var(--sl-radius-plate);
+  background: var(--sl-line-soft);
+}
+.extras-seg {
+  display: block;
+  flex: 0 0 auto;
+  block-size: 100%;
+  border-inline-end: 1px solid var(--sl-raised);
+}
+.extras-seg-0 { background: var(--sl-state-running); }
+.extras-seg-1 { background: var(--sl-state-pass); }
+.extras-seg-2 { background: var(--sl-state-estimated); }
+.extras-seg-3 { background: var(--sl-state-stalled); }
+.extras-seg-4 { background: var(--sl-state-blocked); }
+.extras-seg-5 { background: var(--sl-state-pending); }
+.extras-legend {
+  flex: 1 1 100%;
+  margin: 0;
+  padding-inline-start: var(--sl-space-3);
+}
+
+/* Cost widgets (issues #1404 and #1550, loaded on demand with cost-widgets.js): the origin of the tokens and the USD, and the cost per task and per iteration.
+   One column at every width, so long model and task ids wrap instead of pushing the page sideways. */
+.cost-widgets { display: grid; gap: var(--sl-space-4); margin-block-start: var(--sl-space-4); }
+.cost-widgets > * { min-inline-size: 0; }
+.cost-block h3 { margin: 0; font-size: var(--sl-step-0); font-weight: var(--sl-weight-strong); }
+.cost-block .note { margin-block-start: var(--sl-space-1); }
+html[data-tv="1"] .cost-block h3 { font-size: var(--sl-step-1); }
+.cost-block li, .cost-block sl-gate-badge, .agent-map li, .agent-map sl-gate-badge { min-inline-size: 0; max-inline-size: 100%; overflow-wrap: anywhere; }
+/* Langfuse widget (issue #1610): displays integration state, trace link, and comparison gates. */
+.lf-panel {
+  display: grid;
+  gap: var(--sl-space-2);
+  padding: var(--sl-space-3);
+  border: 1px solid var(--sl-line);
+  border-radius: var(--sl-radius-plate);
+  background: var(--sl-raised);
+}
+.lf-chip {
+  display: inline-block;
+  padding: var(--sl-space-1) var(--sl-space-2);
+  border-radius: var(--sl-radius-pill);
+  font-weight: var(--sl-weight-strong);
+  font-size: var(--sl-step--1);
+}
+.lf-chip[data-state="off"] { color: var(--sl-ink-muted); }
+.lf-chip[data-state="ok"] { color: var(--sl-state-pass); border: 1px solid var(--sl-state-pass); }
+.lf-chip[data-state="sending"] { color: var(--sl-state-running); border: 1px solid var(--sl-state-running); }
+.lf-chip[data-state="late"] { color: var(--sl-state-unverified); border: 1px solid var(--sl-state-unverified); }
+.lf-chip[data-state="error"] { color: var(--sl-state-fail); border: 1px solid var(--sl-state-fail); }
+.lf-queue { margin: 0; font-size: var(--sl-step--1); }
+.lf-link {
+  display: inline-block;
+  color: var(--sl-ink);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+.lf-notice { margin: 0; font-size: var(--sl-step--1); color: var(--sl-ink); }
+.lf-warn {
+  margin: 0;
+  font-size: var(--sl-step--1);
+  color: var(--sl-state-fail);
+}
+.lf-gates {
+  margin: 0;
+  padding-inline-start: var(--sl-space-3);
+  list-style: disc;
+}
+.lf-gates li {
+  font-size: var(--sl-step--1);
+  overflow-wrap: anywhere;
+}
+.lf-gates li[data-state="DIVERGE"] { color: var(--sl-state-fail); }
+.lf-gates li[data-state="PASS"] { color: var(--sl-state-pass); }
+.lf-tokens {
+  margin: 0;
+  font-size: var(--sl-step--1);
+  font-family: var(--sl-font-mono);
+}
+.lf-tokens[data-state="DIVERGE"] { color: var(--sl-state-fail); }
+.lf-tokens[data-state="PASS"] { color: var(--sl-state-pass); }
+.lf-cost {
+  margin: 0;
+  font-size: var(--sl-step--1);
+}
+.lf-cost[data-state="UNVERIFIED"] { color: var(--sl-state-unverified); }
+.lf-reason {
+  margin-block-start: var(--sl-space-1);
+  font-size: var(--sl-step--1);
+  color: var(--sl-ink-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Agent map (issue #1550, loaded on demand with agent-map.js): instances, slots and leases of the run. The slots bar reuses the stacked-bar segment. */
+.agent-map .note { margin-block: var(--sl-space-1); }
+.agent-map .extras-bar { margin-block-start: var(--sl-space-2); }

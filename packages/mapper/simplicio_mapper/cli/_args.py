@@ -14,12 +14,8 @@ from ._shared import (
     HELP_TEXT,
 )
 
-_DEFAULT_TOON_ENABLED = os.environ.get("SIMPLICIO_TOON", "1").strip().lower() not in {
-    "0",
-    "false",
-    "off",
-    "no",
-}
+def _default_toon_enabled() -> bool:
+    return os.environ.get("SIMPLICIO_TOON", "1").strip().lower() not in {"0", "false", "off", "no"}
 
 
 def _read_json_safe(file: str) -> dict:
@@ -417,7 +413,7 @@ def _parse_args(argv: Sequence[str]) -> dict:
             sys.exit(2)
         i += 1
     if (
-        _DEFAULT_TOON_ENABLED
+        _default_toon_enabled()
         and not opts["json"]
         and not opts["for_llm"]
         and command in DEFAULT_TOON_COMMANDS

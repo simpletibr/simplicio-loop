@@ -13,12 +13,12 @@ from tests._contract_only_hookwall import ContractOnlyHookwallLedger
 
 @pytest.fixture(autouse=True)
 def _contract_only_hookwall(monkeypatch):
-    monkeypatch.setattr(
-        runner,
-        "_hookwall_ledger",
+    patch_runner(monkeypatch, "_hookwall_ledger",
         lambda *_args, **_kwargs: ContractOnlyHookwallLedger(),
     )
 from simplicio_loop.hookwall_gate import HookwallBlocked, gate_completion
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 
 def _request(tmp_path):
@@ -81,7 +81,7 @@ def test_blocked_operator_with_explicit_no_mutation_proof_reconciles_mapper_effe
     tmp_path, monkeypatch
 ):
     ledger = _RecordingHookwall()
-    monkeypatch.setattr(runner, "_hookwall_ledger", lambda *_args, **_kwargs: ledger)
+    patch_runner(monkeypatch, "_hookwall_ledger", lambda *_args, **_kwargs: ledger)
     monkeypatch.setenv(
         "SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON",
         json.dumps({
@@ -117,7 +117,7 @@ def test_blocked_operator_with_explicit_no_mutation_proof_reconciles_mapper_effe
 
 def test_ambiguous_failed_operator_keeps_mapper_effect_unknown(tmp_path, monkeypatch):
     ledger = _RecordingHookwall()
-    monkeypatch.setattr(runner, "_hookwall_ledger", lambda *_args, **_kwargs: ledger)
+    patch_runner(monkeypatch, "_hookwall_ledger", lambda *_args, **_kwargs: ledger)
     monkeypatch.setenv(
         "SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON",
         json.dumps({
@@ -148,7 +148,7 @@ def test_ambiguous_failed_operator_keeps_mapper_effect_unknown(tmp_path, monkeyp
 
 def test_operator_timeout_is_uncertain_and_is_not_reconciled(tmp_path, monkeypatch):
     ledger = _RecordingHookwall()
-    monkeypatch.setattr(runner, "_hookwall_ledger", lambda *_args, **_kwargs: ledger)
+    patch_runner(monkeypatch, "_hookwall_ledger", lambda *_args, **_kwargs: ledger)
     monkeypatch.delenv("SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON", raising=False)
 
     def timeout(*_args, **_kwargs):
@@ -172,16 +172,12 @@ def test_operator_timeout_is_uncertain_and_is_not_reconciled(tmp_path, monkeypat
 
 def test_hookwall_pre_blocks_before_any_operator_effect(tmp_path, monkeypatch):
     called = []
-    monkeypatch.setattr(
-        runner,
-        "validate_pre_decision",
+    patch_runner(monkeypatch, "validate_pre_decision",
         lambda *args, **kwargs: (_ for _ in ()).throw(
             HookwallBlocked("hookwall_pre_blocked", "policy denied")
         ),
     )
-    monkeypatch.setattr(
-        runner,
-        "_execute_operator_effect_unchecked",
+    patch_runner(monkeypatch, "_execute_operator_effect_unchecked",
         lambda **kwargs: called.append(kwargs),
     )
     with pytest.raises(HookwallBlocked, match="hookwall_pre_blocked"):

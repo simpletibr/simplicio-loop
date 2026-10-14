@@ -1,0 +1,16 @@
+{
+  "schema": "simplicio.agent-handoff/v1",
+  "run_id": "run-1",
+  "task_id": "T-1",
+  "continuation": 1,
+  "reason": "manual",
+  "agent": {"family": "claude", "role": "execution", "model": "claude-haiku-5-5"},
+  "objective": "Defect: an absolute file path.",
+  "acceptance_criteria": ["x"],
+  "done": {"files": [{"path": "/etc/passwd", "sha256": "59830ebc3a4184110566bf1a290d08473dfdcbd492ce498b14cd1a5e2fa2e441"}], "commands": []},
+  "next_steps": ["x"],
+  "open_questions": [],
+  "tokens": {"basis": "MEASURED", "estimator": null, "prompt_tokens": 3, "input_tokens": 1, "cache_read_input_tokens": 1, "cache_creation_input_tokens": 1, "output_tokens": null, "ceiling": 98000, "cumulative_prompt_tokens": 3},
+  "lease": {"key": "k", "owner": "o"},
+  "created_at": "2026-10-09T16:10:00Z"
+}

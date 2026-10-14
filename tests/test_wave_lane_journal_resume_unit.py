@@ -13,6 +13,7 @@ import subprocess
 from pathlib import Path
 
 from simplicio_loop import runner as runner_mod
+from tests.runner_patch import patch_runner
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -70,7 +71,7 @@ def test_a_fresh_wave_run_writes_succeeded_records_to_operator_batch_jsonl(tmp_p
     repo = _init_repo(tmp_path)
     run_id = "wave-run-journal"
     run_dir = _seed_run_dir(repo, run_id)
-    monkeypatch.setattr(runner_mod, "_run_operator_item_process", _make_fake_dispatch())
+    patch_runner(monkeypatch, "_run_operator_item_process", _make_fake_dispatch())
 
     result = runner_mod._wave_worktree_dispatch(
         repo_path=repo, run_id=run_id, run_dir=run_dir,
@@ -115,7 +116,7 @@ def test_resume_with_prior_success_defers_to_serial_path_and_never_redispatches_
         calls.append(int(item["task_index"]))
         raise AssertionError("a durably-succeeded task must never be redispatched by the wave path")
 
-    monkeypatch.setattr(runner_mod, "_run_operator_item_process", spy)
+    patch_runner(monkeypatch, "_run_operator_item_process", spy)
 
     result = runner_mod._wave_worktree_dispatch(
         repo_path=repo, run_id=run_id, run_dir=run_dir,

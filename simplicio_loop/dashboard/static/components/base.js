@@ -7,6 +7,7 @@ export const STATES = Object.freeze({
   PASS: "Aprovado",
   FAIL: "Falhou",
   UNVERIFIED: "Não verificado",
+  ESTIMADO: "Estimado",
   STALLED: "Parado",
   BLOCKED: "Bloqueado",
   PENDING: "Aguardando",
@@ -24,6 +25,7 @@ const SHAPES = {
   PASS: '<path d="M3.8 8.4l2.7 2.7 5.7-5.9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
   FAIL: '<path d="M4.8 4.8l6.4 6.4m0-6.4-6.4 6.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
   UNVERIFIED: '<path d="M8 3.2 12.8 8 8 12.8 3.2 8z" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+  ESTIMADO: '<path d="M8 3.2 12.8 8 8 12.8 3.2 8z" fill="currentColor" fill-opacity="0.35" stroke="currentColor" stroke-width="1.8"/>',
   STALLED: '<path d="M5.6 4.4v7.2m4.8-7.2v7.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
   BLOCKED: '<circle cx="8" cy="8" r="4.7" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m4.7 11.3 6.6-6.6" stroke="currentColor" stroke-width="1.8"/>',
   PENDING: '<circle cx="8" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/>',
@@ -83,6 +85,7 @@ export const BASE_CSS = `
 [data-state="PASS"] { --sl-c: var(--sl-state-pass); }
 [data-state="FAIL"] { --sl-c: var(--sl-state-fail); }
 [data-state="UNVERIFIED"] { --sl-c: var(--sl-state-unverified); }
+[data-state="ESTIMADO"] { --sl-c: var(--sl-state-estimated); }
 [data-state="STALLED"] { --sl-c: var(--sl-state-stalled); }
 [data-state="BLOCKED"] { --sl-c: var(--sl-state-blocked); }
 [data-state="PENDING"] { --sl-c: var(--sl-state-pending); }

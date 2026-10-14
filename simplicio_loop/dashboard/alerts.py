@@ -1,0 +1,259 @@
+'''Alert rules the dashboard server evaluates over one run's event stream (issue #1406, slice 1406b).
+
+AlertWatch applies new events and the clock, then reports the alerts it raised and the ids it cleared since the last
+update. One id is raised once while it stays active, so repeated updates never duplicate an alert. The rules mirror the
+page reducer: a stall lasts until a different phase starts, a gate is failing while its latest verdict is fail, a silent
+phase is one with no event for SILENCE_MS, and the oracle is unverified once the run is done, its receipt is ready and
+the oracle gave no verdict. The receipt is read only when the run is done. Four more rules: an expired lease (read
+through the `leases` callable), the same stall fingerprint STALL_REPEATS times, a gate that fails again after a pass,
+and a decision that waits longer than DECISION_WAIT_MS.
+'''
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Any, Callable, Iterable
+
+from simplicio_loop.dashboard import budget as budget_mod
+
+SILENCE_MS = 5 * 60 * 1000
+DECISION_WAIT_MS = 15 * 60 * 1000
+STALL_REPEATS = 3
+SCHEMA = 'simplicio.dashboard-event/v1'
+SEVERITY_ORDER = {'critical': 0, 'warning': 1}
+NO_REASON = 'sem motivo registrado'
+ORACLE_VERDICTS = ('pass', 'fail', 'blocked')
+
+
+def _to_ms(ts: Any) -> int | None:
+    if not isinstance(ts, str):
+        return None
+    for layout in ('%Y-%m-%dT%H:%M:%S.%fZ', '%Y-%m-%dT%H:%M:%SZ'):
+        try:
+            parsed = datetime.strptime(ts, layout)
+        except ValueError:
+            continue
+        return int(parsed.replace(tzinfo=timezone.utc).timestamp() * 1000)
+    return None
+
+
+def _streak(payload: dict[str, Any]) -> int:
+    try:
+        value = int(payload.get('streak'))
+    except (TypeError, ValueError):
+        return 1
+    return value or 1
+
+
+def _alert(alert_id: str, rule: str, severity: str, heading: str, why: str, ref: dict[str, Any] | None,
+           proof_kind: str = 'medido') -> dict[str, Any]:
+    return {'id': alert_id, 'rule': rule, 'severity': severity, 'heading': heading, 'why': why, 'ref': ref,
+            'proof_kind': proof_kind}
+
+
+class AlertWatch:
+    '''The alerts active for one event stream. Feed it events in order with update().'''
+
+    def __init__(self, silence_ms: int = SILENCE_MS, budget: dict[str, Any] | None = None, *,
+                 phase_silence_ms: dict[str, int] | None = None, stall_repeats: int = STALL_REPEATS,
+                 decision_wait_ms: int = DECISION_WAIT_MS,
+                 leases: Callable[[], list[dict[str, Any]]] | None = None,
+                 prices: dict[str, Any] | None = None, ceiling: int | None = None,
+                 ceiling_error: str | None = None) -> None:
+        self.silence_ms = silence_ms
+        self.ceiling = ceiling
+        self.ceiling_error = ceiling_error
+        self.models: set[str] = set()
+        self.over_tier: int | None = None
+        self.phase_silence_ms = phase_silence_ms or {}
+        self.stall_repeats = stall_repeats
+        self.decision_wait_ms = decision_wait_ms
+        self.leases = leases
+        self.fingerprints: dict[str, int] = {}
+        self.refailed: set[str] = set()
+        self.failed_once: set[str] = set()
+        self.fixed: set[str] = set()
+        self.phase_since_ms: int | None = None
+        self.budget = budget or {}
+        self.used: dict[str, float | None] = {'tokens': None, 'usd': None, 'seconds': None}
+        self.prices = prices
+        self.priced_usd = 0.0
+        self.priced_seen = False
+        self.usd_unpriced = False
+        self.first_ms: int | None = None
+        self.last_seq = 0
+        self.phase: str | None = None
+        self.stall: dict[str, Any] | None = None
+        self.gates: dict[str, tuple[str, str]] = {}
+        self.last_ms: int | None = None
+        self.active: dict[str, dict[str, Any]] = {}
+
+    def update(self, events: Iterable[dict[str, Any]], now_ms: int,
+               receipt_ready: Callable[[], bool] | None = None) -> tuple[list[dict[str, Any]], list[str]]:
+        '''Apply the events and the clock. Returns (alerts raised, ids cleared) since the previous update.'''
+        for event in events:
+            self._apply(event)
+        current = self._evaluate(now_ms, receipt_ready)
+        raised = [alert for alert_id, alert in current.items() if alert_id not in self.active]
+        cleared = [alert_id for alert_id in self.active if alert_id not in current]
+        self.active = current
+        return raised, cleared
+
+    def snapshot(self) -> list[dict[str, Any]]:
+        '''The alerts active now, critical first.'''
+        return list(self.active.values())
+
+    def _apply(self, event: Any) -> None:
+        if not isinstance(event, dict) or event.get('schema') != SCHEMA:
+            return
+        seq = event.get('seq')
+        if not isinstance(seq, int) or seq <= self.last_seq:
+            return
+        self.last_seq = seq
+        stamp = _to_ms(event.get('ts'))
+        if stamp is not None:
+            self.last_ms = stamp
+            if self.first_ms is None:
+                self.first_ms = stamp
+        payload = event.get('payload') if isinstance(event.get('payload'), dict) else {}
+        kind = event.get('kind')
+        phase = event.get('phase') if isinstance(event.get('phase'), str) else None
+        if kind in ('token_usage', 'cost_sample'):
+            seen = budget_mod.usage([event])
+            for key in ('tokens', 'usd'):
+                if seen[key] is not None:
+                    self.used[key] = (self.used[key] or 0) + seen[key]
+            if kind == 'token_usage' and seen['tokens']:
+                self.models.update(seen['by_model'])
+                self._price(event)
+        if kind == 'phase_entered' and phase:
+            if self.stall is not None and self.stall['phase'] != phase:
+                self.stall = None
+                self.fingerprints = {}
+            if phase != self.phase:
+                self.phase_since_ms = stamp
+            self.phase = phase
+        elif kind == 'stall_detected':
+            self.stall = {'phase': phase, 'streak': _streak(payload)}
+            fingerprint = payload.get('fingerprint') or payload.get('blocker')
+            if isinstance(fingerprint, str) and fingerprint:
+                self.fingerprints[fingerprint] = self.fingerprints.get(fingerprint, 0) + 1
+        elif kind == 'gate_evaluated' and isinstance(payload.get('gate'), str):
+            verdict = payload.get('verdict')
+            message = payload.get('message') if isinstance(payload.get('message'), str) else ''
+            gate = payload['gate']
+            verdict = verdict.lower() if isinstance(verdict, str) else ''
+            if verdict == 'pass' and gate in self.failed_once:
+                self.fixed.add(gate)
+                self.refailed.discard(gate)
+            elif verdict == 'fail':
+                if gate in self.fixed:
+                    self.refailed.add(gate)
+                self.failed_once.add(gate)
+            self.gates[gate] = (verdict, message)
+
+    def _price(self, event: dict[str, Any]) -> None:
+        '''USD of one token_usage event through the price table, the budget panel's own estimate path.'''
+        priced = budget_mod.cost_estimate([event], self.prices)
+        if priced['requests_over_tier'] is not None:
+            self.over_tier = (self.over_tier or 0) + priced['requests_over_tier']
+        if priced['usd'] is None:
+            self.usd_unpriced = True
+            return
+        self.priced_usd += priced['usd']
+        self.priced_seen = True
+
+    def _lease_alerts(self) -> list[dict[str, Any]]:
+        if self.leases is None:
+            return []
+        try:
+            rows = self.leases()
+        except Exception:  # noqa: BLE001 - an unreadable backlog never breaks the stream
+            return []
+        return [_alert('lease-expired:' + str(row['item']), 'lease-expired', 'critical', 'Lease expirada: ' + str(row['item']),
+                       'O worker %s parou de renovar o lease de %s; o item pode ser retomado.' % (row.get('worker'), row['item']),
+                       {'type': 'logs'})
+                for row in rows if isinstance(row, dict) and row.get('state') == 'expired' and row.get('item')]
+
+    def _budget_alerts(self) -> list[dict[str, Any]]:
+        found = []
+        if self.first_ms is not None and self.last_ms is not None:
+            self.used['seconds'] = (self.last_ms - self.first_ms) / 1000
+        used = dict(self.used)
+        if used['usd'] is None and self.priced_seen and not self.usd_unpriced:
+            used['usd'] = round(self.priced_usd, 6)
+        for key, label in (('tokens', 'tokens'), ('usd', 'USD'), ('seconds', 'segundos')):
+            row = budget_mod.project(self.budget.get(key), used[key], self.phase)
+            ref = {'type': 'logs'}
+            if row['state'] == 'EXCEEDED':
+                # USD is always priced from the table, so it is an estimate even when the run measured it.
+                proof_kind = 'estimado' if key == 'usd' else 'medido'
+                found.append(_alert('budget-exceeded:' + key, 'budget-exceeded', 'critical', 'Orçamento estourado: ' + label,
+                                    'Uso de %s passou do limite %s (%s).' % (row['used'], row['limit'], proof_kind), ref,
+                                    proof_kind=proof_kind))
+            elif row['state'] == 'PROJECTED_OVER':
+                found.append(_alert('budget-projected:' + key, 'budget-projected', 'warning', 'Projeção passa do orçamento: ' + label,
+                                    'Estimado: %s ao fim do run contra o limite %s (extrapolado pela fase).' % (row['projected'], row['limit']), ref,
+                                    proof_kind='estimado'))
+        return found
+
+    def _tier_alerts(self) -> list[dict[str, Any]]:
+        found = []
+        if self.ceiling_error:
+            found.append(_alert('ceiling-unreadable', 'ceiling-unreadable', 'warning', 'Teto de entrada ilegível',
+                                self.ceiling_error, {'type': 'logs'}))
+        if self.over_tier:
+            found.append(_alert('requests-over-tier', 'requests-over-tier', 'warning', 'Requisição acima do nível de preço',
+                                '%d requisição(ões) medida(s) com prompt acima do limiar do nível de preço (meta: 0).' % self.over_tier,
+                                {'type': 'logs'}))
+        table = self.prices.get('models') if isinstance(self.prices, dict) else None
+        if self.ceiling is None or not isinstance(table, dict):
+            return found
+        for model in sorted(self.models):
+            rate = budget_mod._rate(budget_mod.price_for(table, model))
+            if rate is None or rate['above'] is None or self.ceiling <= rate['above']:
+                continue
+            found.append(_alert('tier-crossable:' + model, 'tier-crossable', 'warning', 'Nível de preço pode ser atingido: ' + model,
+                                'O teto de entrada de %d tokens alcança o limiar de %d tokens do nível de preço de %s.' % (
+                                    self.ceiling, rate['above'], model), {'type': 'logs'}, proof_kind='estimado'))
+        return found
+
+    def _evaluate(self, now_ms: int, receipt_ready: Callable[[], bool] | None) -> dict[str, dict[str, Any]]:
+        found: list[dict[str, Any]] = []
+        if self.stall is not None:
+            found.append(_alert('run-stalled', 'run-stalled', 'critical', 'Run sem avanço',
+                                'O run está parado: %d sequência(s) de paradas detectadas pelo diário.' % self.stall['streak'],
+                                {'type': 'logs'}))
+        for gate, (verdict, message) in self.gates.items():
+            if verdict == 'fail':
+                found.append(_alert('gate-failing:' + gate, 'gate-failing', 'warning', 'Gate falhando: ' + gate,
+                                    message or NO_REASON, {'type': 'logs'}))
+        for gate in self.refailed:
+            if self.gates.get(gate, ('', ''))[0] == 'fail':
+                found.append(_alert('gate-refailed:' + gate, 'gate-refailed', 'warning', 'Gate falhou de novo após um fix: ' + gate,
+                                    'O gate voltou a falhar depois de ter passado.', {'type': 'logs'}))
+        for fingerprint, count in self.fingerprints.items():
+            if count >= self.stall_repeats:
+                found.append(_alert('stall-repeated:' + fingerprint, 'stall-repeated', 'critical', 'Mesma falha repetida',
+                                    'A falha %s se repetiu %d vezes na fase.' % (fingerprint, count), {'type': 'logs'}))
+        if (self.phase == 'awaiting_decision' and self.phase_since_ms is not None
+                and now_ms - self.phase_since_ms > self.decision_wait_ms):
+            found.append(_alert('decision-waiting', 'decision-waiting', 'warning', 'Decisão aguardando há %d min' % round(
+                (now_ms - self.phase_since_ms) / 60000), 'O run espera uma decisão humana há mais de %d min.' % round(
+                self.decision_wait_ms / 60000), {'type': 'logs'}))
+        found.extend(self._lease_alerts())
+        silence_ms = self.phase_silence_ms.get(self.phase or '', self.silence_ms)
+        if self.last_ms is not None and now_ms - self.last_ms > silence_ms:
+            minutes = round((now_ms - self.last_ms) / 60000)
+            label = self.phase or 'sem fase'
+            ref = {'type': 'phase', 'phase': self.phase} if self.phase else {'type': 'logs'}
+            found.append(_alert('phase-silent:' + label, 'phase-silent', 'warning',
+                                'Sem eventos há %d min' % minutes,
+                                'Nenhum evento do loop chegou desde a última atividade da fase ' + label + '.', ref))
+        oracle_verdict = self.gates.get('oracle', ('', ''))[0]
+        if self.phase == 'done' and oracle_verdict not in ORACLE_VERDICTS and receipt_ready is not None and receipt_ready():
+            found.append(_alert('oracle-unverified', 'oracle-unverified', 'warning', 'Oracle sem veredito',
+                                'o run terminou sem veredito do oracle', {'type': 'logs'}))
+        found.extend(self._budget_alerts())
+        found.extend(self._tier_alerts())
+        found.sort(key=lambda alert: SEVERITY_ORDER[alert['severity']])
+        return {alert['id']: alert for alert in found}

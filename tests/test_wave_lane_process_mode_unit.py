@@ -17,6 +17,7 @@ import subprocess
 from pathlib import Path
 
 from simplicio_loop import runner as runner_mod
+from tests.runner_patch import patch_runner
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -84,7 +85,7 @@ def test_default_dispatch_mode_runs_each_lane_task_in_a_real_child_process(tmp_p
     run_dir = _seed_run_dir(repo, run_id)
     pid_dir = tmp_path / "pids"
     pid_dir.mkdir()
-    monkeypatch.setattr(runner_mod, "_run_operator_item_process", _pid_probe_dispatch)
+    patch_runner(monkeypatch, "_run_operator_item_process", _pid_probe_dispatch)
 
     result = runner_mod._wave_worktree_dispatch(
         repo_path=repo, run_id=run_id, run_dir=run_dir,
@@ -121,7 +122,7 @@ def test_thread_dispatch_mode_runs_each_lane_task_in_the_coordinator_process(tmp
             "operator_receipt": "", "evidence_receipt": "",
         }]
 
-    monkeypatch.setattr(runner_mod, "_run_operator_item_process", probe)
+    patch_runner(monkeypatch, "_run_operator_item_process", probe)
 
     result = runner_mod._wave_worktree_dispatch(
         repo_path=repo, run_id=run_id, run_dir=run_dir,

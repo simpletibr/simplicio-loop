@@ -60,6 +60,23 @@ Plus the pre-existing size caps:
   gate; pre-existing oversized hero images are grandfathered in
   `scripts/repository_budget_baseline.json` but may not grow past `+25%` (AC: *"blob
   acima do limite bloqueia"*).
+- **Line budget (owner rule: no file above 9000 lines)** — `MAX_LINES = 9000` applies to
+  tracked TEXT files (valid UTF-8; binary blobs are exempt). A new text file over the cap
+  fails the gate. A file already over the cap is recorded in the baseline under
+  `known_long_files` and may only stay at its recorded size: growth fails, and so does a
+  shrink until `--update-baseline` records it (so a regrowth cannot slip back under a stale
+  record). A recorded file that is no longer a tracked text file also fails. Today nothing
+  is recorded: `runner.py` and `seeds.sql` are split, so no tracked text file is above the cap
+  and there is no exemption list.
+
+  **How to split a file without breaking imports** (done for `simplicio_loop/runner.py`, #1606).
+  Move whole top-level definitions and do not change them. Keep the old module as a facade that
+  re-exports the public names. Make the new modules a one-way chain, with no cycle and no lazy
+  import between them. Change a caller only to import a moved name from its new module. A test
+  that patches a moved name must patch it in every module that binds it
+  (`tests/runner_patch.py::patch_runner`), because a caller reads the name in its own module.
+  Prove the move with an AST comparison of the top-level definitions before and after. Then run
+  the tests that import the old module.
 - **Total tree budget** — growth over the committed baseline past `THRESHOLD_GROWTH = 0.25`
   fails the gate. Regenerate the baseline deliberately with
   `python3 scripts/repository_budget.py --update-baseline` (never to silence a

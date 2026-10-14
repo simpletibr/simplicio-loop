@@ -123,18 +123,7 @@ def recommend_operator_workers(cpu: Optional[int] = None) -> int:
     return max(2, n)
 
 
-def recommend_prism_slots(cpu: Optional[int] = None) -> int:
-    """Recommend a physical Prism worker width for this machine.
-
-    Policy:
-    - Start from logical CPU count (leave 1 core for OS + Runtime Tokio when
-      cpu >= 3; otherwise use all cores, floor 2).
-    - Cap by available RAM (~1.25 GiB per isolated Prism slot/worktree) when
-      measurable — never oversubscribe memory into thrash.
-    - No artificial 6/8 ceiling on large hosts.
-    - Env ``SIMPLICIO_PRISM_SLOTS`` is *not* read here; callers that want an
-      explicit override pass ``prism_slots=`` into ``economy_parallel_env``.
-    """
+def _prism_slots(cpu: Optional[int], tighten: bool) -> int:
     n = _cpu_count() if cpu is None else max(1, int(cpu))
     # Physical worker recommendation from CPU: leave one core free when possible.
     cpu_slots = max(2, n - 1) if n >= 3 else max(2, n)
@@ -147,12 +136,36 @@ def recommend_prism_slots(cpu: Optional[int] = None) -> int:
         ram_slots = max(2, int(capacity / 1.0))
         slots = min(cpu_slots, ram_slots)
         # Emergency tighten only if free RAM is critically low (avoid thrash)
-        if avail_gb is not None and float(avail_gb) < 2.5:
+        if tighten and avail_gb is not None and float(avail_gb) < 2.5:
             slots = max(2, min(slots, int(float(avail_gb) / 1.25)))
     else:
         slots = cpu_slots
 
     return max(2, int(slots))
+
+
+def recommend_prism_slots(cpu: Optional[int] = None) -> int:
+    """Recommend a physical Prism worker width for this machine.
+
+    Policy:
+    - Start from logical CPU count (leave 1 core for OS + Runtime Tokio when
+      cpu >= 3; otherwise use all cores, floor 2).
+    - Cap by available RAM (~1.25 GiB per isolated Prism slot/worktree) when
+      measurable — never oversubscribe memory into thrash.
+    - No artificial 6/8 ceiling on large hosts.
+    - Env ``SIMPLICIO_PRISM_SLOTS`` is *not* read here; callers that want an
+      explicit override pass ``prism_slots=`` into ``economy_parallel_env``.
+    """
+    return _prism_slots(cpu, tighten=True)
+
+
+def recommend_prism_slots_static(cpu: Optional[int] = None) -> int:
+    """The same recommendation without the emergency tightening by the RAM available right now.
+
+    It depends only on the logical CPUs and the total RAM, so it does not move while the host is busy: every value
+    ``recommend_prism_slots`` ever exports is at or below it.
+    """
+    return _prism_slots(cpu, tighten=False)
 
 
 def recommend_async_concurrency(cpu: Optional[int] = None) -> int:

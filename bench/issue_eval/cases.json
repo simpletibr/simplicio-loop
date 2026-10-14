@@ -1,0 +1,326 @@
+{
+  "schema": "simplicio.issue-eval/v1",
+  "description": "Fixed test cases for measuring PR success rate. Real resolved issues from simpletibr/simplicio-loop with base commits and diff stats.",
+  "cases": [
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1402,
+      "pr_number": 1460,
+      "issue_title": "feat(dashboard): último comando, contrato por tarefa e modelo por lane (#1402)",
+      "base_commit": "12fee1a^",
+      "verify_command": "python3 -m pytest -q tests/test_dashboard_lane_extras_unit.py tests/test_dashboard_server_integration.py tests/test_live_extras_unit.py tests/test_live_pipeline_page_unit.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 627,
+        "deletions": 2,
+        "total_lines": 629
+      },
+      "size": "medium",
+      "source": "issue"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1409,
+      "pr_number": 1459,
+      "issue_title": "fix(dashboard): axe regression on the queue panel, EN locale, README print (#1409)",
+      "base_commit": "4c87017^",
+      "verify_command": "python3 -m pytest -q tests/test_dashboard_static_integration.py tests/test_live_coordination_view_unit.py tests/test_live_i18n_e2e_system.py tests/test_live_i18n_unit.py tests/test_live_pipeline_page_unit.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 194,
+        "deletions": 13,
+        "total_lines": 207
+      },
+      "size": "small",
+      "source": "issue"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1407,
+      "pr_number": 1458,
+      "issue_title": "feat(dashboard): mapa de worktrees e vínculo issue/PR na coordenação (#1407)",
+      "base_commit": "861a05c^",
+      "verify_command": "python3 -m pytest -q tests/test_dashboard_coordination_drain_fixture.py tests/test_dashboard_coordination_unit.py tests/test_dashboard_coordination_worktrees_unit.py tests/test_live_coordination_unit.py tests/test_live_coordination_view_unit.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 1389,
+        "deletions": 20,
+        "total_lines": 1409
+      },
+      "size": "large",
+      "source": "issue"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1416,
+      "pr_number": 1457,
+      "issue_title": "feat(flow): per-run flow diagram + Langflow 1.12.0 render fix (#1416)",
+      "base_commit": "617bca4^",
+      "verify_command": "python3 -m pytest -q tests/test_flow_gen.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 205,
+        "deletions": 175,
+        "total_lines": 380
+      },
+      "size": "small",
+      "source": "issue"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1403,
+      "pr_number": 1456,
+      "issue_title": "feat(dashboard): testes instáveis por id e diff virtualizado (#1403)",
+      "base_commit": "62a0695^",
+      "verify_command": "python3 -m pytest -q tests/test_live_components_unit.py tests/test_live_diff_virtualization_e2e_system.py tests/test_live_quality_contract_system.py tests/test_live_quality_reducer_unit.py tests/test_quality_events_unit.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 736,
+        "deletions": 19,
+        "total_lines": 755
+      },
+      "size": "medium",
+      "source": "issue"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1406,
+      "pr_number": 1455,
+      "issue_title": "feat(dashboard): lease-expired and remaining stall alert rules (#1406)",
+      "base_commit": "268c2e8^",
+      "verify_command": "python3 -m pytest -q tests/test_dashboard_alerts_rules_unit.py tests/test_dashboard_lease_alert_system.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 331,
+        "deletions": 9,
+        "total_lines": 340
+      },
+      "size": "small",
+      "source": "issue"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1404,
+      "pr_number": 1454,
+      "issue_title": "feat(dashboard): produtor de token_usage e custo estimado por run (#1404)",
+      "base_commit": "a2b3451^",
+      "verify_command": "python3 -m pytest -q tests/test_dashboard_token_usage_unit.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 304,
+        "deletions": 5,
+        "total_lines": 309
+      },
+      "size": "small",
+      "source": "issue"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1401,
+      "pr_number": 1453,
+      "issue_title": "fix(dashboard): --stop tolera pid ausente e --tui liga VT no Windows (#1401)",
+      "base_commit": "5c9cf2b^",
+      "verify_command": "python3 -m pytest -q tests/test_dashboard_cli_unit.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 66,
+        "deletions": 1,
+        "total_lines": 67
+      },
+      "size": "small",
+      "source": "issue"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1405,
+      "pr_number": 1452,
+      "issue_title": "test(live): cobertura de artefatos do inspetor (#1405)",
+      "base_commit": "fcb594a^",
+      "verify_command": "python3 -m pytest -q tests/test_dashboard_artifact_coverage_unit.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 60,
+        "deletions": 0,
+        "total_lines": 60
+      },
+      "size": "small",
+      "source": "issue"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1401,
+      "pr_number": 1451,
+      "issue_title": "feat(dashboard): --tui em TTY real sai com q ou Ctrl-C (#1401)",
+      "base_commit": "00b5252^",
+      "verify_command": "python3 -m pytest -q tests/test_dashboard_cli_system.py tests/test_dashboard_cli_unit.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 134,
+        "deletions": 3,
+        "total_lines": 137
+      },
+      "size": "small",
+      "source": "issue"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1409,
+      "pr_number": 1450,
+      "issue_title": "test(live): e2e axe, performance budget and security review of the Live panel (#1409)",
+      "base_commit": "b0443ab^",
+      "verify_command": "python3 -m pytest -q tests/test_dashboard_security_review_integration.py tests/test_dashboard_server_integration.py tests/test_dashboard_server_system.py tests/test_dashboard_server_unit.py tests/test_dashboard_static_integration.py tests/test_live_a11y_e2e_system.py tests/test_live_perf_e2e_system.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 1570,
+        "deletions": 35,
+        "total_lines": 1605
+      },
+      "size": "large",
+      "source": "issue"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1449,
+      "pr_number": 1449,
+      "issue_title": "feat(dashboard): painel de histórico, lições e snapshot de histórico (#1408, fatia 3)",
+      "base_commit": "dbecf4c^",
+      "verify_command": "python3 -m pytest -q tests/test_dashboard_history_snapshot_unit.py tests/test_dashboard_history_unit.py tests/test_dashboard_server_integration.py tests/test_live_history_model_unit.py tests/test_live_history_view_unit.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 2217,
+        "deletions": 6,
+        "total_lines": 2223
+      },
+      "size": "large",
+      "source": "pr"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1448,
+      "pr_number": 1448,
+      "issue_title": "docs(flow): Mermaid + Langflow diagram of the simplicio-loop flow",
+      "base_commit": "577c5c4^",
+      "verify_command": "python3 -m pytest -q tests/test_flow_gen.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 746,
+        "deletions": 0,
+        "total_lines": 746
+      },
+      "size": "medium",
+      "source": "pr"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1403,
+      "pr_number": 1447,
+      "issue_title": "feat(dashboard): produtores de teste, lint, cobertura e diff por iteração (#1403)",
+      "base_commit": "98b40e1^",
+      "verify_command": "python3 -m pytest -q tests/test_apply_quality_events_integration.py tests/test_live_quality_contract_system.py tests/test_live_quality_reducer_unit.py tests/test_quality_events_unit.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 2208,
+        "deletions": 25,
+        "total_lines": 2233
+      },
+      "size": "large",
+      "source": "issue"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1446,
+      "pr_number": 1446,
+      "issue_title": "feat(dashboard): comparação de runs, tendências, heatmap e CSV (#1408, fatia 2)",
+      "base_commit": "56264d5^",
+      "verify_command": "python3 -m pytest -q tests/test_dashboard_history_unit.py tests/test_dashboard_server_integration.py tests/test_dashboard_trends_unit.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 363,
+        "deletions": 6,
+        "total_lines": 369
+      },
+      "size": "small",
+      "source": "pr"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1404,
+      "pr_number": 1445,
+      "issue_title": "feat(dashboard): orçamento com projeção e alerta, tokens por fase e modelo (#1404)",
+      "base_commit": "3e70acb^",
+      "verify_command": "python3 -m pytest -q tests/test_dashboard_alerts_unit.py tests/test_dashboard_budget_unit.py tests/test_dashboard_server_integration.py tests/test_live_budget_unit.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 592,
+        "deletions": 18,
+        "total_lines": 610
+      },
+      "size": "medium",
+      "source": "issue"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1444,
+      "pr_number": 1444,
+      "issue_title": "feat(dashboard): paleta pula para o run, rotação TV e diff de imagem de referência (#1402 4b-3)",
+      "base_commit": "b9ba41e^",
+      "verify_command": "python3 -m pytest -q tests/test_live_runs_nav_e2e_system.py tests/test_live_runs_nav_unit.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 360,
+        "deletions": 5,
+        "total_lines": 365
+      },
+      "size": "small",
+      "source": "pr"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1407,
+      "pr_number": 1443,
+      "issue_title": "feat(dashboard): fila, backlog e coordenação multiagente no Simplicio Live (#1407)",
+      "base_commit": "25d49d6^",
+      "verify_command": "python3 -m pytest -q tests/test_dashboard_coordination_route_integration.py tests/test_dashboard_coordination_unit.py tests/test_live_coordination_unit.py tests/test_live_coordination_view_unit.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 2426,
+        "deletions": 0,
+        "total_lines": 2426
+      },
+      "size": "large",
+      "source": "issue"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1405,
+      "pr_number": 1442,
+      "issue_title": "feat(live): log virtualizado a 100 mil linhas e deep link de iteração (#1405)",
+      "base_commit": "64aa767^",
+      "verify_command": "python3 -m pytest -q tests/test_live_deeplink_unit.py tests/test_live_iteration_drill_unit.py tests/test_live_log_virtualization_e2e_system.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 512,
+        "deletions": 23,
+        "total_lines": 535
+      },
+      "size": "medium",
+      "source": "issue"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1406,
+      "pr_number": 1441,
+      "issue_title": "feat(dashboard): dashboard.toml, notificação do navegador e webhook opt-in (#1406)",
+      "base_commit": "14ebc5f^",
+      "verify_command": "python3 -m pytest -q tests/test_dashboard_alert_stream_system.py tests/test_dashboard_config_unit.py tests/test_dashboard_webhook_unit.py tests/test_live_alerts_unit.py",
+      "verify_source": "reference_pr_tests",
+      "diff_stat": {
+        "additions": 428,
+        "deletions": 7,
+        "total_lines": 435
+      },
+      "size": "small",
+      "source": "issue"
+    }
+  ]
+}

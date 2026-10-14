@@ -5,6 +5,8 @@ import time
 import pytest
 
 from simplicio_loop import runner
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 pytestmark = pytest.mark.usefixtures("admitting_capacity")  # host pressure must not decide these dispatch tests
 
@@ -40,7 +42,7 @@ class MemoryJournal:
 @pytest.fixture(autouse=True)
 def memory_dispatch_journal(monkeypatch):
     journal = MemoryJournal()
-    monkeypatch.setattr(runner, "_dispatch_journal_backend", lambda _path, **_kwargs: journal)
+    patch_runner(monkeypatch, "_dispatch_journal_backend", lambda _path, **_kwargs: journal)
     return journal
 
 
@@ -71,7 +73,7 @@ def test_dispatch_operator_batch_refills_without_wave_barrier(monkeypatch, tmp_p
             }
         }
 
-    monkeypatch.setattr(runner, "execute_operator", fake_execute)
+    patch_runner(monkeypatch, "execute_operator", fake_execute)
     items = [
         {"repo": str(tmp_path / f"tree-{index}"), "run_id": "r1", "task_index": index}
         for index in range(1, 5)
@@ -102,7 +104,7 @@ def test_dispatch_operator_batch_serializes_shared_run_state(monkeypatch, tmp_pa
             }
         }
 
-    monkeypatch.setattr(runner, "execute_operator", fake_execute)
+    patch_runner(monkeypatch, "execute_operator", fake_execute)
     result = runner.dispatch_operator_batch(
         [
             {"repo": str(tmp_path), "run_id": "shared", "task_index": 1},
@@ -131,7 +133,7 @@ def test_dispatch_operator_batch_resumes_successful_journal_entries(monkeypatch,
             }
         }
 
-    monkeypatch.setattr(runner, "execute_operator", fake_execute)
+    patch_runner(monkeypatch, "execute_operator", fake_execute)
     journal = tmp_path / "operator-batch.jsonl"
     journal.write_text(
         json.dumps(
@@ -168,7 +170,7 @@ def test_dispatch_operator_batch_blocks_unknown_effect_after_restart(monkeypatch
         calls.append(task_index)
         return {"state": {"phase": "validating", "attempts": 1}}
 
-    monkeypatch.setattr(runner, "execute_operator", fake_execute)
+    patch_runner(monkeypatch, "execute_operator", fake_execute)
     journal = memory_dispatch_journal
     journal.append("crashed", "run_started", {"scope": "operator_batch"}, idempotency_key="run:started")
     journal.append(
@@ -206,7 +208,7 @@ def test_dispatch_operator_batch_drains_before_admitting_new_work(monkeypatch, t
             }
         }
 
-    monkeypatch.setattr(runner, "execute_operator", fake_execute)
+    patch_runner(monkeypatch, "execute_operator", fake_execute)
     result = runner.dispatch_operator_batch(
         [
             {"repo": str(tmp_path / "tree-1"), "run_id": "r1", "task_index": 1},
@@ -269,7 +271,7 @@ def test_fan_out_receipts_and_retries_are_worker_scoped(monkeypatch, tmp_path):
             }
         }
 
-    monkeypatch.setattr(runner, "execute_operator", fake_execute)
+    patch_runner(monkeypatch, "execute_operator", fake_execute)
     result = runner.dispatch_operator_batch(
         [
             {"repo": str(tmp_path / "tree-1"), "run_id": "r1", "task_index": 1},

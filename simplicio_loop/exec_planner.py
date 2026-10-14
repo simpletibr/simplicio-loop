@@ -1,11 +1,9 @@
-"""CLI exec planner launcher: invokes claude, codex, grok, gemini CLIs in headless mode.
+"""CLI exec planners for claude, codex, grok, gemini, agy and opencode, run as plan-only planners (issues 1431, 1432).
 
-Each CLI is used as the invoking model in host mode: it reads a prompt via stdin,
-runs 'simplicio-loop turbo --task ...', writes the plan, and runs 'turbo --apply -'.
-Mutation is always done by dev-cli, never by the invoked agent.
-
-The planner resolves model and effort from model_roles per family and role.
-Selection order comes from env SIMPLICIO_EXEC_FAMILIES (default: claude,codex,grok,gemini).
+The planner never mutates the repo. It returns a plan JSON (``{"operations": [...]}``) that the dev-cli applies
+(``simplicio-loop turbo --apply -``). Every argv therefore uses the CLI's most restrictive non-interactive mode.
+Flags marked VERIFIED were checked against ``<cli> --help`` on the host (agy 1.3.2, opencode 1.18.30). gemini is not
+installed here, so its flags are DOC-BASED (vendor docs) and unverified.
 """
 
 from __future__ import annotations
@@ -14,34 +12,59 @@ import asyncio
 import json
 import os
 import shutil
-from pathlib import Path
-from typing import Any, Mapping, Optional
+import signal
+import tempfile
+import time
+import uuid
+from datetime import datetime, timezone
 
-from . import model_roles
+from . import handoff_cli, input_ceiling, model_roles, plan_scope, structured_output
+from .agent_handoff import HandoffError
 
-# Families supported by exec planners, in preference order
 DEFAULT_FAMILIES = ["claude", "codex", "grok", "gemini"]
+KILL_GRACE_SEC = 3.0
+# The handoff schema's maxLength for ``objective`` (simplicio_loop/_contracts/agent-handoff/v1). The default writer keeps
+# the task in it whole or not at all.
+OBJECTIVE_MAX_CHARS = 2000
+
+# opencode's built-in `plan` agent denies edits but allows bash and webfetch. This config is written to a temp file and
+# passed through OPENCODE_CONFIG so the planner cannot run commands or fetch URLs.
+OPENCODE_DENY_CONFIG = {"permission": {"bash": "deny", "webfetch": "deny", "edit": "deny"}}
+
+PLAN_ONLY_PREAMBLE = (
+    "You are a planner only. Do NOT edit files and do NOT run commands. Reply with exactly one JSON object "
+    '{"operations": [...]} describing the edits. The dev-cli applies it afterwards '
+    "(`simplicio-loop turbo --apply -`). Task:\n\n"
+)
+# A continuation's request is the task contract, this text, then the rest of the handoff: the first two repeat byte for
+# byte in every continuation of a chain, so the provider's prompt cache can read them (#1608).
+CONTINUATION_PREFIX = (
+    "This task continues a planner run that stopped at the input-token ceiling. The task above and the checkpoint below "
+    "(simplicio.agent-handoff/v1) are that run's state. Continue from it and answer with one plan JSON object.\n\n"
+)
+CONTRACT_FIELDS = ("objective", "acceptance_criteria")
 
 
 class ExecPlannerError(Exception):
     """Base error for exec planner failures."""
 
 
+class ScopeRejected(ValueError):
+    """The answer broke the closed plan contract or the task scope; ``violations`` are the deterministic reasons."""
+
+    def __init__(self, violations):
+        self.violations = list(violations)
+        super().__init__(plan_scope.retry_message(self.violations))
+
+
 class PlannerResult:
     """Result of running a planner via CLI exec."""
 
-    def __init__(
-        self,
-        reason_code: str,
-        family: str,
-        role: str,
-        model: str,
-        effort: str,
-        plan: Optional[dict[str, Any]] = None,
-        error: Optional[str] = None,
-        execution_ms: float = 0.0,
-    ):
-        self.reason_code = reason_code  # ok, cli_missing, timeout, bad_plan, auth_error
+    def __init__(self, reason_code, family, role, model, effort, plan=None, error=None, execution_ms=0.0, raw=None,
+                 structured=("", ""), violations=(), surface=("", ""), continuations=0,
+                 ceiling=("", "")):
+        self.reason_code = reason_code
+        self.continuations = continuations  # handoffs written before this result; each one started a new run (#1608)
         self.family = family
         self.role = role
         self.model = model
@@ -49,11 +72,16 @@ class PlannerResult:
         self.plan = plan
         self.error = error
         self.execution_ms = execution_ms
+        self.raw = raw  # the CLI text before the plan is cut out of it, NOT redacted (None: it never answered); redact before it is stored
+        self.structured_output, self.structured_reason = structured  # what the argv asked of the CLI; ("", "") when none ran
+        self.tool_surface, self.tool_surface_reason = surface  # the tools the argv left the run; ("", "") when none ran
+        self.violations = list(violations)  # why plan_scope refused the answer (reason_code bad_plan), else empty
+        self.ceiling_source, self.ceiling_reason = ceiling  # the input ceiling and why it is the built-in one; ("", "") when none was read
 
-    def is_ok(self) -> bool:
+    def is_ok(self):
         return self.reason_code == "ok"
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self):
         return {
             "reason_code": self.reason_code,
             "family": self.family,
@@ -63,57 +91,137 @@ class PlannerResult:
             "plan": self.plan,
             "error": self.error,
             "execution_ms": self.execution_ms,
+            "raw": self.raw,
+            "structured_output": self.structured_output,
+            "structured_reason": self.structured_reason,
+            "tool_surface": self.tool_surface,
+            "tool_surface_reason": self.tool_surface_reason,
+            "continuations": self.continuations,
+            "ceiling_source": self.ceiling_source,
+            "ceiling_reason": self.ceiling_reason,
         }
 
 
-def _find_cli(name: str) -> Optional[str]:
-    """Find a CLI binary on PATH. Return its absolute path or None."""
+def _find_cli(name):
     return shutil.which(name)
 
 
-def _get_families() -> list[str]:
-    """Get the list of families to try, in order."""
+def _get_families():
     env = os.environ.get("SIMPLICIO_EXEC_FAMILIES", "").strip()
     if env:
         return [f.strip() for f in env.split(",") if f.strip()]
     return DEFAULT_FAMILIES
 
 
-def _build_argv_claude(prompt: str, role: str, model: str, cwd: str) -> list[str]:
-    """Build argv for 'claude -p PROMPT --model M --output-format json'."""
+def _real_model(model):
+    return bool(model) and model not in ("default", "auto")
+
+
+TOOL_NONE = "none"  # the argv switches off the built-in tools, MCP, skills and the saved session
+TOOL_READ = "read"  # the argv allows only the read tools of the family (lines omitted from the request)
+TOOL_REDUCED = "reduced"  # the CLI has no verified switch for its tools or MCP: the run is not called tool-free
+
+# Each family's minimal surface: (mode, reason). A family in SUPPORTED_FAMILIES without an entry here has no receipt.
+_TOOL_SURFACE = {
+    "claude": (TOOL_NONE, "flags:--tools,--strict-mcp-config,--disable-slash-commands,--no-session-persistence"),
+    "codex": (TOOL_REDUCED, "read-only sandbox; no verified flag turns off the shell or MCP"),
+    "grok": (TOOL_REDUCED, "plan mode; built-in tool names and an MCP switch are not verified"),
+    "gemini": (TOOL_REDUCED, "doc-based plan mode; not measured on this host"),
+    "agy": (TOOL_REDUCED, "plan mode and sandbox; MCP only through the config subcommand"),
+    "opencode": (TOOL_REDUCED, "deny config for bash, webfetch and edit only; read tools and MCP not denied"),
+}
+# A family's read mode: the tool list its argv passes, and the reason on the receipt.
+_READ_MODE = {"claude": ("Read,Grep,Glob", "lines omitted from the request: read tools only, MCP and skills still off")}
+
+
+def _surface(family, read_tools):
+    """(tool list for the argv, receipt mode, receipt reason) of one run of ``family``."""
+    if read_tools and family in _READ_MODE:
+        tools, reason = _READ_MODE[family]
+        return tools, TOOL_READ, reason
+    mode, reason = _TOOL_SURFACE[family]
+    return "", mode, reason
+
+
+def tool_surface(family, read_tools=False):
+    """The receipt ``(mode, reason)`` of a run of ``family``; ``read`` only when the family has a read mode."""
+    _tools, mode, reason = _surface(family, read_tools)
+    return mode, reason
+
+
+def _build_argv_claude(prompt, role, model, effort, cwd, tools):
+    # VERIFIED via `claude --help`: -p, --model, --effort, --tools ("" disables all), --disable-slash-commands,
+    # --strict-mcp-config, --no-session-persistence, --setting-sources user, --output-format.
+    # --bare is not used: measured 2026-10-10, it answers "Not logged in" with the login (OAuth), not an API key.
     argv = ["claude", "-p", prompt]
-    if model and model not in ("default", "auto"):
+    if _real_model(model):
         argv.extend(["--model", model])
-    argv.extend(["--output-format", "json"])
+    if effort:
+        argv.extend(["--effort", effort])
+    argv.extend(["--tools", tools, "--disable-slash-commands", "--strict-mcp-config", "--no-session-persistence",
+                 "--setting-sources", "user", "--output-format", "json"])
     return argv
 
 
-def _build_argv_codex(prompt: str, role: str, model: str, cwd: str) -> list[str]:
-    """Build argv for 'codex exec --cd DIR --model M -'."""
-    argv = ["codex", "exec"]
-    argv.extend(["--cd", cwd])
-    if model and model not in ("default", "auto"):
-        argv.extend(["--model", model])
-    # Codex accepts prompt via stdin when no prompt arg is given (- means stdin)
+def _build_argv_codex(prompt, role, model, effort, cwd, tools):
+    # VERIFIED via `codex exec --help`: -s read-only, --ephemeral, --ignore-user-config, --ignore-rules, -C/--cd, -m,
+    # -c key=value. --ignore-user-config keeps the user's config.toml (MCP servers, plugins) out of the run.
+    # DOC-BASED: the config key `model_reasoning_effort` (--help only says -c takes key=value).
+    argv = ["codex", "exec", "-s", "read-only", "--ephemeral", "--ignore-user-config", "--ignore-rules", "--cd", cwd]
+    if _real_model(model):
+        argv.extend(["-m", model])
+    if effort:
+        argv.extend(["-c", 'model_reasoning_effort="%s"' % effort])
     argv.append("-")
     return argv
 
 
-def _build_argv_grok(prompt: str, role: str, model: str, cwd: str) -> list[str]:
-    """Build argv for 'grok -p PROMPT --model M --output-format json'."""
+def _build_argv_grok(prompt, role, model, effort, cwd, tools):
+    # VERIFIED via `grok --help`: -p, -m, --reasoning-effort, --permission-mode plan, --cwd, --output-format json.
+    # UNVERIFIED: --disallowed-tools needs the built-in tool names, and no MCP switch is listed, so none is added.
     argv = ["grok", "-p", prompt]
-    if model and model not in ("default", "auto"):
-        argv.extend(["--model", model])
-    argv.extend(["--output-format", "json"])
+    if _real_model(model):
+        argv.extend(["-m", model])
+    if effort:
+        argv.extend(["--reasoning-effort", effort])
+    argv.extend(["--permission-mode", "plan", "--cwd", cwd, "--output-format", "json"])
     return argv
 
 
-def _build_argv_gemini(prompt: str, role: str, model: str, cwd: str) -> list[str]:
-    """Build argv for 'gemini -p PROMPT --model M --output-format json'."""
+def _build_argv_gemini(prompt, role, model, effort, cwd, tools):
+    # DOC-BASED (gemini not installed on this host): -p, -m, --approval-mode plan, --output-format json.
+    # Gemini CLI has no effort flag, so effort is only recorded in the result.
     argv = ["gemini", "-p", prompt]
-    if model and model not in ("default", "auto"):
+    if _real_model(model):
+        argv.extend(["-m", model])
+    argv.extend(["--approval-mode", "plan", "--output-format", "json"])
+    return argv
+
+
+def _build_argv_agy(prompt, role, model, effort, cwd, tools):
+    # VERIFIED with `agy --help` (agy 1.3.2): -p/--print, --mode (accept-edits, plan), --sandbox, --disable-slash-commands,
+    # --output-format (text, json, stream-json), --model, --effort (low|medium|high|xhigh|max).
+    argv = ["agy", "-p", prompt, "--mode", "plan", "--sandbox", "--disable-slash-commands", "--output-format", "json"]
+    if _real_model(model):
         argv.extend(["--model", model])
-    argv.extend(["--output-format", "json"])
+    if effort:
+        argv.extend(["--effort", effort])
+    return argv
+
+
+def _build_argv_opencode(prompt, role, model, effort, cwd, tools):
+    # VERIFIED with `opencode run --help` (opencode 1.18.30): the message argument, --format json,
+    # -m provider/model, --variant (provider-specific reasoning effort), --agent, --pure (no external plugins).
+    # `opencode agent list` shows `plan`.
+    # VERIFIED with `opencode debug agent plan`: the built-in `plan` agent allows bash and webfetch, so run_planner
+    # also sets OPENCODE_CONFIG to OPENCODE_DENY_CONFIG (bash, webfetch and edit deny); the resolved plan agent then
+    # lists those denies. DOC-BASED: OPENCODE_CONFIG as an env var is not listed by --help; it comes from the opencode
+    # config docs, and the debug output above is what confirms it takes effect.
+    argv = ["opencode", "run", prompt, "--format", "json", "--agent", "plan", "--pure"]
+    if _real_model(model):
+        argv.extend(["-m", model])
+    if effort:
+        argv.extend(["--variant", effort])
     return argv
 
 
@@ -122,294 +230,386 @@ _ARGV_BUILDERS = {
     "codex": _build_argv_codex,
     "grok": _build_argv_grok,
     "gemini": _build_argv_gemini,
+    "agy": _build_argv_agy,
+    "opencode": _build_argv_opencode,
 }
+SUPPORTED_FAMILIES = tuple(_ARGV_BUILDERS)
+
+# Quota, rate-limit and auth terms, matched case-insensitively in stderr and stdout. The quota list follows the
+# capacity terms in packages/dev-cli/simplicio/providers.py. None of these strings is verified against CLI output.
+_QUOTA_TERMS = ("quota", "insufficient_quota", "credit balance", "billing", "usage limit")
+_RATE_TERMS = ("rate limit", "rate_limit", "too many requests", "too quickly", "slow down", "resource has been exhausted")  # the last three are grok's words (measured 2026-10-10)
+_AUTH_TERMS = ("auth", "unauthorized", "not logged in", "log in", "login", "api key")
 
 
-def build_argv(family: str, role: str, prompt: str, model: str, cwd: str) -> list[str]:
-    """Build the command-line argv for a specific family's CLI exec.
+def classify_failure(returncode, stderr, stdout):
+    """Map a failed CLI run to quota_exhausted, rate_limited or auth_error; None when it is a generic failure."""
+    if returncode == 0:
+        return None
+    text = f"{stderr}\n{stdout}".lower()
+    for code, terms in (("quota_exhausted", _QUOTA_TERMS), ("rate_limited", _RATE_TERMS), ("auth_error", _AUTH_TERMS)):
+        if any(term in text for term in terms):
+            return code
+    return None
 
-    Args:
-        family: One of claude, codex, grok, gemini
-        role: One of planning, coordination, execution
-        prompt: The full prompt text
-        model: Model ID from model_roles.resolve() or None
-        cwd: Working directory
 
-    Returns:
-        The argv list (command + args, no shell)
+def build_argv(family, role, prompt, model, cwd, effort="", schema_file="", read_tools=False):
+    """Build the plan-only command-line argv for a specific family's CLI exec.
 
-    Raises:
-        ExecPlannerError: if family is not supported
+    The CLI's own schema flag (``structured_output.cli_flags``) goes last, before a trailing ``-`` stdin marker.
+    ``schema_file`` is the plan schema on disk, for a CLI that reads it from a file (codex).
+    ``read_tools``: the request omits lines, so the family's read tools are allowed (``tool_surface``).
     """
     builder = _ARGV_BUILDERS.get(family)
     if not builder:
         raise ExecPlannerError(f"unsupported family: {family}")
-    return builder(prompt, role, model, cwd)
+    tools, _mode, _reason = _surface(family, read_tools)
+    argv = builder(prompt, role, model, effort, cwd, tools)
+    try:
+        flags = structured_output.cli_flags(family, schema_file)
+    except ValueError as e:
+        raise ExecPlannerError(str(e)) from e
+    at = len(argv) - 1 if argv[-1] == "-" else len(argv)
+    argv[at:at] = flags
+    return argv
 
 
-async def _run_subprocess(
-    argv: list[str],
-    stdin_text: Optional[str] = None,
-    timeout_sec: float = 60.0,
-    cwd: Optional[str] = None,
-) -> tuple[str, str, int]:
-    """Run a subprocess and return (stdout, stderr, returncode).
+def _group_alive(pgid):
+    try:
+        os.killpg(pgid, 0)
+    except (ProcessLookupError, PermissionError):
+        return False
+    return True
 
-    Raises:
-        asyncio.TimeoutError: if the command times out
-    """
+
+async def _kill_process_tree(proc, grace_sec=KILL_GRACE_SEC):
+    """SIGTERM the whole process group, then SIGKILL whatever survives the grace period."""
+    try:
+        pgid = os.getpgid(proc.pid)
+    except (ProcessLookupError, OSError):
+        pgid = proc.pid
+    try:
+        os.killpg(pgid, signal.SIGTERM)
+    except (ProcessLookupError, PermissionError):
+        pass
+    deadline = time.monotonic() + grace_sec
+    while time.monotonic() < deadline:
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=0.05)
+        except asyncio.TimeoutError:
+            pass
+        if proc.returncode is not None and not _group_alive(pgid):
+            return
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+    await proc.wait()
+
+
+async def _run_subprocess(argv, stdin_text=None, timeout_sec=60.0, cwd=None, grace_sec=KILL_GRACE_SEC, env=None):
+    """Run a subprocess in its own session and return (stdout, stderr, returncode); kill the tree on timeout."""
     proc = await asyncio.create_subprocess_exec(
         *argv,
         stdin=asyncio.subprocess.PIPE if stdin_text else asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         cwd=cwd,
+        env=env,
+        start_new_session=True,
     )
-
     try:
         stdout_bytes, stderr_bytes = await asyncio.wait_for(
             proc.communicate(input=stdin_text.encode("utf-8") if stdin_text else None),
             timeout=timeout_sec,
         )
     except asyncio.TimeoutError:
-        proc.kill()
-        try:
-            await asyncio.wait_for(proc.wait(), timeout=5.0)
-        except asyncio.TimeoutError:
-            pass
+        await _kill_process_tree(proc, grace_sec)
         raise
-
-    stdout = stdout_bytes.decode("utf-8", errors="replace")
-    stderr = stderr_bytes.decode("utf-8", errors="replace")
-    return stdout, stderr, proc.returncode
+    return stdout_bytes.decode("utf-8", errors="replace"), stderr_bytes.decode("utf-8", errors="replace"), proc.returncode
 
 
-def _extract_plan_json(output: str) -> dict[str, Any]:
-    """Extract and validate plan JSON from CLI output.
+# `--output-format json` wraps the answer in an envelope. Measured on this host (claude 2.1.292, grok 1.0.46, agy 1.3.2):
+# the model text is `result` (claude), `text` (grok) or `response` (agy, prose around the JSON), and with a schema flag
+# the parsed object is `structured_output` (claude, agy) or `structuredOutput` (grok).
+_OBJECT_KEYS = ("structured_output", "structuredOutput")
+_TEXT_KEYS = ("result", "text", "response")
 
-    The plan format is: {"operations": [{"path": "...", "find": "...", "replace": "..."}]}
 
-    Raises:
-        ValueError: if the JSON is invalid or missing operations
-    """
-    # Try to parse as raw JSON first
-    try:
-        obj = json.loads(output)
-        if isinstance(obj, dict) and "operations" in obj and isinstance(obj["operations"], list):
+def _plan_from(obj):
+    if isinstance(obj, dict):
+        if "operations" in obj or "need" in obj:  # `need`: lines the planner could not see (turbo_window)
             return obj
+        for key in _OBJECT_KEYS:
+            if isinstance(obj.get(key), dict):
+                return _plan_from(obj[key])
+        for key in _TEXT_KEYS:
+            if isinstance(obj.get(key), str):
+                return _find_plan(obj[key])
+    return None
+
+
+def _find_plan(text):
+    try:
+        plan = _plan_from(json.loads(text))
+        if plan:
+            return plan
     except (json.JSONDecodeError, ValueError):
         pass
-
-    # Try to find JSON in fenced code blocks
-    import re
-
-    fenced = re.search(r"```(?:json)?\\s*(\\{.*\\})\\s*```", output, re.S)
-    if fenced:
-        try:
-            obj = json.loads(fenced.group(1))
-            if isinstance(obj, dict) and "operations" in obj:
-                return obj
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    # Last attempt: find any JSON object
-    start = output.find("{")
-    end = output.rfind("}")
+    start = text.find("{")
+    end = text.rfind("}")
     if start >= 0 and end > start:
         try:
-            obj = json.loads(output[start : end + 1])
-            if isinstance(obj, dict) and "operations" in obj:
-                return obj
+            return _plan_from(json.loads(text[start : end + 1]))
         except (json.JSONDecodeError, ValueError):
             pass
+    return None
 
-    raise ValueError("plan JSON not found or invalid")
+
+def _answer_text(output):
+    """The model's own answer inside the CLI envelope: the parsed object a schema flag fills (re-encoded), else the text
+    field, else the output as it is. This is what ``plan_scope`` judges, so prose around the JSON still shows."""
+    try:
+        obj = json.loads(output)
+    except ValueError:
+        return output
+    while isinstance(obj, dict) and "operations" not in obj and "need" not in obj:
+        nested = next((obj[key] for key in _OBJECT_KEYS if isinstance(obj.get(key), dict)), None)
+        if nested is None:
+            return next((obj[key] for key in _TEXT_KEYS if isinstance(obj.get(key), str)), output)
+        obj = nested
+    return json.dumps(obj) if isinstance(obj, dict) else output
 
 
-async def run_planner(
-    family: str,
-    role: str,
-    prompt: str,
-    cwd: Optional[str] = None,
-    timeout_sec: float = 60.0,
-) -> PlannerResult:
+def _extract_plan_json(output, scope=None, root=None):
+    """Extract and validate plan JSON from CLI output.
+
+    With a ``scope`` (``plan_scope.TaskScope``) the answer is also held to the closed plan contract and to that scope
+    (``plan_scope.check_response``): extra prose, an extra field, a file outside the scope or over the line limit is a
+    ValueError listing the violations. A plan that only asks for lines (``need``, no operations) is a valid answer.
+    """
+    plan = _find_plan(output)
+    if plan is None:
+        raise ValueError("plan JSON not found or invalid")
+    if scope is not None:
+        checked = plan_scope.check_response(_answer_text(output), scope, root or ".")
+        if not checked.ok:
+            raise ScopeRejected(checked.violations)
+    return plan
+
+
+def _result(code, family, role, model, effort, started, plan=None, error=None, raw=None, structured=("", ""), violations=(),
+            surface=("", ""), ceiling=("", "")):
+    return PlannerResult(code, family, role, model, effort, plan=plan, error=error, execution_ms=(time.monotonic() - started) * 1000,
+                         raw=raw, structured=structured, violations=violations, surface=surface, ceiling=ceiling)
+
+
+def _temp_file(prefix, text, directory):
+    """Write ``text`` to a new temp file in ``directory`` (default: the system temp dir) and return its path."""
+    if directory is not None:
+        os.makedirs(directory, exist_ok=True)
+    fd, path = tempfile.mkstemp(prefix=prefix, suffix=".json", dir=directory)
+    with os.fdopen(fd, "w") as handle:
+        handle.write(text)
+    return path
+
+
+async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_sec=KILL_GRACE_SEC, wrap=None, env=None,
+                      config_dir=None, scope=None, read_tools=False, *, repo_root):
     """Run the planner CLI for a specific family and role.
 
-    Args:
-        family: One of claude, codex, grok, gemini
-        role: One of planning, coordination, execution
-        prompt: The full prompt text
-        cwd: Working directory (defaults to current dir)
-        timeout_sec: Timeout in seconds for the subprocess
+    ``repo_root`` is the repo the planner works in: its loop.toml sets the input-token ceiling the prompt must fit.
 
-    Returns:
-        PlannerResult with reason_code and details
+    ``wrap`` maps the argv to the argv actually spawned (the watcher passes its sandbox); the default is the identity.
+    ``env`` is the whole environment of the subprocess; the default inherits the caller's.
+    ``config_dir`` is where the opencode deny config and the codex schema file are written (default: the system temp
+    dir). A sandbox that mounts a tmpfs on /tmp hides them, so opencode would then run WITHOUT the deny rules: pass a
+    directory the sandbox binds. Both files are removed when the run ends.
+    ``scope`` (``plan_scope.TaskScope``): the answer must stay inside it, else the result is ``bad_plan`` with ``violations`` (no other family is tried) and its error
+    lists the violations (the text for the next attempt).
+    ``read_tools``: the request omits lines, so the family's read tools are allowed; the result's ``tool_surface`` says so.
     """
-    import time
-
-    start_ms = time.monotonic()
-
-    # Resolve model and effort from model_roles
+    started = time.monotonic()
     try:
         resolved = model_roles.resolve(family, role)
-        model = resolved["model"]
-        effort = resolved["effort"]
     except model_roles.ModelRoleError as e:
-        elapsed_ms = (time.monotonic() - start_ms) * 1000
-        return PlannerResult(
-            reason_code="bad_role",
-            family=family,
-            role=role,
-            model="",
-            effort="",
-            error=str(e),
-            execution_ms=elapsed_ms,
-        )
+        return _result("bad_role", family, role, "", "", started, error=str(e))
+    model, effort = resolved["model"], resolved["effort"]
 
-    # Check if the CLI is available
-    cli_bin = _find_cli(family)
-    if not cli_bin:
-        elapsed_ms = (time.monotonic() - start_ms) * 1000
-        return PlannerResult(
-            reason_code="cli_missing",
-            family=family,
-            role=role,
-            model=model,
-            effort=effort,
-            error=f"CLI '{family}' not found on PATH",
-            execution_ms=elapsed_ms,
-        )
+    if not _find_cli(family):
+        return _result("cli_missing", family, role, model, effort, started, error=f"CLI '{family}' not found")
 
-    # Build argv
     try:
-        argv = build_argv(family, role, prompt, model, cwd or ".")
-    except ExecPlannerError as e:
-        elapsed_ms = (time.monotonic() - start_ms) * 1000
-        return PlannerResult(
-            reason_code="bad_argv",
-            family=family,
-            role=role,
-            model=model,
-            effort=effort,
-            error=str(e),
-            execution_ms=elapsed_ms,
-        )
+        ceiling = input_ceiling.explain_ceiling(repo_root)
+        projection = input_ceiling.Projection.estimated(PLAN_ONLY_PREAMBLE + prompt)
+        input_ceiling.enforce_budget(projection, ceiling.value)
+    except input_ceiling.CeilingConfigError as e:
+        return _result(e.reason_code, family, role, model, effort, started, error=str(e),
+                       ceiling=(getattr(e, "ceiling_source", "invalid"), getattr(e, "ceiling_reason", str(e))))
+    except input_ceiling.InputCeilingExceeded:
+        return _result("input_ceiling_exceeded", family, role, model, effort, started,
+                       error=f"prompt exceeds {input_ceiling.describe(ceiling)}", ceiling=(ceiling.source, ceiling.reason))
 
-    # Run the subprocess
-    stdin_text = prompt if family == "codex" else None
+    full_prompt = PLAN_ONLY_PREAMBLE + prompt
+    temp_files = []
     try:
-        stdout, stderr, returncode = await _run_subprocess(
-            argv, stdin_text=stdin_text, timeout_sec=timeout_sec, cwd=cwd
-        )
-    except asyncio.TimeoutError:
-        elapsed_ms = (time.monotonic() - start_ms) * 1000
-        return PlannerResult(
-            reason_code="timeout",
-            family=family,
-            role=role,
-            model=model,
-            effort=effort,
-            error=f"subprocess timed out after {timeout_sec}s",
-            execution_ms=elapsed_ms,
-        )
+        schema_file = ""
+        if structured_output.cli_needs_file(family):
+            schema_file = _temp_file("simplicio-schema-", structured_output.schema_text(), config_dir)
+            temp_files.append(schema_file)
+        try:
+            argv = build_argv(family, role, full_prompt, model, cwd or ".", effort, schema_file, read_tools=read_tools)
+        except ExecPlannerError as e:
+            return _result("bad_argv", family, role, model, effort, started, error=str(e))
+        receipt = structured_output.cli_receipt(family)
+        surface = tool_surface(family, read_tools)
 
-    # Check for auth/quota errors in stderr
-    if "auth" in stderr.lower() or "unauthorized" in stderr.lower():
-        elapsed_ms = (time.monotonic() - start_ms) * 1000
-        return PlannerResult(
-            reason_code="auth_error",
-            family=family,
-            role=role,
-            model=model,
-            effort=effort,
-            error=f"authentication error: {stderr[:200]}",
-            execution_ms=elapsed_ms,
-        )
+        if wrap is not None:
+            argv = wrap(argv)  # a refusing wrapper must not leave a temp file behind: the finally below removes them
+        stdin_text = full_prompt if family == "codex" else None
+        if family == "opencode":
+            config_path = _temp_file("simplicio-opencode-", json.dumps(OPENCODE_DENY_CONFIG), config_dir)
+            temp_files.append(config_path)
+            env = {**(os.environ if env is None else env), "OPENCODE_CONFIG": config_path}
+        try:
+            stdout, stderr, returncode = await _run_subprocess(
+                argv, stdin_text=stdin_text, timeout_sec=timeout_sec, cwd=cwd, grace_sec=grace_sec, env=env
+            )
+        except asyncio.TimeoutError:
+            return _result("timeout", family, role, model, effort, started, error="timeout", structured=receipt, surface=surface)
+    finally:
+        for path in temp_files:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
 
+    failure = classify_failure(returncode, stderr, stdout)
+    if failure:
+        return _result(failure, family, role, model, effort, started, error=f"exit {returncode}: {failure}",
+                       raw=f"{stdout}\n--- stderr ---\n{stderr}", structured=receipt, surface=surface)
     if returncode != 0:
-        elapsed_ms = (time.monotonic() - start_ms) * 1000
-        return PlannerResult(
-            reason_code="process_error",
-            family=family,
-            role=role,
-            model=model,
-            effort=effort,
-            error=f"process exited with code {returncode}: {stderr[:200]}",
-            execution_ms=elapsed_ms,
-        )
-
-    # Extract and validate plan JSON
+        return _result("process_error", family, role, model, effort, started, error=f"exit {returncode}",
+                       raw=f"{stdout}\n--- stderr ---\n{stderr}", structured=receipt, surface=surface)
     try:
-        plan = _extract_plan_json(stdout)
+        plan = _extract_plan_json(stdout, scope, cwd)
+    except ScopeRejected as e:  # still bad_plan, but with the violations: another family would get the same prompt and scope
+        return _result("bad_plan", family, role, model, effort, started, error=str(e), raw=stdout, structured=receipt,
+                       violations=e.violations, surface=surface)
     except ValueError as e:
-        elapsed_ms = (time.monotonic() - start_ms) * 1000
-        return PlannerResult(
-            reason_code="bad_plan",
-            family=family,
-            role=role,
-            model=model,
-            effort=effort,
-            error=f"plan JSON invalid: {str(e)}",
-            execution_ms=elapsed_ms,
-        )
-
-    elapsed_ms = (time.monotonic() - start_ms) * 1000
-    return PlannerResult(
-        reason_code="ok",
-        family=family,
-        role=role,
-        model=model,
-        effort=effort,
-        plan=plan,
-        execution_ms=elapsed_ms,
-    )
+        return _result("bad_plan", family, role, model, effort, started, error=str(e), raw=stdout, structured=receipt,
+                       surface=surface)
+    return _result("ok", family, role, model, effort, started, plan=plan, raw=stdout, structured=receipt, surface=surface)
 
 
-async def run_planner_with_fallback(
-    role: str,
-    prompt: str,
-    cwd: Optional[str] = None,
-    timeout_sec: float = 60.0,
-    families: Optional[list[str]] = None,
-) -> PlannerResult:
+def default_handoff(ctx):
+    """The handoff written without a model: the whole task as the objective, the contract, no changed files. A model-written
+    checkpoint is the intended writer; this one keeps the chain working on hosts that have none.
+
+    ``ctx`` holds run_id, task_id, continuation, family, role, model, lease, prompt (the task, the same for the whole
+    chain), ceiling, tokens (the projected prompt that was refused), cumulative (prompt tokens sent by the chain: always
+    0 here) and created_at. A task longer than the objective limit is never cut: it raises ``handoff_would_truncate_the_task``.
+    """
+    objective = ctx["prompt"]
+    if len(objective) > OBJECTIVE_MAX_CHARS:
+        raise HandoffError("handoff_would_truncate_the_task", "the task is %d characters and the handoff objective holds "
+                                                              "%d; the task is not cut" % (len(objective), OBJECTIVE_MAX_CHARS))
+    return {
+        "schema": "simplicio.agent-handoff/v1",
+        "run_id": ctx["run_id"],
+        "task_id": ctx["task_id"],
+        "continuation": ctx["continuation"],
+        "reason": "input_ceiling",
+        "agent": {"family": ctx["family"], "role": ctx["role"], "model": ctx["model"]},
+        "objective": objective,
+        "acceptance_criteria": ["answer the objective with one plan JSON object"],
+        "done": {"files": [], "commands": []},
+        "next_steps": ["answer the objective with one plan JSON object"],
+        "open_questions": [],
+        "tokens": {
+            "basis": input_ceiling.ESTIMATED, "estimator": input_ceiling.ESTIMATOR_LABEL, "prompt_tokens": ctx["tokens"],
+            "input_tokens": None, "cache_read_input_tokens": None, "cache_creation_input_tokens": None,
+            "output_tokens": None, "ceiling": ctx["ceiling"], "cumulative_prompt_tokens": ctx["cumulative"],
+        },
+        "lease": ctx["lease"],
+        "created_at": ctx["created_at"],
+    }
+
+
+def _continuation_request(handoff):
+    contract = {key: handoff[key] for key in CONTRACT_FIELDS}
+    rest = {key: value for key, value in handoff.items() if key not in CONTRACT_FIELDS}
+
+    def dump(doc):
+        return json.dumps(doc, ensure_ascii=False, sort_keys=True, indent=2)
+
+    return dump(contract) + "\n\n" + CONTINUATION_PREFIX + dump(rest)
+
+
+def _needs_human(result, error, continuations):
+    return PlannerResult("needs_human", result.family, result.role, result.model, result.effort, error=error,
+                         execution_ms=result.execution_ms, continuations=continuations)
+
+
+async def _run_chain(family, role, prompt, opts, *, repo_root, handoff_writer, run_id):
+    """Run one family until its request fits the ceiling. Each refusal writes a handoff and starts a new run of the same
+    family and role with it as its prompt, under the same lease. After the chain limit (``resolve_chain_limit``) the task
+    is ``needs_human``.
+
+    The handoffs of a family go to ``<run_id>-<family>``: a fallback to another family is a new chain, and a handoff is
+    never replaced, so two families cannot share one run directory."""
+    lease = {"key": "exec-planner:%s" % role, "owner": run_id}
+    chain_id = "%s-%s" % (run_id, family)
+    continuations = 0
+    current = prompt  # the request to send: the task first, then each handoff
+    while True:
+        result = await run_planner(family, role, current, repo_root=repo_root, **opts)
+        if result.reason_code != "input_ceiling_exceeded":
+            result.continuations = continuations
+            return result
+        limit = input_ceiling.resolve_chain_limit(repo_root)
+        if continuations >= limit:
+            return _needs_human(result, "continuation_chain_exhausted: %d continuations written, the chain limit is %d, "
+                                        "the next run would be number %d" % (continuations, limit, continuations + 1),
+                                continuations)
+        continuations += 1
+        ctx = {
+            "run_id": chain_id, "task_id": "exec-planner:%s" % role, "continuation": continuations,
+            "family": family, "role": role, "model": result.model, "lease": lease,
+            "prompt": prompt,  # the original task for the whole chain: ``current`` is a handoff after the first refusal
+            "ceiling": input_ceiling.explain_ceiling(repo_root).value,
+            "tokens": input_ceiling.Projection.estimated(PLAN_ONLY_PREAMBLE + current).tokens,
+            "cumulative": 0,  # no request of this chain was sent: a refused request is never sent
+            "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+        }
+        try:
+            clean, _redacted, _rel = handoff_cli.store(repo_root, handoff_writer(ctx))
+        except HandoffError as e:  # the writer refused (the task does not fit) or the handoff is invalid: nothing was sent
+            return _needs_human(result, str(e), continuations - 1)
+        current = _continuation_request(clean)
+
+
+async def run_planner_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, families=None, grace_sec=KILL_GRACE_SEC,
+                                    wrap=None, env_for=None, config_dir=None, scope=None, read_tools=False, *, repo_root,
+                                    handoff_writer=default_handoff, run_id=None):
     """Try to run planner with each family in order, falling back on non-fatal errors.
 
-    Falls back on: cli_missing, auth_error, timeout, bad_plan.
-    Stops on: bad_role, bad_argv (programming errors).
+    ``wrap``, ``env_for(family)``, ``scope`` and ``read_tools`` are passed to run_planner (the argv wrapper, the per-family
+    environment, the task scope the answer must stay in and whether the read tools are allowed).
 
-    Args:
-        role: One of planning, coordination, execution
-        prompt: The full prompt text
-        cwd: Working directory
-        timeout_sec: Timeout per family
-        families: List of families to try (default: SIMPLICIO_EXEC_FAMILIES)
-
-    Returns:
-        The first successful PlannerResult, or the last error result
+    A request over the input ceiling is not sent: ``handoff_writer(ctx)`` returns the handoff document, which is stored
+    under ``repo_root/.simplicio-loop`` and continues the run in the same family and role. ``run_id`` names the lease
+    (default: a new one); a call that reuses a run_id and a family finds its handoff already stored and is ``needs_human``.
+    A chain that cannot continue is ``needs_human`` and no other family is tried.
     """
-    try_families = families or _get_families()
-
-    last_result: Optional[PlannerResult] = None
-
-    for family in try_families:
-        result = await run_planner(family, role, prompt, cwd, timeout_sec)
-
-        if result.reason_code == "bad_role" or result.reason_code == "bad_argv":
-            # Programming error: stop immediately
+    run_id = run_id or uuid.uuid4().hex
+    last_result = None
+    for family in families or _get_families():
+        opts = dict(cwd=cwd, timeout_sec=timeout_sec, grace_sec=grace_sec, wrap=wrap,
+                    env=env_for(family) if env_for else None, config_dir=config_dir, scope=scope, read_tools=read_tools)
+        result = await _run_chain(family, role, prompt, opts, repo_root=repo_root, handoff_writer=handoff_writer,
+                                  run_id=run_id)
+        if result.reason_code in ("bad_role", "bad_argv", "needs_human") or result.violations or result.is_ok():
             return result
-
-        if result.is_ok():
-            return result
-
-        # Non-fatal error: try the next family
         last_result = result
-
-    # All families failed; return the last result
-    return last_result or PlannerResult(
-        reason_code="no_families",
-        family="",
-        role=role,
-        model="",
-        effort="",
-        error="no families available to try",
-    )
+    return last_result or PlannerResult("no_families", "", role, "", "", error="no families")

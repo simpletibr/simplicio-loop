@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simplicio Live · Pipeline vivo</title>
+<link rel="stylesheet" href="/static/components/simplicio-live.css">
+<link rel="stylesheet" href="/static/live/live.css">
+<link rel="stylesheet" href="/static/history/history.css">
+<link rel="stylesheet" href="/static/coordination/coordination.css">
+<link rel="stylesheet" href="/static/extras/extras.css">
+</head>
+<body class="sl-page">
+<header class="live-head">
+<h1>Pipeline vivo</h1>
+<sl-connection-dot id="conn" status="connecting"></sl-connection-dot>
+<p id="run-id" class="run-id"></p>
+<div class="live-tools">
+<button id="follow" type="button" aria-pressed="true">Seguir o run</button>
+<button id="alerts-toggle" type="button" aria-expanded="false" aria-controls="alerts-panel">Alertas (0)</button>
+<sl-command-palette id="palette" hotkey="ctrl+k" label="Buscar comandos" placeholder="Fase, tarefa, run ou arquivo"></sl-command-palette>
+</div>
+</header>
+<main class="live-main">
+<section class="panel board-panel" aria-labelledby="board-title"><h2 id="board-title">Quadro por etapa</h2><p id="board-status" role="status"></p><div id="board" class="board"></div></section>
+<section class="panel coord-panel" aria-labelledby="coord-title"><h2 id="coord-title">Fila e coordenação</h2><p id="coord-status" role="status"></p><div id="coord-kanban" class="coord-kanban" tabindex="0" role="region" aria-label="Fila por estado"></div><div id="coord-dag" class="coord-dag"></div><div id="coord-drain" class="coord-drain"></div><div id="coord-slots" class="coord-slots"></div></section>
+<section class="panel rail-panel" aria-labelledby="rail-title">
+<h2 id="rail-title">Fases</h2>
+<sl-stage-rail id="rail" phase="intake" status="RUNNING" label="Fases do run"></sl-stage-rail>
+<p id="phase-status" class="sr-only" role="status"></p>
+<ul id="phase-stats" class="phase-stats"></ul>
+</section>
+<section class="panel lanes-panel" aria-labelledby="lanes-title">
+<h2 id="lanes-title">Lanes</h2>
+<ol id="lanes" class="lanes" aria-label="Lanes do run"></ol>
+</section>
+<section class="panel">
+<h2>Progresso</h2>
+<sl-donut id="ring" label="Progresso do run" center="0%" data-percent="0"></sl-donut>
+</section>
+<section class="panel">
+<h2>Agora</h2>
+<div id="agora" class="agora">
+<p><span>Atual</span><strong data-field="current"></strong></p>
+<p><span>Próximo</span><strong data-field="next"></strong></p>
+<p><span>Comando</span><strong data-field="command"></strong></p>
+<p><span>Tempo na fase</span><strong data-field="timer">00:00</strong></p>
+</div>
+</section>
+<section id="live-extras" aria-label="Sinais do worker" class="panel"></section>
+<section class="panel">
+<h2>Gates</h2>
+<ul id="gates" class="gates"></ul>
+</section>
+<section class="kpis" aria-label="Indicadores">
+<sl-kpi-card id="kpi-epm" label="Eventos por minuto" value="0"></sl-kpi-card>
+<sl-kpi-card id="kpi-heartbeat" label="Último heartbeat" value="–" unit="s"></sl-kpi-card>
+<sl-kpi-card id="kpi-stall" label="Stall" value="Não" state="PASS"></sl-kpi-card>
+</section>
+<section class="panel iterations-panel" aria-labelledby="iterations-title">
+<h2 id="iterations-title">Iterações</h2>
+<sl-timeline id="iterations" label="Iterações do run"></sl-timeline>
+</section>
+<section class="panel convergence-panel" aria-labelledby="convergence-title">
+<h2 id="convergence-title">Convergência</h2>
+<sl-sparkline id="convergence" label="Gates pendentes por iteração"></sl-sparkline>
+<p id="convergence-note" class="note"></p>
+</section>
+<section class="panel dod-panel" aria-labelledby="dod-title">
+<h2 id="dod-title">Definição de pronto</h2>
+<ul id="dod" class="checks" aria-label="Definição de pronto"></ul>
+</section>
+<section class="panel quality-panel" aria-labelledby="quality-title">
+<h2 id="quality-title">Qualidade</h2>
+<ul id="quality" class="checks" aria-label="Qualidade"></ul>
+</section>
+<section id="economy" class="panel economy-panel" aria-labelledby="economy-title">
+<h2 id="economy-title">Economia de tokens</h2>
+<sl-donut id="economy-gauge" label="Economia de tokens" center="–"></sl-donut>
+<div class="kpis">
+<sl-kpi-card id="kpi-saved" label="Tokens economizados" value="–" state="UNVERIFIED"></sl-kpi-card>
+<sl-kpi-card id="kpi-requests" label="Requisições capturadas" value="–" state="UNVERIFIED"></sl-kpi-card>
+<sl-kpi-card id="kpi-intercept" label="Providers interceptáveis" value="–" state="UNVERIFIED"></sl-kpi-card>
+</div>
+<sl-sparkline id="economy-series" label="Economia acumulada" state="UNVERIFIED"></sl-sparkline>
+<p id="economy-note" class="note"></p>
+</section>
+<section class="panel history-panel" aria-labelledby="history-title"><h2 id="history-title">Histórico e tendências</h2><p id="history-status" role="status"></p><div id="history-root"></div></section>
+<section class="panel agents-panel" aria-labelledby="agents-title">
+<h2 id="agents-title">Agentes, modelos e custo</h2>
+<ul id="agents-cost" class="checks" aria-label="Agentes, modelos e custo"></ul>
+</section>
+<section id="alerts-panel" class="panel alerts-panel" aria-labelledby="alerts-title" hidden>
+<h2 id="alerts-title">Alertas do run</h2>
+<p id="alerts-status" role="status"></p>
+<button id="alerts-notify" type="button" hidden>Ativar notificações do navegador</button>
+<ul id="alerts-list" class="checks" aria-label="Alertas ativos"></ul>
+</section>
+<p id="empty" role="status">Aguardando eventos…</p>
+</main>
+<aside id="drill" class="drill" aria-labelledby="drill-title" hidden>
+<div class="drill-head">
+<h2 id="drill-title" tabindex="-1">Detalhe</h2>
+<button id="drill-close" type="button">Fechar</button>
+</div>
+<div id="drill-tabs" class="drill-tabs" role="tablist" aria-label="Seções do detalhe">
+<button id="drill-tab-summary" class="drill-tab" type="button" role="tab" aria-selected="true" aria-controls="drill-panel-summary" tabindex="0">Resumo</button>
+<button id="drill-tab-logs" class="drill-tab" type="button" role="tab" aria-selected="false" aria-controls="drill-panel-logs" tabindex="-1">Logs</button>
+<button id="drill-tab-receipts" class="drill-tab" type="button" role="tab" aria-selected="false" aria-controls="drill-panel-receipts" tabindex="-1">Recibos</button>
+<button id="drill-tab-commands" class="drill-tab" type="button" role="tab" aria-selected="false" aria-controls="drill-panel-commands" tabindex="-1">Comandos</button>
+<button id="drill-tab-contract" class="drill-tab" type="button" role="tab" aria-selected="false" aria-controls="drill-panel-contract" tabindex="-1">Contrato</button>
+<button id="drill-tab-context" class="drill-tab" type="button" role="tab" aria-selected="false" aria-controls="drill-panel-context" tabindex="-1">Contexto</button>
+</div>
+<section id="drill-panel-summary" class="drill-panel" role="tabpanel" aria-labelledby="drill-tab-summary">
+<dl id="drill-facts" class="drill-facts"></dl>
+</section>
+<section id="drill-panel-logs" class="drill-panel" role="tabpanel" aria-labelledby="drill-tab-logs" hidden>
+<sl-log-viewer id="drill-logs" label="Registro do detalhe"></sl-log-viewer>
+</section>
+<section id="drill-panel-receipts" class="drill-panel" role="tabpanel" aria-labelledby="drill-tab-receipts" hidden>
+<ul id="drill-receipts" class="checks" aria-label="Recibos do run"></ul>
+</section>
+<section id="drill-panel-commands" class="drill-panel" role="tabpanel" aria-labelledby="drill-tab-commands" hidden>
+<ul id="drill-commands" class="checks" aria-label="Comandos para reproduzir o run"></ul>
+<p id="drill-copy-status" role="status"></p>
+</section>
+<section id="drill-panel-contract" class="drill-panel" role="tabpanel" aria-labelledby="drill-tab-contract" hidden>
+<p id="drill-contract-note" role="status"></p>
+<sl-json-tree id="drill-contract" label="Contrato da tarefa"></sl-json-tree>
+</section>
+<section id="drill-panel-context" class="drill-panel" role="tabpanel" aria-labelledby="drill-tab-context" hidden>
+<p id="drill-context-note" role="status"></p>
+<sl-json-tree id="drill-context" label="Contexto do mapeamento"></sl-json-tree>
+</section>
+</aside>
+<script type="module" src="/static/i18n/i18n.js"></script>
+<script type="module" src="/static/live/app.js"></script>
+</body>
+</html>

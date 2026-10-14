@@ -45,7 +45,7 @@ def evaluate_contract() -> dict:
     add("dependency.no_external_operators",
         not any(dep.startswith(("simplicio-cli", "simplicio-mapper")) for dep in meta["dependencies"]),
         "mapper and dev-cli are bundled; no simplicio-cli/simplicio-mapper dependency")
-    add("entrypoint.cli", meta["script_entrypoint"] == "simplicio_loop.cli:main",
+    add("entrypoint.cli", meta["script_entrypoint"] == "simplicio_loop.daemon.client:main",
         meta["script_entrypoint"] or "missing")
     add("package_data.bundle", "_bundle/**/*" in meta["package_data"], ", ".join(meta["package_data"]) or "missing")
     add("cli.module.exists", CLI.exists(), str(CLI))

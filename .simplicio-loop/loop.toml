@@ -1,0 +1,9 @@
+# Self-host opt-in (#1589): the 24/7 watcher may work issues of THIS repo.
+# Read from the default branch by intake_gate.repo_config; keep it minimal (tests/test_selfhost_optin.py).
+# Still required per issue: label `loop:auto` and an OWNER/MEMBER/COLLABORATOR author (no `allowed_authors` here).
+# Auto-merge is not a repo setting: it stays off unless the operator sets SIMPLICIO_247_AUTO_MERGE=1 on the service.
+enabled = true
+# Targeted gate for every loop PR: only the tests the change can affect vs origin/main (10.6 s measured at load 10).
+# Not the whole suite (`--full` is for releases) and not the audits: claims-audit has a 120 s phase limit and timed out
+# once in two runs at load 9, so as a verify it would fail a good plan. The maintainers' review still runs the full check.py.
+verify = "python3 scripts/check.py --tests-only"

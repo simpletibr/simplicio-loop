@@ -7,6 +7,8 @@ rules: Read only when the parent SKILL.md points here; mutable data lives in the
 
 # Full per-turn protocol, modes, DoD, delivery — full detail
 
+> Diagram of the whole flow (entry → steps/gates → outputs): [`docs/flow/simplicio-loop.mmd`](../../../../docs/flow/simplicio-loop.mmd) · image `docs/flow/simplicio-loop.svg` · Langflow import `docs/flow/langflow/simplicio-loop.langflow.json`. Source of truth: `docs/flow/simplicio-loop.flow.json`; regenerate with `python3 scripts/flow_gen.py generate`.
+
 Moved out of `SKILL.md` as part of the SKILL.md hot-path shrink (SKILL.md keeps the turbo command,
 Done/promise, Contract essentials, the SIMPLICIO-LLM-ORIENTATION block, and Guardrails; everything
 below is the full elaboration, read only when the task needs it).

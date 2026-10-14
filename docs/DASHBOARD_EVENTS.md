@@ -69,30 +69,37 @@ namespaced kind; each namespace owns its own catalog.
 | lifecycle | `map_ready` | runner (Mapper context persisted) | `step` = `mapper_fresh` or `mapper_degraded` (`warning`) |
 | lifecycle | `plan_frozen` | runner | `step`, `message` |
 | lanes and tasks | `worker_claimed` | worker | `step`, `branch`, `lease_id`, `ac_ids`; `lane` = branch |
+| lanes and tasks | `lease_heartbeat` | runner (watcher: `_heartbeat` in `simplicio_loop/watcher247/tick.py`, every renewal of the issue lease) | `lease_key` (`repo#number`), `status` (`renewed`, or `lost` with `severity: warning`), `beats` (renewals since the loop began), `ttl_s` (the lease ttl). Collection scope. The owner token is never written. |
 | lanes and tasks | `lane_progress` | worker / runner / operator | `step` = the runner step that has no dedicated kind (`worktree_created`, `stack_lock_frozen`, `storage_route_frozen`, `handoff`, `technical_debt` with `debt_*` fields, or any future step) |
 | lanes and tasks | `iteration_started` | hook (`loop_stop` re-feed, `trigger: refeed`), operator (`user_prompt_submit`, `trigger: user_prompt`, `decision`, `prompt_chars`) | as listed |
 | lanes and tasks | `iteration_finished` | hook (`loop_stop`) | `outcome` (`refeed`, `pass`, `blocked`), `reason`, `has_evidence` |
-| lanes and tasks | `apply_result` | worker (operator receipt) | `step`, `execution_state` |
-| quality | `test_result` | reserved for test runners | `passed`, `failed`, `skipped`, `command` |
-| quality | `lint_result` | reserved for lint runners | `errors`, `warnings`, `tool` |
-| quality | `coverage_result` | reserved for coverage runners | `percent`, `scope` |
+| lanes and tasks | `apply_result` | worker (operator receipt; the diff is `step: diff`) | `step`, `execution_state`; `step: diff` adds `files` (max 200), `files_total`, `added`, `deleted` |
+| lanes and tasks | `handoff` | `handoff write` and the planner's continuation (`simplicio_loop/dashboard_events.py` `emit_handoff`), once per stored handoff; the handoff starts one continuation | `step` (`written`), `continuation` (1-based number), `basis` (`MEASURED` or `ESTIMATED`); scope `task`, `task_id` of the handoff; `refs` the stored file. The budget payload counts the distinct `continuation` numbers of each task as `continuations.by_task` (`dashboard/budget.py` `continuations`). |
+| quality | `test_result` | worker (quality producer, after each task's `check`) | `tool`, `command`, `passed`, `failed`, `skipped`, `errors`, `total`, `duration_s`, `status`, `failed_ids` (pytest only, max 100, optional: node ids from the short summary, de-duplicated in order; `[]` on a clean run; omitted when failures exist but no id lines were found) |
+| quality | `lint_result` | worker (quality producer, after each task's `check`) | `tool`, `command`, `errors`, `warnings`, `by_rule` (top 20), `status` |
+| quality | `coverage_result` | worker (quality producer, after each task's `check`) | `tool`, `command`, `percent`, `scope` (`total`), `files` (max 50, optional) |
 | quality | `gate_evaluated` | runner, oracle, hooks | `gate` (`evidence`, `watcher`, `oracle`, `dod`, `quality`, `action`), `verdict` (`pass`, `fail`, `pending`, `blocked`), `status`, `verdict_detail` |
-| recovery | `retry_scheduled` | runner (`operator_bootstrap`, `rollback`) | `step`, `blocker` |
+| commands | `command_started` | worker (before each task `check` command), runner (before the turbo `--verify` command) | `command_id` (unique per run of a command), `command` (secrets scrubbed, max 200 characters). The envelope `ts` is the start time. |
+| commands | `command_finished` | worker (after the same task `check` command), runner (after the turbo `--verify` command) | `command_id` (same as its `command_started`), `exit_code` (`null` when the command did not exit: timeout, spawn failure, cancellation), `duration_s` (monotonic clock), `status` (`pass`, `fail`, `error`, `interrupted`), optional `reason`. `severity` is `warning` unless `pass`. |
+| recovery | `retry_scheduled` | runner (`operator_bootstrap`, `rollback`; turbo when a model answer is refused by the closed plan contract or the task scope and asked again: `step` `plan_rejected`) | `step`, `blocker`; a refused answer adds `reason` (`out_of_scope`), `action` (`retry`), `attempt` |
 | recovery | `stall_detected` | runner (`blocked`), hook (`loop_stop` stall streak) | `blocker` or `fingerprint`, `streak` |
-| recovery | `decision_requested` | runner (entering `awaiting_decision`) | `reason` |
+| recovery | `decision_requested` | runner (entering `awaiting_decision`; turbo when a second answer is refused: `reason` `needs_human`, `step` `plan_rejected`, `blocker` the violations) | `reason` |
 | delivery and cost | `delivery_reconciled` | runner | `current_state`, `blocker` |
 | delivery and cost | `pr_opened` | reserved for the delivery step | `url`, `number` |
-| delivery and cost | `token_usage` | reserved for agent/model producers | `model`, `input_tokens`, `output_tokens` |
+| delivery and cost | `token_usage` | runner (`execution-route*.json` and `provider-worker-*.json` of the run) | `input_tokens`, `output_tokens`, optional `model`, `reason`; `lane` = route; a provider receipt adds `source` (`provider`), `requests`, `cached_tokens`, `cache_write_tokens`, `reasoning_tokens`, `cost`, and sets `task_id`, `lane` and `iteration` |
 | delivery and cost | `cost_sample` | reserved for agent/model producers | `model`, `usd` |
 | end | `run_finished` | runner (entering `done`, `partial` or `cancelled`) | `outcome`, `reason` |
 
 "Reserved" kinds are part of the stable catalog; their producers land with the dashboard issues
-that need them (#1403 quality, #1404 agents and cost). Their payload fields above are the expected
+that need them (#1404 agents and cost). Their payload fields above are the expected
 shape, not yet emitted.
+
+`token_usage` is produced from the run's own `execution-route*.json` records: only integer counts the run recorded become events (the live emit happens when the fan-out route is written; runs without a live stream get the same events in `derive_events`). A deterministic-worker route records 0 tokens (`deterministic_worker_no_llm`); a route decided before any provider call records null counts and produces no event. The provider receipt `provider-worker-<task>-attempt-<n>.json` (usage status `measured`) gives the measured counts of a real provider call. The producer takes `task_id` and `lane` from the `execution-route-<task_index>.json` of the same task, `iteration` from the receipt `attempt`, `payload.requests` from its `provider_call_count` and marks `payload.source` as `provider`. Every event takes `phase` from the run `state.json`. A run with no provider receipt stays UNVERIFIED for tokens and cost. Counts are never invented. `cost_sample` stays reserved. `dashboard/budget.py` sums the events for the budget panel and alerts, and `cost_estimate` prices measured tokens with `dashboard/prices.json`: `GET /api/runs/<id>/budget` returns `cost` with `state: ESTIMADO`, `proof_kind: estimado`, `as_of` and `source_url` of the table, or UNVERIFIED with the reason (no measured tokens, no table, model without price).
+`cost.per_task` and `cost.per_iteration` (`cost_by_task_and_iteration`, #1550) list rows `{task_id, iteration, usd, tokens_in, tokens_out, state, reason}` priced with the same rate: a model without price or a null count gives `usd` null, `state` UNVERIFIED and the reason. Events with no task or iteration sit in a row whose id is null, so the rows add up to the run cost.
 
 ## Producers
 
-- **Runner** (`simplicio_loop/runner.py`): `_record_event` keeps writing the progress event into
+- **Runner** (`simplicio_loop/runner_lifecycle.py`): `_record_event` keeps writing the progress event into
   `state.json` and maps it onto this stream with `specs_from_runner_event`; a transition goes through
   `events_from_transition`, the same function the retroactive adapter uses on `transitions.jsonl`, so
   the logic exists once. `technical_debt.record_notice` emits through the same seam.
@@ -104,6 +111,59 @@ shape, not yet emitted.
 - **Workers and shell hosts**:
   `python3 scripts/dashboard_events.py emit RUN_DIR --kind lane_progress --source worker --payload '{"step": "lint"}'`.
 
+### Quality producers
+
+- **Quality events** (`simplicio_loop/quality_events.py`, called by `simplicio_loop/apply.py` after each
+  task's `check` command): source `worker`, scope `task` with the task's `task_id`. `iteration` comes from
+  the `SIMPLICIO_ITERATION` environment variable when it is set; otherwise it is `null` and the Live
+  reducer attributes the event to the current iteration.
+- **Parsers** read real tool output only: pytest, unittest, jest, vitest and go test; ruff, mypy and
+  flake8; coverage.py, pytest-cov and jest coverage. Output that is not recognised emits nothing.
+- **Diff**: each iteration's measured git diff goes in an `apply_result` event with payload `step: "diff"`.
+  No new kind is added.
+
+### Command producer
+
+- **Command events** (`simplicio_loop/command_events.py`, called by `simplicio_loop/apply.py` around each
+  task's `check` command): `command_started` is appended before the command runs and `command_finished` after it,
+  also on timeout, spawn failure and cancellation. Same source, scope, `task_id` and `iteration` rules as the quality
+  events. The two events of one run of a command share a `command_id`. `duration_s` comes from a monotonic clock.
+- **Turbo `--verify`** (`simplicio_loop/turbo_run.py` `TurboRun.command`, called by `simplicio_loop/turbo_cli.py`
+  `_run_verify`): the same pair with source `runner`, collection scope and `task_id` null, `phase` the run's stage at
+  the time. A verify that times out finishes with `exit_code` null, `status: error` and `reason: timeout`. A verify that cannot
+  be spawned finishes with `exit_code` null and `status: interrupted`. The worker producer reports a spawn failure as `error`.
+  This difference is a known gap. Turbo does not bracket the dev-cli apply calls, so they write no command event.
+- The command text is scrubbed (`dashboard/runs.redact_command`: key=value pairs, `--token abc` style flags, `-p` of
+  mysql/sshpass/twine/docker login, `-u user:pass`, URL credentials, auth and cookie headers, tokens with a known
+  prefix, base64-looking blobs) before it is cut to 200 characters. Only the first 4096 characters are scanned and the
+  word the scan window may have split is dropped, so a cut never leaves the head of a secret. The reader scrubs the
+  same way. Scrubbing and writing are fail-open: an error in either never changes the command's result.
+- **Reading**: `GET /api/runs/<id>/extras` returns `running_command`. A lane runs the latest `command_started` that has
+  no `command_finished` with the same `command_id` ("em execução há N s", age against the clock of the request). A start
+  older than 600 s with no finish is flagged with its age, never hidden. A start before the last `run_finished` is
+  not running. With no `command_started` in the run the row is UNVERIFIED with the reason.
+
+### Lease heartbeat producer
+
+- **Lease events** (`simplicio_loop/watcher247/events.py` `lease_beat`, called by `_heartbeat` in `simplicio_loop/watcher247/tick.py`):
+  while turbo runs, the watcher renews the issue lease every `HEARTBEAT_S` (60 s). Each renewal appends one `lease_heartbeat` to the
+  run that the watcher opened at intake. Source `runner`, collection scope, `task_id`, `phase` and `lane` null.
+- The payload holds `lease_key` (`repo#number`), `status`, `beats` (renewals since the loop began) and `ttl_s` (180 s). A renewal that
+  the claim store refuses writes one `lost` event with `severity: warning` and ends the loop. The owner token is the secret of the
+  lease and never goes in an event.
+- Writing is fail-open. A lease with no open run writes nothing, and a closed run gets no event after `run_finished`.
+- **Reading**: `GET /api/runs/<id>/extras` adds to `heartbeat` one row for each `lease_key`: its latest beat by `seq`. The age is the
+  `ts` of the event against the clock of the request. The row is stale when the age passes its own `ttl_s`, and at any age after
+  `lost` ("lease perdido"). A beat with no readable `ts` or `ttl_s` reads UNVERIFIED, with the reason.
+
+**UNVERIFIED:**
+
+- Flaky tests: the events carry counts, not per-test ids, so the flaky rule cannot run.
+- The matrix by unit, integration, system and regression level, and red to green transitions per test id.
+- The diff virtualisation benchmark: no measured benchmark exists.
+- The producer module and its tests are not in this tree yet, so the payloads above are the specified
+  shape, not yet emitted.
+
 ## Reading
 
 ```python
@@ -113,6 +173,24 @@ events = read_events(run_dir, since_seq=0)  # ordered by seq; rotated files incl
 
 `python3 scripts/dashboard_events.py read RUN_DIR [--since N]` prints the same as JSONL and
 `python3 scripts/dashboard_events.py validate FILE` checks a file.
+
+### Incremental reading (#1565)
+
+The dashboard polls a live run every few seconds, and a run can hold ~100k events, so `read_events` does not re-parse the
+stream on each call. Each events file (`events.jsonl`, `events.jsonl.N`) is cached after it is parsed, keyed by
+`(st_dev, st_ino)`, with the byte offset consumed (always the end of a newline-terminated line) and the first and last 4 KiB of
+the consumed bytes. The next read parses only the bytes appended since. A last line without its newline is not consumed: it is
+returned if it already parses, and read again once more bytes arrive.
+
+A file is read again in full when it shrank below the offset, when its size is unchanged but its mtime or ctime moved (an
+in-place rewrite, a rename such as a rotation), or when the consumed head or tail no longer matches (a different file under a
+reused inode). The result is always what a fresh full read returns. One thing it cannot see: a rewrite of the middle of a file
+that also grows it and leaves the first and last 4 KiB of the consumed part alone. The emitter only appends and rotates.
+
+Memory is bounded: at most `READ_CACHE_MAX_FILES` (8) files and `READ_CACHE_MAX_EVENTS` (200,000) parsed events, least recently
+used file first (about 0.9 KB per event: keys and short values are shared). A file that left its run dir (a segment rotated out, a run deleted) is dropped at the next read of that dir. The default rotation (16 MiB, 3 rotated files plus the
+live one) holds about 160k events. A file above the cap is not kept and is parsed in full on every read, as before. The events
+returned are shared with the cache: callers must not mutate them (the list itself is new on every call).
 
 ### Older runs (retroactive adapter)
 
@@ -170,3 +248,18 @@ after a warm-up. On the development box (Linux 6.12, overlay filesystem, 8 vCPU,
 
 `tests/test_dashboard_events_system.py` fails if the default-mode p95 reaches 1 ms (best of three
 runs). Re-run the command on the target machine for its own number.
+
+## Alert frames (#1406, slice 1406b)
+
+The stream also carries named frames for run alerts. They are not dashboard events and are not written to `events.jsonl`, so they do not take a `seq`:
+
+- `event: alert_snapshot` with `data: {"alerts": [...]}`: the alerts active when the connection opened. It is sent after the history, so a reconnect gets the alerts that are still active.
+- `event: alert_raised` with `data:` one alert: `{"id", "rule", "severity", "heading", "why", "ref"}`.
+- `event: alert_cleared` with `data: {"id": "<alert id>"}`.
+
+A client that treats every `data:` line as an event must skip frames with an `event:` name, as `EventSource` does for named events.
+
+## Coordination is not an event
+
+`/api/coordination` reads the backlog JSONL, not `events.jsonl`, and writes no event kind. See [DASHBOARD.md](DASHBOARD.md#coordination-apicoordination).
+

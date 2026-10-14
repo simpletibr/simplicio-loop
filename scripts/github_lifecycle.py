@@ -37,7 +37,7 @@ SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, SCRIPTS_DIR)
 
-from pr_evidence import publish_comment  # noqa: E402
+from simplicio_loop.pr_evidence import publish_comment  # noqa: E402
 
 from simplicio_loop.github_lifecycle import (  # noqa: E402
     LIFECYCLE_STATES,

@@ -67,7 +67,9 @@ def _json_result(result):
         return None
 
 
-def execute(task_path=TASK, execute=False, out=None):
+def execute(task_path=TASK, execute=False, out=None, repo=ROOT):
+    """``repo`` is the repository the installed operators map. Tests pass a throwaway one: the
+    Runtime writes its baseline into the git common dir shared by every worktree (#1574)."""
     raw = task_path.read_text(encoding="utf-8")
     bins_ok, bins = check_installed()
     receipt = {
@@ -87,13 +89,13 @@ def execute(task_path=TASK, execute=False, out=None):
 
     # Every hop is an installed process.  The first two consume the raw Markdown directly.
     commands = [
-        ["simplicio-mapper", "orient", str(ROOT), "--task-file", str(task_path), "--json"],
-        ["simplicio-mapper", "handoff", str(ROOT), "--task-file", str(task_path), "--json"],
+        ["simplicio-mapper", "orient", str(repo), "--task-file", str(task_path), "--json"],
+        ["simplicio-mapper", "handoff", str(repo), "--task-file", str(task_path), "--json"],
     ]
     plan_out = Path(out or tempfile.mkdtemp(prefix="planes-installed-e2e-"))
     plan_out.mkdir(parents=True, exist_ok=True)
     plan_file = plan_out / "planes-contract.json"
-    commands.append(["simplicio", "runtime", "map", "--repo", str(ROOT), "--json"])
+    commands.append(["simplicio", "runtime", "map", "--repo", str(repo), "--json"])
     commands.append(["simplicio-loop", "plan", "--task", str(task_path), "--out", str(plan_file)])
     for cmd in commands:
         result = run(cmd)
@@ -140,8 +142,9 @@ def main(argv=None):
     parser.add_argument("--out", type=Path)
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--repo", type=Path, default=ROOT, help="repository the operators map (default: this checkout)")
     args = parser.parse_args(argv)
-    receipt = execute(args.task, args.execute, args.out)
+    receipt = execute(args.task, args.execute, args.out, args.repo)
     print(json.dumps(receipt, ensure_ascii=False, indent=2))
     return 0 if receipt["status"] in {"PLANNED", "MEASURED"} else 2
 

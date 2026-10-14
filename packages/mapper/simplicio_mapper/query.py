@@ -16,6 +16,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from collections import deque
 from functools import lru_cache
 from typing import Any
@@ -561,11 +562,14 @@ def run_query(
     abs_out = os.path.abspath(os.path.join(abs_cwd, out_dir))
     cache = ContextCache(_cache_path(abs_cwd, out_dir))
     artifacts: dict[str, Any] | None = None
+    build_seconds = 0.0
 
     def _artifacts() -> dict[str, Any]:
-        nonlocal artifacts
+        nonlocal artifacts, build_seconds
         if artifacts is None:
+            started = time.monotonic()
             artifacts = build_artifacts(abs_cwd, output_dir=out_dir)
+            build_seconds = time.monotonic() - started
         return artifacts
 
     query: dict[str, Any] = {"verb": verb}
@@ -820,4 +824,14 @@ def run_query(
     else:  # pragma: no cover - guarded by VERBS check above
         raise ValueError(f"unknown ask verb: {verb}")
 
-    return {"schema": ASK_SCHEMA, "version": 1, "query": query, "note": note, **payload}
+    response = {"schema": ASK_SCHEMA, "version": 1, "query": query, "note": note, **payload}
+    if artifacts is not None:
+        # The artifacts a worktree overlay does not serve (call-graph, architecture-inventory,
+        # retrieval-index) exist only because this query asked for them (#1673): say what it cost.
+        response["on_demand_cost"] = {
+            "verb": verb,
+            "built": ["project_map", "symbol_index", "precedent_index", "call_graph", "architecture_inventory"],
+            "seconds": round(build_seconds, 3),
+            "persisted": False,
+        }
+    return response

@@ -26,7 +26,7 @@ Verbs:
   status                 show Mapper-owned neural DB status
   init [--seed]          create DB + apply packaged migrations (+ optional seeds)
   absorb [--source PATH] copy Runtime ~/.simplicio-loop/memory/simplicio-memory.sqlite into Mapper root
-  seed                   load packaged seeds.sql into existing Mapper neural DB
+  seed                   load packaged seed parts (assets/seeds/part-NN.sql) into existing Mapper neural DB
 
 Options:
   --data-dir PATH   override store root (default SIMPLICIO_DATA_DIR or ~/data)

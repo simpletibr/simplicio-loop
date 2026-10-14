@@ -1,6 +1,7 @@
 """3.45.2 host mode: two commands. The invoking model plans and dev-cli applies. No provider call and no key."""
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import re
@@ -9,6 +10,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -19,7 +21,10 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "bench" / "llm_ab" / "fixture_hard"
 SOLUTION = ROOT / "tests" / "fixtures" / "llm_ab_hard_solution"
 HIDDEN = ROOT / "bench" / "llm_ab" / "hidden" / "check_hard.py"
-RULES = ("Write the plan from the file contents above; do not open, list or read other files; "
+RULES = ("Write the plan from the file contents above; do not open, list or read other files "
+         '(a file shown in windows has more lines in `omitted`: answer {"operations": [], "need": [{"path", "start", "end"}]} '
+         'to see them, e.g. {"operations": [], "need": [{"path": "tests/test_x.py", "start": 147, "end": 190}]}; '
+         "the same lines come with `--window tests/test_x.py:147-190` on the turbo command); "
          "do not run tests yourself; run the command below once.")
 FORMAT = {"operations": [{"path": "<repo-relative>", "find": "<exact text that occurs once; empty creates the file>",
                           "replace": "<new text>"}]}
@@ -58,7 +63,7 @@ def host(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-must-be-ignored")
     monkeypatch.setattr(turbo_provider, "complete", boom)
     monkeypatch.setattr(turbo_provider, "require_key", boom)
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root, **kwargs: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
 
 
 class _Stdin:
@@ -103,7 +108,7 @@ def test_the_request_is_compact_and_ends_with_the_one_apply_command(tmp_path, ho
     repo = _seed(tmp_path)
     rc, out = _request(repo, capsys, "--task", "Fix the two bugs in inventory.py.", "--verify", "pytest -q")
     assert rc == 0
-    assert list(out) == ["schema", "status", "mode", "tasks", "map", "files", "format", "rules", "apply"]
+    assert list(out) == ["schema", "status", "mode", "run_id", "prompt_version", "prompt_sha256", "tasks", "map", "files", "format", "rules", "apply"]
     assert out["schema"] == "simplicio.turbo-request/v1" and out["status"] == "needs_plan" and out["mode"] == "host"
     assert out["tasks"] == ["Fix the two bugs in inventory.py."]
     assert out["files"] == {"inventory.py": (FIXTURE / "inventory.py").read_text(encoding="utf-8")}
@@ -112,7 +117,7 @@ def test_the_request_is_compact_and_ends_with_the_one_apply_command(tmp_path, ho
                           "files": [{"path": "inventory.py", "symbols": ["Inventory"]}]}
     assert out["format"] == FORMAT and out["rules"] == RULES
     assert out["apply"] == (f"simplicio-loop turbo --repo {shlex.quote(str(repo.resolve()))} --apply - "
-                            "--verify 'pytest -q' <<'PLAN'\n<JSON plan>\nPLAN")
+                            f"--run-id {out['run_id']} --verify 'pytest -q' <<'PLAN'\n<JSON plan>\nPLAN")
     text = json.dumps(out)
     assert text.count("Fix the two bugs in inventory.py.") == 1  # one task list, not two
     assert "plan_path" not in out and "prompt" not in out and "You plan simplicio edits" not in text
@@ -131,8 +136,8 @@ def test_the_request_without_verify_prints_a_plain_apply_command(tmp_path, host,
     repo = _seed(tmp_path)
     rc, out = _request(repo, capsys, "--task", "Fix inventory.py")
     assert rc == 0
-    assert out["apply"] == (f"simplicio-loop turbo --repo {shlex.quote(str(repo.resolve()))} --apply - <<'PLAN'"
-                            "\n<JSON plan>\nPLAN")
+    assert out["apply"] == (f"simplicio-loop turbo --repo {shlex.quote(str(repo.resolve()))} --apply - "
+                            f"--run-id {out['run_id']} <<'PLAN'\n<JSON plan>\nPLAN")
 
 
 def test_several_tasks_share_one_request_and_each_file_appears_once(tmp_path, host, capsys):
@@ -145,12 +150,14 @@ def test_several_tasks_share_one_request_and_each_file_appears_once(tmp_path, ho
     assert [f["path"] for f in out["map"]["files"]] == ["inventory.py"]  # the slice follows every named file
 
 
-def test_a_file_past_the_cap_is_cut_and_says_so(tmp_path, host, capsys):
+def test_a_file_past_the_cap_is_shown_in_windows_and_says_what_is_omitted(tmp_path, host, capsys):
     repo = _seed(tmp_path)
     (repo / "big.py").write_text("x = 1\n" * 3000, encoding="utf-8")
     rc, out = _request(repo, capsys, "--task", "Edit big.py")
-    assert rc == 0 and out["files"]["big.py"].startswith("x = 1\n")
-    assert len(out["files"]["big.py"]) < 6200 and "truncated" in out["files"]["big.py"].splitlines()[-1]
+    entry = out["files"]["big.py"]
+    assert rc == 0 and entry["windows"][0]["start"] == 1 and entry["windows"][0]["text"].startswith("x = 1\n")
+    assert entry["total_lines"] == 3000 and entry["omitted"][-1]["end"] == 3000 and "need" in entry["more"]
+    assert sum(len(w["text"]) for w in entry["windows"]) <= 16_000  # the per-file ceiling (turbo_window.FILE_CHARS_MAX)
 
 
 def test_the_request_without_a_task_is_blocked(tmp_path, host, capsys):
@@ -191,7 +198,8 @@ def test_the_printed_command_survives_a_real_shell_with_quotes_dollars_and_backt
         f'#!/bin/sh\nexec "{sys.executable}" -c "import sys; from simplicio_loop.cli import main; sys.exit(main())" "$@"\n',
         encoding="utf-8")
     (shim / "simplicio-loop").chmod(0o755)
-    env = {"PATH": f"{shim}:/usr/bin:/bin", "HOME": str(tmp_path), "LANG": "C"}
+    # PYTHONPATH pins the shim to this checkout: an installed simplicio_loop would not know the new --run-id flag.
+    env = {"PATH": f"{shim}:/usr/bin:/bin", "HOME": str(tmp_path), "LANG": "C", "PYTHONPATH": str(ROOT)}
     proc = subprocess.run(["/bin/sh", "-c", script], cwd=tmp_path, env=env, capture_output=True, text=True,
                           timeout=120, check=False)
     out = json.loads(proc.stdout)

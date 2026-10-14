@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simplicio.dev/contracts/dashboard-status/v1/schema.json",
+  "title": "simplicio.dashboard-status/v1",
+  "description": "Output of simplicio-loop dashboard --status. The url is tokenless; the access token is never part of this payload. When running is false, url, port and pid are null.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "running", "stale", "url", "port", "pid", "version", "uptime_s", "repos", "observed_runs", "state_file"],
+  "properties": {
+    "schema": {"const": "simplicio.dashboard-status/v1"},
+    "running": {"type": "boolean"},
+    "stale": {"type": "boolean", "description": "True when a state file exists but no live dashboard answers for it."},
+    "url": {"type": ["string", "null"], "description": "Loopback panel URL without the access token."},
+    "port": {"type": ["integer", "null"], "minimum": 0, "maximum": 65535},
+    "pid": {"type": ["integer", "null"], "minimum": 0},
+    "version": {"type": "string"},
+    "uptime_s": {"type": ["number", "null"], "minimum": 0},
+    "repos": {"type": "array", "items": {"type": "string"}},
+    "observed_runs": {"type": ["integer", "null"], "minimum": 0},
+    "state_file": {"type": ["string", "null"]}
+  },
+  "if": {"properties": {"running": {"const": false}}, "required": ["running"]},
+  "then": {"properties": {"url": {"type": "null"}, "port": {"type": "null"}, "pid": {"type": "null"}}}
+}

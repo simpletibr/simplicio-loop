@@ -73,9 +73,15 @@ class DistributionNeuralAssetsTest(unittest.TestCase):
     def test_built_wheel_and_sdist_include_neural_assets_once(self) -> None:
         expected = [
             "simplicio_mapper/store/neural/assets/memory-schema.sql",
-            "simplicio_mapper/store/neural/assets/seeds.sql",
             "simplicio_mapper/store/neural/assets/migrations/0001_initial.sql",
         ]
+        # seeds ship as ordered parts (store/neural/assets/seeds/part-NN.sql), one file per part.
+        seed_dir = ROOT / "simplicio_mapper" / "store" / "neural" / "assets" / "seeds"
+        seed_parts = sorted(
+            f"simplicio_mapper/store/neural/assets/seeds/{p.name}" for p in seed_dir.glob("part-*.sql")
+        )
+        self.assertTrue(seed_parts, "no seed parts in the source tree")
+        expected = expected + seed_parts
         with tempfile.TemporaryDirectory() as tmp:
             proc = subprocess.run(
                 [sys.executable, "-m", "build", "--wheel", "--sdist", "--outdir", tmp],

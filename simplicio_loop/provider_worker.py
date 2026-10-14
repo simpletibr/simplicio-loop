@@ -17,7 +17,17 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Mapping, Sequence
 from urllib.parse import urlparse
 
+from . import execution_report
 from .evidence import redact_sensitive_text
+from .input_ceiling import (
+    CeilingConfigError,
+    InputCeilingExceeded,
+    PromptUsage,
+    Projection,
+    describe,
+    enforce_budget,
+    explain_ceiling,
+)
 
 OPENROUTER_PROVIDER = "openrouter"
 OPENROUTER_MODEL = "deepseek/deepseek-v4.1-flash"
@@ -201,6 +211,23 @@ def _request_prompt(
     return prompt + "\n\nDeterministic verifier feedback for the previous proposal:\n" + feedback
 
 
+def _gate_input(prompt: str, repo_root: str | Path | None, env: Mapping[str, str] | None) -> dict[str, Any]:
+    """Refuse a request whose projected prompt is above the input-token ceiling (#1608). The worker has no provider usage
+    before its one request, so the projection is ESTIMATED and says so. The request is not sent when it is over."""
+    try:
+        ceiling = explain_ceiling(Path.cwd() if repo_root is None else repo_root, env)
+        verdict = enforce_budget(Projection.estimated(prompt), ceiling.value)
+    except CeilingConfigError as exc:
+        raise ProviderWorkerError(str(exc), reason_code=exc.reason_code) from exc
+    except InputCeilingExceeded as exc:
+        raise ProviderWorkerError(
+            f"{exc}; {describe(ceiling)}; the request was not sent, hand off to a fresh worker with a smaller context",
+            reason_code=exc.reason_code,
+        ) from exc
+    return {"status": verdict.status, "basis": verdict.basis, "tokens": verdict.tokens, "ceiling": verdict.ceiling,
+            "ceiling_source": ceiling.source, "ceiling_reason": ceiling.reason}
+
+
 def _decode_proposal(response: Mapping[str, Any], *, max_tokens: int) -> dict[str, Any]:
     choices = response.get("choices")
     if not isinstance(choices, list) or not choices:
@@ -230,6 +257,16 @@ def _decode_proposal(response: Mapping[str, Any], *, max_tokens: int) -> dict[st
     if not isinstance(proposal, Mapping):
         raise ProviderWorkerError("provider proposal must be an object", reason_code="provider_proposal_invalid")
     return dict(proposal)
+
+
+def _record_request(repo_root: str | Path, *, task_id: str, title: str, response: Mapping[str, Any]) -> None:
+    """The run's execution report gets this request's counts, exactly as the provider reported them (#1608)."""
+    raw = response.get("usage")
+    completion = raw.get("completion_tokens") if isinstance(raw, Mapping) else None
+    execution_report.record_usage(
+        Path(repo_root), task_id=task_id, title=title, usage=PromptUsage.from_chat_usage(raw),
+        tokens_out=completion if isinstance(completion, int) and not isinstance(completion, bool) else None,
+    )
 
 
 def _usage_fields(response: Mapping[str, Any]) -> dict[str, Any]:
@@ -391,6 +428,7 @@ class OpenRouterWorker:
         allowed_paths: Sequence[str],
         env: Mapping[str, str] | None = None,
         repair_feedback: str | None = None,
+        repo_root: str | Path | None = None,
     ) -> dict[str, Any]:
         forwarded = forwarded_environment(env)
         max_tokens = completion_max_tokens(env)
@@ -400,6 +438,7 @@ class OpenRouterWorker:
             repair_feedback,
             forbidden_literals=(forwarded["OPENROUTER_API_KEY"],),
         )
+        input_budget = _gate_input(prompt_content, repo_root, env)
         prompt_sha256 = hashlib.sha256(prompt_content.encode("utf-8")).hexdigest()
         request_payload = {
             "model": OPENROUTER_MODEL,
@@ -446,6 +485,9 @@ class OpenRouterWorker:
             ) from exc
         if not isinstance(provider_response, Mapping):
             raise ProviderWorkerError("provider response is not an object", reason_code="provider_response_invalid")
+        if repo_root is not None:  # answered means billed: recorded before the proposal is judged
+            _record_request(repo_root, task_id=f"{run_id}-{task_index}", title=f"provider worker: {task.get('id') or task_index}",
+                            response=provider_response)
         proposal = _decode_proposal(provider_response, max_tokens=max_tokens)
         usage = _usage_fields(provider_response)
         return {
@@ -463,5 +505,6 @@ class OpenRouterWorker:
             "proposal": proposal,
             "response_sha256": _canonical_hash(provider_response),
             "provider_call_count": 1,
+            "input_budget": input_budget,
             **usage,
         }

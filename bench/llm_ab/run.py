@@ -262,14 +262,17 @@ def run_arm_batch(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
     batch_prompt = build_batch_prompt(task_list)
     total_wall_t0 = time.time()
     if arm == "simplicio" and arm_spec is None and os.environ.get("SIMPLICIO_BENCH_TURBO", "1") != "0":
+        import asyncio
         from simplicio_loop.turbo import run_turbo
         from simplicio_loop import turbo_provider
 
-        agent_result = run_turbo(Path(repo_dir), task_list, turbo_complete)
-        losers = turbo_provider.drain_hedges()  # the losing side of a hedged call is billed too
-        agent_result["llm_calls"] = list(agent_result["llm_calls"]) + losers
-        for key_name in ("prompt_tokens", "completion_tokens", "reasoning_tokens", "cached_tokens"):
-            agent_result["totals"][key_name] += sum(c.get(key_name) or 0 for c in losers)
+        async def turbo_arm() -> dict:
+            try:
+                return await run_turbo(Path(repo_dir), task_list, turbo_complete)
+            finally:
+                await turbo_provider.close()
+
+        agent_result = asyncio.run(turbo_arm())  # a hedge loser is cancelled: only answers that came back are counted
     elif arm_spec is not None:
         oc.install_skills(repo_dir, arm_spec["skills"])
         isolated_path = oc.build_arm_path(arm_spec["bins"])
@@ -343,7 +346,7 @@ def default_work_dir() -> str:
     return path
 
 
-def turbo_complete(arm: str, messages: list[dict], **kwargs) -> dict:
+async def turbo_complete(arm: str, messages: list[dict], **kwargs) -> dict:
     """The turbo arm's model call is the product's own (``simplicio_loop.turbo_provider``),
     so the benchmark measures what ``simplicio-loop turbo`` sends: the arm's pinned
     OpenRouter session and reasoning off. ``SIMPLICIO_BENCH_TURBO_REASONING=on``
@@ -351,8 +354,8 @@ def turbo_complete(arm: str, messages: list[dict], **kwargs) -> dict:
     from simplicio_loop import turbo_provider
 
     reasoning_on = os.environ.get("SIMPLICIO_BENCH_TURBO_REASONING", "").lower() == "on"
-    return turbo_provider.complete(arm, messages, api_key=lc.get_key(arm),
-                                   session_id=oc.session_id_for_arm(arm), reasoning_off=not reasoning_on, **kwargs)
+    return await turbo_provider.complete(arm, messages, api_key=lc.get_key(arm),
+                                         session_id=oc.session_id_for_arm(arm), reasoning_off=not reasoning_on, **kwargs)
 
 
 def result_filename(date: str, short_sha: str, task_count: int, batch: bool = False,

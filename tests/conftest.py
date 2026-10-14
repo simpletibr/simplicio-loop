@@ -21,6 +21,152 @@ def disable_operator_bootstrap_network_by_default(monkeypatch) -> None:
     monkeypatch.setenv("SIMPLICIO_LOOP_AUTO_BOOTSTRAP_OPERATORS", "0")
 
 
+@pytest.fixture(autouse=True)
+def no_daemon_unless_the_test_asks(monkeypatch) -> None:
+    """A test that runs the console script must not leave a daemon behind; the daemon tests start their own."""
+    monkeypatch.setenv("SIMPLICIO_LOOP_DAEMON", "0")
+
+
+@pytest.fixture(autouse=True)
+def exec_auth_spawn_guard(request, monkeypatch):
+    """exec_auth tests must only ever spawn fake binaries living in a temp dir (#1467).
+
+    Spies on asyncio.create_subprocess_exec and subprocess.Popen: a spawn whose resolved
+    executable is outside the temp dir (e.g. the real /root/.local/bin/claude) is refused
+    and fails the test at teardown, even if production code swallows the exception.
+    """
+    if not Path(str(request.node.fspath)).name.startswith("test_exec_auth"):
+        yield []
+        return
+
+    import asyncio
+    import shutil
+    import subprocess
+    import tempfile
+
+    tmp_root = os.path.realpath(tempfile.gettempdir())
+    spawned: list[str] = []
+    violations: list[str] = []
+
+    def vet(argv0) -> None:
+        resolved = shutil.which(os.fspath(argv0)) or os.fspath(argv0)
+        resolved = os.path.realpath(resolved)
+        spawned.append(resolved)
+        if not resolved.startswith(tmp_root + os.sep):
+            violations.append(resolved)
+            raise AssertionError(f"test spawned a binary outside the tmp dir: {resolved}")
+
+    real_exec = asyncio.create_subprocess_exec
+    real_popen = subprocess.Popen
+
+    async def spy_exec(program, *args, **kwargs):
+        vet(program)
+        return await real_exec(program, *args, **kwargs)
+
+    class SpyPopen(real_popen):
+        def __init__(self, args, *a, **kw):
+            vet(args if isinstance(args, (str, bytes, os.PathLike)) else args[0])
+            super().__init__(args, *a, **kw)
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", spy_exec)
+    monkeypatch.setattr(subprocess, "Popen", SpyPopen)
+    yield spawned
+    assert not violations, f"real binaries spawned: {violations}"
+
+
+#: Runtime subcommands that map the repository (and so write `<git-common-dir>/simplicio/map`).
+MAPPING_SUBCOMMANDS = frozenset(
+    {"map", "runtime", "context", "orient", "orientation", "plan", "decide", "run", "sprint",
+     "validate", "dev-cli", "serve"}
+)
+
+
+def _protected_checkout_roots() -> tuple[str, ...]:
+    """This checkout and the main worktree of its repository: both share one `<git-common-dir>/simplicio`."""
+    roots = {os.path.realpath(str(_REPO_ROOT))}
+    git_entry = _REPO_ROOT / ".git"
+    try:
+        if git_entry.is_file():  # a linked worktree: ".git" is "gitdir: <common>/worktrees/<name>"
+            gitdir = git_entry.read_text(encoding="utf-8").split("gitdir:", 1)[1].strip()
+            roots.add(os.path.realpath(os.path.dirname(os.path.dirname(os.path.dirname(gitdir)))))
+    except (OSError, IndexError):
+        pass
+    return tuple(sorted(roots))
+
+
+@pytest.fixture(autouse=True)
+def runtime_never_targets_the_real_repo(monkeypatch):
+    """No test may run the Simplicio Runtime against this repository (#1574).
+
+    The Runtime keeps its baseline map and a full-tree `baseline-build-*` scratch under
+    `<git-common-dir>/simplicio/map`, shared by every worktree; a run cut short by a timeout leaves
+    them behind (102 directories, 6.8 GB measured). A spawn of the `simplicio` binary whose cwd or
+    an argument is inside this checkout is refused, even if the code under test swallows the error.
+    """
+    import asyncio
+    import inspect
+    import subprocess
+
+    roots = _protected_checkout_roots()
+    violations: list[str] = []
+
+    def inside(value, base) -> bool:
+        try:
+            raw = os.fspath(value)
+            if not os.path.isabs(raw):
+                raw = os.path.join(base, raw)  # a relative path means "relative to the CHILD's cwd"
+            resolved = os.path.realpath(raw)
+        except (TypeError, ValueError):
+            return False
+        return any(resolved == root or resolved.startswith(root + os.sep) for root in roots)
+
+    def target_of(argv):
+        """The repository a Runtime call acts on: its ``--repo`` value, else the cwd and path arguments."""
+        for index, item in enumerate(argv):
+            if item == "--repo" and index + 1 < len(argv):
+                return [argv[index + 1]]
+            if item.startswith("--repo="):
+                return [item.split("=", 1)[1]]
+        return [".", *[item for item in argv[1:] if os.sep in item]]
+
+    def vet(argv, cwd) -> None:
+        if isinstance(argv, (str, bytes, os.PathLike)):
+            argv = [argv]
+        argv = [os.fsdecode(item) for item in argv]
+        if not argv or os.path.basename(argv[0]) not in ("simplicio", "simplicio.exe"):
+            return
+        if len(argv) < 2 or argv[1] not in MAPPING_SUBCOMMANDS:
+            return  # hbp/gate/checkpoint/... never build a baseline map
+        base = os.path.realpath(os.fspath(cwd) if cwd else os.getcwd())
+        if any(inside(target, base) for target in target_of(argv)):
+            violations.append(" ".join(argv))
+            raise AssertionError(
+                "a test ran the Simplicio Runtime against the real repository "
+                f"(it writes into the shared .git/simplicio): {' '.join(argv)}"
+            )
+
+    real_exec = asyncio.create_subprocess_exec
+    real_popen = subprocess.Popen
+
+    async def guarded_exec(program, *args, **kwargs):
+        vet([program, *args], kwargs.get("cwd"))
+        return await real_exec(program, *args, **kwargs)
+
+    class GuardedPopen(real_popen):
+        def __init__(self, args, *a, **kw):
+            vet(args, kw.get("cwd"))
+            super().__init__(args, *a, **kw)
+
+    # Show the wrapped signature: core_network_guard binds positional Popen options (executable is the third)
+    # against the class it wraps, and `(args, *a, **kw)` would hide it.
+    GuardedPopen.__signature__ = inspect.signature(real_popen)
+    GuardedPopen.__init__.__signature__ = inspect.signature(real_popen.__init__)
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", guarded_exec)
+    monkeypatch.setattr(subprocess, "Popen", GuardedPopen)
+    yield violations  # the guard's own tests clear it after asserting the refusal
+    assert not violations, f"Runtime spawned against the real repository: {violations}"
+
+
 @pytest.fixture
 def admitting_capacity(monkeypatch) -> None:
     """Pin the documented physical-admission profile so host disk or memory pressure cannot block a dispatch test.
@@ -45,3 +191,50 @@ def pytest_configure(config) -> None:
     if os.environ.get("SIMPLICIO_CORE_NO_NETWORK") != "1":
         return
     install_core_network_guard()
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _squad_review_green(request):
+    """The squad flow tests exercise the flow, not the gate: the review gate answers T1 green (tests/review_gate covers the gate).
+
+    Module scope, because the e2e flow fixtures are module scoped. A module opts out with `pytestmark = pytest.mark.real_squad_review`
+    (`tests/watcher247/test_squad_review.py` tests the real `evaluate`)."""
+    if "real_squad_review" in request.keywords:
+        yield
+        return
+    from simplicio_loop.review_gate import model
+    from simplicio_loop.watcher247 import squad_review
+
+    async def fake(repo, number, issue, head, author, lock):
+        check = model.CheckResult("fake-gate", model.PASS)
+        return model.GateReport(number, issue, head, model.Level.T1, (check,)), None
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(squad_review, "evaluate", fake)
+        yield
+
+
+@pytest.fixture
+def tree_operators(tmp_path, monkeypatch) -> Path:
+    """The Mapper and Dev CLI of THIS checkout lead PATH, as the flow tests do.
+
+    A standalone `simplicio-mapper` left on the host can share the version (0.26.35) and still lack the build identity, so
+    `prepare` blocks with `mapper_provenance_missing` (#1575, #1666). The environment must not decide these tests.
+    """
+    from tests.flow.conftest import write_shim
+
+    bin_dir = tmp_path / "operator-bin"
+    bin_dir.mkdir()
+    write_shim(bin_dir / "simplicio-mapper", [_REPO_ROOT / "packages" / "mapper"], "simplicio_mapper.cli")
+    write_shim(bin_dir / "simplicio-dev-cli", [_REPO_ROOT / "packages" / "dev-cli"], "simplicio.cli")
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}")
+    # The runner also imports `simplicio_mapper` in-process (the operations store location), here and in the `simplicio_loop.cli`
+    # subprocesses: a host-installed copy places that store at `<repo>/.simplicio/data`, inside the fingerprinted tree, so the
+    # run "changes the repository". Both must resolve the Mapper of this checkout, which keeps it in `.simplicio-loop/data`.
+    mapper_root = str(_REPO_ROOT / "packages" / "mapper")
+    monkeypatch.syspath_prepend(mapper_root)
+    monkeypatch.setenv("PYTHONPATH", os.pathsep.join(filter(None, [mapper_root, os.environ.get("PYTHONPATH", "")])))
+    for name, module in list(sys.modules.items()):
+        if name.split(".")[0] == "simplicio_mapper" and not str(getattr(module, "__file__", "")).startswith(mapper_root):
+            monkeypatch.delitem(sys.modules, name)
+    return bin_dir

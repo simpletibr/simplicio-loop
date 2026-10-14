@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "simplicio-loop"
-version = "3.48.1"
+version = "3.50.0"
 description = "Standalone orchestrator for mapper and simplicio-dev-cli. No Runtime."
 readme = "PYPI.md"
 requires-python = ">=3.11"
@@ -37,6 +37,8 @@ dependencies = [
   "orjson>=3.11.9,<4",
   "diskcache>=5.6.3,<6",
   "libcst>=1.8.6",
+  # receipt schema checks in the Simplicio Live drill-down (issue #1405, slice 1405c)
+  "jsonschema>=4,<5",
 ]
 
 # Optional: the real embedding backend for `simplicio-cli semantic --ml` / `simplicio-cli rag --ml`.
@@ -44,7 +46,7 @@ dependencies = [
 # meaning retrieval. `pip install "simplicio-loop[ml]"`.
 [project.optional-dependencies]
 # Dev/test dependencies used by the local quality gate and secure-transport fixtures.
-dev = ["setuptools>=77", "pytest>=7", "pytest-cov>=4", "cryptography>=42,<50", "jsonschema>=4,<5"]
+dev = ["setuptools>=77", "pytest>=7", "pytest-cov>=4", "cryptography>=42,<50", "pyyaml"]
 ml = ["model2vec>=0.3", "numpy>=1.21"]
 uvloop = ["uvloop>=0.19; platform_system != 'Windows'"]
 # Browser e2e + axe-core for the Simplicio Live components (tests/test_live_components_e2e_system.py).
@@ -56,7 +58,8 @@ Repository = "https://github.com/simpletibr/simplicio-loop"
 Issues = "https://github.com/simpletibr/simplicio-loop/issues"
 
 [project.scripts]
-simplicio-loop = "simplicio_loop.cli:main"
+# The thin client: it sends the command to the daemon (issue #1590). SIMPLICIO_LOOP_DAEMON=0 runs it in-process.
+simplicio-loop = "simplicio_loop.daemon.client:main"
 issue-factory = "simplicio_loop.issue_factory_cli:main"
 simplicio-ecosystem-doctor = "simplicio_loop.ecosystem_doctor:main"
 simplicio-loop-tools = "simplicio_loop.consumer_cli:main"
@@ -83,12 +86,12 @@ include = ["simplicio_loop*", "simplicio_mapper*", "simplicio", "simplicio.*"]
 namespaces = true
 
 [tool.setuptools.package-data]
-simplicio_loop = ["_bundle/**/*", "_contracts/**/*.json", "_catalog/*.json"]
+simplicio_loop = ["_bundle/**/*", "_contracts/**/*", "_catalog/*.json", "setup_pins.json"]
 "simplicio_loop._bundle" = ["**/*"]
-"simplicio_loop._contracts" = ["**/*.json", "*.json"]
+"simplicio_loop._contracts" = ["**/*"]
 "simplicio_loop._catalog" = ["*.json"]
 # Simplicio Live web components + catalog (issue #1399): static files served as-is, no build step.
-"simplicio_loop.dashboard" = ["static/**/*"]
+"simplicio_loop.dashboard" = ["static/**/*", "prices.json"]
 # every non-Python file of the merged packages (contracts, schemas, templates, fixtures) ships
 simplicio = ["**/*", "**/.*"]
 simplicio_mapper = ["**/*", "**/.*"]
@@ -114,6 +117,7 @@ markers = [
   "external_integration: installed or network-backed lane excluded from the hermetic core gate",
   "satellite: opt-in satellite functionality excluded from the mandatory core gate",
   "no_survey: apply tests that must run without the seeded Mapper survey",
+  "real_squad_review: the module tests the real squad_review.evaluate (the autouse fake of tests/conftest.py is off)",
 ]
 # The bundle/plugin trees mirror source files and are validated by mirror-parity.
 # Collect the canonical tests once instead of executing mirrored probes repeatedly.

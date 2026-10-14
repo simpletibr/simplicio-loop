@@ -170,3 +170,33 @@ def test_apply_rejects_partial_semver(tmp_path):
 def test_check_on_the_real_repo_is_ready():
     result = check_version(REPO_ROOT)
     assert result["ok"] is True, result["manifest"]
+
+
+# ---------------------------------------------------------------------------
+# apply — refuses to bump a version while a dev-only switch is still in the shipped package
+# ---------------------------------------------------------------------------
+
+def test_apply_refuses_while_a_dev_switch_is_in_the_package(tmp_path):
+    repo = _make_repo(tmp_path)
+    (repo / "simplicio_loop" / "sub.py").write_text('X = "SIMPLICIO_247_NO_LOGIN"\n', encoding="utf-8")
+    with pytest.raises(VersionSyncError, match="dev_switch_present") as raised:
+        apply_version(repo, "9.9.9")
+    assert "simplicio_loop/sub.py" in str(raised.value)
+    # refused before any rewrite
+    assert 'version = "1.2.3"' in (repo / "pyproject.toml").read_text(encoding="utf-8")
+
+
+def test_apply_passes_once_the_dev_switch_is_gone(tmp_path):
+    repo = _make_repo(tmp_path)
+    (repo / "simplicio_loop" / "sub.py").write_text("X = 1\n", encoding="utf-8")
+    assert apply_version(repo, "9.9.9")["ok"] is True
+
+
+def test_apply_cli_reports_the_dev_switch_reason_code(tmp_path, capsys):
+    from scripts.version_sync import main
+
+    repo = _make_repo(tmp_path)
+    (repo / "simplicio_loop" / "sub.py").write_text('X = "SIMPLICIO_247_NO_LOGIN"\n', encoding="utf-8")
+    assert main(["apply", "--version", "9.9.9", "--repo", str(repo), "--json"]) == 1
+    out = json.loads(capsys.readouterr().out)
+    assert out["ok"] is False and out["reason_code"] == "dev_switch_present"

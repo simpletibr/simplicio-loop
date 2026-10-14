@@ -2,7 +2,7 @@
 
 Contract (always):
 - Mapper owns extraction + durable memory SoT (``SIMPLICIO_DATA_DIR/memory.sqlite``).
-- Fast owns disposable ``.sfast`` snapshots under ``<repo>/.simplicio/fast/``.
+- Fast owns disposable ``.sfast`` snapshots under ``<repo>/.simplicio-loop/fast/``.
 - Handoff path: ``simplicio-mapper fast-handoff`` → ``simplicio-fast build|context``.
 - Fast never replaces Mapper memory; memory hub is global, Fast is per-repo derived.
 """
@@ -82,7 +82,7 @@ def mapper_fast_status(
     repo_path = Path(repo).expanduser().resolve() if repo else None
     repo_report: dict[str, Any] | None = None
     if repo_path is not None:
-        simplicio = repo_path / ".simplicio-loop" if (repo_path / ".simplicio-loop").is_dir() else repo_path / ".simplicio"
+        simplicio = repo_path / ".simplicio-loop"
         project_map = simplicio / "project-map.json"
         snapshot = simplicio / "fast" / "project.sfast"
         if not snapshot.is_file() and (simplicio / "project.sfast").is_file():
@@ -106,7 +106,7 @@ def mapper_fast_status(
             },
             "commands": {
                 "mapper_scan": f"simplicio-mapper status {repo_path}",
-                "fast_build": f"simplicio-fast build {repo_path} -o .simplicio/fast/project.sfast",
+                "fast_build": f"simplicio-fast build {repo_path} -o .simplicio-loop/fast/project.sfast",
                 "fast_handoff": "simplicio-mapper fast-handoff .",
                 "doctor_fast": "simplicio-mapper doctor --fast",
             },
@@ -132,7 +132,7 @@ def mapper_fast_status(
         "status": status,
         "policy": {
             "memory_sot": "SIMPLICIO_DATA_DIR/memory.sqlite (MapperStore+FTS5)",
-            "fast_snapshot": "<repo>/.simplicio/fast/project.sfast (derived, disposable)",
+            "fast_snapshot": "<repo>/.simplicio-loop/fast/project.sfast (derived, disposable)",
             "ownership": (
                 "Mapper extracts + owns durable memory; Fast owns mmap/PlanDAG snapshots; "
                 "never read .sfast offsets from agents"
@@ -177,8 +177,8 @@ def ensure_repo_fast_artifacts(
     root = Path(repo).expanduser().resolve()
     status_before = mapper_fast_status(repo=root)
     built = None
-    if build_if_missing and not (root / ".simplicio" / "fast" / "project.sfast").is_file():
-        out = root / ".simplicio" / "fast" / "project.sfast"
+    if build_if_missing and not (root / ".simplicio-loop" / "fast" / "project.sfast").is_file():
+        out = root / ".simplicio-loop" / "fast" / "project.sfast"
         out.parent.mkdir(parents=True, exist_ok=True)
         # Prefer native mapper snapshot engine
         try:

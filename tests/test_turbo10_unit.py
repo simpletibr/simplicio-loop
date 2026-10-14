@@ -1,8 +1,10 @@
 """Hermetic 10-task turbo comparison: no OpenRouter, one Mapper survey, cache prefix."""
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -24,7 +26,7 @@ def test_hermetic_comparison_is_ten_tasks_and_does_not_call_openrouter(tmp_path,
         raise AssertionError("OpenRouter was called")
 
     monkeypatch.setattr("urllib.request.urlopen", refuse)
-    def write_map(root):
+    async def write_map(root):
         state = Path(root) / ".simplicio-loop"
         state.mkdir(parents=True, exist_ok=True)
         (state / "project-map.json").write_text('{"files": 6}', encoding="utf-8")
@@ -44,7 +46,7 @@ def test_hermetic_comparison_is_ten_tasks_and_does_not_call_openrouter(tmp_path,
 def test_mapper_survey_runs_once_and_is_reused_for_the_other_nine(tmp_path, monkeypatch):
     calls = []
 
-    def fake_index(root):
+    async def fake_index(root):
         calls.append(root)
         state = root / ".simplicio-loop"
         state.mkdir(parents=True, exist_ok=True)
@@ -52,8 +54,8 @@ def test_mapper_survey_runs_once_and_is_reused_for_the_other_nine(tmp_path, monk
 
     monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", fake_index)
     tasks = bench_tasks.task_set(10)
-    first = survey_tasks(tmp_path, tasks)
-    second = survey_tasks(tmp_path, tasks)
+    first = asyncio.run(survey_tasks(tmp_path, tasks))
+    second = asyncio.run(survey_tasks(tmp_path, tasks))
     assert len(calls) == 1
     generations = {row["generation"] for row in first["tasks"]}
     assert generations == {second["generation"]}
@@ -182,7 +184,7 @@ def test_turbo_read_ai_devcli_writes_what_the_model_returns(tmp_path, monkeypatc
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
     subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
 
-    def complete(arm, messages, **kwargs):
+    async def complete(arm, messages, **kwargs):
         assert arm == "simplicio"
         assert messages[0]["role"] == "system"
         assert "MAPMARK" in messages[0]["content"]
@@ -198,18 +200,20 @@ def test_turbo_read_ai_devcli_writes_what_the_model_returns(tmp_path, monkeypatc
             "cached_tokens": 0,
         }
 
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    import asyncio
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     state = tmp_path / ".simplicio-loop"
     state.mkdir()
     (state / "project-map.json").write_text('{"mark":"MAPMARK"}', encoding="utf-8")
     tasks = [{"index": 1, "text": "Create page made.html with a paragraph."}]
-    result = run_read_ai_devcli(tmp_path, tasks, complete)
+    result = asyncio.run(run_read_ai_devcli(tmp_path, tasks, complete))
     assert (tmp_path / "made.html").read_text(encoding="utf-8") == "<p>made</p>"
     assert result["turns"] == 1
     assert any("simplicio-dev-cli" in cmd["command"] and "--apply" in cmd["command"] for cmd in result["commands"])
 
 
 def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monkeypatch):
+    import asyncio
     import subprocess
     from simplicio_loop.turbo import run_turbo
 
@@ -219,14 +223,14 @@ def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monke
     (tmp_path / "README.md").write_text("fixture\n", encoding="utf-8")
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
     subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     state = tmp_path / ".simplicio-loop"
     state.mkdir()
     (state / "project-map.json").write_text('{"mark":"MAPMARK"}', encoding="utf-8")
     seen = []
 
-    def complete(arm, messages, **kwargs):
-        if kwargs.get("max_tokens") == 1:  # the warm-up call writes the header into the cache
+    async def complete(arm, messages, **kwargs):
+        if kwargs.get("max_tokens") == 1:
             return {"ok": True, "content": "OK"}
         header = messages[0]["content"]
         task = messages[-1]["content"]
@@ -245,7 +249,7 @@ def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monke
         }
 
     tasks = [{"index": index, "text": "Create %s" % index} for index in range(1, 5)]
-    result = run_turbo(tmp_path, tasks, complete)
+    result = asyncio.run(run_turbo(tmp_path, tasks, complete))
     assert result["wave"] is True
     assert len(seen) == 4
     assert (tmp_path / "page1.html").is_file()
@@ -254,6 +258,7 @@ def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monke
 
 def test_devcli_rejection_is_sent_back_once(tmp_path, monkeypatch):
     """A refused plan goes back to the model one time, then turbo stops."""
+    import asyncio
     import subprocess
     from simplicio_loop.turbo import run_turbo
 
@@ -263,13 +268,13 @@ def test_devcli_rejection_is_sent_back_once(tmp_path, monkeypatch):
     (tmp_path / "note.txt").write_text("hello\n", encoding="utf-8")
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
     subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     state = tmp_path / ".simplicio-loop"
     state.mkdir()
     (state / "project-map.json").write_text('{"mark":"MAPMARK"}', encoding="utf-8")
     seen = []
 
-    def complete(arm, messages, **kwargs):
+    async def complete(arm, messages, **kwargs):
         seen.append(messages[-1]["content"])
         if len(seen) == 1:
             body = '{"operations":[{"path":"note.txt","find":"goodbye","replace":"bye"}]}'
@@ -285,7 +290,7 @@ def test_devcli_rejection_is_sent_back_once(tmp_path, monkeypatch):
         }
 
     tasks = [{"index": 1, "text": "Replace hello with bye in note.txt."}]
-    result = run_turbo(tmp_path, tasks, complete)
+    result = asyncio.run(run_turbo(tmp_path, tasks, complete))
     assert len(seen) == 2
     assert "dev-cli rejected the plan" in seen[1]
     assert (tmp_path / "note.txt").read_text(encoding="utf-8") == "bye\n"
@@ -294,6 +299,7 @@ def test_devcli_rejection_is_sent_back_once(tmp_path, monkeypatch):
 
 
 def test_devcli_rejection_stops_after_one_correction(tmp_path, monkeypatch):
+    import asyncio
     import subprocess
     from simplicio_loop.turbo import run_turbo
 
@@ -303,13 +309,13 @@ def test_devcli_rejection_stops_after_one_correction(tmp_path, monkeypatch):
     (tmp_path / "note.txt").write_text("hello\n", encoding="utf-8")
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
     subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     state = tmp_path / ".simplicio-loop"
     state.mkdir()
     (state / "project-map.json").write_text("{}", encoding="utf-8")
     seen = []
 
-    def complete(arm, messages, **kwargs):
+    async def complete(arm, messages, **kwargs):
         seen.append(messages[-1]["content"])
         return {
             "ok": True,
@@ -320,13 +326,14 @@ def test_devcli_rejection_stops_after_one_correction(tmp_path, monkeypatch):
             "cached_tokens": 0,
         }
 
-    run_turbo(tmp_path, [{"index": 1, "text": "Replace hello."}], complete)
+    asyncio.run(run_turbo(tmp_path, [{"index": 1, "text": "Replace hello."}], complete))
     assert len(seen) == 2
     assert (tmp_path / "note.txt").read_text(encoding="utf-8") == "hello\n"
 
 
 def test_reader_prefix_stays_fixed_when_a_call_is_appended(tmp_path, monkeypatch):
     """The Mapper reader is byte-identical on the retry; only the tail grows."""
+    import asyncio
     import subprocess
     from simplicio_loop.turbo import run_turbo
 
@@ -336,13 +343,13 @@ def test_reader_prefix_stays_fixed_when_a_call_is_appended(tmp_path, monkeypatch
     (tmp_path / "note.txt").write_text("hello\n", encoding="utf-8")
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
     subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     state = tmp_path / ".simplicio-loop"
     state.mkdir()
     (state / "project-map.json").write_text('{"mark":"MAPMARK"}', encoding="utf-8")
     snapshots = []
 
-    def complete(arm, messages, **kwargs):
+    async def complete(arm, messages, **kwargs):
         snapshots.append([dict(message) for message in messages])
         if len(snapshots) == 1:
             body = '{"operations":[{"path":"note.txt","find":"goodbye","replace":"bye"}]}'
@@ -354,7 +361,7 @@ def test_reader_prefix_stays_fixed_when_a_call_is_appended(tmp_path, monkeypatch
             "reasoning_tokens": 0, "cached_tokens": 0 if len(snapshots) == 1 else 60,
         }
 
-    run_turbo(tmp_path, [{"index": 1, "text": "Replace hello with bye in note.txt."}], complete)
+    asyncio.run(run_turbo(tmp_path, [{"index": 1, "text": "Replace hello with bye in note.txt."}], complete))
     first, second = snapshots
     assert first[0] == second[0]
     assert first[0]["role"] == "system"

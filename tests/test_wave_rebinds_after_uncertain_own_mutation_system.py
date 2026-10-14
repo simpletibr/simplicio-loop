@@ -37,19 +37,17 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import shutil
 import sys
 from pathlib import Path
 
 import pytest
+from tests.runner_patch import patch_runner
+
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 pytestmark = [
-    pytest.mark.skipif(
-        shutil.which("simplicio-dev-cli") is None or shutil.which("simplicio-mapper") is None,
-        reason="simplicio-dev-cli/simplicio-mapper (bound operators) not installed",
-    ),
+    pytest.mark.usefixtures("tree_operators"),
     pytest.mark.usefixtures("admitting_capacity"),  # host pressure must not decide these dispatch tests
 ]
 
@@ -226,7 +224,7 @@ def test_dependent_task_survives_a_prior_uncertain_own_mutation(tmp_path, monkey
             }
         return real_unchecked(**kwargs)
 
-    monkeypatch.setattr(runner, "_execute_operator_effect_unchecked", fake_unchecked)
+    patch_runner(monkeypatch, "_execute_operator_effect_unchecked", fake_unchecked)
 
     batch = runner.execute_operator_batch(str(repo), run_id, task_indices=[1, 2], retry_budget=1)
     workers = {int(w["task_index"]): w for w in batch["workers"]}

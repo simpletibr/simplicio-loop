@@ -11,9 +11,13 @@ import argparse
 import hashlib
 import json
 import os
+import threading
 import time
 from pathlib import Path
 from typing import Any, Optional
+
+from . import model_roles
+from .input_ceiling import PromptUsage
 
 SCHEMA = "simplicio.execution-report/v1"
 OWNER = "simplicio-loop"
@@ -108,6 +112,8 @@ def consolidate(report: dict[str, Any]) -> dict[str, Any]:
     tokens_out = 0
     tin_known = False
     tout_known = False
+    cached_sum = cache_write_sum = 0
+    cached_known = cache_write_known = False
     wall_sum = 0
     complete = fail = skip = other = 0
     peak_ram: Optional[float] = None
@@ -124,6 +130,12 @@ def consolidate(report: dict[str, Any]) -> dict[str, Any]:
         if tok.get("tokens_out") is not None:
             tokens_out += int(tok["tokens_out"])
             tout_known = True
+        if tok.get("tokens_cached") is not None:
+            cached_sum += int(tok["tokens_cached"])
+            cached_known = True
+        if tok.get("tokens_cache_write") is not None:
+            cache_write_sum += int(tok["tokens_cache_write"])
+            cache_write_known = True
         ram = (t.get("resources") or {}).get("ram_mb")
         if ram is not None:
             peak_ram = ram if peak_ram is None else max(peak_ram, float(ram))
@@ -140,8 +152,14 @@ def consolidate(report: dict[str, Any]) -> dict[str, Any]:
     wall_run = int((time.monotonic() - started) * 1000) if started else int(report.get("wall_ms") or 0)
     hours = wall_run / 3_600_000.0 if wall_run else 0.0
     speed = (len(tasks) / hours) if hours > 0 and tasks else None
+    tasks_by_role: dict[str, int] = {}
+    for t in tasks:
+        role = (t.get("agent") or {}).get("role")
+        if role:
+            tasks_by_role[role] = tasks_by_role.get(role, 0) + 1
     return {
         "task_count": len(tasks),
+        "tasks_by_role": dict(sorted(tasks_by_role.items())),
         "issues": issues,
         "outcomes": {
             "complete": complete,
@@ -155,6 +173,8 @@ def consolidate(report: dict[str, Any]) -> dict[str, Any]:
         "tokens_in_sum": tokens_in if tin_known else None,
         "tokens_out_sum": tokens_out if tout_known else None,
         "tokens_total_sum": (tokens_in + tokens_out) if (tin_known or tout_known) else None,
+        "tokens_cached_sum": cached_sum if cached_known else None,
+        "tokens_cache_write_sum": cache_write_sum if cache_write_known else None,
         "tokens_rollup": (
             "complete"
             if (tin_known or tout_known)
@@ -197,9 +217,8 @@ def load_latest(repo: Path) -> Optional[dict[str, Any]]:
     p = _reports_dir(repo) / "latest.json"
     if not p.is_file():
         return None
-    data = json.loads(p.read_text(encoding="utf-8"))
-    data["_started_monotonic"] = time.monotonic()  # approximate if reloaded
-    return data
+    # No `_started_monotonic`: a reloaded report keeps the wall_ms it already recorded, so write_report never recomputes it.
+    return json.loads(p.read_text(encoding="utf-8"))
 
 
 def record_task(
@@ -211,10 +230,28 @@ def record_task(
     wall_ms: Optional[int] = None,
     tokens_in: Optional[int] = None,
     tokens_out: Optional[int] = None,
+    cache_read: Optional[int] = None,
+    cache_write: Optional[int] = None,
     outcome: str = "IN_PROGRESS",
     operators: Optional[list[str]] = None,
+    agent: Optional[dict[str, str]] = None,
 ) -> None:
     operators = operators or []
+    for name, value in (("cache_read", cache_read), ("cache_write", cache_write)):
+        if value is None:
+            continue
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError("%s must be an integer >= 0, got %r" % (name, value))
+        if tokens_in is None:
+            raise ValueError("%s needs tokens_in, the new input count it belongs to" % name)
+    if agent is not None:
+        if agent.get("role") not in model_roles.ROLES:
+            raise ValueError("agent role must be one of %s" % (model_roles.ROLES,))
+        if agent.get("effort") not in model_roles.EFFORTS:
+            raise ValueError("agent effort must be one of %s" % (model_roles.EFFORTS,))
+        if not agent.get("model"):
+            raise ValueError("agent model is required")
+        agent = {"role": agent["role"], "model": agent["model"], "effort": agent["effort"]}
     for op in operators:
         if op not in report["operators_used"]:
             report["operators_used"].append(op)
@@ -240,7 +277,8 @@ def record_task(
             "tokens": {
                 "tokens_in": tokens_in,
                 "tokens_out": tokens_out,
-                "tokens_cached": None,
+                "tokens_cached": cache_read,
+                "tokens_cache_write": cache_write,
                 "tokens_reasoning": None,
                 "tokens_total": (
                     (tokens_in or 0) + (tokens_out or 0)
@@ -251,6 +289,7 @@ def record_task(
             },
             "outcome": outcome,
             "operators_used": operators,
+            "agent": agent,
             "notes": (
                 ["UNVERIFIED|cpu_percent: sampler unavailable"]
                 if True
@@ -258,6 +297,36 @@ def record_task(
             ),
         }
     )
+
+
+_USAGE_LOCK = threading.Lock()  # read-modify-write of latest.json: two requests recorded at once must not drop one
+
+
+def record_usage(
+    repo: Path,
+    *,
+    task_id: str,
+    title: str,
+    usage: PromptUsage | None,
+    tokens_out: int | None = None,
+) -> Path:
+    """Append one provider request to the run's report (the latest, or a new one) through ``record_task``.
+
+    ``usage`` is what the provider reported (``PromptUsage.from_chat_usage``); None records the request with its counters
+    None, never 0. ``tokens_out`` is the completion count the provider reported, or None.
+    """
+    with _USAGE_LOCK:
+        report = load_latest(repo) or new_report(repo)
+        record_task(
+            report,
+            task_id=task_id,
+            title=title,
+            tokens_in=usage.input_tokens if usage is not None else None,
+            tokens_out=tokens_out,
+            cache_read=usage.cache_read_input_tokens if usage is not None else None,
+            cache_write=usage.cache_creation_input_tokens if usage is not None else None,
+        )
+        return write_report(repo, report)
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -273,7 +342,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     p.add_argument("--wall-ms", type=int)
     p.add_argument("--tokens-in", type=int)
     p.add_argument("--tokens-out", type=int)
+    p.add_argument("--cache-read", type=int, help="cache read tokens of the task, measured (needs --tokens-in)")
+    p.add_argument("--cache-write", type=int, help="cache write tokens of the task, measured (needs --tokens-in)")
     p.add_argument("--operator", action="append", default=[])
+    p.add_argument("--role", choices=model_roles.ROLES, help="agent role (with --model and --effort)")
+    p.add_argument("--model")
+    p.add_argument("--effort", choices=model_roles.EFFORTS)
     p.add_argument("--status", default="COMPLETE")
     args = p.parse_args(argv)
     repo = Path(args.repo).resolve()
@@ -304,6 +378,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         if not args.task_id or not args.title:
             print("record-task requires --task-id and --title", flush=True)
             return 2
+        agent_flags = (args.role, args.model, args.effort)
+        if any(agent_flags) and not all(agent_flags):
+            print("--role, --model and --effort go together", flush=True)
+            return 2
         report = load_latest(repo) or new_report(repo, execution_profile=args.profile)
         record_task(
             report,
@@ -313,8 +391,11 @@ def main(argv: Optional[list[str]] = None) -> int:
             wall_ms=args.wall_ms,
             tokens_in=args.tokens_in,
             tokens_out=args.tokens_out,
+            cache_read=args.cache_read,
+            cache_write=args.cache_write,
             outcome=args.outcome,
             operators=args.operator,
+            agent={"role": args.role, "model": args.model, "effort": args.effort} if args.role else None,
         )
         write_report(repo, report)
         print(json.dumps({k: v for k, v in report.items() if not k.startswith("_")}, indent=2))

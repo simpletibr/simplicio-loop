@@ -14,6 +14,8 @@ import shutil
 import subprocess
 from typing import Any, Mapping, Optional, Sequence
 
+from .error_truncation import truncate_error_with_cause
+
 TRUE_VALUES = frozenset({"1", "true", "yes", "on", "strict", "full-stack", "required"})
 FALSE_VALUES = frozenset({"0", "false", "no", "off", "disabled", "standalone", "legacy"})
 
@@ -52,6 +54,10 @@ def strict_enabled(env: Optional[Mapping[str, str]] = None) -> bool:
     return False
 
 
+def _short_error(text: str) -> str:
+    return truncate_error_with_cause(text, head_chars=100, tail_chars=100, total_limit=200)
+
+
 def _probe_version(
     binary: str,
     args: Sequence[str] = ("--version",),
@@ -80,7 +86,7 @@ def _probe_version(
             "present": True,
             "operational": ok,
             "version": version,
-            "error": "" if ok else (completed.stderr or completed.stdout or "probe failed")[:200],
+            "error": "" if ok else _short_error(completed.stderr or completed.stdout or "probe failed"),
             "path": resolved,
         }
     except (OSError, subprocess.SubprocessError) as exc:
@@ -89,7 +95,7 @@ def _probe_version(
             "present": True,
             "operational": False,
             "version": "",
-            "error": str(exc)[:200],
+            "error": _short_error(str(exc)),
             "path": resolved,
         }
 

@@ -81,7 +81,6 @@ DEFAULT_SHOTS = os.path.join(REPO, ".simplicio-loop/orchestrator", "tee", "web")
 # `build`/`comment` unless the caller manually widened --shots-dir. Scanned in ADDITION to
 # --shots-dir by default so the evidence chain connects without extra flags.
 DEFAULT_VIDEO_SHOTS = os.path.join(REPO, ".simplicio-loop/orchestrator", "tee", "video")
-DEFAULT_TEMPLATE = os.path.join(REPO, ".github", "PULL_REQUEST_TEMPLATE.md")
 
 IMG_EXT = (".png", ".jpg", ".jpeg", ".gif", ".webp")
 VID_EXT = (".mp4", ".webm", ".mov", ".gif")
@@ -261,48 +260,19 @@ def find_existing_progress_comment(issue, runner=None):
 # underlying primitive's default marker (used directly by `github_lifecycle.py`'s own CLI and by
 # `cmd_progress_comment`'s separate progress-comment, which is intentionally its own lightweight,
 # rate-limited, fail-open comment and out of scope for the #285 lifecycle machinery).
-PR_EVIDENCE_COMMENT_MARKER = "<!-- simplicio-loop:pr-evidence-comment -->"
+# The primitives (`publish_comment`, `find_existing_comment`, `PublishError`, the marker) live in
+# `simplicio_loop.pr_evidence` (#1476): the package ships in the wheel, `scripts/` does not.
+from simplicio_loop.pr_evidence import (  # noqa: E402
+    PR_EVIDENCE_COMMENT_MARKER, PublishError, find_existing_comment, find_pr_template, fill_template,
+    publish_comment,
+)
+from simplicio_loop.watcher247.closing_words import sanitize  # noqa: E402
 
 
-class PublishError(RuntimeError):
-    """Raised when the GitHub comment publish could not be completed or verified."""
-
-
-def _run_gh(args, runner, timeout, input_text=None):
-    # `text=True` without an explicit encoding falls back to the platform's default
-    # locale encoding (cp1252 on Windows), which raises `UnicodeDecodeError` on any
-    # issue title/body/comment containing non-Latin1 characters (emoji, non-ASCII
-    # names, ...) -- a real failure observed live against wesleysimplicio/simplicio-loop
-    # issue #347 during the #285 lifecycle-adapter E2E. `gh` always emits UTF-8.
-    completed = runner(["gh"] + args, capture_output=True, text=True, timeout=timeout,
-                        check=False, input=input_text, encoding="utf-8", errors="replace")
-    if completed.returncode != 0:
-        stderr = (completed.stderr or completed.stdout or "").strip()
-        raise PublishError("gh %s failed: %s" % (" ".join(args), stderr or "unknown error"))
-    return completed.stdout
-
-
-def find_existing_comment(owner, repo, issue, marker=PR_EVIDENCE_COMMENT_MARKER,
-                           runner=subprocess.run, timeout=20):
-    """Return the numeric id of a prior comment on `issue` whose body carries `marker`, or None.
-
-    Paginates through `gh api repos/{owner}/{repo}/issues/{issue}/comments` and returns the FIRST
-    match (there should only ever be one, since publish always reuses it) so a re-run edits rather
-    than appends.
-    """
-    stdout = _run_gh(
-        ["api", "repos/%s/%s/issues/%s/comments" % (owner, repo, issue), "--paginate"],
-        runner, timeout)
-    try:
-        comments = json.loads(stdout)
-    except ValueError:
-        raise PublishError("gh api returned non-JSON comment list")
-    if not isinstance(comments, list):
-        comments = []
-    for c in comments:
-        if marker in (c.get("body") or ""):
-            return c.get("id")
-    return None
+def _default_template():
+    """Absolute path of this repo's PR template, or None when it has none."""
+    rel = find_pr_template(REPO)
+    return os.path.join(REPO, rel) if rel else None
 
 
 def _resolve_now(opts):
@@ -362,41 +332,6 @@ def cmd_progress_comment(opts):
     _record_post(now=now, state_path=state_path)
     tag = "MEASURED" if ok else "UNVERIFIED"
     print("%s|progress-comment %s" % (tag, "updated" if ok else "attempted (see stderr for gh output)"))
-
-
-def publish_comment(owner, repo, issue, body, marker=PR_EVIDENCE_COMMENT_MARKER,
-                     runner=subprocess.run, timeout=20):
-    """Publish `body` to `issue` idempotently. Returns {"action": "created"|"updated", "id": int}.
-
-    Tags the body with the hidden marker (added once, not duplicated if already present), then
-    either PATCHes the existing tagged comment or POSTs a new one. Raises `PublishError` on any
-    `gh` failure -- callers must treat that as BLOCKED, never as a silent success, per the
-    "no silent fallback" invariant (#295): a comment that failed to post must never be reported as
-    posted.
-
-    The request body is sent as a JSON payload on stdin (`gh api ... --input -`), never via
-    `-f body=@path`/shell interpolation of the rendered markdown -- this avoids any quoting/shell
-    injection surface from untrusted acceptance-criteria text or file paths ending up in the
-    argument vector.
-    """
-    tagged_body = body if marker in body else (body.rstrip("\n") + "\n\n" + marker + "\n")
-    existing_id = find_existing_comment(owner, repo, issue, marker=marker, runner=runner,
-                                        timeout=timeout)
-    payload = json.dumps({"body": tagged_body})
-    if existing_id is not None:
-        _run_gh(["api", "-X", "PATCH",
-                 "repos/%s/%s/issues/comments/%s" % (owner, repo, existing_id),
-                 "--input", "-"], runner, timeout, input_text=payload)
-        return {"action": "updated", "id": existing_id}
-    stdout = _run_gh(["api", "-X", "POST",
-                      "repos/%s/%s/issues/%s/comments" % (owner, repo, issue),
-                      "--input", "-"], runner, timeout, input_text=payload)
-    try:
-        created = json.loads(stdout)
-        new_id = created.get("id")
-    except ValueError:
-        new_id = None
-    return {"action": "created", "id": new_id}
 
 
 def publish_evidence_via_lifecycle(owner, repo, issue, body, *, pr=None, run_id="", attempt_id="",
@@ -523,18 +458,6 @@ def render_evidence(images, videos, heading="Evidence — prints & recordings"):
     return "\n".join(lines)
 
 
-def _fill_template(tpl, blocks):
-    """Append our evidence blocks to a discovered PR template (never drop the maintainer's sections).
-
-    We do not try to surgically rewrite arbitrary templates (untrusted content); we keep the
-    template verbatim and append the AC checklist + evidence under a clear divider, so the PR always
-    has both the maintainer's layout AND the proof.
-    """
-    parts = [tpl.rstrip(), "", "---", ""]
-    parts += blocks
-    return "\n".join(parts).rstrip() + "\n"
-
-
 def build_body(opts):
     """Assemble the PR body. Returns (markdown, has_evidence)."""
     anchor = _load_anchor(opts)
@@ -571,7 +494,7 @@ def build_body(opts):
     if summary:
         blocks += ["### Summary", summary, ""]
     if item:
-        blocks += ["Closes #%s" % str(item).lstrip("#"), ""]
+        blocks += ["Parte de #%s" % str(item).lstrip("#"), ""]
     if progress_md:
         blocks += [progress_md, ""]
     if backlog_md:
@@ -580,17 +503,17 @@ def build_body(opts):
     if delivery_md:
         blocks += [delivery_md, ""]
 
-    tpl_path = opts.get("template") if isinstance(opts.get("template"), str) else DEFAULT_TEMPLATE
+    tpl_path = opts.get("template") if isinstance(opts.get("template"), str) else _default_template()
     if tpl_path and os.path.exists(tpl_path):
         try:
             with open(tpl_path, encoding="utf-8", errors="replace") as f:
                 tpl = f.read()
-            body = "# %s\n\n" % title + _fill_template(tpl, blocks)
-            return body, has_evidence
+            body = "# %s\n\n" % title + fill_template(tpl, blocks)
+            return sanitize(body, "PR body"), has_evidence
         except OSError:
             pass
     body = "# %s\n\n" % title + "\n".join(blocks).rstrip() + "\n"
-    return body, has_evidence
+    return sanitize(body, "PR body"), has_evidence  # a closing word in goal/summary/AC would close the issue on merge (#1644)
 
 
 def _local_report_active(opts):

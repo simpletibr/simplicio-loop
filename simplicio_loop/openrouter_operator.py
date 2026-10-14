@@ -23,6 +23,8 @@ import urllib.request
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Mapping
 
+from . import input_ceiling
+
 
 PLAN_SCHEMA = "simplicio.mechanical-edit/v1"
 RECEIPT_SCHEMA = "simplicio.openrouter-plan-receipt/v1"
@@ -394,6 +396,10 @@ def request_mechanical_plan(*, task: Mapping[str, Any], target: str, repo_path: 
             task=task, target=target, mapper_context=mapper_context, current=current,
             repair_feedback=repair_feedback,
         )
+        ceiling = input_ceiling.explain_ceiling(repo_path)
+        receipt.update(ceiling_source=ceiling.source, ceiling_reason=ceiling.reason)
+        projection = input_ceiling.Projection.estimated(prompt)
+        input_ceiling.enforce_budget(projection, ceiling.value)
         payload = {
             "model": model,
             "temperature": 0,
@@ -412,6 +418,7 @@ def request_mechanical_plan(*, task: Mapping[str, Any], target: str, repo_path: 
             model=model, safe_endpoint=safe_endpoint, task=task, target=target,
             mapper_context=mapper_context, started_ns=started_ns,
         )
+        receipt.update(ceiling_source=ceiling.source, ceiling_reason=ceiling.reason)
         receipt["prompt_sha256"] = _sha256_text(prompt)
         receipt["prompt_chars"] = len(prompt)
         request = urllib.request.Request(
@@ -475,6 +482,16 @@ def request_mechanical_plan(*, task: Mapping[str, Any], target: str, repo_path: 
             "plan_schema": PLAN_SCHEMA,
         })
         return plan, receipt
+    except (input_ceiling.InputCeilingExceeded, input_ceiling.CeilingConfigError) as exc:
+        receipt.update({
+            "status": exc.reason_code, "provider_wall_ns": time.perf_counter_ns() - started_ns,
+            "error_code": exc.reason_code, "error_detail": str(exc),
+        })
+        # A config error is raised before the ceiling is read: its own message is the reason.
+        receipt.setdefault("ceiling_source", "invalid")
+        receipt.setdefault("ceiling_reason", str(exc))
+        exc.receipt = dict(receipt)
+        raise
     except OpenRouterPlanError:
         raise
     except Exception as exc:

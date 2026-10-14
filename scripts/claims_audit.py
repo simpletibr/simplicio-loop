@@ -75,7 +75,7 @@ CORE_MODE = False
 
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
-from mirror_manifest import LEAN_SCRIPTS, LEAN_TESTS  # noqa: E402 — single source of truth (#74)
+from mirror_manifest import HOST_RULE_FILES, LEAN_SCRIPTS, LEAN_TESTS  # noqa: E402 — single source of truth (#74)
 from claims_manifest import CLAIMS, extract_claims  # noqa: E402 — quantitative claims (#96)
 
 DOC_GLOBS = ["README.md", "AGENTS.md", "INSTALL.md", "PYPI.md"]
@@ -357,6 +357,11 @@ def check_bundle_parity():
         (os.path.join(REPO, "tests"),
          os.path.join(REPO, "simplicio_loop", "_bundle", "tests"),
          set(LEAN_TESTS)),
+        (os.path.join(REPO, "adapters", "claude"),
+         os.path.join(REPO, "simplicio_loop", "_bundle", "adapters", "claude")),
+        (os.path.join(REPO, "packaging", "host-rules"),
+         os.path.join(REPO, "simplicio_loop", "_bundle", "host-rules"),
+         set(HOST_RULE_FILES)),
     ]
     drift = []
 
@@ -379,7 +384,7 @@ def check_bundle_parity():
             include = None
         else:
             src_root, bun_root, include = pair
-        tag = os.path.basename(bun_root)
+        tag = os.path.relpath(bun_root, os.path.join(REPO, "simplicio_loop", "_bundle")).replace(os.sep, "/")
         if not os.path.isdir(bun_root):
             drift.append("bundle dir missing: _bundle/%s" % tag)
             continue

@@ -37,3 +37,41 @@ def test_linux_memory_comes_from_proc_meminfo_without_psutil(monkeypatch, tmp_pa
     meminfo.write_text("MemTotal:       16000000 kB\nMemAvailable:    8000000 kB\n")
     monkeypatch.setattr(lc, "_PROC_MEMINFO", meminfo)
     assert lc._linux_memory_available() == 8000000 * 1024
+
+
+def _probe_cores(monkeypatch, tmp_path, *, cpu_count, affinity, quota=None):
+    """cpu_count the probe reports for a host with `cpu_count` cores, a CPU affinity set and a cgroup quota."""
+    monkeypatch.setattr(lc.os, "cpu_count", lambda: cpu_count)
+    if affinity is None:
+        monkeypatch.delattr(lc.os, "sched_getaffinity", raising=False)
+    elif isinstance(affinity, Exception):
+        def broken(_pid):
+            raise affinity
+        monkeypatch.setattr(lc.os, "sched_getaffinity", broken, raising=False)
+    else:
+        monkeypatch.setattr(lc.os, "sched_getaffinity", lambda pid: set(affinity), raising=False)
+    monkeypatch.setattr(lc, "_cgroup_cpu_capacity", lambda: quota)
+    monkeypatch.setattr(lc, "_memory_available", lambda: 8 * 1024 ** 3)
+    return lc.probe_local_capacity(tmp_path, requested_workers=1, reserve_workers=0).cpu_count
+
+
+def test_cpu_affinity_limits_the_core_count(monkeypatch, tmp_path):
+    # `taskset -c 0,1` on a 10-core host: only 2 CPUs may run this process; os.cpu_count() still says 10.
+    assert _probe_cores(monkeypatch, tmp_path, cpu_count=10, affinity={0, 1}) == 2
+
+
+def test_the_cgroup_quota_still_applies_below_the_affinity(monkeypatch, tmp_path):
+    assert _probe_cores(monkeypatch, tmp_path, cpu_count=10, affinity={0, 1, 2, 3}, quota=3) == 3
+    assert _probe_cores(monkeypatch, tmp_path, cpu_count=10, affinity={0, 1}, quota=6) == 2
+
+
+def test_without_affinity_support_the_probe_uses_cpu_count(monkeypatch, tmp_path):
+    assert _probe_cores(monkeypatch, tmp_path, cpu_count=10, affinity=None) == 10  # macOS and Windows have no sched_getaffinity
+    assert _probe_cores(monkeypatch, tmp_path, cpu_count=10, affinity=OSError("denied")) == 10
+    assert _probe_cores(monkeypatch, tmp_path, cpu_count=10, affinity=set()) == 10, "an empty set is not a measurement"
+    assert _probe_cores(monkeypatch, tmp_path, cpu_count=10, affinity=None, quota=4) == 4
+
+
+def test_the_affinity_is_a_measurement_when_cpu_count_is_unreadable(monkeypatch, tmp_path):
+    assert _probe_cores(monkeypatch, tmp_path, cpu_count=0, affinity={0, 1}) == 2
+    assert _probe_cores(monkeypatch, tmp_path, cpu_count=0, affinity=None) is None, "nothing measured stays unavailable"

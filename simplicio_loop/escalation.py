@@ -1,52 +1,59 @@
 """Escalation ladder: retry execution failures, escalate to coordination, then planning.
 
-When a task fails during execution, the ladder retries once in the same role.
-If it still fails, it escalates to coordination, then to planning, then stops.
-
-Each escalation step records the role, model, effort used, and tracks attempts
-per issue and per day against a cost ceiling.
+Cost is the MEASURED token total of each attempt's simplicio.execution-report/v1. An attempt without MEASURED tokens is
+UNVERIFIED: it is never counted as zero tokens, and it is bounded by an attempt count instead. The attempt ceilings are
+policy values, not measurements.
 """
 
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Any, Optional
 
 from . import model_roles
+from .execution_report import SCHEMA as EXECUTION_REPORT_SCHEMA
 
-# Escalation ladder: execution -> coordination -> planning -> stop
 ESCALATION_LADDER = ("execution", "coordination", "planning")
+# Policy: once any attempt in a scope is UNVERIFIED, the scope may not exceed these attempt counts.
+ATTEMPT_CEILING_PER_ISSUE = 6
+ATTEMPT_CEILING_PER_DAY = 30
+
+
+def measured_tokens(report: Optional[dict[str, Any]]) -> Optional[int]:
+    """Total tokens of one attempt's execution report, or None (UNVERIFIED) unless every task has MEASURED tokens."""
+    if not isinstance(report, dict) or report.get("schema") != EXECUTION_REPORT_SCHEMA:
+        return None
+    tasks = report.get("tasks") or []
+    if not tasks:
+        return None
+    total = 0
+    for task in tasks:
+        tokens = task.get("tokens") or {}
+        if tokens.get("source") != "cli_measured" or tokens.get("tokens_total") is None:
+            return None
+        total += int(tokens["tokens_total"])
+    return total
 
 
 class EscalationRecord:
     """Record of one escalation step in the ladder."""
 
-    def __init__(
-        self,
-        step: int,
-        role: str,
-        family: str,
-        model: str,
-        effort: str,
-        attempt: int,
-        outcome: str,  # ok, failed, timeout, etc.
-        error: Optional[str] = None,
-        execution_ms: float = 0.0,
-    ):
-        self.step = step  # 0, 1, 2 for execution, coordination, planning
+    def __init__(self, step, role, family, model, effort, attempt, outcome, error=None, execution_ms=0.0, tokens=None):
+        self.step = step
         self.role = role
         self.family = family
         self.model = model
         self.effort = effort
-        self.attempt = attempt  # attempt number within this step
+        self.attempt = attempt
         self.outcome = outcome
         self.error = error
         self.execution_ms = execution_ms
-        self.timestamp = datetime.utcnow().isoformat()
+        self.tokens = tokens  # MEASURED total tokens, or None when UNVERIFIED
+        self.timestamp = datetime.now(timezone.utc).isoformat()
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self):
         return {
             "step": self.step,
             "role": self.role,
@@ -57,6 +64,7 @@ class EscalationRecord:
             "outcome": self.outcome,
             "error": self.error,
             "execution_ms": self.execution_ms,
+            "tokens": self.tokens,
             "timestamp": self.timestamp,
         }
 
@@ -66,40 +74,40 @@ class EscalationState:
 
     def __init__(
         self,
-        repo: Path,
-        issue: int,
-        family: str,
-        cost_ceiling_per_issue: Optional[int] = None,
-        cost_ceiling_per_day: Optional[int] = None,
+        repo,
+        issue,
+        family,
+        token_ceiling_per_issue=None,
+        token_ceiling_per_day=None,
+        attempt_ceiling_per_issue=ATTEMPT_CEILING_PER_ISSUE,
+        attempt_ceiling_per_day=ATTEMPT_CEILING_PER_DAY,
     ):
         self.repo = Path(repo)
         self.issue = issue
         self.family = family
-        self.cost_ceiling_per_issue = cost_ceiling_per_issue or 1000  # arbitrary units
-        self.cost_ceiling_per_day = cost_ceiling_per_day or 5000
-        self.records: list[EscalationRecord] = []
-        self.current_step = 0  # 0 = execution, 1 = coordination, 2 = planning
+        self.token_ceiling_per_issue = token_ceiling_per_issue
+        self.token_ceiling_per_day = token_ceiling_per_day
+        self.attempt_ceiling_per_issue = attempt_ceiling_per_issue
+        self.attempt_ceiling_per_day = attempt_ceiling_per_day
+        self.records = []
+        self.current_step = 0
         self.attempts_in_step = 0
-        self._cost_per_role = {"execution": 10, "coordination": 50, "planning": 100}
         self._state_file = self._get_state_file()
         self._load_state()
 
-    def _get_state_file(self) -> Path:
-        """Get the escalation state file path."""
+    def _get_state_file(self):
         d = self.repo / ".simplicio-loop" / "escalation-states"
         d.mkdir(parents=True, exist_ok=True)
         return d / f"issue-{self.issue}.json"
 
-    def _load_state(self) -> None:
-        """Load saved escalation state from disk."""
+    def _load_state(self):
         if not self._state_file.is_file():
             return
         try:
             data = json.loads(self._state_file.read_text(encoding="utf-8"))
             self.current_step = data.get("current_step", 0)
             self.attempts_in_step = data.get("attempts_in_step", 0)
-            records_data = data.get("records", [])
-            for rec in records_data:
+            for rec in data.get("records", []):
                 self.records.append(
                     EscalationRecord(
                         step=rec["step"],
@@ -111,13 +119,13 @@ class EscalationState:
                         outcome=rec["outcome"],
                         error=rec.get("error"),
                         execution_ms=rec.get("execution_ms", 0.0),
+                        tokens=rec.get("tokens"),
                     )
                 )
         except (json.JSONDecodeError, ValueError, KeyError):
             pass
 
-    def _save_state(self) -> None:
-        """Save escalation state to disk."""
+    def _save_state(self):
         data = {
             "issue": self.issue,
             "family": self.family,
@@ -125,56 +133,50 @@ class EscalationState:
             "attempts_in_step": self.attempts_in_step,
             "records": [r.to_dict() for r in self.records],
         }
-        self._state_file.write_text(
-            json.dumps(data, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        self._state_file.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    def _get_cost_used_today(self) -> int:
-        """Calculate cost used today across all issues."""
-        today = datetime.utcnow().date()
-        cost = 0
+    def _records_in_scope(self, today):
+        if not today:
+            return list(self.records)
+        now = datetime.now(timezone.utc).date()
+        in_scope = []
         for record in self.records:
             try:
-                ts = datetime.fromisoformat(record.timestamp)
-                if ts.date() == today:
-                    cost += self._cost_per_role.get(record.role, 10)
+                if datetime.fromisoformat(record.timestamp).date() == now:
+                    in_scope.append(record)
             except (ValueError, AttributeError):
                 pass
-        return cost
+        return in_scope
 
-    def _get_cost_used_for_issue(self) -> int:
-        """Calculate cost used for this issue."""
-        cost = 0
-        for record in self.records:
-            cost += self._cost_per_role.get(record.role, 10)
-        return cost
+    @staticmethod
+    def _usage(records):
+        """MEASURED tokens, count of UNVERIFIED attempts, and total attempts. UNVERIFIED adds no tokens."""
+        return {
+            "tokens": sum(r.tokens for r in records if r.tokens is not None),
+            "unverified": sum(1 for r in records if r.tokens is None),
+            "attempts": len(records),
+        }
 
-    def can_escalate(self) -> bool:
-        """Check if we can escalate (cost ceilings not exceeded)."""
-        cost_today = self._get_cost_used_today()
-        cost_issue = self._get_cost_used_for_issue()
-
-        if cost_today >= self.cost_ceiling_per_day:
-            return False
-        if cost_issue >= self.cost_ceiling_per_issue:
-            return False
-
+    def can_escalate(self):
+        """False once a token ceiling is reached, or an attempt ceiling is reached while any attempt is UNVERIFIED."""
+        for today in (False, True):
+            usage = self._usage(self._records_in_scope(today))
+            token_ceiling = self.token_ceiling_per_day if today else self.token_ceiling_per_issue
+            attempt_ceiling = self.attempt_ceiling_per_day if today else self.attempt_ceiling_per_issue
+            if token_ceiling is not None and usage["tokens"] >= token_ceiling:
+                return False
+            if usage["unverified"] and usage["attempts"] >= attempt_ceiling:
+                return False
         return True
 
-    def current_role(self) -> str:
+    def current_role(self):
         """Get the current role in the ladder."""
         if self.current_step >= len(ESCALATION_LADDER):
             return ESCALATION_LADDER[-1]
         return ESCALATION_LADDER[self.current_step]
 
-    def record_attempt(
-        self,
-        outcome: str,
-        error: Optional[str] = None,
-        execution_ms: float = 0.0,
-    ) -> EscalationRecord:
-        """Record an attempt in the current role."""
+    def record_attempt(self, outcome, error=None, execution_ms=0.0, report=None):
+        """Record an attempt in the current role. ``report`` is that attempt's execution report, if any."""
         role = self.current_role()
         try:
             resolved = model_roles.resolve(self.family, role)
@@ -194,18 +196,15 @@ class EscalationState:
             outcome=outcome,
             error=error,
             execution_ms=execution_ms,
+            tokens=measured_tokens(report),
         )
         self.records.append(record)
         self.attempts_in_step += 1
         self._save_state()
         return record
 
-    def next_step(self) -> bool:
-        """Move to the next step in the ladder.
-
-        Returns:
-            True if moved to a new step, False if at the end
-        """
+    def next_step(self):
+        """Move to the next step in the ladder. Returns True if moved."""
         if not self.can_escalate():
             return False
 
@@ -217,38 +216,48 @@ class EscalationState:
         self._save_state()
         return True
 
-    def has_reached_end(self) -> bool:
+    def has_reached_end(self):
         """Check if we've reached the end of the ladder."""
         return self.current_step >= len(ESCALATION_LADDER) - 1
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self):
         """Export the full escalation state."""
+        issue_usage = self._usage(self._records_in_scope(False))
+        today_usage = self._usage(self._records_in_scope(True))
         return {
             "issue": self.issue,
             "family": self.family,
             "current_step": self.current_step,
             "current_role": self.current_role(),
             "attempts_in_step": self.attempts_in_step,
-            "cost_used_for_issue": self._get_cost_used_for_issue(),
-            "cost_used_today": self._get_cost_used_today(),
-            "cost_ceiling_per_issue": self.cost_ceiling_per_issue,
-            "cost_ceiling_per_day": self.cost_ceiling_per_day,
+            "tokens_used_for_issue": issue_usage["tokens"],
+            "tokens_used_today": today_usage["tokens"],
+            "unverified_attempts_for_issue": issue_usage["unverified"],
+            "unverified_attempts_today": today_usage["unverified"],
+            "token_ceiling_per_issue": self.token_ceiling_per_issue,
+            "token_ceiling_per_day": self.token_ceiling_per_day,
+            "attempt_ceiling_per_issue": self.attempt_ceiling_per_issue,
+            "attempt_ceiling_per_day": self.attempt_ceiling_per_day,
             "records": [r.to_dict() for r in self.records],
         }
 
 
 def load_escalation_state(
-    repo: Path,
-    issue: int,
-    family: str,
-    cost_ceiling_per_issue: Optional[int] = None,
-    cost_ceiling_per_day: Optional[int] = None,
-) -> EscalationState:
+    repo,
+    issue,
+    family,
+    token_ceiling_per_issue=None,
+    token_ceiling_per_day=None,
+    attempt_ceiling_per_issue=ATTEMPT_CEILING_PER_ISSUE,
+    attempt_ceiling_per_day=ATTEMPT_CEILING_PER_DAY,
+):
     """Load or create an escalation state for an issue."""
     return EscalationState(
         repo,
         issue,
         family,
-        cost_ceiling_per_issue=cost_ceiling_per_issue,
-        cost_ceiling_per_day=cost_ceiling_per_day,
+        token_ceiling_per_issue=token_ceiling_per_issue,
+        token_ceiling_per_day=token_ceiling_per_day,
+        attempt_ceiling_per_issue=attempt_ceiling_per_issue,
+        attempt_ceiling_per_day=attempt_ceiling_per_day,
     )

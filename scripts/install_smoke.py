@@ -18,11 +18,10 @@ What this script DOES do, for real:
     beyond what's already installed);
   * creates a fresh, disposable virtualenv with `venv` (nothing inherited from the repo's
     `sys.path`/`PYTHONPATH`);
-  * installs ONLY that wheel into it with `--no-deps` (this repo's runtime dependencies,
-    including `simplicio-cli` and `simplicio-mapper`, are not vendored/available offline;
-    `--no-deps` is
-    called out explicitly in the receipt so nobody mistakes this for a full dependency-closure
-    smoke);
+  * installs that wheel into it WITH its declared dependencies, which pip resolves from the
+    package index (pip honours `PIP_INDEX_URL`, `PIP_FIND_LINKS` and `PIP_NO_INDEX`). A user
+    runs the same command. If pip cannot resolve a dependency, the smoke ends as
+    `install_failed` and the receipt names the cause. Nothing falls back to `--no-deps`;
   * inside that clean venv, confirms `importlib.metadata.version("simplicio-loop")` matches the
     expected version and that the installed module file lives under the venv's site-packages
     (not the repo checkout);
@@ -127,18 +126,18 @@ def run_smoke(
             return receipt
         venv_python = venv_dir / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 
-        install_cmd = [str(venv_python), "-m", "pip", "install", "--no-deps", "--no-index", str(wheel_path)]
+        install_cmd = [str(venv_python), "-m", "pip", "install", str(wheel_path)]
         install = subprocess.run(install_cmd, capture_output=True, text=True, cwd=str(workdir), env=env, stdin=subprocess.DEVNULL)
         receipt["install"] = {
             "command": " ".join(install_cmd),
             "returncode": install.returncode,
             "stderr_tail": install.stderr.strip().splitlines()[-10:] if install.stderr else [],
             "ok": install.returncode == 0,
-            "no_deps": True,
         }
         if install.returncode != 0:
             receipt["ok"] = False
             receipt["reason_code"] = "install_failed"
+            receipt["cause"] = (install.stderr.strip().splitlines() or ["pip install failed with no output"])[-1][:300]
             return receipt
 
         # Clean-room provenance check: importlib.metadata.version + module file location, run

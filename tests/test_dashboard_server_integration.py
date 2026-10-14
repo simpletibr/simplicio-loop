@@ -1,0 +1,568 @@
+'''Integration tests for the dashboard server over real sockets (TDD red).
+
+Every server binds 127.0.0.1 on port 0 and is always stopped. Every socket has a hard timeout.
+The server module is imported only inside fixtures and test functions.
+'''
+import http.client
+import json
+import math
+import os
+import subprocess
+import sys
+import threading
+import time
+from urllib.parse import quote
+
+import pytest
+
+TOKEN = 'integration-token-0123'
+AUTH = {'Authorization': 'Bearer ' + TOKEN}
+SSE = {**AUTH, 'Accept': 'text/event-stream'}
+CSP = "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'"
+TIMEOUT = 5
+
+
+def _emitter():
+    from simplicio_loop.dashboard_events import load
+    module = load()
+    assert module is not None, 'dashboard_events emitter is missing'
+    return module
+
+
+def _make_run(root, layout, run_id, emitted=0, **state):
+    run_dir = root / '.simplicio-loop' / layout / run_id
+    run_dir.mkdir(parents=True)
+    body = {'run_id': run_id, 'status': 'running', 'phase': 'intake', 'percent': 10,
+            'repo': str(root), 'started_at': '2026-10-01T10:00:00Z',
+            'updated_at': '2026-10-01T10:00:00Z'}
+    body.update(state)
+    (run_dir / 'state.json').write_text(json.dumps(body), encoding='utf-8')
+    emitter = _emitter()
+    for _ in range(emitted):
+        emitter.emit(run_dir, 'phase_entered', source='runner', phase='intake', strict=True)
+    return run_dir
+
+
+@pytest.fixture
+def repo_root(tmp_path):
+    root = tmp_path / 'repo'
+    root.mkdir()
+    _make_run(root, 'loop-runs', 'live-1', emitted=5, status='running', updated_at='2026-10-03T10:00:00Z')
+    _make_run(root, 'orchestrator/runs', 'orch-1', emitted=3, status='done', updated_at='2026-10-02T10:00:00Z')
+    _make_run(root, 'loop-runs', 'legacy-1', emitted=0, status='done', phase='done', updated_at='2026-10-01T10:00:00Z')
+    (root / 'secret.txt').write_text('outside every run dir', encoding='utf-8')
+    return root
+
+
+@pytest.fixture
+def server_handle(repo_root):
+    from simplicio_loop.dashboard import server
+    handle = server.start(repo_root=repo_root, host='127.0.0.1', port=0, token=TOKEN)
+    try:
+        yield handle
+    finally:
+        handle.stop()
+
+
+def _get(port, path, headers=None):
+    conn = http.client.HTTPConnection('127.0.0.1', port, timeout=TIMEOUT)
+    try:
+        conn.request('GET', path, headers=headers or {})
+        resp = conn.getresponse()
+        return resp.status, {k.lower(): v for k, v in resp.getheaders()}, resp.read()
+    finally:
+        conn.close()
+
+
+def _request(port, method, path, headers=None):
+    conn = http.client.HTTPConnection('127.0.0.1', port, timeout=TIMEOUT)
+    try:
+        conn.request(method, path, headers=headers or {})
+        resp = conn.getresponse()
+        return resp.status, resp.read()
+    finally:
+        conn.close()
+
+
+def _collect_seqs(port, path, headers, want, timeout=10):
+    conn = http.client.HTTPConnection('127.0.0.1', port, timeout=timeout)
+    seqs = []
+    try:
+        conn.request('GET', path, headers=headers)
+        resp = conn.getresponse()
+        assert resp.status == 200, resp.status
+        deadline = time.monotonic() + timeout
+        named = False
+        while len(seqs) < want and time.monotonic() < deadline:
+            line = resp.readline()
+            if not line:
+                break
+            if line.startswith(b'event:'):
+                named = True  # a named frame (alert_*) is not a dashboard event, as in EventSource
+            elif line in (b'\n', b'\r\n'):
+                named = False
+            elif line.startswith(b'data:') and not named:
+                seqs.append(json.loads(line[5:])['seq'])
+        return seqs
+    finally:
+        conn.close()
+
+
+def test_sse_p95_latency_under_500ms_after_quiet_gap(server_handle, repo_root):
+    emitter = _emitter()
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    received = {}
+
+    def reader(resp):
+        named = False
+        try:
+            while True:
+                line = resp.readline()
+                if not line:
+                    return
+                if line.startswith(b'event:'):
+                    named = True  # a named frame (alert_*) is not a dashboard event, as in EventSource
+                elif line in (b'\n', b'\r\n'):
+                    named = False
+                elif line.startswith(b'data:') and not named:
+                    received.setdefault(json.loads(line[5:])['seq'], time.monotonic())
+        except Exception:
+            return  # the test closes the socket during teardown
+
+    conn = http.client.HTTPConnection('127.0.0.1', server_handle.port, timeout=10)
+    try:
+        conn.request('GET', '/api/runs/live-1/events', headers=SSE)
+        resp = conn.getresponse()
+        assert resp.status == 200, resp.status
+        threading.Thread(target=reader, args=(resp,), daemon=True).start()
+        latencies = []
+        for _ in range(5):
+            time.sleep(3)  # quiet gap before each append
+            sent = time.monotonic()
+            evt = emitter.emit(run_dir, 'phase_entered', source='runner', phase='intake', strict=True)
+            while evt['seq'] not in received and time.monotonic() < sent + 2:
+                time.sleep(0.005)
+            assert evt['seq'] in received, 'event %s never reached the client' % evt['seq']
+            latencies.append(received[evt['seq']] - sent)
+    finally:
+        conn.close()
+    ordered = sorted(latencies)
+    p95 = ordered[math.ceil(0.95 * len(ordered)) - 1]
+    assert p95 < 0.5, latencies
+
+
+def test_reconnect_with_last_event_id_loses_and_duplicates_nothing(server_handle, repo_root):
+    run_dir = _make_run(repo_root, 'loop-runs', 'live-2', emitted=100)
+    path = '/api/runs/live-2/events'
+    first = _collect_seqs(server_handle.port, path, SSE, 100)
+    assert first == list(range(1, 101))
+    emitter = _emitter()
+    for _ in range(100):
+        emitter.emit(run_dir, 'phase_entered', source='runner', phase='intake', strict=True)
+    second = _collect_seqs(server_handle.port, path, {**SSE, 'Last-Event-ID': '100'}, 100)
+    assert second == list(range(101, 201))
+    assert first + second == list(range(1, 201))
+
+
+def test_last_event_id_header_beats_since_seq_query(server_handle, repo_root):
+    _make_run(repo_root, 'loop-runs', 'live-3', emitted=10)
+    seqs = _collect_seqs(server_handle.port, '/api/runs/live-3/events?since_seq=0', {**SSE, 'Last-Event-ID': '7'}, 3)
+    assert seqs == [8, 9, 10]
+
+
+@pytest.mark.parametrize('cursor', ['abc', '1.5'])
+def test_garbage_last_event_id_is_400(server_handle, cursor):
+    status, _, _ = _get(server_handle.port, '/api/runs/live-1/events', {**SSE, 'Last-Event-ID': cursor})
+    assert status == 400
+
+
+def test_garbage_since_seq_query_is_400(server_handle):
+    status, _, _ = _get(server_handle.port, '/api/runs/live-1/events?since_seq=abc', AUTH)
+    assert status == 400
+
+
+@pytest.mark.parametrize('artifact', ['..%2f..%2fsecret.txt', '%2e%2e%2f%2e%2e%2fsecret.txt', 'logs%5c..%5c..%5csecret.txt', '%2e%2e'])
+def test_artifact_path_traversal_is_403(server_handle, artifact):
+    status, _, _ = _get(server_handle.port, '/api/runs/live-1/artifacts/' + artifact, AUTH)
+    assert status == 403
+
+
+def test_foreign_origin_is_403(server_handle):
+    status, _, _ = _get(server_handle.port, '/api/runs', {**AUTH, 'Origin': 'https://evil.example'})
+    assert status == 403
+
+
+def test_foreign_host_is_403(server_handle):
+    status, _, _ = _get(server_handle.port, '/api/runs', {**AUTH, 'Host': 'evil.example'})
+    assert status == 403
+
+
+@pytest.mark.parametrize('headers', [{}, {'Authorization': 'Bearer wrong'}, {'X-Simplicio-Token': 'wrong'}])
+def test_missing_or_wrong_token_is_401(server_handle, headers):
+    status, _, _ = _get(server_handle.port, '/api/runs', headers)
+    assert status == 401
+
+
+def test_wrong_query_token_is_401(server_handle):
+    status, _, _ = _get(server_handle.port, '/api/runs?t=wrong')
+    assert status == 401
+
+
+@pytest.mark.parametrize('method', ['POST', 'PUT', 'DELETE'])
+def test_mutating_methods_are_405(server_handle, method):
+    status, _ = _request(server_handle.port, method, '/api/runs', AUTH)
+    assert status == 405
+
+
+def test_oversize_artifact_is_413(server_handle, repo_root):
+    from simplicio_loop.dashboard import runs
+    big = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1' / 'big.log'
+    with open(big, 'wb') as fh:
+        fh.truncate(runs.MAX_ARTIFACT_BYTES + 1)
+    status, _, _ = _get(server_handle.port, '/api/runs/live-1/artifacts/big.log', AUTH)
+    assert status == 413
+
+
+def test_artifact_is_redacted_end_to_end(server_handle, repo_root):
+    logs = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1' / 'logs'
+    logs.mkdir()
+    (logs / 'out.txt').write_text(
+        'Authorization: Bearer abc123TOKENxyz\n'
+        'sk-abcdefghijklmnopqrstuvwx\n'
+        'ghp_abcdefghijklmnopqrstuvwxyz0123456789\n'
+        'contact dev@example.com\n'
+        'api_key=supersecretvalue\n'
+        'plain line kept\n', encoding='utf-8')
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/artifacts/logs/out.txt', AUTH)
+    assert status == 200
+    text = body.decode('utf-8')
+    for secret in ['abc123TOKENxyz', 'sk-abcdefghijklmnopqrstuvwx', 'ghp_abcdefghijklmnopqrstuvwxyz0123456789', 'dev@example.com', 'supersecretvalue']:
+        assert secret not in text
+    assert 'plain line kept' in text
+
+
+def test_runs_endpoint_filters_status_repo_and_since(server_handle, repo_root):
+    def ids(query):
+        status, _, body = _get(server_handle.port, '/api/runs' + query, AUTH)
+        assert status == 200
+        return [r['run_id'] for r in json.loads(body)['runs']]
+
+    assert ids('') == ['live-1', 'orch-1', 'legacy-1']
+    assert ids('?status=done') == ['orch-1', 'legacy-1']
+    assert ids('?status=running') == ['live-1']
+    assert ids('?repo=' + quote(str(repo_root), safe='')) == ['live-1', 'orch-1', 'legacy-1']
+    assert ids('?repo=' + quote('/nowhere', safe='')) == []
+    assert ids('?since=2026-10-02T00:00:00Z') == ['live-1', 'orch-1']
+
+
+def test_second_server_on_same_port_exits_3_and_names_holder(server_handle, repo_root):
+    result = subprocess.run(
+        [sys.executable, '-m', 'simplicio_loop.dashboard.server', '--port', str(server_handle.port)],
+        cwd=str(repo_root), capture_output=True, text=True, timeout=30)
+    output = result.stdout + result.stderr
+    assert result.returncode == 3, output
+    assert str(server_handle.port) in output
+    assert str(os.getpid()) in output
+
+
+def test_selftest_exits_zero():
+    result = subprocess.run(
+        [sys.executable, '-m', 'simplicio_loop.dashboard.server', '--selftest'],
+        capture_output=True, text=True, timeout=120)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_budget_route_reports_limits_usage_and_a_labelled_projection(repo_root, server_handle):
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    (run_dir / 'task-contract.json').write_text(json.dumps(
+        {'tasks': [{'routing': {'budget': {'tokens': 600, 'usd': None, 'seconds': None}}}]}), encoding='utf-8')
+    emitter = _emitter()
+    emitter.emit(run_dir, 'phase_entered', source='runner', phase='executing', strict=True)
+    emitter.emit(run_dir, 'token_usage', source='worker', phase='executing',
+                 payload={'model': 'm', 'input_tokens': 300, 'output_tokens': 0}, strict=True)
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/budget', AUTH)
+    assert status == 200
+    data = json.loads(body)
+    assert data['rows']['tokens']['state'] == 'PROJECTED_OVER'
+    assert data['rows']['tokens']['proof_kind'] == 'estimado'
+    assert data['usage']['by_phase'] == {'executing': 300}
+    assert data['rows']['usd']['state'] == 'UNVERIFIED'
+
+
+def test_budget_route_for_an_unknown_run_is_404(server_handle):
+    status, _, _ = _get(server_handle.port, '/api/runs/nope/budget', AUTH)
+    assert status == 404
+
+
+def test_extras_route_reports_the_run_extras_and_404s_an_unknown_run(repo_root, server_handle):
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    (run_dir / 'task-contract.json').write_text(json.dumps(
+        {'tasks': [{'id': 't1', 'title': 'Budget panel'}]}), encoding='utf-8')
+    emitter = _emitter()
+    emitter.emit(run_dir, 'test_result', source='worker', payload={'command': 'pytest -q', 'tool': 'pytest'},
+                 strict=True)
+    emitter.emit(run_dir, 'token_usage', source='worker', lane='lane-a',
+                 payload={'model': 'model-a', 'input_tokens': 300, 'output_tokens': 4}, strict=True)
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/extras', AUTH)
+    assert status == 200
+    data = json.loads(body)
+    assert data['schema'] == 'simplicio.dashboard-extras/v1'
+    assert data['last_command']['command'] == 'pytest -q' and data['last_command']['kind'] == 'test_result'
+    assert data['tasks'] == [{'task_id': 't1', 'title': 'Budget panel'}]
+    assert data['models'] == [{'lane': 'lane-a', 'model': 'model-a', 'input_tokens': 300, 'output_tokens': 4}]
+    assert data['heartbeat'] == {'state': 'UNVERIFIED', 'reason': 'nenhuma lane com lease_id registrado', 'lanes': []}
+    status, _, _ = _get(server_handle.port, '/api/runs/nope/extras', AUTH)
+    assert status == 404
+
+def test_stage_agents_route_reports_one_estimated_row_per_stage_and_the_run_cost(repo_root, server_handle):
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    emitter = _emitter()
+    emitter.emit(run_dir, 'token_usage', source='worker', phase='executing',
+                 payload={'model': 'claude-haiku-5-5', 'input_tokens': 1000, 'output_tokens': 200}, strict=True)
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)
+    assert status == 200
+    data = json.loads(body)
+    assert data['schema'] == 'simplicio.dashboard-stage-agents/v1'
+    [row] = data['rows']
+    assert (row['phase'], row['role'], row['model']) == ('executing', 'execution', 'claude-haiku-5-5')
+    assert (row['tokens_in'], row['tokens_out'], row['proof_kind']) == (1000, 200, 'estimado')
+    assert data['cost']['proof_kind'] == 'estimado' and data['cost']['usd'] == row['cost_usd']
+
+
+def test_stage_agents_route_carries_the_cost_per_task_and_iteration_and_the_agent_map(repo_root, server_handle):
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    emitter = _emitter()
+    emitter.emit(run_dir, 'worker_claimed', source='runner', lane='coder', task_id='T1', payload={'lease_id': 'L1'}, strict=True)
+    for task_id, iteration in (('T1', 1), ('T2', 2)):
+        emitter.emit(run_dir, 'token_usage', source='worker', phase='executing', lane='coder', task_id=task_id,
+                     iteration=iteration, strict=True,
+                     payload={'model': 'claude-haiku-5-5', 'input_tokens': 1_000_000, 'output_tokens': 0})
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)
+    assert status == 200
+    data = json.loads(body)
+    tasks = {row['key']: row for row in data['breakdown']['by_task']}
+    assert data['cost']['by_task'] == {'T1': 0.1, 'T2': 0.1} and 'cost_usd' not in tasks['T1']
+    assert [row['key'] for row in data['breakdown']['by_iteration']] == [1, 2]
+    assert data['breakdown']['tokens']['total'] == 2_000_000 and data['breakdown']['tokens']['proof_kind'] == 'medido'
+    [lane] = data['agent_map']['lanes']
+    assert (lane['key'], lane['claims'], lane['lease_ids']) == ('coder', 1, ['L1'])
+    assert 'slots' not in data['agent_map']  # the slots are the extras reply's, read from the Mapper store
+
+
+def test_stage_agents_route_without_token_usage_is_empty_and_unverified(server_handle):
+    status, _, body = _get(server_handle.port, '/api/runs/orch-1/stage-agents', AUTH)
+    data = json.loads(body)
+    assert status == 200 and data['rows'] == []
+    assert data['cost']['state'] == 'UNVERIFIED' and data['cost']['reason']
+
+
+def test_stage_agents_route_caps_every_dimension_at_20_rows_plus_an_others_row(repo_root, server_handle):
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    _emitter().emit_batch(run_dir, [
+        dict(kind='token_usage', source='worker', phase='executing', lane='lane-%d' % i, task_id='T%d' % i, iteration=i,
+             payload={'model': 'claude-haiku-5-5', 'input_tokens': 1000 + i, 'output_tokens': 10})
+        for i in range(60)], strict=True)
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)
+    assert status == 200 and len(body) < 30_000
+    breakdown = json.loads(body)['breakdown']
+    for dim in ('by_lane', 'by_task', 'by_iteration'):
+        assert len(breakdown[dim]) == 21 and breakdown[dim][-1]['others'] == 40 and breakdown[dim][-1]['key'] is None
+    assert sum(row['tokens_in'] for row in breakdown['by_task']) == sum(1000 + i for i in range(60))
+
+
+def test_stage_agents_route_serves_an_unchanged_run_from_the_cache_and_rereads_when_it_grows(repo_root, server_handle, monkeypatch):
+    from simplicio_loop import dashboard_events
+    from simplicio_loop.dashboard import stage_agents
+    stage_agents.clear_cache()
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    emitter = _emitter()
+    emitter.emit(run_dir, 'token_usage', source='worker', task_id='T1',
+                 payload={'model': 'claude-haiku-5-5', 'input_tokens': 1000, 'output_tokens': 0}, strict=True)
+    reads, real = [], dashboard_events.read_events
+    monkeypatch.setattr(dashboard_events, 'read_events', lambda *args, **kwargs: (reads.append(1), real(*args, **kwargs))[1])
+    first = json.loads(_get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)[2])
+    assert json.loads(_get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)[2]) == first and len(reads) == 1
+    emitter.emit(run_dir, 'token_usage', source='worker', task_id='T2',
+                 payload={'model': 'claude-haiku-5-5', 'input_tokens': 500, 'output_tokens': 0}, strict=True)
+    grown = json.loads(_get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)[2])
+    assert len(reads) == 2 and [row['key'] for row in grown['breakdown']['by_task']] == ['T1', 'T2']
+    stage_agents.clear_cache()
+
+
+def test_stage_agents_route_body_is_strict_json_even_when_an_event_carries_a_literal_nan(repo_root, server_handle):
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    emitter = _emitter()
+    emitter.emit(run_dir, 'token_usage', source='worker', task_id='T1',
+                 payload={'model': 'claude-haiku-5-5', 'input_tokens': 7, 'output_tokens': 0}, strict=True)
+    stream = run_dir / 'events.jsonl'
+    last = json.loads(stream.read_text(encoding='utf-8').splitlines()[-1])
+    last['seq'] += 1
+    last['payload'] = {'model': 'claude-haiku-5-5', 'input_tokens': float('nan'), 'output_tokens': float('inf')}
+    with stream.open('a', encoding='utf-8') as fh:
+        fh.write(json.dumps(last) + '\n')
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)
+
+    def refuse(constant):
+        raise AssertionError('non-finite %s in the body' % constant)
+
+    data = json.loads(body, parse_constant=refuse)
+    assert status == 200 and data['breakdown']['tokens']['total'] == 7
+
+
+def test_stage_agents_route_keeps_the_auth_origin_and_run_id_guards(server_handle):
+    assert _get(server_handle.port, '/api/runs/nope/stage-agents', AUTH)[0] == 404
+    assert _get(server_handle.port, '/api/runs/live-1/stage-agents', {})[0] == 401
+    assert _get(server_handle.port, '/api/runs/..%2F..%2Fx/stage-agents', AUTH)[0] == 404
+    assert _get(server_handle.port, '/api/runs/live-1/stage-agents', {**AUTH, 'Origin': 'http://evil.example'})[0] == 403
+
+
+def test_history_endpoint_returns_records_filters_and_rejects_bad_values(server_handle, repo_root):
+    def get(query):
+        status, _, body = _get(server_handle.port, '/api/history' + query, AUTH)
+        return status, json.loads(body)
+
+    status, payload = get('')
+    assert status == 200
+    assert [r['run_id'] for r in payload['history']] == ['orch-1', 'live-1', 'legacy-1']  # same started_at: run_id desc
+    assert all(r['schema'] == 'simplicio.dashboard-history/v1' for r in payload['history'])
+    assert [r['run_id'] for r in get('?verdict=RUNNING')[1]['history']] == ['live-1']
+    assert len(get('?limit=1')[1]['history']) == 1
+    assert get('?verdict=NOPE')[0] == 400
+    assert get('?since=yesterday')[0] == 400
+    assert get('?min_cost_usd=abc')[0] == 400
+    status, _, _ = _get(server_handle.port, '/api/history', {})
+    assert status == 401
+
+
+def test_budget_route_carries_the_comparison_with_the_previous_runs(repo_root, server_handle):
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/budget', AUTH)
+    assert status == 200
+    comparison = json.loads(body)['comparison']
+    assert comparison['runs'] == 2  # orch-1 and legacy-1; the current run is skipped
+    assert set(comparison['fields']) == {'duration_s', 'tokens', 'cost_usd', 'iterations'}
+    assert comparison['fields']['tokens']['state'] == 'UNVERIFIED'
+
+def test_history_compare_trends_heatmap_and_csv_routes(server_handle, repo_root):
+    def get(path):
+        status, headers, body = _get(server_handle.port, path, AUTH)
+        return status, headers, body
+
+    status, _, body = get('/api/history/compare?a=orch-1&b=live-1')
+    assert status == 200
+    cmp = json.loads(body)
+    assert (cmp['a'], cmp['b']) == ('orch-1', 'live-1') and 'metrics' in cmp
+    assert get('/api/history/compare?a=orch-1&b=nope')[0] == 404
+    assert get('/api/history/compare?a=orch-1')[0] == 404
+    status, _, body = get('/api/history/trends?bucket=month')
+    assert status == 200 and json.loads(body)['trends'][0]['bucket'] == '2026-10'
+    assert get('/api/history/trends?bucket=year')[0] == 400
+    status, _, body = get('/api/history/heatmap')
+    grid = json.loads(body)['heatmap']
+    assert status == 200 and len(grid) == 7 and sum(map(sum, grid)) == 3
+    status, headers, body = get('/api/history?format=csv')
+    assert status == 200 and headers['content-type'].startswith('text/csv')
+    lines = body.decode('utf-8').splitlines()
+    assert lines[0].startswith('run_id,repo,verdict') and len(lines) == 4
+    assert get('/api/history/other')[0] == 404
+
+
+def test_history_lessons_route(server_handle, repo_root):
+    base = repo_root / '.simplicio-loop' / 'orchestrator'
+    base.mkdir(parents=True, exist_ok=True)
+    (base / 'lessons.jsonl').write_text(json.dumps({'schema': 'simplicio.lesson/v1', 'fingerprint': 'f', 'lesson': 'keep gates small',
+                                                    'hit_count': 2, 'last_seen': '2026-10-01T00:00:00Z'}) + '\n', encoding='utf-8')
+    status, _, body = _get(server_handle.port, '/api/history/lessons', AUTH)
+    assert status == 200 and json.loads(body)['lessons'][0]['lesson'] == 'keep gates small'
+
+
+# --- #1565 item 2: the replies are strict JSON whatever the events carry ---------------------------------------------------
+def _strict(body):
+    def refuse(constant):
+        raise AssertionError('non-finite %s in the body' % constant)
+
+    return json.loads(body, parse_constant=refuse)
+
+
+def _append_raw_usage(run_dir, seq, input_tokens, output_tokens, kind='token_usage'):
+    '''Append one event whose numbers are written as literals (1e999, NaN, 1e308), the way a hostile or broken producer would.'''
+    payload = ('{"model":"claude-haiku-5-5","input_tokens":%s,"output_tokens":%s}' % (input_tokens, output_tokens)
+               if kind == 'token_usage' else '{"usd":%s}' % input_tokens)
+    line = ('{"schema":"simplicio.dashboard-event/v1","event_id":"01M4G3ABHS215DDBX363VWPSA%d","seq":%d,"ts":"2026-10-09T10:00:00.000Z",'
+            '"run_id":"live-1","task_id":"T1","scope":"task","source":"worker","kind":"%s","phase":"executing","lane":"coder",'
+            '"iteration":1,"severity":"info","payload":%s,"refs":[],"producer_version":"simplicio-loop@3.0.0"}' % (seq % 10, seq, kind, payload))
+    with (run_dir / 'events.jsonl').open('a', encoding='utf-8') as fh:
+        fh.write(line + '\n')
+
+
+@pytest.mark.parametrize('first, second', [('1e308', '1e308'), ('1e999', 'NaN'), ('-Infinity', '1e999'), ('NaN', '5')])
+def test_stage_agents_and_budget_routes_stay_strict_json_with_absurd_token_counts(repo_root, server_handle, first, second):
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    last = max(json.loads(line)['seq'] for line in (run_dir / 'events.jsonl').read_text(encoding='utf-8').splitlines())
+    _append_raw_usage(run_dir, last + 1, first, second)
+    _append_raw_usage(run_dir, last + 2, first, second)
+    _append_raw_usage(run_dir, last + 3, '1e308', '0', kind='cost_sample')
+    _append_raw_usage(run_dir, last + 4, '1e308', '0', kind='cost_sample')
+    for route in ('stage-agents', 'budget', 'extras'):
+        status, headers, body = _get(server_handle.port, '/api/runs/live-1/%s' % route, AUTH)
+        assert status == 200 and headers['content-type'].startswith('application/json'), route
+        data = _strict(body)
+        if route == 'stage-agents':
+            assert data['breakdown']['tokens']['ignored'] >= 2
+
+
+def test_a_reply_that_cannot_be_strict_json_is_a_json_500_never_infinity_on_the_wire(server_handle, monkeypatch):
+    from simplicio_loop.dashboard import stage_agents
+    monkeypatch.setattr(stage_agents, 'run_view', lambda *args, **kwargs: {'schema': 'x', 'n': float('inf')})
+    status, headers, body = _get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)
+    assert status == 500 and headers['content-type'].startswith('application/json') and 'Infinity' not in body.decode('utf-8')
+    assert _strict(body) == {'error': 'Internal Server Error'}
+    assert _get(server_handle.port, '/api/runs/live-1/budget', AUTH)[0] == 200  # the server is still serving
+
+
+# --- #1565 item 3: a stuck computation is a stale 200 or a 503 with Retry-After, never a hung poller ----------------------
+def test_a_busy_run_with_nothing_to_serve_is_a_503_with_retry_after(server_handle, monkeypatch):
+    from simplicio_loop.dashboard import stage_agents
+
+    def busy(*args, **kwargs):
+        raise stage_agents.ViewBusy(3)
+
+    monkeypatch.setattr(stage_agents, 'run_view', busy)
+    status, headers, body = _get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)
+    assert status == 503 and headers['retry-after'] == '3' and _strict(body) == {'error': 'Service Unavailable'}
+    assert 'content-security-policy' in headers and headers['cache-control'] == 'no-store'
+
+
+def test_a_stuck_read_serves_the_last_good_reply_flagged_stale_then_recovers(repo_root, server_handle, monkeypatch):
+    from simplicio_loop import dashboard_events
+    from simplicio_loop.dashboard import stage_agents
+    stage_agents.clear_cache()
+    monkeypatch.setattr(stage_agents, 'WAIT_TIMEOUT_S', 0.4)
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    emitter = _emitter()
+    emitter.emit(run_dir, 'token_usage', source='worker', task_id='T1',
+                 payload={'model': 'claude-haiku-5-5', 'input_tokens': 1000, 'output_tokens': 0}, strict=True)
+    good = _strict(_get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)[2])
+    assert 'stale' not in good
+    emitter.emit(run_dir, 'token_usage', source='worker', task_id='T2',
+                 payload={'model': 'claude-haiku-5-5', 'input_tokens': 500, 'output_tokens': 0}, strict=True)
+    gate, entered, real = threading.Event(), threading.Event(), dashboard_events.read_events
+
+    def stuck(*args, **kwargs):
+        entered.set()
+        gate.wait(15)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(dashboard_events, 'read_events', stuck)
+    first = threading.Thread(target=lambda: _get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH), daemon=True)
+    first.start()
+    assert entered.wait(5)
+    begun = time.monotonic()
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)
+    assert time.monotonic() - begun < 4 and status == 200
+    served = _strict(body)
+    assert served['stale'] is True and served['age_s'] >= 0 and served['breakdown'] == good['breakdown']
+    gate.set()
+    first.join(10)
+    recovered = _strict(_get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)[2])
+    assert 'stale' not in recovered and [row['key'] for row in recovered['breakdown']['by_task']] == ['T1', 'T2']
+    stage_agents.clear_cache()

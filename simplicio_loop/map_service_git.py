@@ -38,7 +38,7 @@ def _git(root: Path, args: Sequence[str]) -> str:
     return result.stdout.strip()
 
 
-def _git_identity(path: str, *args: str) -> str:
+def _git_identity(path: str, *args: str, strip: bool = True) -> str:
     result = subprocess.run(
         ["git", "-C", path, *args], capture_output=True, text=True, timeout=15,
     )
@@ -46,18 +46,89 @@ def _git_identity(path: str, *args: str) -> str:
         raise GitIdentityError(
             "git %s failed in %s: %s" % (" ".join(args), path, result.stderr.strip())
         )
-    return result.stdout.strip()
+    return result.stdout.strip() if strip else result.stdout
+
+
+def _ref_exists(path: str, ref: str) -> bool:
+    try:
+        _git_identity(path, "rev-parse", "--verify", "-q", ref + "^{commit}")
+    except (GitIdentityError, OSError, subprocess.SubprocessError):
+        return False
+    return True
+
+
+def default_branch_ref(path: str) -> Optional[Tuple[str, str]]:
+    """Return ``(branch, full_ref)`` of the repository default branch, or ``None``.
+
+    Order: the target of ``refs/remotes/origin/HEAD``, then ``main``, then ``master``; each prefers
+    its ``refs/remotes/origin/`` remote-tracking ref over the local branch. A worktree's own
+    branch is never a candidate: the central base is the same for every worktree.
+    """
+    try:
+        target = _git_identity(path, "symbolic-ref", "-q", "refs/remotes/origin/HEAD")
+    except (GitIdentityError, OSError, subprocess.SubprocessError):
+        target = ""
+    if target.startswith("refs/remotes/origin/"):
+        branch = target[len("refs/remotes/origin/"):]
+        if _ref_exists(path, target):
+            return branch, target
+    for branch in ("main", "master"):
+        for ref in ("refs/remotes/origin/" + branch, "refs/heads/" + branch):
+            if _ref_exists(path, ref):
+                return branch, ref
+    return None
 
 
 def _default_branch(path: str) -> str:
+    found = default_branch_ref(path)
+    if found is not None:
+        return found[0]
     try:
-        ref = _git_identity(path, "symbolic-ref", "refs/remotes/origin/HEAD")
-        return ref.rsplit("/", 1)[-1]
-    except GitIdentityError:
-        try:
-            return _git_identity(path, "symbolic-ref", "--short", "HEAD")
-        except GitIdentityError:
-            return "main"
+        return _git_identity(path, "symbolic-ref", "--short", "HEAD")
+    except (GitIdentityError, OSError, subprocess.SubprocessError):
+        return "main"
+
+
+def git_common_dir(path: str) -> Path:
+    """Absolute, resolved ``--git-common-dir``: the same directory for every linked worktree."""
+    raw = _git_identity(path, "rev-parse", "--git-common-dir")
+    candidate = Path(raw)
+    if not candidate.is_absolute():
+        candidate = Path(path) / candidate
+    return candidate.resolve()
+
+
+@dataclass(frozen=True)
+class DefaultBase:
+    """The default-branch commit every worktree of a repository is mapped against."""
+
+    branch: str
+    ref: str
+    commit: str
+    tree: str
+
+
+def resolve_default_base(path: str) -> Optional[DefaultBase]:
+    """The central base of ``path``'s repository (``None`` when no default branch exists)."""
+    found = default_branch_ref(path)
+    if found is None:
+        return None
+    branch, ref = found
+    try:
+        commit = _git_identity(path, "rev-parse", ref + "^{commit}")
+        tree = _git_identity(path, "rev-parse", ref + "^{tree}")
+    except (GitIdentityError, OSError, subprocess.SubprocessError):
+        return None
+    return DefaultBase(branch=branch, ref=ref, commit=commit, tree=tree)
+
+
+def merge_base_tree(path: str, ref: str) -> Optional[str]:
+    """Tree sha of ``merge-base(HEAD, ref)`` for the worktree at ``path`` (its fork point)."""
+    try:
+        commit = _git_identity(path, "merge-base", "HEAD", ref)
+        return _git_identity(path, "rev-parse", commit + "^{tree}")
+    except (GitIdentityError, OSError, subprocess.SubprocessError):
+        return None
 
 
 def _dirty_fingerprint(path: str, status_output: str) -> str:
@@ -110,15 +181,20 @@ def resolve_repository_identity(path: str, *, mapper_config: str = "") -> Reposi
 
 
 def real_tree_snapshot(path: str) -> Tuple[str, List[str]]:
-    """Return a content-derived tree hash and the real tracked file paths."""
+    """Return a content-derived tree hash and the real tracked file paths.
+
+    ``-z``: git prints names with a quote, backslash, TAB or newline C-quoted otherwise, and the
+    returned paths would not exist on disk.
+    """
     resolved = str(Path(path).expanduser().resolve(strict=True))
-    files = [line for line in _git_identity(resolved, "ls-files").splitlines() if line]
-    if not files:
+    listing = _git_identity(resolved, "ls-files", "-s", "-z", strip=False)
+    entries = [item for item in listing.split("\0") if item]
+    if not entries:
         return hashlib.sha256(b"empty-tree").hexdigest(), []
-    ls_tree = _git_identity(resolved, "ls-files", "-s")
-    blob_shas = sorted(line.split()[1] for line in ls_tree.splitlines() if line.strip())
+    blob_shas = sorted(item.split("\t", 1)[0].split()[1] for item in entries)
+    files = [item.split("\t", 1)[1] for item in entries]
     return hashlib.sha256("".join(blob_shas).encode("utf-8")).hexdigest(), [
-        str(Path(resolved) / file) for file in files
+        str(Path(resolved) / file) for file in sorted(set(files))
     ]
 
 
@@ -229,7 +305,8 @@ class RepositoryWorktreeRegistry:
 
 
 __all__ = [
-    "GitDiscoveryError", "GitIdentityError", "GitWorktree", "RepositoryRecord",
-    "RepositoryWorktreeRegistry", "discover", "list_worktrees",
-    "resolve_repository_identity", "real_tree_snapshot",
+    "DefaultBase", "GitDiscoveryError", "GitIdentityError", "GitWorktree", "RepositoryRecord",
+    "RepositoryWorktreeRegistry", "default_branch_ref", "discover", "git_common_dir",
+    "list_worktrees", "merge_base_tree", "real_tree_snapshot", "resolve_default_base",
+    "resolve_repository_identity",
 ]

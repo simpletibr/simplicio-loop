@@ -21,6 +21,10 @@ from pathlib import Path
 import pytest
 
 from simplicio_loop import local_capacity, openrouter_operator, runner as runner_mod
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 
 @pytest.fixture(autouse=True)
@@ -99,9 +103,8 @@ def _arm_fixture(tmp_path, monkeypatch):
     task.write_text(TASK, encoding="utf-8")
 
     fingerprint = {"head": "head-fixed", "tree_hash": "tree-fixed", "dirty_status_hash": "status-fixed"}
-    monkeypatch.setattr(runner_mod, "_repo_fingerprint", lambda path: dict(fingerprint))
-    monkeypatch.setattr(
-        runner_mod, "_changed_paths",
+    patch_runner(monkeypatch, "_repo_fingerprint", lambda path: dict(fingerprint))
+    patch_runner(monkeypatch, "_changed_paths",
         lambda path: (["src/app.py"]
                       if (Path(path) / "src" / "app.py").read_text(encoding="utf-8")
                       != "def main():\n    return 'ok'\n" else []),
@@ -146,8 +149,8 @@ def _arm_fixture(tmp_path, monkeypatch):
         runner_mod._write_json(run_root / "operator-preflight.json", receipt)
         return receipt
 
-    monkeypatch.setattr(runner_mod, "_run_mapper", fake_mapper)
-    monkeypatch.setattr(runner_mod, "_preflight_operator", fake_operator_preflight)
+    patch_runner(monkeypatch, "_run_mapper", fake_mapper)
+    patch_runner(monkeypatch, "_preflight_operator", fake_operator_preflight)
     monkeypatch.setenv("SIMPLICIO_LOOP_FAKE_OPERATOR_JSON", json.dumps({
         "execution_state": "dry_run", "returncode": 0,
         "stdout": {"kind": "operator-proposal", "ok": True}, "stderr": "",
@@ -364,8 +367,7 @@ def test_verify_run_stops_short_of_done_when_delivery_is_not_ready(tmp_path, mon
 
 def test_conclude_run_blocks_when_production_diff_lacks_operator_receipt(tmp_path, monkeypatch):
     repo, run_id, run_dir = _arm_fixture(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        runner_mod, "_operator_run_diff_coverage",
+    patch_runner(monkeypatch, "_operator_run_diff_coverage",
         lambda repo_path, rd: {"coverage_ok": False, "uncovered_paths": ["src/app.py"]},
     )
 
@@ -378,8 +380,7 @@ def test_conclude_run_blocks_when_production_diff_lacks_operator_receipt(tmp_pat
 
 def test_conclude_run_force_overrides_but_still_records_the_violation(tmp_path, monkeypatch):
     repo, run_id, run_dir = _arm_fixture(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        runner_mod, "_operator_run_diff_coverage",
+    patch_runner(monkeypatch, "_operator_run_diff_coverage",
         lambda repo_path, rd: {"coverage_ok": False, "uncovered_paths": ["src/app.py"]},
     )
 
@@ -394,8 +395,7 @@ def test_conclude_run_force_overrides_but_still_records_the_violation(tmp_path, 
 
 def test_conclude_run_passes_through_when_coverage_is_ok(tmp_path, monkeypatch):
     repo, run_id, run_dir = _arm_fixture(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        runner_mod, "_operator_run_diff_coverage",
+    patch_runner(monkeypatch, "_operator_run_diff_coverage",
         lambda repo_path, rd: {"coverage_ok": True, "uncovered_paths": []},
     )
 
@@ -690,7 +690,7 @@ def test_dispatch_operator_batch_propagates_provider_worker_to_attempt(tmp_path,
             "receipt_status": "VERIFIED",
         }
 
-    monkeypatch.setattr(runner_mod, "_operator_dispatch_attempt", fake_attempt)
+    patch_runner(monkeypatch, "_operator_dispatch_attempt", fake_attempt)
 
     result = runner_mod.dispatch_operator_batch(
         [_fake_item(repo)], provider_worker="OpenRouter", retry_budget=0,
@@ -715,7 +715,7 @@ def test_dispatch_operator_batch_retries_until_success_within_budget(tmp_path, m
             "receipt_status": "VERIFIED" if status == "succeeded" else "UNVERIFIED",
         }
 
-    monkeypatch.setattr(runner_mod, "_operator_dispatch_attempt", fake_attempt)
+    patch_runner(monkeypatch, "_operator_dispatch_attempt", fake_attempt)
 
     result = runner_mod.dispatch_operator_batch([_fake_item(repo)], retry_budget=3)
 
@@ -740,7 +740,7 @@ def test_dispatch_operator_batch_exhausts_retry_budget_and_dead_letters(tmp_path
             "receipt_status": "UNVERIFIED",
         }
 
-    monkeypatch.setattr(runner_mod, "_operator_dispatch_attempt", fake_attempt)
+    patch_runner(monkeypatch, "_operator_dispatch_attempt", fake_attempt)
 
     result = runner_mod.dispatch_operator_batch([_fake_item(repo)], retry_budget=2)
 
@@ -776,7 +776,7 @@ def test_dispatch_operator_batch_resume_skips_already_succeeded_tasks(tmp_path, 
         return {"status": "succeeded", "repo": item["repo"], "run_id": item["run_id"],
                 "task_index": item["task_index"], "worker_id": item["worker_id"]}
 
-    monkeypatch.setattr(runner_mod, "_operator_dispatch_attempt", fake_attempt)
+    patch_runner(monkeypatch, "_operator_dispatch_attempt", fake_attempt)
 
     result = runner_mod.dispatch_operator_batch(
         [_fake_item(repo)], retry_budget=1, journal_dir=str(journal_dir),
@@ -798,7 +798,7 @@ def test_dispatch_operator_batch_converges_multiple_independent_tasks(tmp_path, 
         return {"status": "succeeded", "repo": item["repo"], "run_id": item["run_id"],
                 "task_index": item["task_index"], "worker_id": item["worker_id"]}
 
-    monkeypatch.setattr(runner_mod, "_operator_dispatch_attempt", fake_attempt)
+    patch_runner(monkeypatch, "_operator_dispatch_attempt", fake_attempt)
 
     items = [
         _fake_item(repo, task_index=1, worker_id="w1"),
@@ -823,7 +823,7 @@ def test_dispatch_operator_batch_forces_serial_fallback_for_shared_run_state(tmp
         return {"status": "succeeded", "repo": item["repo"], "run_id": item["run_id"],
                 "task_index": item["task_index"], "worker_id": item["worker_id"]}
 
-    monkeypatch.setattr(runner_mod, "_operator_dispatch_attempt", fake_attempt)
+    patch_runner(monkeypatch, "_operator_dispatch_attempt", fake_attempt)
 
     # Two items sharing one isolation_key (the default: the resolved repo path) cannot run
     # in parallel without corrupting one shared state.json/working tree.
@@ -879,7 +879,7 @@ def test_operator_worker_invalid_env_fails_explicitly(monkeypatch):
 # about (a production diff must trace to exactly one covering operator receipt).
 
 def test_operator_run_diff_coverage_ok_when_receipt_covers_every_changed_path(tmp_path, monkeypatch):
-    monkeypatch.setattr(runner_mod, "_changed_paths", lambda repo_path: ["app.py"])
+    patch_runner(monkeypatch, "_changed_paths", lambda repo_path: ["app.py"])
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     (run_dir / "operator-receipt.json").write_text(json.dumps({
@@ -895,7 +895,7 @@ def test_operator_run_diff_coverage_ok_when_receipt_covers_every_changed_path(tm
 
 
 def test_operator_run_diff_coverage_flags_uncovered_path(tmp_path, monkeypatch):
-    monkeypatch.setattr(runner_mod, "_changed_paths", lambda repo_path: ["app.py"])
+    patch_runner(monkeypatch, "_changed_paths", lambda repo_path: ["app.py"])
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     # No receipt at all: the changed path was produced outside the operator bridge.
@@ -908,7 +908,7 @@ def test_operator_run_diff_coverage_flags_uncovered_path(tmp_path, monkeypatch):
 
 
 def test_operator_run_diff_coverage_ignores_receipts_that_did_not_apply(tmp_path, monkeypatch):
-    monkeypatch.setattr(runner_mod, "_changed_paths", lambda repo_path: ["app.py"])
+    patch_runner(monkeypatch, "_changed_paths", lambda repo_path: ["app.py"])
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     (run_dir / "operator-receipt.json").write_text(json.dumps({
@@ -1188,7 +1188,7 @@ def test_operator_dispatch_attempt_wraps_unexpected_exception(tmp_path, monkeypa
     def raising_execute_operator(repo, run_id, task_index=1, **kwargs):
         raise RuntimeError("execute_operator exploded")
 
-    monkeypatch.setattr(runner_mod, "execute_operator", raising_execute_operator)
+    patch_runner(monkeypatch, "execute_operator", raising_execute_operator)
     item = {"repo": str(tmp_path), "run_id": "run-x", "task_index": 1, "worker_id": "w1", "task_id": "task-1"}
 
     record = runner_mod._operator_dispatch_attempt(item)
@@ -1210,11 +1210,9 @@ def test_openrouter_to_mechanical_edit_fails_closed_without_host_plan(tmp_path, 
     monkeypatch.setenv("SIMPLICIO_MODEL", "test-model")
     monkeypatch.setenv("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY", "0")
     monkeypatch.delenv("SIMPLICIO_PROVIDER_WORKER", raising=False)
-    monkeypatch.setattr(runner_mod, "_openrouter_operator_enabled", lambda: True)
+    patch_runner(monkeypatch, "_openrouter_operator_enabled", lambda: True)
     monkeypatch.setattr(openrouter_operator.urllib.request, "urlopen", opener)
-    monkeypatch.setattr(
-        runner_mod,
-        "_execute_operator_effect",
+    patch_runner(monkeypatch, "_execute_operator_effect",
         lambda **_kwargs: (_ for _ in ()).throw(AssertionError("apply must be skipped")),
     )
 
@@ -1244,9 +1242,9 @@ def test_host_edit_plan_applies_without_calling_openrouter(tmp_path, monkeypatch
     monkeypatch.setenv("OPENROUTER_BASE_URL", "https://openrouter.example/api/v1")
     monkeypatch.setenv("SIMPLICIO_MODEL", "test-model")
     monkeypatch.setenv("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY", "0")
-    monkeypatch.setattr(runner_mod, "_openrouter_operator_enabled", lambda: True)
+    patch_runner(monkeypatch, "_openrouter_operator_enabled", lambda: True)
     monkeypatch.setattr(openrouter_operator.urllib.request, "urlopen", opener)
-    monkeypatch.setattr(runner_mod, "gate_completion", lambda _evidence: (True, ""))
+    patch_runner(monkeypatch, "gate_completion", lambda _evidence: (True, ""))
 
     def fake_effect(*, argv, repo_path, **_kwargs):
         assert "edit" in argv
@@ -1267,7 +1265,7 @@ def test_host_edit_plan_applies_without_calling_openrouter(tmp_path, monkeypatch
             "hookwall_evidence": {},
         }
 
-    monkeypatch.setattr(runner_mod, "_execute_operator_effect", fake_effect)
+    patch_runner(monkeypatch, "_execute_operator_effect", fake_effect)
     result = runner_mod._execute_operator_unleased(str(repo), run_id)
     receipt = json.loads((run_dir / "operator-receipt.json").read_text(encoding="utf-8"))
     assert receipt["provider_config"]["route"] == "host-edit-plan"

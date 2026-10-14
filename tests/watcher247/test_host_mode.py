@@ -1,0 +1,747 @@
+"""Host mode of the 24/7 watcher (#1429): an exec CLI plans, `turbo --apply -` applies, openrouter is opt-in.
+
+No real model CLI runs: `claude` is a stub script on PATH, and proc.run is the FakeRun of fakes.py.
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import stat
+import textwrap
+from pathlib import Path
+
+import pytest
+
+from simplicio_loop import escalation, execution_report, executor_select, input_ceiling, model_roles
+from simplicio_loop.watcher247 import config, host_mode, proc, sandbox
+
+from .fakes import FakeRun, baseline, issue, pr_row, read_json, run_tick
+from simplicio_loop.watcher247.worktrees import state_home
+
+REPO = "simplicio-a"
+PLAN = {"operations": [{"path": "app.py", "find": "", "replace": "print('x')\n"}]}
+OK = {"schema": "simplicio.turbo-run/v1", "status": "ok", "verify": {"passed": True}}
+BAD = {"schema": "simplicio.turbo-run/v1", "status": "failed",
+       "verify": {"passed": False, "output_tail": "FAILED test_x - assert 0"}}
+REPORTS = ".simplicio-loop/runtime/execution-reports/latest.json"
+
+STUB = textwrap.dedent('''\
+    #!/usr/bin/env python3
+    import json, os, sys
+    d = os.path.dirname(os.path.abspath(__file__))
+    if sys.argv[1:2] == ["auth"]:
+        sys.exit(1 if os.environ.get("FAKE_CLI_LOGGED_OUT") else 0)
+    with open(d + "/calls.jsonl", "a") as handle:
+        handle.write(json.dumps(sys.argv[1:]) + "\\n")
+    with open(d + "/env.jsonl", "a") as handle:
+        handle.write(json.dumps(sorted(os.environ)) + "\\n")
+    print(json.dumps({"result": json.dumps(%s)}))
+''') % repr(PLAN)
+
+
+RUN_ID = "turbo-20261008T000000-abc123"
+MAP_SLICE = "MAP-SLICE-for-app.py"
+
+
+class HostRun(FakeRun):
+    """FakeRun for turbo's two host steps.
+
+    Step 1 (`turbo --task T`) answers a needs_plan request; step 2 (`turbo --apply -`) answers the given documents in
+    order (the last one repeats). With ``reports`` the apply writes its execution-report as turbo does.
+    """
+
+    def __init__(self, issues, applies=(OK,), request=None, reports=False, **kwargs):
+        super().__init__(issues, **kwargs)
+        self.applies = list(applies)
+        self.request = request
+        self.reports = reports
+        self.requests = []  # (argv, env, planner calls already made when it ran)
+        self.turbo_stdin = []
+        self.turbo_env = []
+
+    def _planner_calls_so_far(self):
+        path = Path(os.environ["FAKE_CLI_DIR"]) / "calls.jsonl"
+        return len(path.read_text().splitlines()) if path.exists() else 0
+
+    async def __call__(self, argv, timeout=120, cwd=None, stdin=None, env=None):
+        if list(argv[:2]) != ["simplicio-loop", "turbo"]:
+            return await super().__call__(argv, timeout, cwd, stdin, env)
+        if "--apply" not in argv and "--provider" not in argv:
+            self.calls.append(list(argv))
+            self.requests.append((list(argv), env, self._planner_calls_so_far()))
+            if self.request is not None:
+                return proc.Result(2, json.dumps(self.request))
+            task = argv[argv.index("--task") + 1]
+            document = {"schema": "simplicio.turbo-request/v1", "status": "needs_plan", "mode": "host",
+                        "run_id": RUN_ID, "tasks": [task], "map": {"slice": MAP_SLICE},
+                        "files": {"app.py": "x = 1\n"}, "format": {"operations": []}, "rules": "rules",
+                        "apply": f"simplicio-loop turbo --apply - --run-id {RUN_ID}"}
+            return proc.Result(0, json.dumps(document))
+        await super().__call__(argv, timeout, cwd, stdin, env)
+        self.turbo_stdin.append(stdin)
+        self.turbo_env.append(env)
+        document = dict(self.applies.pop(0) if len(self.applies) > 1 else self.applies[0])
+        if self.reports and "--run-id" in argv:
+            document["execution_report"] = self._write_turbo_report(Path(cwd), argv[argv.index("--run-id") + 1])
+        return proc.Result(0 if document["status"] == "ok" else 1, json.dumps(document))
+
+    @staticmethod
+    def _write_turbo_report(dest, run_id):
+        """What turbo's TurboRun.finish leaves: one report named after the run, with a single turbo task."""
+        report = execution_report.new_report(dest, execution_profile="turbo-host")
+        report["run_id"] = run_id
+        execution_report.record_task(report, task_id=run_id, title="turbo host: 1 task(s)", outcome="COMPLETE",
+                                     operators=["simplicio-mapper", "simplicio-dev-cli"])
+        return execution_report.write_report(dest, report).relative_to(dest).as_posix()
+
+
+@pytest.fixture
+def cli_dir(env, monkeypatch, tmp_path):
+    """The default executor: no SIMPLICIO_EXECUTOR, an OPENROUTER_API_KEY in the env, a stub `claude` on PATH."""
+    monkeypatch.delenv("SIMPLICIO_EXECUTOR", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "must-not-be-used")
+    monkeypatch.setenv("SIMPLICIO_EXEC_FAMILIES", "claude")
+    monkeypatch.delenv("SIMPLICIO_247_ATTEMPT_CEILING_ISSUE", raising=False)
+    monkeypatch.delenv("FAKE_CLI_LOGGED_OUT", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))  # no real credential file
+    (tmp_path / "home").mkdir()
+    path = tmp_path / "fake-cli"
+    path.mkdir()
+    claude = path / "claude"
+    claude.write_text(STUB)
+    claude.chmod(claude.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setenv("FAKE_CLI_DIR", str(path))
+    monkeypatch.setenv("PATH", f"{path}:{os.environ['PATH']}")
+    # env patches shutil.which to None (no bwrap); only the stub CLI is found here
+    monkeypatch.setattr(sandbox.shutil, "which", lambda binary, *a, **k: str(claude) if binary == "claude" else None)
+    return path
+
+
+def planner_calls(cli_dir):
+    path = cli_dir / "calls.jsonl"
+    return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
+
+def flag(call, name):
+    return call[call.index(name) + 1]
+
+
+def resolved(role):
+    return model_roles.resolve("claude", role)
+
+
+def checkout():
+    """A pre-cloned target repo (so ensure_clone does not clone)."""
+    dest = config.WORK / REPO
+    (dest / ".git").mkdir(parents=True)
+    return dest
+
+
+def step_roles(dest, issue_num=7):
+    """(role, model, effort) of every step in the execution-report the watcher wrote."""
+    state_path = state_home(REPO, issue_num)
+    report = read_json(state_path / REPORTS)
+    assert report["schema"] == "simplicio.execution-report/v1"
+    return [(t["role"], t["model"], t["effort"]) for t in report["tasks"] if "role" in t]
+
+
+def review_fixture(applies):
+    review = {"author": {"login": "reviewer"}, "state": "CHANGES_REQUESTED", "body": "troque o retorno para dict"}
+    return HostRun(
+        {REPO: [issue(7)]}, applies,
+        prs=[pr_row(9, "loop/issue-7", review="CHANGES_REQUESTED")],
+        pr_views={9: {"reviews": [review], "files": [{"path": "app.py"}], "statusCheckRollup": []}},
+    )
+
+
+def test_default_executor_is_exec_never_openrouter(env, cli_dir):
+    assert executor_select.select_mode({}) == "exec"
+    assert executor_select.select_mode({"OPENROUTER_API_KEY": "k"}) == "exec"  # a key alone selects nothing
+    fake = env(HostRun({REPO: [issue(1)]}))
+    baseline()
+    run_tick()
+    argv = fake.turbo_argv[0]
+    assert "--provider" not in argv and "openrouter" not in " ".join(argv)
+    assert "OPENROUTER_API_KEY" not in (fake.turbo_env[0] or {})
+    assert len(planner_calls(cli_dir)) == 1
+
+
+def test_openrouter_only_when_explicitly_selected_with_a_key(env, cli_dir, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_EXECUTOR", "openrouter")
+    monkeypatch.delenv("OPENROUTER_API_KEY")
+    fake = env(HostRun({REPO: [issue(1)]}))
+    baseline()
+    run_tick()
+    assert fake.turbo_argv == []
+    assert read_json(config.STATUS)["reason_code"] == "executor_invalid"
+    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
+    run_tick()
+    assert fake.turbo_argv[0][fake.turbo_argv[0].index("--provider") + 1] == "openrouter"
+    assert planner_calls(cli_dir) == []
+
+
+def test_planner_runs_through_the_sandbox_wrapper(env, cli_dir, monkeypatch):
+    wrapped = []
+
+    def fake_wrap(argv, *, clone, state_dir, **_):
+        wrapped.append((list(argv), clone, state_dir))
+        return ["/usr/bin/env", "SANDBOXED=1", *argv] if argv[0] == "claude" else list(argv)
+
+    monkeypatch.setattr(sandbox, "wrap", fake_wrap)
+    fake = env(HostRun({REPO: [issue(1)]}))
+    baseline()
+    dest = checkout()
+    run_tick()
+    planner = [w for w in wrapped if w[0][0] == "claude"]
+    worktree = config.WORK / f"{REPO}.wt" / "1"
+    assert len(planner) == 1 and planner[0][1] == worktree and planner[0][2] == config.ROOT
+    assert env_values_has_sandboxed(cli_dir)  # the CLI really ran under the wrapper
+    assert [w[0][0] for w in wrapped] == ["simplicio-loop", "claude", "simplicio-loop"]  # request, planner, apply
+    assert fake.turbo_argv
+
+
+def test_only_the_planner_gets_the_empty_home_with_its_own_folders(env, cli_dir, monkeypatch):
+    """#1570: the planner CLI runs with HOME as a tmpfs plus the folders of its family; turbo (request, apply) keeps the layout it has."""
+    homes = []
+
+    def fake_wrap(argv, *, clone, state_dir, **kwargs):
+        homes.append((argv[0], kwargs.get("home")))
+        return list(argv)
+
+    monkeypatch.setattr(sandbox, "wrap", fake_wrap)
+    env(HostRun({REPO: [issue(1)]}))
+    baseline()
+    checkout()
+    run_tick()
+    assert [name for name, _ in homes] == ["simplicio-loop", "claude", "simplicio-loop"]
+    planner_home = homes[1][1]
+    assert planner_home == sandbox.HomeView(Path.home(), **host_mode.FAMILY_HOME["claude"])
+    assert homes[0][1] is None and homes[2][1] is None
+
+
+def test_watcher_keeps_the_planner_config_in_the_bound_state_dir(env, cli_dir, monkeypatch):
+    seen = []
+    real = host_mode.exec_planner.run_planner_with_fallback
+
+    async def spy(*args, **kwargs):
+        seen.append(kwargs.get("config_dir"))
+        return await real(*args, **kwargs)
+
+    monkeypatch.setattr(host_mode.exec_planner, "run_planner_with_fallback", spy)
+    env(HostRun({REPO: [issue(1)]}))
+    baseline()
+    checkout()
+    run_tick()
+    assert seen == [config.ROOT / "opencode"]  # sandbox.wrap binds state_dir; /tmp is a tmpfs inside it
+
+
+def env_keys(cli_dir):
+    path = cli_dir / "env.jsonl"
+    return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
+
+def env_values_has_sandboxed(cli_dir):
+    return any("SANDBOXED" in keys for keys in env_keys(cli_dir))
+
+
+def test_planner_env_is_scrubbed(env, cli_dir, monkeypatch):
+    for name in ("AWS_SECRET_ACCESS_KEY", "GITHUB_TOKEN", "DATABASE_URL"):
+        monkeypatch.setenv(name, "secret")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "claude-needs-this")
+    env(HostRun({REPO: [issue(1)]}))
+    baseline()
+    checkout()
+    run_tick()
+    (keys,) = env_keys(cli_dir)
+    for name in ("OPENROUTER_API_KEY", "AWS_SECRET_ACCESS_KEY", "GITHUB_TOKEN", "DATABASE_URL", "FAKE_CLI_DIR"):
+        assert name not in keys
+    assert "ANTHROPIC_API_KEY" in keys and "HOME" in keys and "PATH" in keys  # what that CLI needs
+
+
+def test_the_github_token_reaches_no_sandboxed_step(env, cli_dir, monkeypatch):
+    """GH_TOKEN stays in the service env for gh and git (outside the sandbox). The planner CLI, `turbo` (request) and
+    `turbo --apply` run inside sandbox.wrap with scrubbed_env, which never carries it."""
+    secret = "ghp_FAKEmustnotleak000000000000000000"
+    monkeypatch.setenv("GH_TOKEN", secret)
+    monkeypatch.setenv("GITHUB_TOKEN", secret)
+    fake = env(HostRun({REPO: [issue(1)]}))
+    baseline()
+    checkout()
+    run_tick()
+    (planner_keys,) = env_keys(cli_dir)
+    assert "GH_TOKEN" not in planner_keys and "GITHUB_TOKEN" not in planner_keys
+    turbo_envs = [request[1] for request in fake.requests] + fake.turbo_env
+    assert len(turbo_envs) == 2  # the request step and the apply step both ran
+    for turbo_env in turbo_envs:
+        assert turbo_env is not None  # an explicit env, never the inherited one
+        assert "GH_TOKEN" not in turbo_env and "GITHUB_TOKEN" not in turbo_env
+        assert secret not in turbo_env.values()
+
+
+def test_plan_goes_to_turbo_stdin_and_dev_cli_applies(env, cli_dir):
+    targeted = "python3 -m pytest -q tests/x.py"  # the `verify` of the repo's loop.toml, exactly
+    fake = env(HostRun({REPO: [issue(3, "Add x")]}, loop_toml={REPO: f'enabled = true\nverify = "{targeted}"\n'}))
+    baseline()
+    dest = checkout()
+    run_tick()
+    worktree = config.WORK / f"{REPO}.wt" / "3"
+    assert fake.turbo_argv[0] == ["simplicio-loop", "turbo", "--repo", str(worktree), "--apply", "-",
+                                  "--run-id", RUN_ID, "--leave-open", "--verify", targeted]
+    assert json.loads(fake.turbo_stdin[0]) == PLAN
+    (call,) = planner_calls(cli_dir)
+    assert flag(call, "--model") == resolved("execution")["model"]
+    assert flag(call, "--tools") == ""  # the planner cannot write, run a command or fetch
+    assert "Issue #3: Add x" in call[1]
+    assert f"MEASURED|verify_passed: `{targeted}`" in fake.ran("gh", "pr", "create")[0][-1]
+    assert read_json(config.CLAIMS)[f"{REPO}#3"]["status"] == "done"
+
+
+def test_verify_failure_replans_with_the_failure_output(env, cli_dir):
+    fake = env(HostRun({REPO: [issue(1)]}, [BAD, OK]))
+    baseline()
+    dest = checkout()
+    run_tick()
+    first, second = planner_calls(cli_dir)
+    assert "FAILED test_x" not in first[1] and "FAILED test_x - assert 0" in second[1]
+    assert len(fake.turbo_argv) == 2
+    assert fake.ran("git", "reset", "-q", "--hard", "HEAD")  # the failed edits are dropped before the replan
+    assert read_json(config.CLAIMS)[f"{REPO}#1"]["status"] == "done"
+    assert [r for r, _, _ in step_roles(dest, 1)] == ["execution", "execution"]  # a squad worker starts at execution (#1505)
+
+
+def test_next_role_order_is_execution_twice_then_up(tmp_path):
+    ladder = escalation.load_escalation_state(tmp_path, 5, "claude")
+    roles = []
+    for _ in range(5):
+        roles.append(ladder.current_role())
+        ladder.record_attempt("failed")
+        host_mode.next_role(ladder)
+    assert roles == ["execution", "execution", "coordination", "planning", "planning"]
+
+
+def test_ceiling_stops_the_escalation(env, cli_dir, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_247_ATTEMPT_CEILING_ISSUE", "2")
+    fake = env(HostRun({REPO: [issue(1)]}, [BAD]))
+    baseline()
+    checkout()
+    run_tick()
+    assert len(planner_calls(cli_dir)) == 2 and len(fake.turbo_argv) == 2
+    claim = read_json(config.CLAIMS)[f"{REPO}#1"]
+    assert claim["status"] == "retry" and "convergence stop" in claim["error"]  # the policy stops it at the ceiling
+    assert fake.ran("gh", "pr", "create") == []
+
+
+def test_login_missing_skips_the_tick(env, cli_dir, monkeypatch):
+    monkeypatch.setenv("FAKE_CLI_LOGGED_OUT", "1")
+    fake = env(HostRun({REPO: [issue(1)]}))
+    baseline()
+    run_tick()
+    status = read_json(config.STATUS)
+    assert status["phase"] == "blocked" and status["reason_code"] == "login_missing:claude"
+    assert fake.calls == [] and planner_calls(cli_dir) == []
+    assert not config.CLAIMS.exists()
+
+
+def test_review_fix_is_pushed_to_the_same_branch_with_role_coordination(env, cli_dir):
+    fake = env(review_fixture([BAD, OK]))
+    baseline(f"{REPO}#7")  # the issue is old; the review is new work for it
+    dest = checkout()
+    run_tick()
+    first, second = planner_calls(cli_dir)
+    assert flag(first, "--model") == resolved("coordination")["model"]
+    assert flag(second, "--model") == resolved("planning")["model"]  # coordination failed once: up the ladder
+    assert "troque o retorno para dict" in first[1]
+    # the fix starts from the open PR head, on the same branch, in the item's own worktree: the whole argv
+    assert fake.ran("git", "worktree", "add") == [
+        ["git", "worktree", "add", "-q", "-B", "loop/issue-7", str(config.WORK / f"{REPO}.wt" / "7"), "origin/loop/issue-7"]]
+    pushes = fake.ran("git", "push")
+    assert pushes == [["git", "push", "-u", "origin", "loop/issue-7"]]  # same branch, never forced
+    assert fake.ran("gh", "pr", "create") == [] and fake.ran("gh", "pr", "merge") == []
+    assert fake.ran("gh", "pr", "close") == []
+    assert [r for r, _, _ in step_roles(dest, 7)] == ["coordination", "planning"]
+
+
+def test_execution_report_has_role_model_and_effort_per_step(env, cli_dir):
+    env(review_fixture([BAD, OK]))
+    baseline(f"{REPO}#7")
+    dest = checkout()
+    run_tick()
+    assert step_roles(dest, 7) == [
+        ("coordination", resolved("coordination")["model"], resolved("coordination")["effort"]),
+        ("planning", resolved("planning")["model"], resolved("planning")["effort"]),
+    ]
+    report = read_json(state_home(REPO, 7) / REPORTS)
+    assert [t["outcome"] for t in report["tasks"]] == ["FAIL", "COMPLETE"]
+    assert all(t["tokens"]["source"] == "absent" for t in report["tasks"])  # UNVERIFIED, never invented
+
+
+# --- turbo's two host steps (#1469): the request (map) first, then the apply that continues the same run ---
+
+
+def test_step_1_runs_before_the_planner_in_the_sandbox_with_the_scrubbed_env(env, cli_dir):
+    fake = env(HostRun({REPO: [issue(3, "Add x")]}))
+    baseline()
+    dest = checkout()
+    run_tick()
+    ((argv, step_env, planner_calls_before),) = fake.requests
+    worktree_path = config.WORK / f"{REPO}.wt" / "3"
+    assert argv[:6] == ["simplicio-loop", "turbo", "--repo", str(worktree_path), "--task", argv[5]] and len(argv) == 8
+    assert argv[6] == "--run-id" and argv[7].startswith("turbo-"), "turbo continues the run the watcher opened at intake"
+    assert "Issue #3: Add x" in argv[5]  # the guarded task, not a bare title
+    assert planner_calls_before == 0, "turbo's request (mapper orient) must run before the planner"
+    assert "OPENROUTER_API_KEY" not in step_env and "ANTHROPIC_API_KEY" not in step_env
+    assert fake.calls.index(argv) < fake.calls.index(fake.turbo_argv[0])  # step 1 before step 2
+
+
+def test_planner_prompt_is_the_turbo_request_with_the_map_slice(env, cli_dir):
+    env(HostRun({REPO: [issue(3, "Add x")]}))
+    baseline()
+    checkout()
+    run_tick()
+    (call,) = planner_calls(cli_dir)
+    assert MAP_SLICE in call[1] and "Issue #3: Add x" in call[1]
+    assert RUN_ID in call[1] and "x = 1" in call[1]  # the request: run, current file text
+    assert flag(call, "--tools") == ""
+
+
+def test_step_2_continues_the_run_and_one_report_carries_run_id_and_roles(env, cli_dir):
+    fake = env(review_fixture([BAD, OK]))
+    fake.reports = True
+    baseline(f"{REPO}#7")
+    dest = checkout()
+    run_tick()
+    assert len(fake.requests) == 1  # one orient per work item, whatever the retries
+    for argv in fake.turbo_argv:
+        assert argv[argv.index("--run-id") + 1] == RUN_ID
+    report = read_json(state_home(REPO, 7) / REPORTS)
+    assert report["run_id"] == RUN_ID
+    assert read_json(state_home(REPO, 7) / ".simplicio-loop/runtime/execution-reports" / f"{RUN_ID}.json") == report
+    roles = [t for t in report["tasks"] if "role" in t]
+    assert [t["role"] for t in roles] == ["coordination", "planning"]
+    assert [t["outcome"] for t in roles] == ["FAIL", "COMPLETE"]
+    assert [t["task_id"] for t in report["tasks"] if "role" not in t] == [RUN_ID, RUN_ID]  # turbo's own tasks
+    assert "simplicio-mapper" in report["operators_used"] and "exec-planner" in report["operators_used"]
+
+
+def test_escalation_retry_reuses_the_request_plus_the_failure_output(env, cli_dir):
+    fake = env(HostRun({REPO: [issue(1)]}, [BAD, OK]))
+    baseline()
+    checkout()
+    run_tick()
+    first, second = planner_calls(cli_dir)
+    assert len(fake.requests) == 1
+    assert MAP_SLICE in first[1] and MAP_SLICE in second[1]  # the same request both times
+    assert "FAILED test_x" not in first[1] and "FAILED test_x - assert 0" in second[1]
+    assert [a[a.index("--run-id") + 1] for a in fake.turbo_argv] == [RUN_ID, RUN_ID]
+
+
+def test_blocked_request_stops_before_any_planner_call(env, cli_dir):
+    blocked = {"schema": "simplicio.turbo-run/v1", "status": "blocked", "reason_code": "turbo_engine_error",
+               "detail": "mapper unavailable"}
+    fake = env(HostRun({REPO: [issue(1)]}, request=blocked))
+    baseline()
+    checkout()
+    run_tick()
+    assert planner_calls(cli_dir) == [] and fake.turbo_argv == []
+    claim = read_json(config.CLAIMS)[f"{REPO}#1"]
+    assert claim["status"] == "retry" and "mapper unavailable" in claim["error"]
+
+
+# --- the kanban run the watcher opened at intake is always closed (#1469) --------------------------------------
+
+def _closed_runs(monkeypatch):
+    from simplicio_loop.watcher247 import events
+    seen, real = [], events.close_run
+
+    def record(dest, run_id, status, pr_url=None):
+        seen.append((status, pr_url))
+        return real(dest, run_id, status, pr_url=pr_url)
+
+    monkeypatch.setattr(events, "close_run", record)
+    return seen
+
+
+def _executor_raises(monkeypatch, exc):
+    async def boom(*args, **kwargs):
+        raise exc
+
+    monkeypatch.setattr(host_mode, "run_exec", boom)
+
+
+def test_a_pr_closes_the_run_ok_with_the_pr_url(env, cli_dir, monkeypatch):
+    seen = _closed_runs(monkeypatch)
+    env(HostRun({REPO: [issue(3)]}))
+    baseline()
+    checkout()
+    run_tick()
+    assert seen == [("ok", "https://github.com/simpletibr/simplicio-a/pull/9")]
+
+
+def test_no_diff_closes_the_run_blocked_never_done(env, cli_dir, monkeypatch):
+    seen = _closed_runs(monkeypatch)
+    env(HostRun({REPO: [issue(3)]}, diff=False))
+    baseline()
+    checkout()
+    run_tick()
+    assert seen == [("blocked", None)], "no PR was opened: the run must not claim done"
+
+
+def test_a_failed_attempt_closes_the_run_failed(env, cli_dir, monkeypatch):
+    seen = _closed_runs(monkeypatch)
+    _executor_raises(monkeypatch, RuntimeError("boom"))
+    env(HostRun({REPO: [issue(3)]}))
+    baseline()
+    checkout()
+    run_tick()
+    assert seen == [("failed", None)]
+
+
+def test_a_blocked_point_closes_the_run_blocked(env, cli_dir, monkeypatch):
+    from simplicio_loop.watcher247.points import registry
+    seen = _closed_runs(monkeypatch)
+    _executor_raises(monkeypatch, registry.PointBlocked("pr", "gate", "why", []))
+    env(HostRun({REPO: [issue(3)]}))
+    baseline()
+    checkout()
+    run_tick()
+    assert seen == [("blocked", None)]
+
+
+@pytest.mark.parametrize("exc", [KeyboardInterrupt, SystemExit, asyncio.CancelledError])
+def test_the_run_is_closed_and_the_interrupt_is_not_swallowed(env, cli_dir, monkeypatch, exc):
+    seen = _closed_runs(monkeypatch)
+    _executor_raises(monkeypatch, exc())
+    env(HostRun({REPO: [issue(3)]}))
+    baseline()
+    checkout()
+    with pytest.raises(exc):
+        run_tick()
+    assert seen == [("failed", None)]
+
+
+def test_a_writer_that_raises_never_breaks_the_tick(env, cli_dir, monkeypatch):
+    from simplicio_loop.watcher247 import events
+
+    class Broken:
+        def __init__(self, *args, **kwargs):
+            raise OSError("disk full")
+
+    monkeypatch.setattr(events, "TurboRun", Broken)
+    fake = env(HostRun({REPO: [issue(3)]}))
+    baseline()
+    checkout()
+    run_tick()
+    assert read_json(config.CLAIMS)[f"{REPO}#3"]["status"] == "done"
+    assert fake.ran("gh", "pr", "create")
+
+
+# --- the plan asks for more lines (`need`) or was cut blind (#1643) -----------------------------------------------
+
+CUT_FILES = {"big.py": {"total_lines": 900, "total_chars": 30000, "windows": [{"start": 1, "end": 12, "text": "x\n"}],
+                        "omitted": [{"start": 13, "end": 900}], "more": "need"}}
+NEED = {"operations": [], "need": [{"path": "big.py", "start": 700, "end": 720}]}
+
+
+def _scripted_planner(monkeypatch, plans):
+    from simplicio_loop import exec_planner
+    seen = []
+
+    async def planner(role, prompt, **kwargs):
+        seen.append((role, prompt))
+        return exec_planner.PlannerResult("ok", "claude", role, "m", "high", plan=plans[min(len(seen), len(plans)) - 1])
+
+    monkeypatch.setattr(host_mode.exec_planner, "run_planner_with_fallback", planner)
+    return seen
+
+
+def _run_exec(fake, role=""):
+    dest = checkout()
+    executor = host_mode.Executor("exec", ("claude",))
+    return asyncio.run(host_mode.run_exec(dest, REPO, issue(1), "fix big.py", None, executor, attempts=1, role=role))
+
+
+def _cut_request(files=None):
+    return {"schema": "simplicio.turbo-request/v1", "status": "needs_plan", "mode": "host", "run_id": RUN_ID,
+            "tasks": ["t"], "files": CUT_FILES if files is None else files, "apply": "x"}
+
+
+def test_a_need_prints_the_request_again_with_the_lines_and_spends_one_step(env, cli_dir, monkeypatch):
+    fake = env(HostRun({REPO: [issue(1)]}, [OK], request=_cut_request()))
+    baseline()
+    seen = _scripted_planner(monkeypatch, [NEED, PLAN])
+    resets = []
+
+    async def no_reset(dest):
+        resets.append(dest)
+
+    monkeypatch.setattr(host_mode, "_reset_tree", no_reset)
+    out = _run_exec(fake)
+    assert [s.get("reason") for s in out["steps"]] == ["need_lines", None]
+    assert [s["outcome"] for s in out["steps"]] == ["failed", "ok"] and len(seen) == 2
+    assert resets == []  # no git reset: nothing was applied
+    first, second = (argv for argv, _env, _n in fake.requests)
+    assert "--window" not in first and second[second.index("--window") + 1] == "big.py:700-720"
+    assert second[second.index("--run-id") + 1] == RUN_ID
+    assert len(fake.turbo_stdin) == 1  # only the real plan reached `turbo --apply`
+    assert seen[0][0] == seen[1][0] == "planning"  # same role: no escalation
+
+
+def test_a_need_does_not_climb_the_ladder(env, cli_dir, monkeypatch):
+    fake = env(HostRun({REPO: [issue(1)]}, [OK], request=_cut_request()))
+    baseline()
+    seen = _scripted_planner(monkeypatch, [NEED, PLAN])
+    _run_exec(fake, role="execution")  # the ladder starts at its lowest role, where an escalation would show
+    assert [role for role, _prompt in seen] == ["execution", "execution"]
+
+
+def _capturing_planner(monkeypatch, plan):
+    from simplicio_loop import exec_planner
+    seen = []
+
+    async def planner(role, prompt, **kwargs):
+        seen.append(kwargs)
+        return exec_planner.PlannerResult("ok", "claude", role, "m", "high", plan=plan)
+
+    monkeypatch.setattr(host_mode.exec_planner, "run_planner_with_fallback", planner)
+    return seen
+
+
+def test_the_planner_may_read_files_only_when_the_request_omits_lines(env, cli_dir, monkeypatch):
+    fake = env(HostRun({REPO: [issue(1)]}, [OK], request=_cut_request()))
+    baseline()
+    seen = _capturing_planner(monkeypatch, PLAN)
+    _run_exec(fake)
+    assert seen[0]["read_tools"] is True
+
+
+def test_a_step_record_carries_the_tool_surface(tmp_path):
+    from simplicio_loop import exec_planner
+    report = execution_report.new_report(tmp_path)
+    planned = exec_planner.PlannerResult("ok", "claude", "planning", "m", "high", surface=("read", "lines omitted"))
+    host_mode._note_step(report, repo=REPO, issue=issue(1), step=1, planned=planned, outcome="ok", wall_ms=5)
+    task = report["tasks"][-1]
+    assert (task["tool_surface"], task["tool_surface_reason"]) == ("read", "lines omitted")
+
+
+def test_the_planner_gets_no_read_tools_when_nothing_is_omitted(env, cli_dir, monkeypatch):
+    fake = env(HostRun({REPO: [issue(1)]}, [OK], request=_cut_request({"big.py": "x\n"})))
+    baseline()
+    seen = _capturing_planner(monkeypatch, PLAN)
+    _run_exec(fake)
+    assert seen[0]["read_tools"] is False
+
+
+def test_an_empty_plan_with_a_cut_request_stops_with_turbo_context_truncated(env, cli_dir, monkeypatch):
+    fake = env(HostRun({REPO: [issue(1)]}, [OK], request=_cut_request()))
+    baseline()
+    seen = _scripted_planner(monkeypatch, [{"operations": []}, PLAN])
+    with pytest.raises(RuntimeError, match="turbo_context_truncated.*big.py") as raised:
+        _run_exec(fake)
+    assert len(seen) == 1 and fake.turbo_stdin == []  # one planner call, no ladder, nothing applied
+    assert host_mode.steps_of(raised.value)[-1]["reason"] == "turbo_context_truncated"
+    assert "operations" in (config.LOGS / f"{REPO}-1-1-s1.log").read_text()  # the answer stays in the step log
+
+
+def test_an_empty_plan_with_nothing_omitted_keeps_the_old_path(env, cli_dir, monkeypatch):
+    fake = env(HostRun({REPO: [issue(1)]}, [BAD], request=_cut_request({"big.py": "x\n"})))
+    baseline()
+    _scripted_planner(monkeypatch, [{"operations": []}])
+    with pytest.raises(RuntimeError) as raised:
+        _run_exec(fake)
+    assert "turbo_context_truncated" not in str(raised.value) and fake.turbo_stdin  # applied as before
+
+
+def test_the_planner_prompt_tells_it_may_ask_for_lines():
+    assert '"need"' in host_mode.plan_prompt("{}")
+
+
+def test_the_planner_prompt_explains_need_and_window_with_an_example():
+    text = host_mode.plan_prompt("{}")
+    assert '{"operations": [], "need": [{"path": "tests/test_x.py", "start": 147, "end": 190}]}' in text
+    assert "--window tests/test_x.py:147-190" in text and "omitted" in text
+
+
+# --- an answer outside the task scope: one new attempt with the violations, then needs_human (#1612) --------------
+
+OUT = {"operations": [{"path": "other.py", "find": "", "replace": "x\n"}]}
+
+
+def _scope_planner(monkeypatch, answers):
+    """A planner whose answers are plans (ok) or violation lists (bad_plan with the violations, as run_planner reports them)."""
+    from simplicio_loop import exec_planner, plan_scope
+    seen = []
+
+    async def planner(role, prompt, **kwargs):
+        seen.append((role, prompt, kwargs.get("scope")))
+        answer = answers[min(len(seen), len(answers)) - 1]
+        if isinstance(answer, dict):
+            return exec_planner.PlannerResult("ok", "claude", role, "m", "high", plan=answer)
+        return exec_planner.PlannerResult("bad_plan", "claude", role, "m", "high", error=plan_scope.retry_message(answer),
+                                          violations=list(answer))
+
+    monkeypatch.setattr(host_mode.exec_planner, "run_planner_with_fallback", planner)
+    return seen
+
+
+def _events(dest):
+    path = dest / ".simplicio-loop" / "orchestrator" / "runs" / RUN_ID / "events.jsonl"
+    return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
+
+def _reasons(dest):
+    return [(e["kind"], (e.get("payload") or {}).get("reason")) for e in _events(dest)]
+
+
+def test_an_out_of_scope_answer_gets_one_new_attempt_that_carries_the_violations(env, cli_dir, monkeypatch):
+    fake = env(HostRun({REPO: [issue(1)]}, [OK]))
+    baseline()
+    seen = _scope_planner(monkeypatch, [["out_of_scope:other.py"], PLAN])
+    result = _run_exec(fake)
+    assert len(seen) == 2 and result["steps"][-1]["outcome"] == "ok"
+    assert "out_of_scope:other.py" not in seen[0][1]
+    assert "out_of_scope:other.py" in seen[1][1] and "The previous plan was applied and failed" not in seen[1][1]
+    reasons = _reasons(config.WORK / REPO)
+    assert ("retry_scheduled", "out_of_scope") in reasons and not any(kind == "decision_requested" for kind, _ in reasons)
+
+
+def test_a_second_out_of_scope_answer_is_needs_human_with_the_cause(env, cli_dir, monkeypatch):
+    fake = env(HostRun({REPO: [issue(1)]}, [OK]))
+    baseline()
+    seen = _scope_planner(monkeypatch, [["out_of_scope:other.py"], ["out_of_scope:third.py"], PLAN])
+    with pytest.raises(RuntimeError, match=r"needs_human: out_of_scope:third\.py") as raised:
+        _run_exec(fake)
+    assert len(seen) == 2 and fake.turbo_stdin == []  # no third request, nothing applied
+    assert [s["outcome"] for s in host_mode.steps_of(raised.value)] == ["failed", "failed"]
+    reasons = _reasons(config.WORK / REPO)
+    assert ("retry_scheduled", "out_of_scope") in reasons and ("decision_requested", "needs_human") in reasons
+
+
+def test_the_real_cli_is_asked_twice_and_never_more_when_it_stays_out_of_scope(env, cli_dir):
+    (cli_dir / "claude").write_text(
+        "#!/usr/bin/env python3\nimport json, os, sys\nd = os.path.dirname(os.path.abspath(__file__))\n"
+        "if sys.argv[1:2] == ['auth']:\n    sys.exit(0)\n"
+        "open(d + '/calls.jsonl', 'a').write(json.dumps(sys.argv[1:]) + '\\n')\n"
+        f"print(json.dumps({{'result': json.dumps({OUT!r})}}))\n")
+    fake = env(HostRun({REPO: [issue(1)]}, [OK]))
+    baseline()
+    with pytest.raises(RuntimeError, match=r"needs_human: out_of_scope:other\.py"):
+        _run_exec(fake)
+    calls = planner_calls(cli_dir)
+    assert len(calls) == 2 and "out_of_scope:other.py" in " ".join(calls[1]) and "out_of_scope:other.py" not in " ".join(calls[0])
+    assert fake.turbo_stdin == []
+
+
+def test_an_over_ceiling_prompt_sends_nothing_from_host_mode(env, cli_dir, monkeypatch):
+    """Host mode sends its planner prompt through the input-token ceiling (#1608): over it no CLI runs and nothing is applied."""
+    monkeypatch.setenv(input_ceiling.ENV_NAME, "100")  # the task stays under the handoff objective limit (2000 chars)
+    huge = {"schema": "simplicio.turbo-request/v1", "status": "needs_plan", "mode": "host", "run_id": RUN_ID,
+            "tasks": ["word " * 200], "files": {"app.py": "x = 1\n"}, "format": {"operations": []},
+            "apply": f"simplicio-loop turbo --apply - --run-id {RUN_ID}"}
+    fake = env(HostRun({REPO: [issue(1)]}, [OK], request=huge))
+    baseline()
+    # Over the ceiling every continuation is refused unsent (#1782): the chain runs out, and no CLI is ever spawned.
+    with pytest.raises(RuntimeError, match="continuation_chain_exhausted"):
+        _run_exec(fake)
+    assert planner_calls(cli_dir) == []  # the CLI was never spawned
+    assert fake.turbo_stdin == []  # and no plan reached `turbo --apply`

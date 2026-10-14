@@ -1,0 +1,37 @@
+[
+  {
+    "instance_id": "aider_two_fer",
+    "file": "two_fer.py",
+    "instructions": "Implement two_fer(name=None) returning \"One for {name}, one for me.\", defaulting to \"you\".",
+    "initial_code": "def two_fer(name=None):\n    pass\n",
+    "test_code": "from two_fer import two_fer\ndef test_no_name(): assert two_fer() == \"One for you, one for me.\"\ndef test_name(): assert two_fer(\"Alice\") == \"One for Alice, one for me.\"\n"
+  },
+  {
+    "instance_id": "aider_isogram",
+    "file": "isogram.py",
+    "instructions": "Determine if a word or phrase is an isogram, ignoring spaces and hyphens.",
+    "initial_code": "def is_isogram(string):\n    pass\n",
+    "test_code": "from isogram import is_isogram\ndef test_empty(): assert is_isogram(\"\") is True\ndef test_iso(): assert is_isogram(\"lumberjacks\") is True\ndef test_dup(): assert is_isogram(\"eleven\") is False\n"
+  },
+  {
+    "instance_id": "aider_raindrops",
+    "file": "raindrops.py",
+    "instructions": "Convert factor to raindrop sounds: 3=Pling, 5=Plang, 7=Plong, else number as string.",
+    "initial_code": "def convert(number):\n    pass\n",
+    "test_code": "from raindrops import convert\ndef test_28(): assert convert(28) == \"Plong\"\ndef test_30(): assert convert(30) == \"PlingPlang\"\ndef test_34(): assert convert(34) == \"34\"\n"
+  },
+  {
+    "instance_id": "aider_flatten_array",
+    "file": "flatten_array.py",
+    "instructions": "Flatten a nested list omitting all None values.",
+    "initial_code": "def flatten(iterable):\n    pass\n",
+    "test_code": "from flatten_array import flatten\ndef test_empty(): assert flatten([]) == []\ndef test_nested(): assert flatten([0, 2, [[2, 3], 8, 100, 4, [[[50]]]], -2]) == [0, 2, 2, 3, 8, 100, 4, 50, -2]\n"
+  },
+  {
+    "instance_id": "aider_resistor_color",
+    "file": "resistor_color.py",
+    "instructions": "Return resistance band number and list of colors.",
+    "initial_code": "def color_code(color):\n    pass\n\ndef colors():\n    pass\n",
+    "test_code": "from resistor_color import color_code, colors\ndef test_black(): assert color_code(\"black\") == 0\ndef test_white(): assert color_code(\"white\") == 9\ndef test_list(): assert colors()[0] == \"black\"\n"
+  }
+]

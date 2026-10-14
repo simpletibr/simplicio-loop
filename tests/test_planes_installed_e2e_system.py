@@ -12,7 +12,7 @@ TASK = ROOT / "contracts/task-to-delivery/fixtures/planes/task.md"
 
 
 @pytest.mark.external_integration
-def test_installed_planes_gate_uses_real_path_and_raw_markdown():
+def test_installed_planes_gate_uses_real_path_and_raw_markdown(tmp_path):
     # #291 — this is a real e2e test against the *published* console scripts
     # (simplicio-mapper, simplicio-dev-cli, simplicio-loop, simplicio), not this repo's source
     # checkout. It requires those packages installed and functionally working on PATH, which a
@@ -22,8 +22,17 @@ def test_installed_planes_gate_uses_real_path_and_raw_markdown():
     # BLOCKED, i.e. whenever the installed toolchain genuinely could not complete the flow; that
     # keeps this test meaningful in an `installed-e2e` job (dedicated venv with the wheel/CLIs
     # actually installed and working) without making unrelated source changes fail this gate.
-    result = subprocess.run([sys.executable, str(SCRIPT), "--task", str(TASK), "--json"],
-                            cwd=ROOT, capture_output=True, text=True,
+    # The operators map a throwaway repository, never this checkout (#1574): the Runtime writes its
+    # baseline and scratch into the git common dir every worktree shares.
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    for command in (["init", "-q"], ["config", "user.email", "t@example.com"], ["config", "user.name", "t"]):
+        subprocess.run(["git", *command], cwd=repo, check=True)
+    (repo / "app.py").write_text("def app():\n    return 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "seed"], cwd=repo, check=True)
+    result = subprocess.run([sys.executable, str(SCRIPT), "--task", str(TASK), "--repo", str(repo), "--json"],
+                            cwd=tmp_path, capture_output=True, text=True,
                             stdin=subprocess.DEVNULL, timeout=180)
     receipt = json.loads(result.stdout) if result.stdout else {}
     if result.returncode != 0 or receipt.get("status") == "BLOCKED":

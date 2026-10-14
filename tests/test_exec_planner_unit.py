@@ -1,141 +1,470 @@
-"""Unit tests for exec_planner: CLI exec launcher for planning, coordination, execution.
-
-Tests use fake CLI scripts on PATH in a temporary directory.
-No real model CLIs are called.
-"""
+"""Unit tests for exec_planner: plan-only argv, fake CLIs on PATH, tree-kill, fallback. No real model is called."""
 
 import asyncio
 import json
 import os
-import subprocess
+import stat
 import sys
-import tempfile
+import time
 from pathlib import Path
 
 import pytest
 
-from simplicio_loop import exec_planner, model_roles
+from simplicio_loop import exec_planner, model_roles, structured_output
+
+PLAN = {"operations": [{"op": "create", "file": "a.txt", "content": "x"}]}
+WRITE_BASH_WEB_TOOLS = {"Bash", "Write", "Edit", "MultiEdit", "NotebookEdit", "WebFetch", "WebSearch"}
+FORBIDDEN_FLAGS = (
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--always-approve",
+    "bypassPermissions",
+    "acceptEdits",
+    "workspace-write",
+    "danger-full-access",
+    "yolo",
+)
 
 
 @pytest.fixture
-def fake_cli_dir():
-    """Create a temporary directory with fake CLI scripts on PATH."""
-    with tempfile.TemporaryDirectory(prefix="test-cli-") as tmpdir:
-        bin_dir = Path(tmpdir) / "bin"
-        bin_dir.mkdir()
-        
-        # Fake claude CLI
-        (bin_dir / "claude").write_text(
-            "#!/usr/bin/env python3\n"
-            "import json, sys\n"
-            "json.dump({'operations': [{'path': 'test.txt', 'find': '', 'replace': 'hello'}]}, sys.stdout)\n"
-        )
-        (bin_dir / "claude").chmod(0o755)
-        
-        # Fake codex CLI (reads from stdin)
-        (bin_dir / "codex").write_text(
-            "#!/usr/bin/env python3\n"
-            "import json, sys\n"
-            "prompt = sys.stdin.read()\n"
-            "json.dump({'operations': [{'path': 'test.txt', 'find': '', 'replace': 'hello from codex'}]}, sys.stdout)\n"
-        )
-        (bin_dir / "codex").chmod(0o755)
-        
-        # Fake grok CLI
-        (bin_dir / "grok").write_text(
-            "#!/usr/bin/env python3\n"
-            "import json, sys\n"
-            "json.dump({'operations': [{'path': 'test.txt', 'find': '', 'replace': 'hello from grok'}]}, sys.stdout)\n"
-        )
-        (bin_dir / "grok").chmod(0o755)
-        
-        # Fake gemini CLI
-        (bin_dir / "gemini").write_text(
-            "#!/usr/bin/env python3\n"
-            "import json, sys\n"
-            "json.dump({'operations': [{'path': 'test.txt', 'find': '', 'replace': 'hello from gemini'}]}, sys.stdout)\n"
-        )
-        (bin_dir / "gemini").chmod(0o755)
-        
-        old_path = os.environ.get("PATH", "")
-        os.environ["PATH"] = str(bin_dir) + ":" + old_path
-        yield bin_dir
-        os.environ["PATH"] = old_path
+def bindir(tmp_path, monkeypatch):
+    d = tmp_path / "bin"
+    d.mkdir()
+    # Only the fakes are on PATH, so a real claude/codex/grok/gemini on the host can never be run.
+    monkeypatch.setenv("PATH", str(d))
+    monkeypatch.delenv("SIMPLICIO_EXEC_FAMILIES", raising=False)
+    return d
 
 
-def test_build_argv_claude():
-    argv = exec_planner.build_argv("claude", "planning", "test prompt", "claude-opus-5-5", ".")
-    assert argv[0] == "claude"
-    assert "-p" in argv
-    assert "test prompt" in argv
-    assert "--model" in argv
-    assert "claude-opus-5-5" in argv
-    assert "--output-format" in argv
-    assert "json" in argv
+def fake_cli(bindir, name, body="", stdout=None):
+    """Install a fake `name` CLI. It records argv/stdin/order under bindir, then runs `body` (python code)."""
+    if stdout is None:
+        stdout = json.dumps(PLAN)
+    script = (
+        "#!%s\n"
+        "import json, os, signal, subprocess, sys, time\n"
+        "d = %r\n"
+        "name = %r\n"
+        "stdin = '' if sys.stdin.isatty() else sys.stdin.read()\n"
+        "json.dump({'argv': sys.argv[1:], 'stdin': stdin}, open(os.path.join(d, name + '.call'), 'w'))\n"
+        "open(os.path.join(d, 'order.log'), 'a').write(name + '\\n')\n"
+        "%s\n"
+        "sys.stdout.write(%r)\n"
+    ) % (sys.executable, str(bindir), name, body, stdout)
+    path = bindir / name
+    path.write_text(script)
+    path.chmod(path.stat().st_mode | stat.S_IEXEC)
+    return path
 
 
-def test_build_argv_codex():
-    argv = exec_planner.build_argv("codex", "execution", "test prompt", "gpt-6-luna", "/tmp")
-    assert argv[0] == "codex"
-    assert "exec" in argv
-    assert "--cd" in argv
-    assert "/tmp" in argv
-    assert "--model" in argv
-    assert "gpt-6-luna" in argv
-    assert "-" in argv
+def call_of(bindir, name):
+    return json.loads((bindir / (name + ".call")).read_text())
 
 
-def test_build_argv_grok():
-    argv = exec_planner.build_argv("grok", "coordination", "test prompt", "grok-4.6", ".")
-    assert argv[0] == "grok"
-    assert "-p" in argv
-    assert "test prompt" in argv
-    assert "--model" in argv
-    assert "--output-format" in argv
+def run(coro):
+    return asyncio.run(coro)
 
 
-def test_build_argv_gemini():
-    argv = exec_planner.build_argv("gemini", "planning", "test prompt", "gemini-3.8-flash", ".")
-    assert argv[0] == "gemini"
-    assert "-p" in argv
-    assert "--model" in argv
+def _alive(pid):
+    """True while the pid runs. A zombie is dead: its parent (here PID 1, which does not reap) just has not waited."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    try:
+        state = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
+    except OSError:
+        return False
+    return state != "Z"
 
 
-def test_build_argv_unknown_family():
-    with pytest.raises(exec_planner.ExecPlannerError):
-        exec_planner.build_argv("mistral", "planning", "test", "mistral-7b", ".")
+def pid_gone(pid, wait=3.0):
+    deadline = time.monotonic() + wait
+    while time.monotonic() < deadline:
+        if not _alive(pid):
+            return True
+        time.sleep(0.05)
+    return False
 
 
-def test_planner_result_to_dict():
-    result = exec_planner.PlannerResult(
-        reason_code="ok",
-        family="claude",
-        role="planning",
-        model="claude-opus-5-5",
-        effort="high",
-        plan={"operations": []},
-        execution_ms=100.5,
+class TestHermeticPath:
+    def test_only_the_fakes_are_on_path(self, bindir):
+        assert os.environ["PATH"].split(os.pathsep) == [str(bindir)]
+
+
+class TestBuildArgvPlanOnly:
+    @pytest.mark.parametrize("family", ["claude", "codex", "grok", "gemini"])
+    def test_no_write_or_auto_approve_flags(self, family):
+        argv = exec_planner.build_argv(family, "planning", "p", "m", "/w", "high", schema_file="/s/p.json")
+        for flag in FORBIDDEN_FLAGS:
+            assert flag not in argv
+
+    def test_claude_flags(self):
+        argv = exec_planner.build_argv("claude", "planning", "P", "claude-opus-5-5", "/w", "high")
+        assert argv[:3] == ["claude", "-p", "P"]
+        assert argv[argv.index("--model") + 1] == "claude-opus-5-5"
+        assert argv[argv.index("--effort") + 1] == "high"
+        assert "--permission-mode" not in argv
+        assert argv[argv.index("--tools") + 1] == ""
+
+    def test_claude_none_argv_is_exact(self):
+        argv = exec_planner.build_argv("claude", "planning", "P", "claude-opus-5-5", "/w", "high")
+        assert argv == [
+            "claude", "-p", "P", "--model", "claude-opus-5-5", "--effort", "high",
+            "--tools", "", "--disable-slash-commands", "--strict-mcp-config", "--no-session-persistence",
+            "--setting-sources", "user", "--output-format", "json",
+            "--json-schema", structured_output.schema_text(),
+        ]
+
+    def test_claude_read_argv_replaces_only_the_tool_list(self):
+        none = exec_planner.build_argv("claude", "planning", "P", "m", "/w", "high")
+        read = exec_planner.build_argv("claude", "planning", "P", "m", "/w", "high", read_tools=True)
+        at = none.index("--tools")
+        assert read == [*none[:at], "--tools", "Read,Grep,Glob", *none[at + 2:]]
+
+    def test_codex_flags(self):
+        argv = exec_planner.build_argv("codex", "planning", "P", "gpt-5.6-terra", "/w", "high", schema_file="/s/p.json")
+        assert argv[:2] == ["codex", "exec"]
+        assert argv[argv.index("-s") + 1] == "read-only"
+        assert argv[argv.index("--cd") + 1] == "/w"
+        assert argv[argv.index("-m") + 1] == "gpt-5.6-terra"
+        assert 'model_reasoning_effort="high"' in argv
+        assert argv[-1] == "-"
+
+    def test_grok_flags(self):
+        argv = exec_planner.build_argv("grok", "planning", "P", "grok-4.7", "/w", "xhigh")
+        assert argv[argv.index("-m") + 1] == "grok-4.7"
+        assert argv[argv.index("--reasoning-effort") + 1] == "xhigh"
+        assert argv[argv.index("--permission-mode") + 1] == "plan"
+        assert argv[argv.index("--cwd") + 1] == "/w"
+
+    def test_gemini_flags_are_doc_based_plan_mode(self):
+        argv = exec_planner.build_argv("gemini", "planning", "P", "gemini-3.8-flash", "/w", "high")
+        assert argv[argv.index("--approval-mode") + 1] == "plan"
+
+    def test_default_model_is_omitted(self):
+        assert "--model" not in exec_planner.build_argv("claude", "planning", "P", "auto", "/w")
+
+    def test_unsupported_family(self):
+        with pytest.raises(exec_planner.ExecPlannerError):
+            exec_planner.build_argv("invalid", "planning", "t", "m", ".")
+
+
+class TestBuildArgvAgyOpencode:
+    def test_agy_flags_are_verified_plan_only(self):
+        argv = exec_planner.build_argv("agy", "planning", "P", "gemini-3.8-pro", "/w", "high")
+        assert argv[:3] == ["agy", "-p", "P"]
+        assert argv[argv.index("--model") + 1] == "gemini-3.8-pro"
+        assert argv[argv.index("--effort") + 1] == "high"
+        assert argv[argv.index("--mode") + 1] == "plan"
+        assert "--sandbox" in argv
+        assert argv[argv.index("--output-format") + 1] == "json"
+        assert "--dangerously-skip-permissions" not in argv
+
+    def test_agy_default_model_omitted_effort_kept(self):
+        argv = exec_planner.build_argv("agy", "planning", "P", "auto", "/w", "low")
+        assert "--model" not in argv
+        assert argv[argv.index("--effort") + 1] == "low"
+
+    def test_opencode_flags(self):
+        argv = exec_planner.build_argv("opencode", "planning", "P", "anthropic/claude-opus-5-5", "/w", "max")
+        assert argv[:3] == ["opencode", "run", "P"]
+        assert argv[argv.index("--agent") + 1] == "plan"
+        assert argv[argv.index("--format") + 1] == "json"
+        assert argv[argv.index("-m") + 1] == "anthropic/claude-opus-5-5"
+        assert argv[argv.index("--variant") + 1] == "max"
+        assert "--auto" not in argv
+
+    def test_opencode_deny_config_denies_bash_webfetch_edit(self):
+        cfg = exec_planner.OPENCODE_DENY_CONFIG
+        assert cfg["permission"] == {"bash": "deny", "webfetch": "deny", "edit": "deny"}
+
+
+class TestOpencodeDenyConfigEnv:
+    CAPTURE = (
+        "cfg = os.environ.get('OPENCODE_CONFIG')\n"
+        "json.dump({'path': cfg, 'text': open(cfg).read() if cfg else None}, open(os.path.join(d, 'cfg.json'), 'w'))"
     )
-    d = result.to_dict()
-    assert d["reason_code"] == "ok"
-    assert d["family"] == "claude"
-    assert d["execution_ms"] == 100.5
+
+    def test_opencode_gets_temp_config_with_denies_then_cleaned_up(self, bindir, monkeypatch):
+        monkeypatch.delenv("OPENCODE_CONFIG", raising=False)
+        fake_cli(bindir, "opencode", body=self.CAPTURE)
+        res = run(exec_planner.run_planner("opencode", "planning", "x", cwd=str(bindir), repo_root=bindir))
+        assert res.reason_code == "ok" and res.plan == PLAN
+        seen = json.loads((bindir / "cfg.json").read_text())
+        assert seen["path"]
+        assert json.loads(seen["text"])["permission"] == {"bash": "deny", "webfetch": "deny", "edit": "deny"}
+        assert not os.path.exists(seen["path"])
+
+    def test_temp_config_removed_even_on_failure(self, bindir, monkeypatch):
+        monkeypatch.delenv("OPENCODE_CONFIG", raising=False)
+        fake_cli(bindir, "opencode", body=self.CAPTURE + "\nsys.exit(3)")
+        res = run(exec_planner.run_planner("opencode", "planning", "x", cwd=str(bindir), repo_root=bindir))
+        assert res.reason_code == "process_error"
+        assert not os.path.exists(json.loads((bindir / "cfg.json").read_text())["path"])
+
+    def test_other_families_get_no_opencode_config(self, bindir, monkeypatch):
+        monkeypatch.delenv("OPENCODE_CONFIG", raising=False)
+        fake_cli(bindir, "claude", body=self.CAPTURE.replace("open(cfg).read() if cfg else None", "None"))
+        run(exec_planner.run_planner("claude", "planning", "x", cwd=str(bindir), repo_root=bindir))
+        assert json.loads((bindir / "cfg.json").read_text())["path"] is None
 
 
-def test_extract_plan_json_raw():
-    output = '{"operations": [{"path": "test.txt", "find": "", "replace": "hello"}]}'
-    plan = exec_planner._extract_plan_json(output)
-    assert "operations" in plan
-    assert len(plan["operations"]) == 1
+class TestExtractPlanJson:
+    def test_plain_and_embedded(self):
+        assert exec_planner._extract_plan_json(json.dumps(PLAN)) == PLAN
+        assert exec_planner._extract_plan_json("pre %s post" % json.dumps(PLAN)) == PLAN
+
+    def test_cli_envelope_result(self):
+        env = {"type": "result", "result": "here:\n" + json.dumps(PLAN)}
+        assert exec_planner._extract_plan_json(json.dumps(env)) == PLAN
+
+    @pytest.mark.parametrize("text", ['{"data": 1}', "not json", ""])
+    def test_invalid(self, text):
+        with pytest.raises(ValueError, match="not found or invalid"):
+            exec_planner._extract_plan_json(text)
 
 
-def test_extract_plan_json_invalid():
-    with pytest.raises(ValueError):
-        exec_planner._extract_plan_json("this is not json")
+class TestRunPlanner:
+    @pytest.mark.parametrize("family", ["claude", "codex", "grok", "gemini"])
+    def test_ok_argv_uses_model_roles_resolve(self, bindir, family):
+        fake_cli(bindir, family)
+        res = run(exec_planner.run_planner(family, "planning", "do it", cwd=str(bindir), repo_root=bindir))
+        assert res.reason_code == "ok" and res.plan == PLAN
+        want = model_roles.resolve(family, "planning")
+        assert (res.model, res.effort) == (want["model"], want["effort"])
+        call = call_of(bindir, family)
+        assert want["model"] in call["argv"]
+        if family != "gemini":
+            assert any(want["effort"] in a for a in call["argv"])
+        prompt_text = call["stdin"] if family == "codex" else " ".join(call["argv"])
+        assert "do it" in prompt_text
+        assert "turbo --apply -" in prompt_text
+
+    def test_role_changes_model(self, bindir):
+        fake_cli(bindir, "claude")
+        run(exec_planner.run_planner("claude", "execution", "x", cwd=str(bindir), repo_root=bindir))
+        assert model_roles.resolve("claude", "execution")["model"] in call_of(bindir, "claude")["argv"]
+
+    def test_bad_role(self, bindir):
+        res = run(exec_planner.run_planner("claude", "nope", "x", repo_root=bindir))
+        assert res.reason_code == "bad_role"
+
+    def test_cli_missing(self, bindir, monkeypatch):
+        monkeypatch.setenv("PATH", str(bindir))
+        res = run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir))
+        assert res.reason_code == "cli_missing"
+
+    def test_bad_plan(self, bindir):
+        fake_cli(bindir, "claude", stdout="no json here")
+        assert run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir)).reason_code == "bad_plan"
+
+    def test_auth_error(self, bindir):
+        fake_cli(bindir, "claude", body="sys.stderr.write('Authentication failed: please login'); sys.exit(1)")
+        assert run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir)).reason_code == "auth_error"
+
+    def test_process_error(self, bindir):
+        fake_cli(bindir, "claude", body="sys.exit(3)")
+        res = run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir))
+        assert res.reason_code == "process_error" and res.error == "exit 3"
+
+    def test_timeout(self, bindir):
+        fake_cli(bindir, "claude", body="time.sleep(60)")
+        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=0.5, grace_sec=1.0, repo_root=bindir))
+        assert res.reason_code == "timeout"
 
 
-def test_get_families_default():
-    if "SIMPLICIO_EXEC_FAMILIES" in os.environ:
-        del os.environ["SIMPLICIO_EXEC_FAMILIES"]
-    families = exec_planner._get_families()
-    assert families == exec_planner.DEFAULT_FAMILIES
+class TestRaw:
+    """The planner's own text rides on the result (#1644): the plan is cut out of it, the text is not lost."""
+
+    def test_ok_keeps_the_whole_cli_text(self, bindir):
+        text = "thinking...\n" + json.dumps(PLAN) + "\ndone\n"
+        fake_cli(bindir, "claude", stdout=text)
+        res = run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir))
+        assert res.is_ok() and res.raw == text and res.to_dict()["raw"] == text
+
+    def test_bad_plan_keeps_the_text(self, bindir):
+        fake_cli(bindir, "claude", stdout="no json here")
+        res = run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir))
+        assert res.reason_code == "bad_plan" and res.raw == "no json here"
+
+    def test_a_failed_cli_keeps_stdout_and_stderr(self, bindir):
+        fake_cli(bindir, "claude", body="sys.stdout.write('half'); sys.stdout.flush(); sys.stderr.write('boom'); sys.exit(3)")
+        res = run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir))
+        assert res.reason_code == "process_error" and "half" in res.raw and "boom" in res.raw
+
+    def test_auth_failure_keeps_the_text(self, bindir):
+        fake_cli(bindir, "claude", body="sys.stderr.write('Authentication failed: please login'); sys.exit(1)")
+        assert "Authentication failed" in run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir)).raw
+
+    def test_no_answer_means_no_raw(self, bindir):
+        assert run(exec_planner.run_planner("claude", "planning", "x", repo_root=bindir)).raw is None  # cli_missing
+        fake_cli(bindir, "claude", body="time.sleep(60)")
+        assert run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=0.5, grace_sec=1.0, repo_root=bindir)).raw is None
+
+
+class TestTreeKill:
+    def test_timeout_kills_hung_child(self, bindir):
+        pidfile = bindir / "child.pid"
+        body = (
+            "c = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+            "open(%r, 'w').write(str(c.pid))\n"
+            "time.sleep(60)"
+        ) % str(pidfile)
+        fake_cli(bindir, "claude", body=body)
+        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=1.0, grace_sec=1.0, repo_root=bindir))
+        assert res.reason_code == "timeout"
+        child = int(pidfile.read_text())
+        assert pid_gone(child), "child sleep survived the timeout"
+        assert not _alive(child)
+
+    def test_sigkill_after_grace_when_sigterm_ignored(self, bindir):
+        # The fake CLI and its child ignore SIGTERM, so only the SIGKILL step ends them. Without it the run waits for
+        # the 60 s sleep, and the elapsed bound below fails.
+        pidfile = bindir / "child.pid"
+        body = (
+            "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+            "c = subprocess.Popen(['/bin/sh', '-c', 'trap \"\" TERM; sleep 60'])\n"
+            "open(%r, 'w').write(str(c.pid))\n"
+            "time.sleep(60)"
+        ) % str(pidfile)
+        fake_cli(bindir, "claude", body=body)
+        started = time.monotonic()
+        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=1.0, grace_sec=0.5, repo_root=bindir))
+        elapsed = time.monotonic() - started
+        assert res.reason_code == "timeout"
+        assert 1.0 + 0.5 <= elapsed < 1.0 + 0.5 + 1.0, "SIGTERM grace, then SIGKILL, within grace+1s after the timeout"
+        assert pid_gone(int(pidfile.read_text()), wait=0.5), "TERM-ignoring child survived SIGKILL"
+
+
+class TestFallback:
+    def test_falls_through_families_in_env_order(self, bindir, monkeypatch):
+        monkeypatch.setenv("SIMPLICIO_EXEC_FAMILIES", "grok,claude,codex")
+        fake_cli(bindir, "grok", body="sys.exit(2)")
+        fake_cli(bindir, "claude", stdout="garbage")
+        fake_cli(bindir, "codex")
+        res = run(exec_planner.run_planner_with_fallback("coordination", "x", cwd=str(bindir), repo_root=bindir))
+        assert res.is_ok() and res.family == "codex"
+        assert (bindir / "order.log").read_text().split() == ["grok", "claude", "codex"]
+        assert model_roles.resolve("codex", "coordination")["model"] in call_of(bindir, "codex")["argv"]
+
+    def test_skips_missing_cli_and_stops_at_first_ok(self, bindir):
+        fake_cli(bindir, "codex")
+        fake_cli(bindir, "grok")
+        res = run(
+            exec_planner.run_planner_with_fallback("planning", "x", families=["gemini", "codex", "grok"], repo_root=bindir)
+        )
+        assert res.family == "codex"
+        assert (bindir / "order.log").read_text().split() == ["codex"]
+
+    def test_all_fail_returns_last_result(self, bindir):
+        fake_cli(bindir, "claude", stdout="garbage")
+        res = run(exec_planner.run_planner_with_fallback("planning", "x", families=["claude", "gemini"], repo_root=bindir))
+        assert res.reason_code == "cli_missing" and res.family == "gemini"
+
+    def test_timeout_falls_through(self, bindir):
+        fake_cli(bindir, "claude", body="time.sleep(60)")
+        fake_cli(bindir, "codex")
+        res = run(
+            exec_planner.run_planner_with_fallback(
+                "planning", "x", timeout_sec=0.5, families=["claude", "codex"], grace_sec=1.0, repo_root=bindir
+            )
+        )
+        assert res.family == "codex" and res.is_ok()
+
+    def test_bad_role_stops_immediately(self, bindir):
+        fake_cli(bindir, "claude")
+        res = run(exec_planner.run_planner_with_fallback("nope", "x", families=["claude", "codex"], repo_root=bindir))
+        assert res.reason_code == "bad_role"
+        assert not (bindir / "order.log").exists()
+
+
+def test_an_out_of_scope_answer_is_not_tried_again_on_another_family(bindir, tmp_path):
+    from simplicio_loop import plan_scope
+    fake_cli(bindir, "claude", stdout=json.dumps({"operations": [{"path": "other.py", "find": "", "replace": "x\n"}]}))
+    fake_cli(bindir, "codex")
+    scope = plan_scope.TaskScope(frozenset({"a.py"}))
+    res = run(exec_planner.run_planner_with_fallback("planning", "x", cwd=str(tmp_path), families=["claude", "codex"], scope=scope, repo_root=tmp_path))
+    assert res.reason_code == "bad_plan" and res.violations == ["out_of_scope:other.py"] and not res.is_ok()
+    assert "out_of_scope:other.py" in res.error
+    assert (bindir / "order.log").read_text().split() == ["claude"]
+
+
+def test_a_malformed_answer_is_still_bad_plan_and_falls_through(bindir, tmp_path):
+    from simplicio_loop import plan_scope
+    fake_cli(bindir, "claude", stdout="garbage")
+    fake_cli(bindir, "codex")
+    scope = plan_scope.TaskScope(frozenset({"a.py"}))
+    run(exec_planner.run_planner_with_fallback("planning", "x", cwd=str(tmp_path), families=["claude", "codex"], scope=scope, repo_root=tmp_path))
+    assert (bindir / "order.log").read_text().split() == ["claude", "codex"]
+
+
+class TestToolSurface:
+    @pytest.mark.parametrize("read_tools", [False, True])
+    @pytest.mark.parametrize("family", list(exec_planner.SUPPORTED_FAMILIES))
+    def test_no_argv_in_any_mode_grants_write_bash_web_or_mcp(self, family, read_tools):
+        argv = exec_planner.build_argv(family, "planning", "P", "m", "/w", "high", schema_file="/s/p.json",
+                                       read_tools=read_tools)
+        granted = {word for arg in argv for word in arg.replace(",", " ").split()}
+        assert not granted & WRITE_BASH_WEB_TOOLS
+        assert not any(arg.startswith("mcp__") or arg == "--mcp-config" for arg in argv)
+
+    @pytest.mark.parametrize("family", [f for f in exec_planner.SUPPORTED_FAMILIES if f != "claude"])
+    def test_read_mode_changes_no_argv_of_a_cli_without_a_tool_list_flag(self, family):
+        none = exec_planner.build_argv(family, "planning", "P", "m", "/w", "high", schema_file="/s/p.json")
+        read = exec_planner.build_argv(family, "planning", "P", "m", "/w", "high", schema_file="/s/p.json", read_tools=True)
+        assert read == none
+
+    @pytest.mark.parametrize("family", list(exec_planner.SUPPORTED_FAMILIES))
+    def test_every_supported_family_declares_its_minimal_surface(self, family):
+        mode, reason = exec_planner.tool_surface(family)
+        assert mode in ("none", "reduced") and reason
+
+    def test_claude_declares_read_only_when_lines_are_omitted(self):
+        assert exec_planner.tool_surface("claude", read_tools=True)[0] == "read"
+        assert exec_planner.tool_surface("claude")[0] == "none"
+
+    @pytest.mark.parametrize("family", ["codex", "grok", "agy", "opencode", "gemini"])
+    def test_cli_without_a_verified_tool_off_switch_is_reduced(self, family):
+        assert exec_planner.tool_surface(family)[0] == "reduced"
+
+    def test_codex_argv_ignores_user_config_and_rules(self):
+        argv = exec_planner.build_argv("codex", "planning", "P", "m", "/w", "high", schema_file="/s/p.json")
+        assert "--ignore-user-config" in argv and "--ignore-rules" in argv and "--ephemeral" in argv
+
+    def test_agy_argv_disables_slash_commands(self):
+        argv = exec_planner.build_argv("agy", "planning", "P", "m", "/w", "high")
+        assert "--disable-slash-commands" in argv
+
+    def test_opencode_argv_is_pure(self):
+        argv = exec_planner.build_argv("opencode", "planning", "P", "m", "/w", "high")
+        assert "--pure" in argv
+
+
+class TestToolSurfaceReceipt:
+    def test_claude_receipt_is_none_then_read_when_lines_are_omitted(self, bindir):
+        fake_cli(bindir, "claude")
+        res = run(exec_planner.run_planner("claude", "planning", "x", cwd=str(bindir), repo_root=bindir))
+        assert (res.tool_surface, bool(res.tool_surface_reason)) == ("none", True)
+        argv = call_of(bindir, "claude")["argv"]
+        assert argv[argv.index("--tools") + 1] == ""
+        res = run(exec_planner.run_planner("claude", "planning", "x", cwd=str(bindir), repo_root=bindir, read_tools=True))
+        assert res.tool_surface == "read"
+        argv = call_of(bindir, "claude")["argv"]
+        assert argv[argv.index("--tools") + 1] == "Read,Grep,Glob"
+
+    @pytest.mark.parametrize("family", ["codex", "grok", "agy", "opencode", "gemini"])
+    def test_a_cli_without_a_tool_off_switch_says_reduced_with_a_reason(self, bindir, family):
+        fake_cli(bindir, family)
+        res = run(exec_planner.run_planner(family, "planning", "x", cwd=str(bindir), repo_root=bindir, read_tools=True))
+        assert res.reason_code == "ok"
+        assert res.tool_surface == "reduced" and res.tool_surface_reason
+
+    def test_a_cli_that_never_ran_has_no_tool_receipt(self, bindir):
+        res = run(exec_planner.run_planner("claude", "planning", "x", cwd=str(bindir), repo_root=bindir))
+        assert res.reason_code == "cli_missing"
+        assert (res.tool_surface, res.tool_surface_reason) == ("", "")
+
+    def test_to_dict_carries_the_tool_surface(self, bindir):
+        fake_cli(bindir, "claude")
+        out = run(exec_planner.run_planner("claude", "planning", "x", cwd=str(bindir), repo_root=bindir)).to_dict()
+        assert out["tool_surface"] == "none" and out["tool_surface_reason"]
