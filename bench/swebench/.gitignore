@@ -1,0 +1,3 @@
+# Dataset content (problem statements) lives here after `swe_runner.py fetch`. Never commit it.
+.cache/
+*.tmp

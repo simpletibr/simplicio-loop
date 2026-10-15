@@ -117,3 +117,66 @@ Reading the table:
 | Dashboard bench on Windows and macOS | A person must run the command on those systems (`docs/DASHBOARD.md`). |
 | Local task queue with the default sizes | It does not finish in 2 minutes on this host. |
 | Squads drain table | Waiting for a quiet host. See the Result section. |
+| SWE-bench Verified loop on/off table (#1819) | No run exists. The harness is in `bench/swebench/`; see section 4. Needs API keys, a budget and docker. |
+
+## 4. SWE-bench Verified: loop on vs off (#1819), harness only
+
+No results are published yet (UNVERIFIED). This section describes the harness, not a measurement. No number on this page comes from a SWE-bench run.
+
+- Dataset: `princeton-nlp/SWE-bench_Verified`, revision `c104f840cc67f8b6eec6f759ebc8b2693d585d4a`. The revision is the `sha` field of the Hugging Face dataset metadata, read on 2026-10-14. The dataset file itself was not downloaded.
+- Manifest: `bench/swebench/manifest.json` is a TEMPLATE (UNVERIFIED). It holds no instance IDs, because the ID list needs the dataset, and none was invented. The runner refuses to start on a TEMPLATE.
+- Selection rule (written into every manifest): stratified by repo, largest-remainder allocation, lowest `sha256(seed|id)` rank inside each stratum. A seeded draw with `n >= 30`.
+- Arms: `normal` (loop OFF) and `simplicio` (loop ON), the same arms as `bench/llm_ab`. Models come from the environment, at least two.
+- Statistics: pass rate, cost per solved task, and mean wall-clock per task. Each has a 95% percentile bootstrap CI (seed 1819, 10,000 resamples). A row with fewer than 30 counted tasks is refused unless `--allow-small`, and then it is labelled SMALL-N.
+- Cost: the aggregate recomputes every task's cost from its token counts and the price table stored in the raw file (`bench/llm_ab` cache-aware breakdown). It never reads a stored cost field.
+- Exclusions: an infra error (provider, docker, evaluator) is excluded and reported. An agent timeout counts as a miss.
+
+Environment variables:
+
+| Variable | Meaning |
+|---|---|
+| `SIMPLICIO_SWEBENCH_MODELS` | Comma list of at least two OpenRouter model ids |
+| `SIMPLICIO_BENCH_KEYS` | keys.env with `OR_KEY_NORMAL` and `OR_KEY_SIMPLICIO` (never committed) |
+| `SIMPLICIO_BENCH_OPENCODE_BIN` | Executable opencode binary |
+| `SIMPLICIO_SWEBENCH_INSTANCES` | Instance cache written by `fetch` (default `bench/swebench/.cache/instances.json`, git-ignored) |
+
+`SIMPLICIO_BENCH_TURBO` must be unset. Turbo rewrites the simplicio prompt, so the run would not be comparable.
+
+Commands:
+
+```bash
+# 1. Check the committed manifest (no network)
+python3 bench/swebench/swe_manifest.py --check
+
+# 2. Build a VERIFIED manifest from an ID list you produced from the pinned revision
+python3 bench/swebench/swe_manifest.py build --ids-file IDS.json \
+  --expect-revision c104f840cc67f8b6eec6f759ebc8b2693d585d4a --out bench/swebench/manifest.json
+
+# 3. Validate config and print the plan; writes nothing
+SIMPLICIO_SWEBENCH_MODELS=provider/model-a,provider/model-b SIMPLICIO_BENCH_KEYS=/path/keys.env \
+SIMPLICIO_BENCH_OPENCODE_BIN=/path/opencode SIMPLICIO_SWEBENCH_INSTANCES=bench/swebench/.cache/instances.json \
+  python3 bench/swebench/swe_runner.py --dry-run --budget-usd 20
+
+# 4. Build the instance cache (downloads the dataset; needs network)
+python3 bench/swebench/swe_runner.py fetch
+
+# 5. Live run (spends money; hard cap in USD)
+python3 bench/swebench/swe_runner.py --budget-usd 20 --out bench/swebench/results
+
+# 6. Recompute the table from the raw files of one run
+python3 bench/swebench/swe_aggregate.py bench/swebench/results/<run_id> > table.md
+
+# Tests (no network, no keys)
+PYTHONPATH=.:packages/mapper:packages/dev-cli python3 -m pytest -q tests/test_bench_swebench_*.py
+```
+
+Status of each part:
+
+| Part | Status |
+|---|---|
+| Manifest generator, schema, determinism | Tested on synthetic pools. The committed manifest is a TEMPLATE. |
+| Stats (bootstrap), aggregate math, n<30 refusal | Tested on `tests/fixtures/bench_swebench/SYNTHETIC_run` (invented numbers). |
+| Runner plan, dry-run, raw JSON, resume, budget | Tested with injected fakes. |
+| Live agent and live evaluator adapters | UNVERIFIED. Not run: no keys, no docker, no budget in the session. |
+
+Limits: the live agent does not call `bench/llm_ab`'s `run_opencode`, because that function cannot choose a model per run. It composes the same helpers (`write_opencode_provider_config`, `build_env`, `build_command`, `summarize`, `poll_settled_usage`). The swebench evaluator's summary format was read from the 5.0.2 source, not from a run.
