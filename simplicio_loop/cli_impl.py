@@ -61,7 +61,8 @@ from .loop_execution_receipt import (
     publish_loop_execution_for_flow,
 )
 from .execution_adapters import expected_governor_blocked, persist_execution_envelope
-from .task_contract import compile_many, main as task_contract_main, preview_contract
+from .task_contract import EXAMPLE_TASK, compile_many, main as task_contract_main, preview_contract
+from . import next_step
 from .ops_ledger import (
     CONTEXT_SCHEMA,
     HANDSHAKE_SCHEMA,
@@ -370,6 +371,7 @@ def prepare(repo: str, task_path: str, delivery_arg: str, max_iterations: int) -
                           "reason_code": MISSING_REASON, "hint": MISSING_HINT,
                           "execution_started": False, "mutation_attempted": False}),
                          ensure_ascii=False, indent=2))
+        next_step.emit(next_step.orient_command(repo))
         return 2
     try:
         ensure_state_dir(Path(repo).resolve())
@@ -404,7 +406,11 @@ def prepare(repo: str, task_path: str, delivery_arg: str, max_iterations: int) -
             "reason_code": "prepare_failed",
             "error": redact_sensitive_text(str(exc)),
         }
+        if "invalid task contract" in str(exc):
+            payload["task_contract"] = next_step.contract_problems(task_path, str(exc))
     print(json.dumps(stable_first(payload), ensure_ascii=False, indent=2))
+    if payload["status"] != "prepared":
+        next_step.prepare_next(repo, task_path, payload)
     return 0 if payload["status"] == "prepared" else 2
 
 
@@ -1940,9 +1946,14 @@ def preflight(repo: str, as_json: bool = False, *, strict: bool = False) -> int:
     repo_path = Path(repo).resolve()
     if strict:
         _os.environ["SIMPLICIO_LOOP_STRICT"] = "1"
+    from . import version_drift
+
     payload = preflight_payload(str(repo_path), strict=strict)
     all_present = bool(payload.get("all_present"))
     missing = list(payload.get("missing_operators") or [])
+    drift = version_drift.check(version_drift.running_version(), repo=repo_path)
+    if drift is not None:
+        payload["version_drift"] = drift
     if as_json:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
@@ -1969,6 +1980,9 @@ def preflight(repo: str, as_json: bool = False, *, strict: bool = False) -> int:
             print("  recommended_env:")
             for key, value in (recommended_env() or {}).items():
                 print(f"    {key}={value}")
+        drift_line = version_drift.format_line(drift)
+        if drift_line:
+            print(drift_line)
     if not all_present:
         for name in missing:
             _route_finding(
@@ -2311,6 +2325,8 @@ def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_bud
         }
         persist_execution_envelope(flow=flow, repo=repo, run_id=run_id,
                                    observed={**current, "result": payload, "governor": governor})
+        payload = next_step.annotate_blocked(payload, repo=repo, run_id=run_id, flow=flow,
+                                             run_dir=_public_flow_run_dir(repo, run_id))
         print(json.dumps(stable_first(payload), ensure_ascii=False, indent=2))
         return 2
 
@@ -2329,6 +2345,8 @@ def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_bud
             payload = _dispatch_failure_payload("simplicio.operator-batch-receipt/v1", repo, run_id, exc, indices)
         payload["prism"] = {**eligibility, "batch_size": None, "waves": 1}
         public_payload = _finalize_public_flow(repo, run_id, flow, payload)
+        public_payload = next_step.annotate_blocked(public_payload, repo=repo, run_id=run_id, flow=flow,
+                                                    run_dir=_public_flow_run_dir(repo, run_id))
         print(json.dumps(stable_first(public_payload), ensure_ascii=False, indent=2))
         return _dispatch_exit_code(public_payload)
 
@@ -2372,6 +2390,8 @@ def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_bud
     }
     _persist_prism_wave_receipt(repo, run_id, payload)
     public_payload = _finalize_public_flow(repo, run_id, flow, payload)
+    public_payload = next_step.annotate_blocked(public_payload, repo=repo, run_id=run_id, flow=flow,
+                                                run_dir=_public_flow_run_dir(repo, run_id))
     print(json.dumps(stable_first(public_payload), ensure_ascii=False, indent=2))
     return _dispatch_exit_code(public_payload)
 
@@ -2966,7 +2986,10 @@ def main(argv=None) -> int:
         "prepare", aliases=["arm"],
         help="arm and preflight a run without executing tasks or calling a provider",
     )
-    p_prepare.add_argument("--task", required=True, help="markdown task file")
+    p_prepare.add_argument("--task", default=None,
+                           help="markdown task file (the shape: `simplicio-loop prepare --example`)")
+    p_prepare.add_argument("--example", action="store_true",
+                           help="print a valid markdown task file to stdout (copy it, edit it, pass it to --task)")
     p_prepare.add_argument("--repo", default=".", help="repository root")
     p_prepare.add_argument(
         "--delivery", default="verified", choices=DELIVERY_ORDER[1:],
@@ -3506,6 +3529,11 @@ def main(argv=None) -> int:
     if command == "plan":
         return plan(args.task, args.out)
     if command in {"prepare", "arm"}:
+        if getattr(args, "example", False):
+            sys.stdout.write(EXAMPLE_TASK)
+            return 0
+        if not args.task:
+            parser.error("prepare requires --task <markdown file> (or --example to print a valid one)")
         return prepare(args.repo, args.task, args.delivery, args.max_iterations)
     if command == "orient":
         task_list = list(args.tasks or [])

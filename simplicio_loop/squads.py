@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Iterable, List, Mapping, NamedTuple, Optional, Sequence, Tuple
 
-from . import model_roles, squad_capacity, squad_metrics
+from . import model_roles, next_step, squad_capacity, squad_metrics
 from .escalation import ESCALATION_LADDER
 from .review_gate import comment as review_comment, identity
 from .squad_contracts import Contract, contracts_for
@@ -178,10 +178,10 @@ class SquadPlan:
 
 def _number(value: Any) -> int:
     if isinstance(value, bool):
-        raise SquadPlanError("invalid issue number: %r" % (value,))
+        raise SquadPlanError("invalid issue number: %r (the key must be 'number' with an integer)" % (value,))
     text = str(value).strip().lstrip("#")
     if not text.isdigit():
-        raise SquadPlanError("invalid issue number: %r" % (value,))
+        raise SquadPlanError("invalid issue number: %r (the key must be 'number' with an integer)" % (value,))
     return int(text)
 
 
@@ -359,7 +359,12 @@ def plan_squads(
     roles = {role: model_roles.resolve(family, role) for role in model_roles.ROLES}
 
     by_number: Dict[int, Mapping[str, Any]] = {}
-    for issue in issues:
+    for index, issue in enumerate(issues):
+        if "number" not in issue and "id" in issue:
+            # Issue #1812, observation 2: the issue-list key is `number`; an `id` key used to fail as "None".
+            raise SquadPlanError(
+                'issues[%d] has no "number" key (found "id"); the issue-list key must be "number" '
+                "(an integer), not \"id\"" % index)
         number = _number(issue.get("number"))
         if number in by_number:
             raise SquadPlanError("duplicate issue number: #%d" % number)
@@ -686,7 +691,9 @@ def configure_commands(subparsers: argparse._SubParsersAction) -> None:
     plan.add_argument(
         "--issues",
         required=True,
-        help="path to .json file, '-' for stdin, or inline JSON list of issues",
+        help="path to .json file, '-' for stdin, or inline JSON list of issues, each an object with an integer "
+             '"number" key and optional "title", "body", "labels", "depends_on" (issue numbers) and "paths" (globs); '
+             'e.g. [{"number": 1812, "title": "...", "body": "...", "paths": ["simplicio_loop/**"]}]',
     )
     plan.add_argument("--family", default="claude", help="runtime family of model_roles (default: claude)")
     plan.add_argument("--squads", default=None, metavar="auto|N",
@@ -736,4 +743,21 @@ def dispatch(args: argparse.Namespace) -> int:
         return 0 if result["approved"] else 1
     except (SquadPlanError, SquadGateError, model_roles.ModelRoleError, ValueError, OSError) as exc:
         _emit({"status": "BLOCKED", "error": type(exc).__name__, "reason": str(exc)})
+        if args.squads_command == "plan":
+            next_step.emit(_plan_next(exc))
         return 2
+
+
+def _plan_next(exc: Exception) -> str:
+    """The one `next:` line for a BLOCKED `squads plan` (issue #1812, observation 2)."""
+    text = str(exc)
+    if isinstance(exc, SquadCycleError) or "cycle" in text.lower():
+        return f"{text}; remove one depends_on edge of the cycle and run squads plan again"
+    if '"number" key' in text or "invalid issue number" in text:
+        return (f"{text}; give every issue an integer \"number\" key, then run "
+                "simplicio-loop squads plan --issues <file> --json (the shape: simplicio-loop squads plan --help)")
+    if "--issues" in text or "Issues file" in text or "Failed to parse" in text or "Accepted formats" in text:
+        return ("pass --issues as a JSON file path, '-' for stdin, or an inline JSON list of issue objects "
+                "with \"number\", \"title\", \"body\", \"labels\", \"depends_on\" and \"paths\" "
+                "(simplicio-loop squads plan --help shows the shape)")
+    return f"{text}; simplicio-loop squads plan --help shows the issue shape; fix it and run squads plan again"

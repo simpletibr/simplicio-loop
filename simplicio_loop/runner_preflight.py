@@ -26,6 +26,7 @@ from .openrouter_operator import (
     external_preflight_admissible as _external_preflight_admissible,
 )
 from .runner_core import (
+    changed_paths_since,
     MAPPER_MIN_VERSION,
     MAPPER_REQUIRED_VERBS,
     DEVCLI_REQUIRED_TOKENS,
@@ -60,6 +61,16 @@ from .runner_plan import _build_plan_with_hints
 # recomputed fresh on every call (cheap, no subprocess) so the receipt's
 # staleness check in `_validate_run_receipts` keeps working unchanged.
 _CAPABILITY_PROBE_CACHE: Dict[Tuple[str, str], Dict[str, Any]] = {}
+
+
+def _stale_context_message(repo_path: Path, planned_state: Mapping[str, Any]) -> str:
+    """The stale-context error, naming the first five changed paths and the command to re-run (#1812)."""
+    paths = changed_paths_since(repo_path, str(planned_state.get("head") or ""))
+    shown = ", ".join(paths[:5]) if paths else "none listed (the change is outside the fingerprint, e.g. a commit)"
+    count = len(paths)
+    listed = f"first {min(5, count)} of {count}" if count else "0"
+    return (f"stale mapper context: repository changed after planning; changed paths ({listed}): {shown}; "
+            "re-run `orient` before preparing again")
 
 
 def _mapper_capability_probe(repo_path: Path) -> Dict[str, Any]:
@@ -456,7 +467,7 @@ def _validate_run_receipts(
     if not mapper_before.get("tree_hash") or not planned_state.get("tree_hash"):
         raise RuntimeError("mapper context has no repository fingerprint")
     if not _repo_state_equivalent(mapper_before, planned_state) or not _repo_state_equivalent(planned_state, current_state):
-        raise RuntimeError("stale mapper context: repository changed after planning")
+        raise RuntimeError(_stale_context_message(repo_path, planned_state))
 
     if not mapper_preflight.get("identity_ok") or not mapper_preflight.get("version_ok"):
         raise RuntimeError("mapper preflight receipt is not valid")

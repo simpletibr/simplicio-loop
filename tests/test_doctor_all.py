@@ -43,6 +43,8 @@ def box(tmp_path, monkeypatch):
     monkeypatch.setenv("PATH", str(bindir))
     for name in ("SIMPLICIO_247_LOGIN", "SIMPLICIO_AUTH_FILE"):
         monkeypatch.delenv(name, raising=False)
+    # The install-vs-checkout drift check (#1812) reads the developer's real checkout; keep this box hermetic.
+    monkeypatch.setenv("SIMPLICIO_LOOP_SOURCE", "off")
     return type("Box", (), {"home": home, "bin": bindir, "tmp": tmp_path, "login": home / ".simplicio" / "login.json",
                             "state": home / ".simplicio-loop"})
 

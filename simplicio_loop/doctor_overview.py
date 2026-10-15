@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from . import __version__, auth, distribution, path_operators, self_update, setup_cli, squad_capacity
+from . import __version__, auth, distribution, path_operators, self_update, setup_cli, squad_capacity, version_drift
 
 SCHEMA = "simplicio.doctor/v1"
 SECTIONS = ("login", "update", "distribution", "runtime", "operators", "disk", "map-store", "setup")
@@ -93,10 +93,16 @@ def _update(online: bool, installed: str, fetch: Callable[[], str], state_dir: P
                 None, detail)
 
 
-def _distribution(kind: str, installed: str) -> dict:
+def _distribution(kind: str, installed: str, drift: Optional[dict] = None) -> dict:
     what = {distribution.PIP: f"pip: the installed wheel {installed}",
             distribution.SOURCE: f"source: a git checkout or an editable install, version {installed}",
             distribution.BINARY: f"binary: {sys.executable}, version {installed}"}[kind]
+    if drift and drift.get("behind"):
+        # Issue #1812: a stale install that runs silently is the first-run trap; name both versions and the fix.
+        tag = f", latest tag {drift['tag']}" if drift.get("tag") else ""
+        return _row("distribution", "warn",
+                    f"{what}; running {installed} is older than the checkout {drift['source'] or drift['newest']}{tag}",
+                    drift["fix"], {"kind": kind, "version": installed, "version_drift": drift})
     return _row("distribution", "ok", what, None, {"kind": kind, "version": installed})
 
 
@@ -211,7 +217,7 @@ def collect(*, online: bool = False, environ: Optional[dict] = None, now: Option
     makers = {
         "login": lambda: _login(environ, stamp),
         "update": lambda: _update(online, installed, fetch or self_update.fetch_latest_tag, state_dir, kind),
-        "distribution": lambda: _distribution(kind, installed),
+        "distribution": lambda: _distribution(kind, installed, version_drift.check(installed, repo=repo, environ=environ)),
         "runtime": lambda: _runtime(environ),
         "operators": lambda: _operators(kind, operators or path_operators.check),
         "disk": lambda: _disk(_state_dirs(Path(repo), state_dir), usage or shutil.disk_usage),
