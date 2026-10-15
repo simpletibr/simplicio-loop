@@ -58,6 +58,89 @@ def test_extract_claims_flags_undocumented_claim(tmp_path):
     assert any("77%" in match for _doc, match in unknown)
 
 
+# ---- #1814: the audit must cover PYPI.md, training/**/*.md and video/ -------------------------
+def _flagged(doc_root):
+    return claims_manifest.extract_claims(doc_root=str(doc_root))
+
+
+def test_pypi_md_unbacked_percentage_fails_audit(tmp_path):
+    (tmp_path / "PYPI.md").write_text("Drains any queue at up to 96% fewer tokens.\n", encoding="utf-8")
+    flagged = _flagged(tmp_path)
+    assert any(doc == "PYPI.md" and "96%" in m for doc, m in flagged), flagged
+
+
+def test_pypi_md_percentage_is_not_masked_by_another_docs_manifest_entry(tmp_path):
+    # README.md carries manifest entries such as "96%+ de cache hit" and "99%"; a manifest entry
+    # for README.md must never vouch for the same digits in PYPI.md.
+    for pct in ("96%", "99%", "93%"):
+        (tmp_path / "PYPI.md").write_text("Headline: %s fewer tokens.\n" % pct, encoding="utf-8")
+        assert any(doc == "PYPI.md" for doc, _m in _flagged(tmp_path)), pct
+
+
+def test_pypi_md_without_percentages_is_clean(tmp_path):
+    (tmp_path / "PYPI.md").write_text("Savings are measured, see bench/llm_ab. n=4 tasks.\n", encoding="utf-8")
+    assert _flagged(tmp_path) == []
+
+
+def test_training_markdown_percentage_fails_audit(tmp_path):
+    d = tmp_path / "training" / "simplicio-27b"
+    d.mkdir(parents=True)
+    (d / "README.md").write_text("| Aider | **96.5%** |\n| Hit rate | 100.0% (5/5) |\n", encoding="utf-8")
+    flagged = [m for doc, m in _flagged(tmp_path) if doc.replace("\\", "/") == "training/simplicio-27b/README.md"]
+    assert len(flagged) >= 2, flagged  # decimal scores, including the ".0%" ones, must not slip through
+
+
+def test_video_python_percentage_fails_audit_but_css_percentages_do_not(tmp_path):
+    d = tmp_path / "video"
+    d.mkdir()
+    (d / "build_composition.py").write_text(
+        'BADGES = ["MIT", "96% fewer tokens"]\n'
+        'HTML = "<style>.a{width:100%;background:linear-gradient(transparent 60%,#000 82%)}</style><p>ok</p>"\n',
+        encoding="utf-8",
+    )
+    flagged = [m for doc, m in _flagged(tmp_path) if doc.replace("\\", "/") == "video/build_composition.py"]
+    assert flagged == ["96%"], flagged
+
+
+def test_video_caption_json_percentage_fails_audit(tmp_path):
+    d = tmp_path / "video" / "lang"
+    d.mkdir(parents=True)
+    (d / "en.json").write_text('{"scenes":[{"caption":"up to 96% fewer tokens"}]}', encoding="utf-8")
+    assert any(doc.replace("\\", "/") == "video/lang/en.json" for doc, _m in _flagged(tmp_path))
+
+
+def test_scan_targets_include_pypi_training_and_video():
+    targets = {doc.replace("\\", "/") for doc, _strict in claims_manifest.claim_scan_targets()}
+    assert "PYPI.md" in targets
+    assert "training/simplicio-27b/README.md" in targets
+    assert "video/build_composition.py" in targets
+    assert {"README.md", "AGENTS.md"} <= targets  # legacy scope is kept
+
+
+def test_real_repo_has_no_unbacked_claim_in_new_scan_scope():
+    new_scope = ("PYPI.md", "training/", "video/")
+    bad = [(d, m) for d, m in claims_manifest.extract_claims() if d.replace("\\", "/").startswith(new_scope)]
+    assert bad == [], bad
+
+
+def test_headline_percentages_are_gone_from_owned_docs():
+    for rel in ("PYPI.md", "video/build_composition.py", "video/lang/en.json", "video/lang/pt-BR.json",
+                "video/lang/es.json", "video/lang/zh-CN.json", "video/storyboard.master.json"):
+        with open(os.path.join(REPO, rel), encoding="utf-8") as fh:
+            text = fh.read()
+        assert "96%" not in text, rel
+        assert "93%" not in text, rel
+        assert "11 runtimes" not in text and "48 ext" not in text, rel
+
+
+def test_guide_headline_token_savings_percentages_are_gone():
+    with open(os.path.join(REPO, "docs", "GUIDE.md"), encoding="utf-8") as fh:
+        text = fh.read()
+    for needle in ("90.3%", "96.7%", "96%+", "90%25%20fewer", "~90% fewer", "90.0% de reaproveitamento",
+                   "95.0% de reaproveitamento", "até **90%**"):
+        assert needle not in text, "unbacked headline still in docs/GUIDE.md: %s" % needle
+
+
 if __name__ == "__main__":
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from _selfrun import run_module

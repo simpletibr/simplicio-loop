@@ -44,10 +44,10 @@ requer aprovação explícita do mantenedor — não foi feita automaticamente a
 | 4 | discover_dag | 50 issues · dedup · DAG · fleet=14 |
 | 5 | cycle | read→orient→plan→edit→RUN→verify→PR (WORKS not just compiles) |
 | 6 | quality_safety | review adversarial (3 rubricas) · action_gate FAIL-CLOSED |
-| 7 | token_economy | 870→65 linhas (93%) · dashboard :9090 · até 96% menos tokens |
+| 7 | token_economy | leitura só de assinaturas · dashboard :9090 · economia só conta quando medida |
 | 8 | evidence_loop | `<promise>` só com prova · stall detector · nunca falso "done" |
 | 9 | video_evidence | web_verify → hyperframes → MP4 determinístico no PR |
-| 10 | runtimes | 11 runtimes, um protocolo — só a velocidade difere |
+| 10 | runtimes | um protocolo para todos os runtimes — só a velocidade difere |
 | 11 | always_on | merge · close · idle · acorda — 24/7 |
 | 12 | cta | pip install · MIT · GitHub ⭐ · Discord |
 

@@ -2,7 +2,7 @@
 """Gera uma composição hyperframes 0.7.x DINÂMICA (HTML→MP4 determinístico) por idioma.
 
 Movimento real via GSAP: transições whip, contadores cinéticos, DAG animado, partículas,
-pipeline em cascata, lock que bate, gauge, órbita de runtimes. Lê:
+pipeline em cascata, lock que bate, órbita de runtimes. Lê:
   video/storyboard.master.json  (visual/efeitos/timing)
   video/lang/<lang>.json        (caption/narração por cena)
 Escreve video/hyperframes/<lang>/index.html.
@@ -165,13 +165,11 @@ def scene_tokens(sid, t, d, cap, chip):
             '<div class="arrow">&#8594;</div>'
             '<div class="barbox"><div class="bar b65" id="bB%d"></div><div class="blab">65</div></div></div>'
             '<div class="toks">%s</div>'
-            '<div class="gauge"><span class="bignum gn" id="gn%d">0%%</span></div>'
             '<div class="cap" id="c%d">%s</div><div class="chip" id="d%d">%s</div>'
-            % (sid, sid, parts, sid, sid, cap, sid, chip))
+            % (sid, sid, parts, sid, cap, sid, chip))
     j = [anim_in(sid, t),
          'tl.fromTo("#bA%d",{scaleY:0,transformOrigin:"bottom"},{scaleY:1,duration:0.5},%s);' % (sid, g(t + 0.4)),
-         'tl.fromTo("#bB%d",{scaleY:0,transformOrigin:"bottom"},{scaleY:1,duration:0.5},%s);' % (sid, g(t + 0.7)),
-         count(sid, t + 1.0, 1.8, 0, 96, "#gn%d" % sid, suffix="%")]
+         'tl.fromTo("#bB%d",{scaleY:0,transformOrigin:"bottom"},{scaleY:1,duration:0.5},%s);' % (sid, g(t + 0.7))]
     for i in range(14):
         j.append('tl.fromTo("#tk%d_%d",{y:0,opacity:1},{y:-220,opacity:0,duration:%s,ease:"power1.in"},%s);' % (sid, i, g(1.4 + (i % 5) * 0.2), g(t + 1.0 + (i % 7) * 0.12)))
     j += [text_in(sid, t + 0.2), chip_in(sid, t + 2.6), anim_out(sid, t, d)]
@@ -248,7 +246,7 @@ def scene_cta(sid, t, d, cap, chip):
     cmds = ["pip install simplicio-loop", "bash scripts/install.sh claude", "/simplicio-tasks finish all the open issues"]
     lines = "".join('<div class="cmd" id="cm%d_%d">%s</div>' % (sid, i, c) for i, c in enumerate(cmds))
     badges = "".join('<div class="badge" id="bd%d_%d">%s</div>' % (sid, i, b)
-                     for i, b in enumerate(["MIT", "11 runtimes", "48 ext-points", "96% fewer tokens"]))
+                     for i, b in enumerate(["MIT", "Many runtimes", "Extension points", "Evidence-gated"]))
     html = ('<img class="finlogo" id="fl%d" src="assets/logo.png" alt="logo"/>'
             '<div class="cmds">%s</div><div class="badges">%s</div>'
             '<div class="cap" id="c%d">%s</div>' % (sid, lines, badges, sid, cap))
@@ -406,7 +404,6 @@ html,body{width:__W__px;height:__H__px;overflow:hidden;background:#0B0E14;
 .toks{position:absolute;left:50%;top:48%;width:0;height:0}
 .tok{position:absolute;width:10px;height:10px;border-radius:50%;background:#00E08A;
   box-shadow:0 0 10px #00E08A}
-.gauge{margin-top:8px}.gn{font-size:88px}
 /* evidence */
 .gate{position:relative;width:760px;height:200px;display:flex;align-items:center;justify-content:center}
 .barrier{position:absolute;left:50%;top:0;width:8px;height:200px;background:#FF5C5C;border-radius:6px;

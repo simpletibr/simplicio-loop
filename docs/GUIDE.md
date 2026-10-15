@@ -23,7 +23,7 @@ flowchart LR
   <a href="#-source-adapters"><img src="https://img.shields.io/badge/source%20adapters-5-00E08A" alt="5 source adapters"></a>
   <a href="#-35-runtimes-one-protocol"><img src="https://img.shields.io/badge/runtimes-35%20(3%20guaranteed%2B32%20best--effort)-2563EB" alt="35 runtimes (3 guaranteed + 32 best-effort)"></a>
   <a href="#-the-50-extension-points"><img src="https://img.shields.io/badge/extension%20points-50-00E08A" alt="50 extension points"></a>
-  <a href="#measured-benchmark-issue-17"><img src="https://img.shields.io/badge/bench%20%2317-90%25%20fewer%20est.%20tokens-00E08A" alt="Issue #17 bench: ~90% fewer estimated tokens with loop"></a>
+  <a href="#measured-benchmark-issue-17"><img src="https://img.shields.io/badge/bench%20%2317-single%20run%2C%20estimated-2563EB" alt="Issue #17 bench: one run, estimated tokens, not a general savings figure"></a>
   <a href="#-token-economy"><img src="https://img.shields.io/badge/savings-mixed%20(see%20bench)-2563EB" alt="Savings — see measured bench + evidence-gated monitor"></a>
   <a href="../LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
   <a href="https://discord.gg/wM6tr7xVb"><img src="https://img.shields.io/badge/Discord-Join%20Simplicio-5865F2?logo=discord&logoColor=white" alt="Join the Simplicio Discord"></a>
@@ -557,12 +557,12 @@ fallback.
 | 2 | ↩️ **simplicio-tasks** | legacy alias | Compatibility shim for older installs and saved prompts | Legacy alias |
 | 3 | 🧱 **simplicio-orient** | [rtk](https://github.com/rtk-ai/rtk) + [caveman](https://github.com/JuliusBrussee/caveman) | Terminal-first execution, output-reduction catalog, tee-cache, signatures-read | L0 deterministic |
 | 4 | 🔥 **simplicio-review** | [thermos](https://github.com/cursor/plugins/tree/main/thermos) | Parallel adversarial review on distinct rubrics → deduped verdict | Quality gate |
-| 5 | 🗜️ **simplicio-compress** | [caveman](https://github.com/JuliusBrussee/caveman) | Output + memory compression, fail-closed `transform_guard` | 40-60% fewer |
+| 5 | 🗜️ **simplicio-compress** | [caveman](https://github.com/JuliusBrussee/caveman) | Output + memory compression, fail-closed `transform_guard` | unverified (no receipt) |
 | 6 | 🎓 **simplicio-learn** | [teaching](https://github.com/cursor/plugins/tree/main/teaching) | Post-run retrospective → durable, deduped lessons in memory | Smarter each run |
 | 7 | 🧪 **simplicio-autoresearch** | Karpathy [autoresearch](https://github.com/balukosuri/Andrej-Karpathy-s-Autoresearch-As-a-Universal-Skill) + ECC `autoresearch-agent` | Evolutionary mutate/eval/keep-revert loop: yool-guardrailed caps, git-isolated branch, anti-Goodhart gate-first eval, `savings-event` receipt | Auto-optimize |
 | 8 | 🧭 **Understand Anything** | [Egonex-AI](https://github.com/Egonex-AI/Understand-Anything) | Knowledge graph orient: semantic search, guided tours, dependency graph | **L0 zero tokens** |
 | 9 | 📊 **agentsview** | [kenn-io](https://github.com/kenn-io/agentsview) | Session analytics, cost tracking, stalled-session discovery | **L1** SQL only |
-| 10 | ⚡ **LMCache** | [LMCache](https://github.com/LMCache/LMCache) | KV cache between loop turns — 40-70% TTFT reduction on local models | GPU time ↓ |
+| 10 | ⚡ **LMCache** | [LMCache](https://github.com/LMCache/LMCache) | KV cache between loop turns — upstream TTFT claim for local models, **unverified here** | GPU time ↓ |
 | 11 | 🗜️ **Simplicio capture engine** | `engine/simplicio_engine.py` (native, stdlib-only) | Transparent capture proxy: forwards to the real provider, measures + deterministically compresses, writes `proxy_savings.json` | **deterministic** |
 | 12 | 🎬 **video_evidence** | Playwright (default) · [hyperframes](https://github.com/heygen-com/hyperframes) (on request) | Records the **real session** as moving proof of a UI change (Playwright); renders a **deterministic captioned MP4** explainer with hyperframes when the video IS the deliverable | Evidence producer |
 
@@ -822,11 +822,11 @@ is always a **file path + boolean verdict** — never video bytes in context (to
 | Terminal-first execution | Facts from shell, not LLM hallucination |
 | Output-reduction catalog | Caps per command type (`CAP_ERRORS=20`, `CAP_WARNINGS=10`, `CAP_LIST=20`) — `orient_clamp.py` |
 | Tee+CCR cache on failure | Never re-run a failed command — read the cached output |
-| Signatures-only reads | `simplicio-cli signatures <file>` — 870-line file → 65 lines (**93% saved**), bodies stripped |
+| Signatures-only reads | `simplicio-cli signatures <file>` — a large file reduced to its signatures, bodies stripped (size of the saving is **unverified**: no receipt) |
 | `simplicio-compress` | Terse prose + one-time memory compaction |
 | `orient_clamp.py` | Clamp + tee on every shell command, zero wiring |
 | Native response cache | repeated deterministic (temp=0) request → served from cache, skips the LLM call (**100% on hit**) — `simplicio-cli cache`, on by default (`SIMPLICIO_CACHE=0` to disable) |
-| **Simplicio capture proxy + MCP** | 60-95% fewer tokens on tool outputs via a transparent compression daemon — **unverified** (no receipt snapshot exists) |
+| **Simplicio capture proxy + MCP** | fewer tokens on tool outputs via a transparent compression daemon — **unverified**: no savings figure is claimed and no receipt snapshot exists |
 
 Savings only count on a verified-correct outcome. Baseline = the cheapest sensible non-orchestrated
 path to the same result. **Savings reporting is evidence-gated, not mandatory:** a savings figure is
@@ -856,7 +856,7 @@ Agent/Watcher corrective gate (`agent/asolaria_nest_contract.py` + unit tests, b
 |---|---:|---:|---:|
 | **Wall time** | 2.72 s | 13.20 s | **4.86× slower** (operator startup) |
 | **Est. tokens** *(context_bytes ÷ 4)* | ~156 576 | **~15 246** | **0.097×** |
-| **Token savings** | — | **~90.3% fewer** est. tokens | — |
+| **Token savings** | — | not asserted as a headline: one run, est. tokens (`context_bytes ÷ 4`), no provider-billed receipt (**UNVERIFIED**) | — |
 | **Context bytes** | 626 303 | 60 982 | 0.097× |
 | **Shell/tool commands** | 16 | 12 | — |
 | **Operator calls** | 0 | 6 | preflight + mapper×3 + doctor + arm |
@@ -872,9 +872,10 @@ Agent/Watcher corrective gate (`agent/asolaria_nest_contract.py` + unit tests, b
 | implement | ~0 | ~0 |
 | test | 1.21 | 1.13 |
 
-**How to read this:** the loop **cuts intake context/tokens hard** (good for multi-turn LLM cost).
-Wall-clock can be **higher on a cold operator run** (preflight + mapper). Over a long session the
-token reduction usually dominates billed cost; wall-clock amortizes when the map/snapshot is warm.
+**How to read this:** in this single run the loop's **intake context was smaller** (est. tokens above).
+Wall-clock can be **higher on a cold operator run** (preflight + mapper). Whether the smaller intake
+dominates billed cost over a long session is **not measured here**; the only billed-cost A/B in this
+repo is `bench/llm_ab` (small n, one model, see its `REPORT.md`).
 
 **Caveats (honest):**
 
@@ -988,7 +989,7 @@ command via the [`scripts/simplicio-engine`](../scripts/simplicio-engine) wrappe
 | `proxy` | the transparent capture proxy — routes each model to its **real** provider, compresses + measures + caches (no model swap) |
 | `doctor` | proxy reachability + lifetime savings |
 | `cache` | native response cache (`stats`/`clear`) — a repeated deterministic request is served from cache, skipping the LLM call |
-| `signatures` | signatures-only view of a source file (bodies stripped, ~93% fewer tokens to read code) |
+| `signatures` | signatures-only view of a source file (bodies stripped; fewer tokens to read code, size of the saving not measured) |
 | `semantic` | reversible extractive (semantic-lite) compression |
 | `detect` | content-type detection + smart per-block routing |
 | `rag` | TF-IDF (or `--ml` embedding) retrieval over the CCR memory store |
@@ -1162,7 +1163,7 @@ Para garantir os melhores resultados de velocidade, economia e confiabilidade:
 |---|---|---|---|
 | **Qualquer tarefa (padrão)** | `turbo` | `simplicio-loop "…" --verify "<testes>"` | **Padrão**: o motor medido no benchmark. O Mapper lê o repositório uma vez, o modelo que invocou a skill escreve o plano e o Dev CLI aplica. Sem provedor e sem chave de API. |
 | **1 tarefa em run governada (`tasks.md`)** | o mesmo fluxo de entrega | `simplicio-loop prepare` → `tick <run_id> --task-index 1` → `verify <run_id>` | Uma tarefa fica no checkout compartilhado. O fechamento continua sendo o `verify`. |
-| **Multi-tarefas Padrão (2 a 30+ tarefas)** | `wave` *(Padrão)* | `simplicio-loop wave <run_id>` | **Máxima Velocidade e Confiabilidade**: Despacha ondas concorrentes com barreiras de reconciliação de estado entre cada onda. Evita race conditions em arquivos compartilhados e aproveita 96%+ de cache hit. |
+| **Multi-tarefas Padrão (2 a 30+ tarefas)** | `wave` *(Padrão)* | `simplicio-loop wave <run_id>` | **Máxima Velocidade e Confiabilidade**: Despacha ondas concorrentes com barreiras de reconciliação de estado entre cada onda. Evita race conditions em arquivos compartilhados e tende a reaproveitar o cache de prefixo do provedor (a taxa real de acerto depende do provedor e do TTL; não é medida aqui). |
 | **Alta Concorrência em Árvores Isoladas** | `prism` | `simplicio-loop prism <run_id> --batch-size 10` | **Isolamento Total**: Worktrees Git isoladas para tarefas independentes que alteram partes distintas do código sem colisão. |
 | **Fila Contínua de Tarefas** | `batch` | `simplicio-loop batch <run_id>` | **Processamento em Massa**: Mantém workers ocupados continuamente processando tarefas prontas da fila até o esgotamento. |
 | **Depuração Passo a Passo / Inspeção** | `tick` | `simplicio-loop tick <run_id> --task-index N` | **Controle Fino**: Executa exatamente uma tarefa por vez com controle cirúrgico de inspeção e validação pré/pós. |
@@ -1175,11 +1176,11 @@ Em tarefas orquestradas pelo `simplicio-loop` com `simplicio-mapper` obrigatóri
    - **Na 1ª tarefa (Cold-Start)**: O prefixo é enviado e processado pela primeira vez. A LLM grava o KV-cache (`cache_creation` ou cache miss).
    - **Da 2ª à 30ª tarefa (Cache Hit)**: O prefixo idêntico é encontrado no cache do provedor (dentro da janela de TTL de 5 a 10 minutos). Apenas o delta da tarefa é processado como novos tokens de entrada.
 2. **Evolução do Hit Rate Conforme o Volume de Tarefas**:
-   - **10 tarefas**: 1 cold-start + 9 cache hits = **90.0% de reaproveitamento de cache**.
-   - **20 tarefas**: 1 cold-start + 19 cache hits = **95.0% de reaproveitamento de cache**.
-   - **30 tarefas**: 1 cold-start + 29 cache hits = **96.7% de reaproveitamento de cache**.
+   - **10 tarefas**: 1 cold-start + 9 possíveis cache hits (9/10, limite aritmético, não uma taxa medida).
+   - **20 tarefas**: 1 cold-start + 19 possíveis cache hits (19/20, limite aritmético, não uma taxa medida).
+   - **30 tarefas**: 1 cold-start + 29 possíveis cache hits (29/30, limite aritmético; a taxa real depende do provedor e do TTL e **não é medida aqui**).
 3. **Impacto no Custo e na Latência**:
-   - O custo de tokens de entrada em cache hit cai em até **90%** (de \$0.14/M para \$0.014/M de tokens no DeepSeek v4.1 Flash).
+   - O custo de tokens de entrada em cache hit é menor (preço de tabela informado: de \$0.14/M para \$0.014/M de tokens no DeepSeek v4.1 Flash; confira o preço vigente, não verificado aqui).
    - A latência por tarefa (Time to First Token - TTFT) despenca drasticamente, pois a LLM não recalcula os embeddings nem a atenção de todo o repositório a cada iteração.
    - Portanto, a percepção de que *"o cache vai aumentando a cada rodada de 30 tarefas"* é matematicamente real e um benefício direto da arquitetura do `simplicio-mapper`.
 

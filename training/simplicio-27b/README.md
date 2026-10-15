@@ -50,10 +50,10 @@ pipeline_tag: text-generation
 Unlike standard conversational models that employ unbounded, verbose Chain-of-Thought (CoT), Simplicio 27B operates within an **enforced 5-phase recursive loop**:
 - **Loop-Closed Software Engineering**: Replaces free-form reasoning with deterministic engineering phases: `<orient>`, `<plan>`, `<patch>`, `<validate>`, and `<deliver>`.
 - **Surgical Diff Modification**: Enforces atomic search-and-replace chunk editing (`<<<< SEARCH / ==== / >>>> REPLACE`) instead of wasteful full-file regenerations, preserving original indentation, type signatures, and comments.
-- **Strict Signature Introspection**: Inspects symbol graphs and type interfaces prior to modifying code, eliminating ghost function hallucinations.
-- **Failure-Guided Auto-Correction**: Analyzes compiler errors, test failures, and tracebacks directly in the validation phase, achieving green tests without trial-and-error loops.
-- **Drastic Reasoning Token Efficiency**: Prunes conversational verbosity, reducing wasted tokens by **56.3%** compared to native thinking mode models while boosting task resolution.
-- **Deterministic Delivery Verification**: Formal `simplicio_deliver(status="VERIFIED_GREEN")` contract guarantees code passes real unit suites before claiming completion.
+- **Strict Signature Introspection**: Inspects symbol graphs and type interfaces prior to modifying code; aims to reduce ghost function hallucinations (UNVERIFIED).
+- **Failure-Guided Auto-Correction**: Analyzes compiler errors, test failures, and tracebacks directly in the validation phase; intended to reach green tests with fewer trial-and-error loops (UNVERIFIED).
+- **Reasoning Token Discipline**: The training data prunes conversational verbosity. How many tokens this saves, and whether task resolution improves, has **not been measured** (UNVERIFIED).
+- **Deterministic Delivery Verification**: The formal `simplicio_deliver(status="VERIFIED_GREEN")` contract requires a green test run before claiming completion. The model is trained to emit it; that is not a guarantee that it always does.
 
 ---
 
@@ -70,117 +70,58 @@ Unlike standard conversational models that employ unbounded, verbose Chain-of-Th
 - **Fine-Tuning Framework**: Unsloth QLoRA (4-bit Normal Float)
   - **Target Modules**: `q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`, `up_proj`, `down_proj`
   - **Rank (r)**: 32 | **Alpha**: 32 | **Dropout**: 0
-  - **Gradient Checkpointing**: Unsloth Native (30% VRAM reduction)
+  - **Gradient Checkpointing**: Unsloth Native
 - **Context Length**: 4,096 tokens (native training window; extensible up to 262,144 tokens)
 - **Training Trajectories**: Synthetic multi-language trajectories adhering to the 50 Points of Simplicio-Loop
 
 ---
 
-## 🏆 Top 10 Coding & Agentic Software Engineering LLMs (Exclusively 2026 Releases)
+## Evaluation status
 
-This official benchmark strictly evaluates the **Top 10 premier models launched in 2026** for Autonomous Software Engineering and Coding Agents (including **Claude Opus 5.5**, **GPT-6.1 Sol Pro**, **Claude Sonnet 5.5**, **Simplicio 27B**, **DeepSeek V4.1 Flash**, **GPT-6 Luna Pro**, **Qwen3.8 Max Prime**, **GLM 5.3 Prime**, **Grok 4.7**, and **Command A+**), evaluated across **Surgical Diff Accuracy (Aider Benchmark)**, **SWE-bench Verified / Pro**, **LiveCodeBench**, **EvalPlus (HumanEval+)**, and **Reasoning Token Consumption**.
+**No published evaluation yet (UNVERIFIED).**
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/tier_list_coding.svg" alt="2026 Software Engineering &amp; Coding Tier List (Top 10 Market Releases)" width="100%">
-</p>
+This README used to carry a "Top 10" ranking table, tier-list charts and an "empirical A100 scorecard". None of those figures came from a run anyone can inspect: the scores for Simplicio 27B and for every rival model were literals typed into a script and a notebook, the notebooks ship without outputs, and no logs were published. The tables, the charts that repeated them and the script that printed them have been removed.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/leaderboard_top10.svg" alt="Top 10 Coding LLMs Leaderboard (Exclusively 2026 Releases)" width="100%">
-</p>
+This project therefore makes **no claim** about how Simplicio 27B ranks against any other model, how many tokens it saves, or how often its patches pass tests.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/benchmark_comparison.svg" alt="Official 2026 Industry Benchmark Suite Comparison" width="100%">
-</p>
+What exists today:
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/token_economy_cost.svg" alt="2026 Reasoning Efficiency: Useful Code vs. Internal Reasoning Monologue" width="100%">
-</p>
+- [`benchmark_simplicio_27b.py`](./benchmark_simplicio_27b.py) is a small smoke-evaluation harness. It prints only what it measures on the run you give it: SEARCH-chunk hit rate, `ast.parse` validity of the patched code, presence of the five phase tags and generated tokens per task. It does **not** run pytest and compares against no other model.
+- The Colab notebooks hold sample cases and no stored outputs.
+- `benchmarks/run_*.py` are scaffolds that list sample instances. No model inference or scoring is implemented in them.
+- `tests/test_training_benchmark_overlap.py` in the main repository keeps every benchmark case disjoint from `data/*.jsonl`. The earlier `tax_id` case was also a train/val record, so it was removed.
 
-### 📊 Comparative Scorecard: Top 10 Models Launched in 2026
+A number will be published here only together with the raw logs, the commit, and the hardware and model identifiers that produced it.
 
-| Rank | 2026 Model | Developer (2026) | Architecture / Size | Type | Surgical Diff (Aider) | SWE-bench Pro | LiveCodeBench | EvalPlus (HE+) | Tokens / Task (Lower is better) | Core Superpower / Highlight |
-| :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| 🥇 **#1** | **Claude Opus 5.5** | Anthropic (Sep 2026) | Frontier SOTA | 🔒 Closed | 89.5% | **89.9%** | 79.4% | **94.2%** | 1,500 t | Overall leader in multi-file repository refactoring |
-| 🥈 **#2** | **GPT-6.1 Sol Pro** | OpenAI (Sep 2026) | Frontier Reasoning | 🔒 Closed | 86.0% | 84.2% | **81.2%** | 93.8% | 1,400 t | Deep algorithmic tree search and logic verification |
-| 🥉 **#3** | **Claude Sonnet 5.5** | Anthropic (Sep 2026) | Frontier Agent | 🔒 Closed | 88.0% | 81.5% | 75.8% | 91.5% | 850 t | High-efficiency agentic coder ($2/M prompt, $10/M completion) |
-| ⚡ **#4** | **⚡ Simplicio 27B (Loop)** | simpletibr (Oct 2026) | **27B DeltaNet Hybrid** | 🟢 **Open** | **96.5%** 🏆 | 53.6% | 72.4% | 88.6% | **480 t** *(⚡ -68% economy)* | **#1 in Atomic Surgical Diff Precision & Zero-Diff-Waste Architecture** |
-| **#5** | **DeepSeek V4.1 Flash** | DeepSeek (Sep 2026) | MoE Flash | 🟢 Open | 78.0% | 68.5% | 71.0% | 87.2% | 650 t | Ultra-fast open-weights reasoning MoE with verified code syntax |
-| **#6** | **GPT-6 Luna Pro** | OpenAI (Sep 2026) | Reasoning Light | 🔒 Closed | 82.5% | 72.0% | 74.5% | 89.0% | 750 t | Compact reasoning engine optimized for rapid test generation |
-| **#7** | **Qwen3.8 Max Prime** | Alibaba (Sep 2026) | Hybrid DeltaNet | 🟢 Open | 76.0% | 65.0% | 68.2% | 85.4% | 920 t | Alibaba flagship enterprise DeltaNet with expanded context |
-| **#8** | **GLM 5.3 Prime** | Zhipu AI (Sep 2026) | MoE Prime | 🟢 Open | 75.5% | 63.8% | 66.8% | 84.1% | 880 t | Frontier multilingual code reasoning and native tool calling |
-| **#9** | **Grok 4.7** | xAI (Sep 2026) | Frontier Dense | 🔒 Closed | 74.0% | 61.5% | 65.4% | 83.5% | 980 t | Ultra-long context window (2M) with native terminal execution |
-| **#10** | **Command A+** | Cohere (Sep 2026) | Enterprise Agent | 🔒 Closed | 72.5% | 58.0% | 62.0% | 80.8% | 720 t | Enterprise multi-step workflow automation & RAG code repair |
----
+### Cases in the smoke suite
 
-## Empirical Hardware Benchmark (Measured Live on NVIDIA A100-SXM4-40GB)
-
-To ensure **100% scientific honesty and transparency**, all metrics published below are **empirically measured directly on hardware** using the reproducible test harness [`benchmark_simplicio_27b.py`](./benchmark_simplicio_27b.py) on an **NVIDIA A100-SXM4-40GB** instance.
-
-We explicitly do **NOT** publish unverified synthetic projections. Every single number below reflects real inference runs comparing the fine-tuned **Simplicio 27B (Qwen3.8 + Simplicio-Loop)** against the baseline **Qwen3.8-27B** on identical tasks.
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/benchmark_comparison.svg" alt="Simplicio 27B Empirical Benchmark Comparison" width="100%">
-</p>
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/token_efficiency.svg" alt="Reasoning Token Economy &amp; Generation Efficiency" width="100%">
-</p>
-
-### 🔬 Empirical Scorecard: Simplicio 27B vs. Base Qwen3.8-27B
-
-| Empirical Metric | Simplicio 27B <br> *(Qwen3.8 + Simplicio-Loop)* | Base Qwen3.8-27B <br> *(Pre-trained Baseline)* | Delta / Real Improvement | Verification Method |
-| :--- | :---: | :---: | :---: | :--- |
-| **Surgical Diff Hit Rate** | **100.0%** (5/5) | 40.0% (2/5) | **+60.0% precision** | Exact `<<<< SEARCH / ==== / >>>> REPLACE` match in target file |
-| **AST Syntax Integrity** | **100.0%** (5/5) | 60.0% (3/5) | **+40.0% validity** | Python `ast.parse()` validation on patched code (0 syntax errors) |
-| **Real Unit Test Pass Rate** | **100.0%** (5/5) | 40.0% (2/5) | **+60.0% functional pass** | Real execution of test suites (`pytest`) |
-| **5-Phase Loop Conformance** | **100.0%** (5/5) | 0.0% (0/5) | **100% deterministic** | Strict emission of `<orient>`, `<plan>`, `<patch>`, `<validate>`, `<deliver>` |
-| **Ghost API Symbol Hallucination** | **0.0%** (0 invented APIs) | 40.0% (2/5) | **-100% ghost APIs** | Static symbol audit against imported module definitions |
-| **Average Generation Tokens / Task** | **480 tokens** | 850 tokens | **-43.5% token economy** | Exact output token count from GPU tokenizer |
+| Test Case ID | Target File / Module | Engineering Task |
+| :--- | :--- | :--- |
+| `py_dict_key_error` | `token_extractor.py` | Safely extract roles using `.get()` to prevent `KeyError` on optional JWT claims |
+| `py_zero_division` | `metrics.py` | Guard `total_visits == 0` returning `0.0` to eliminate `ZeroDivisionError` |
+| `py_resource_leak` | `ledger_writer.py` | Refactor raw `open()` to `with open(...) as f:` context manager to prevent descriptor leak |
+| `py_list_mutation` | `filter_queue.py` | Eliminate in-place list mutation bug using list comprehension `[t for t in queue if ...]` |
 
 ---
 
-### 🧪 Test Cases Evaluated in the Real Benchmark Suite
+### Running the harness and scaffolds
 
-The evaluation suite ([`benchmark_simplicio_27b.py`](./benchmark_simplicio_27b.py)) assesses real-world software engineering failure modes:
-
-| Test Case ID | Target File / Module | Real Bug / Engineering Task | Simplicio 27B Result | Base Qwen3.8-27B Result |
-| :--- | :--- | :--- | :---: | :---: |
-| `py_pydantic_validator` | `user_schema.py` | Sanitize `tax_id` removing punctuation via Pydantic v2 `field_validator(mode='before')` | ✅ **Passed (100%)** | ⚠️ Failed (invented v1 `@validator`) |
-| `py_dict_key_error` | `token_extractor.py` | Safely extract roles using `.get()` to prevent `KeyError` on optional JWT claims | ✅ **Passed (100%)** | ✅ Passed |
-| `py_zero_division` | `metrics.py` | Guard `total_visits == 0` returning `0.0` to eliminate `ZeroDivisionError` | ✅ **Passed (100%)** | ✅ Passed |
-| `py_resource_leak` | `ledger_writer.py` | Refactor raw `open()` to `with open(...) as f:` context manager to prevent descriptor leak | ✅ **Passed (100%)** | ⚠️ Partial (rewrote whole file, broken indent) |
-| `py_list_mutation` | `filter_queue.py` | Eliminate in-place list mutation bug using list comprehension `[t for t in queue if ...]` | ✅ **Passed (100%)** | ⚠️ Partial (diff search chunk mismatch) |
-
----
-
-### ⚙️ How to Reproduce the Official 2026 Industry Benchmarks
-
-Simplicio 27B provides official benchmark harnesses for the four primary evaluation suites used across the industry in 2026:
+From this directory:
 
 ```bash
-# 1. Clone the dedicated repository
-git clone https://github.com/simpletibr/simplicio-27b.git
-cd simplicio-27b
-
-# 2. Run the Empirical A100 Hardware Benchmark (Surgical Diffs & AST Integrity)
+# Smoke harness: import run_benchmark(model, tokenizer, TEST_CASES) in a GPU session (for example Colab)
 python benchmark_simplicio_27b.py
 
-# 3. Run the Official Aider Code Editing Benchmark (Exercism Testbed)
+# Scaffolds: list sample instances only, no model is run and no score is produced
 python benchmarks/run_aider_benchmark.py
-
-# 4. Run the Official SWE-bench Verified & Lite Harness (predictions exporter)
 python benchmarks/run_swebench_eval.py
-
-# 5. Run the Official LiveCodeBench (LCB) Evaluation Runner
 python benchmarks/run_livecodebench.py
-
-# 6. Run the Official EvalPlus (HumanEval+) Runner
 python benchmarks/run_evalplus_humaneval.py
 ```
 
-Or run the full 2026 Coding Benchmark suite directly in Google Colab on an A100 GPU:
-- 🚀 **Dedicated 2026 Benchmarks Notebook**: [`Simplicio_27B_2026_Benchmarks_Colab.ipynb`](./Simplicio_27B_2026_Benchmarks_Colab.ipynb)
-- 🧪 **Interactive Colab Session**: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/wesleysimplicio/1f7de17399f64bb6f71895ab7401bd88)
+Or open the sample-case notebook in Google Colab on a GPU:
+- [`Simplicio_27B_2026_Benchmarks_Colab.ipynb`](./Simplicio_27B_2026_Benchmarks_Colab.ipynb)
+- [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/wesleysimplicio/1f7de17399f64bb6f71895ab7401bd88)
 
 ---
 

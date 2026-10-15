@@ -1,6 +1,6 @@
 """
-Official 2026 EvalPlus (HumanEval+) Benchmark Runner for Simplicio 27B
-Evaluates edge cases, rigorous assertions, and runtime test-driven execution.
+EvalPlus/HumanEval-style scaffold for Simplicio 27B.
+Lists three sample tasks. It does NOT run a model, execute assertions or publish a score.
 """
 
 import sys
@@ -31,21 +31,14 @@ SAMPLE_HUMANEVAL_PLUS = [
 
 def main():
     print("=" * 80)
-    print("🚀 OFFICIAL 2026 EVALPLUS (HUMANEVAL+) BENCHMARK (SIMPLICIO 27B HARNESS)")
-    print("Evaluating Python code generation with 80x expanded edge-case assertions.")
+    print("EVALPLUS/HUMANEVAL-STYLE SCAFFOLD (SIMPLICIO 27B)")
+    print("Sample HumanEval-style tasks with their assertions.")
     print("=" * 80)
-    print(f"Loaded {len(SAMPLE_HUMANEVAL_PLUS)} sample EvalPlus tasks.")
+    print(f"Loaded {len(SAMPLE_HUMANEVAL_PLUS)} sample HumanEval-style tasks.")
     for t in SAMPLE_HUMANEVAL_PLUS:
         print(f"  - [{t['task_id']}] Entry: {t['entry_point']}")
-    print("\nReady for model evaluation via evalplus.evaluate.")
+    print("\nScaffold only: no model inference or evalplus.evaluate run is wired in, so no result is produced.")
 
-
-    if '--compare' in sys.argv:
-        sys.path.append(os.path.dirname(__file__))
 
 if __name__ == "__main__":
     main()
-    if "--compare" in sys.argv:
-        sys.path.append(os.path.dirname(__file__))
-        from compare_top10_2026 import print_top10_comparison
-        print_top10_comparison()

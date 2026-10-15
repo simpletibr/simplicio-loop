@@ -3,7 +3,9 @@
 **The Universal Looping AI Orchestrator** — a runtime-agnostic **super-plugin** (7 skills) that
 drains any queue of work end-to-end on **any LLM / runtime**:
 `discover → implement → verify → merge → close → watch 24/7`, behind safety gates and evidence
-checks, at up to **96% fewer tokens**. Not a chatbot. A worker.
+checks. Not a chatbot. A worker. No headline token-savings percentage is claimed: savings are
+reported only when measured (see [`bench/llm_ab`](https://github.com/wesleysimplicio/simplicio-loop/tree/main/bench/llm_ab),
+a small A/B on a single model).
 
 ![simplicio-loop](https://raw.githubusercontent.com/wesleysimplicio/simplicio-loop/main/assets/simplicio-loop-hero-2026.png)
 
@@ -43,13 +45,13 @@ Now invoke it from your agent runtime (Claude Code, Cursor, Codex, Gemini, …):
 
 ## Highlights
 
-- **35 runtimes, one protocol** — Claude Code, Codex, Cursor, VS Code/Copilot, Gemini, Kiro, OpenCode,
+- **Many runtimes, one protocol** — Claude Code, Codex, Cursor, VS Code/Copilot, Gemini, Kiro, OpenCode,
   Amp, Cline, Continue, Droid, goose, Aider, Simplicio Agent (formerly Hermes), OpenClaw, Orca and more; the
   full list is `adapters/MATRIX.md` in the repository.
 - **Evidence-gated completion** — never a false "done"; exits only on a verified `<promise>`,
   cap, spindle handoff, or STOP.
 - **Token economy** — honest "answer concisely" baseline; savings credited only on verified-correct
-  outcomes.
+  outcomes, and never as an unmeasured headline number.
 
 Requires Python 3.11+. Mapper and dev-cli ship inside this wheel, so there are no separate
 `simplicio-mapper` / `simplicio-cli` packages to install. The package remains

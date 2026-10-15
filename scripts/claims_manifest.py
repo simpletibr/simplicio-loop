@@ -8,9 +8,17 @@ Every quantitative number in README/SKILLs/AGENTS.md must either:
 This manifest declares every known quantitative claim and its status.
 Imported by claims_audit.py (check 8).
 
+Scope (#1814): besides README.md / AGENTS.md (legacy, loose matching) the audit also scans the
+public-facing surfaces that carried unbacked headline percentages -- PYPI.md, training/**/*.md and
+the video sources (video/*.py, video/*.md, video/lang/*.json, video/storyboard.master.json). Those
+are held to a STRICT rule: any percentage (decimals and 0%/50%/100% included) must be registered
+in CLAIMS under *that same doc*; a manifest entry for README.md never vouches for PYPI.md.
+
 No behavior of its own — pure data, imported by `claims_audit.py`.
 """
 
+import ast
+import glob
 import os
 import re
 
@@ -34,6 +42,33 @@ QUANT_RE = re.compile(
     r"\d{1,3}x\b(?!\s*more|\s*fewer))",
     re.I,
 )
+
+# Strict scope (#1814). Paths are relative to the repo root; `**` is recursive.
+STRICT_CLAIM_PATTERNS = [
+    "PYPI.md",
+    "training/**/*.md",
+    "video/*.py",
+    "video/*.md",
+    "video/lang/*.json",
+    "video/storyboard.master.json",
+]
+
+# Decimal-aware: "96.5%" and "100.0%" must not collapse to "5%" / "0%" (which the legacy regex's
+# skip-list would then wave through). 0%/50%/100% are NOT exempt in the strict scope. There is no
+# "%XX is URL-encoding" lookahead here (it would let "96%fewer" slip through); URLs are stripped
+# before scanning instead (see _claim_text).
+STRICT_QUANT_RE = re.compile(
+    r"(?<![\w.])(?:\d{1,3}(?:\.\d+)?[ \xa0]?%|\d{1,3}(?:\.\d+)?x\b(?!\s*more|\s*fewer))",
+    re.I,
+)
+
+# Layout/markup percentages are not claims: <style> blocks, style="..." attributes and the
+# width/height="NN%" HTML attributes. URLs are stripped too (badge URLs are full of %20).
+_URL_RE = re.compile(r"""https?://[^\s)>"']+""", re.I)
+_STYLE_BLOCK_RE = re.compile(r"<style\b.*?</style>", re.I | re.S)
+_STYLE_ATTR_RE = re.compile(r"""\bstyle\s*=\s*(?:"[^"]*"|'[^']*')""", re.I)
+_SIZE_ATTR_RE = re.compile(r"""\b(?:width|height)\s*=\s*["']?\d{1,3}%["']?""", re.I)
+
 
 # ---- claim manifest ----
 # Each entry:
@@ -294,20 +329,73 @@ CLAIMS = [
 CLAIM_DOCS = ["README.md", "AGENTS.md"]
 
 
+def claim_scan_targets(doc_root=REPO):
+    """Every doc the audit scans, as sorted ``(doc_rel, strict)`` pairs (``/``-separated paths).
+
+    Legacy docs (CLAIM_DOCS) come first and keep the loose matching; strict docs are resolved
+    from STRICT_CLAIM_PATTERNS and only returned when they exist on disk.
+    """
+    targets = [(d, False) for d in CLAIM_DOCS]
+    seen = set(CLAIM_DOCS)
+    strict = []
+    for pattern in STRICT_CLAIM_PATTERNS:
+        for path in glob.glob(os.path.join(doc_root, pattern), recursive=True):
+            if not os.path.isfile(path):
+                continue
+            rel = os.path.relpath(path, doc_root).replace(os.sep, "/")
+            if rel not in seen:
+                seen.add(rel)
+                strict.append(rel)
+    targets.extend((rel, True) for rel in sorted(strict))
+    return targets
+
+
+def _claim_text(doc_rel, raw):
+    """The text a strict scan looks at: prose, minus layout/markup percentages.
+
+    Python sources contribute their string literals only (comments/identifiers are not shown to
+    readers); every kind of file has URLs, <style> blocks, style="" and width/height="NN%" removed.
+    """
+    text = raw
+    if doc_rel.endswith(".py"):
+        try:
+            tree = ast.parse(raw)
+        except SyntaxError:
+            tree = None
+        if tree is not None:
+            text = "\n".join(n.value for n in ast.walk(tree)
+                             if isinstance(n, ast.Constant) and isinstance(n.value, str))
+    text = _URL_RE.sub(" ", text)
+    text = _STYLE_BLOCK_RE.sub(" ", text)
+    text = _STYLE_ATTR_RE.sub(" ", text)
+    return _SIZE_ATTR_RE.sub(" ", text)
+
+
 def extract_claims(doc_root=REPO):
-    """Scan CLAIM_DOCS for QUANT_RE matches and cross-reference with manifest.
+    """Scan the claim docs for quantitative claims and cross-reference with the manifest.
 
     Returns list of (doc_rel, match_text) for claims NOT in the manifest
     (i.e. undocumented quantitative claims that must be added or labelled).
+
+    Legacy docs (README.md, AGENTS.md): QUANT_RE, a manifest text_glob from *any* doc may vouch.
+    Strict docs (PYPI.md, training/**/*.md, video/...): STRICT_QUANT_RE, and only a manifest entry
+    whose ``doc`` is that same file may vouch for a match.
     """
     found = []
     manifest_texts = set(c["text_glob"].lower() for c in CLAIMS)
-    for doc_rel in CLAIM_DOCS:
-        doc_path = os.path.join(doc_root, doc_rel)
+    for doc_rel, strict in claim_scan_targets(doc_root):
+        doc_path = os.path.join(doc_root, *doc_rel.split("/"))
         if not os.path.exists(doc_path):
             continue
         with open(doc_path, encoding="utf-8", errors="replace") as f:
             text = f.read()
+        if strict:
+            own_texts = [c["text_glob"].lower() for c in CLAIMS if c["doc"] == doc_rel]
+            for m in STRICT_QUANT_RE.finditer(_claim_text(doc_rel, text)):
+                match_lower = m.group(0).lower().replace(" ", "")
+                if not any(match_lower in t.replace(" ", "") for t in own_texts):
+                    found.append((doc_rel, m.group(0)))
+            continue
         for m in QUANT_RE.finditer(text):
             match_lower = m.group(0).lower()
             # Skip common non-claims
@@ -341,6 +429,11 @@ def selftest():
     checks.append(("no duplicate claim IDs", len(ids) == len(set(ids))))
     # All claims non-empty
     checks.append(("claims list non-empty", len(CLAIMS) > 0))
+    # Strict scope (#1814) is wired
+    scanned = {d for d, _strict in claim_scan_targets()}
+    checks.append(("scan covers PYPI.md", "PYPI.md" in scanned))
+    checks.append(("scan covers training/**/*.md", any(d.startswith("training/") for d in scanned)))
+    checks.append(("scan covers video/*.py", any(d.startswith("video/") and d.endswith(".py") for d in scanned)))
     # Extractor works (should find at least 1 claim in README.md)
     unknown = extract_claims()
     checks.append(("extractor runs without crashing", True))

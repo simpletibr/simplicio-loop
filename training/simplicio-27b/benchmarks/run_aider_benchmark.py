@@ -1,4 +1,5 @@
-# Official 2026 Aider Code Editing Benchmark Runner for Simplicio 27B
+# Aider-style code editing scaffold for Simplicio 27B.
+# Loads sample instances and defines evaluate_patch(); it does NOT run a model or publish a score.
 import os
 import re
 import ast
@@ -43,21 +44,14 @@ def evaluate_patch(initial: str, search_c: str, replace_c: str, test_code: str, 
 def main():
     cases = load_instances()
     print("=" * 80)
-    print("🚀 OFFICIAL 2026 AIDER CODE EDITING BENCHMARK (SIMPLICIO 27B HARNESS)")
-    print("Evaluating Exercism testbed with atomic diff editing and pytest execution.")
+    print("AIDER-STYLE CODE EDITING SCAFFOLD (SIMPLICIO 27B)")
+    print("Sample Exercism-style instances; evaluate_patch() applies a diff and runs pytest on one patch.")
     print("=" * 80)
     print(f"Loaded {len(cases)} official benchmark instances:")
     for c in cases:
         print(f"  - [{c['instance_id']}] Target: {c['file']}")
-    print("\nReady for model inference and evaluation.")
+    print("\nScaffold only: no model inference or scoring is wired in, so no result is produced.")
 
-
-    if '--compare' in sys.argv:
-        sys.path.append(os.path.dirname(__file__))
 
 if __name__ == "__main__":
     main()
-    if "--compare" in sys.argv:
-        sys.path.append(os.path.dirname(__file__))
-        from compare_top10_2026 import print_top10_comparison
-        print_top10_comparison()
