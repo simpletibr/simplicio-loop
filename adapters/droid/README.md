@@ -1,6 +1,6 @@
 # Droid adapter
 
-Factory's Droid searches for `AGENTS.md` from the working directory up to the git root. Install status: **wired**.
+Factory's Droid searches for `AGENTS.md` from the working directory up to the git root. Install status: **listed** (installer target, no adapter code).
 
 ## Skill load
 

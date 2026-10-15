@@ -1,0 +1,4 @@
+# Bytecode is built on demand and is never a fixture. packages/mapper/.gitignore re-includes
+# tests/fixtures/**, which un-ignored the root __pycache__/ rule here (#1816).
+__pycache__/
+*.py[cod]

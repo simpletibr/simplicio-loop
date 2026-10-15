@@ -1,6 +1,6 @@
 # GitHub Copilot adapter
 
-GitHub Copilot (VS Code agent mode, the Copilot CLI and the coding agent on github.com) reads repository custom instructions. Install status: **wired**.
+GitHub Copilot (VS Code agent mode, the Copilot CLI and the coding agent on github.com) reads repository custom instructions. Install status: **listed** (installer target, no adapter code).
 
 ## Skill load
 

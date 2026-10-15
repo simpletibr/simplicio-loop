@@ -10,7 +10,7 @@ What this repo is:
 - Runtime-agnostic autonomous looping orchestrator (`/simplicio-loop`)
 - Current reference task flow for the Simplicio line
 - Evidence-gated loop: never exit on a fake “done”
-- Runs on 35 agent hosts. `simplicio_loop/_catalog/harnesses.json` lists them; install a `wired` one with `scripts/install.sh <runtime>`; per-host notes are in `adapters/<host>/README.md`.
+- 6 wired adapters (code in `adapters/`: claude, codex, cursor, grok, kiro, vscode) and 29 listed hosts (catalog entry + README, no adapter code; a listing is not proof the host runs the loop). `simplicio_loop/_catalog/harnesses.json` lists them all; install one with `scripts/install.sh <runtime>`; per-host notes are in `adapters/<host>/README.md`.
 
 Current operator flow:
 - `simplicio-loop "<task>" [--verify "<tests>"]` (short for `simplicio-loop turbo --repo . --task "<task>"`) — the default way to run any task, no provider and no API key: Mapper reads the repo once and the command prints a `needs_plan` request with the text of the files it names. You are the model: run the printed `apply` command once with your JSON plan as its heredoc body (`simplicio-loop turbo --repo . --apply - --verify "<tests>" <<'PLAN'`, the plan, `PLAN`; `simplicio-dev-cli` applies it and runs `--verify`), and on `failed` fix the plan once and run it again. Exactly two commands: do not explore, list or read files, and do not run the tests yourself. Never edit files by hand.
@@ -43,8 +43,7 @@ Key commands:
 
 Complete command/feature map: `docs/CLI_COMMANDS.md`. Before using any
 entrypoint, run its most specific `--help`; public commands must explain their
-purpose there. Current release: Loop 3.46.0 (Mapper 0.26.34 and Dev CLI
-0.18.16 are bundled). Issue work uses objective, implementation/deployment, and
+purpose there. Issue work uses objective, implementation/deployment, and
 tests; do not add Acceptance Criteria sections.
 
 If you are an LLM agent:

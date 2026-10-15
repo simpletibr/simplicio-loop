@@ -1,6 +1,6 @@
 # Amp adapter
 
-Amp (Sourcegraph's coding agent) includes every `AGENTS.md` from the working directory and its parents up to `$HOME`. Install status: **wired**.
+Amp (Sourcegraph's coding agent) includes every `AGENTS.md` from the working directory and its parents up to `$HOME`. Install status: **listed** (installer target, no adapter code).
 
 ## Skill load
 

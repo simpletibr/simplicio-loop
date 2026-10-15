@@ -1,6 +1,6 @@
 # Mistral Vibe adapter
 
-Mistral Vibe loads `AGENTS.md` files from the current directory up to the trust root. Install status: **wired**.
+Mistral Vibe loads `AGENTS.md` files from the current directory up to the trust root. Install status: **listed** (installer target, no adapter code).
 
 ## Skill load
 

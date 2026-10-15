@@ -1,6 +1,6 @@
 # Cline adapter
 
-Cline reads `AGENTS.md` natively, next to its own `.clinerules/` rules. Install status: **wired**.
+Cline reads `AGENTS.md` natively, next to its own `.clinerules/` rules. Install status: **listed** (installer target, no adapter code).
 
 ## Skill load
 

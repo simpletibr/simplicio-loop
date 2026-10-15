@@ -73,7 +73,7 @@
       "name": "GitHub Copilot",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "github-copilot",
         "surface": ".claude/skills/ + .github/copilot-instructions.md",
         "source": "https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/add-custom-instructions/add-repository-instructions"
@@ -88,7 +88,7 @@
       "name": "OpenCode",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "opencode",
         "surface": ".claude/skills/ + AGENTS.md + .opencode/skills/",
         "source": "https://opencode.ai/docs/rules/"
@@ -103,7 +103,7 @@
       "name": "MiMo Code",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "mimo-code",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://mimo.xiaomi.com/mimocode/rules"
@@ -118,7 +118,7 @@
       "name": "Amp",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "amp",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://ampcode.com/docs/customize/agents-md"
@@ -133,7 +133,7 @@
       "name": "OpenClaude",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "openclaude",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://github.com/Twigpine/openclaude/blob/main/src/utils/projectInstructions.ts"
@@ -148,7 +148,7 @@
       "name": "Antigravity",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "antigravity",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://antigravity.google/docs/rules"
@@ -163,7 +163,7 @@
       "name": "Pi",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "pi",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/configuration.md"
@@ -178,7 +178,7 @@
       "name": "oh-my-pi",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "oh-my-pi",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://github.com/can1357/oh-my-pi/blob/main/docs/context-files.md"
@@ -195,7 +195,7 @@
         "simplicio_agent"
       ],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "simplicio_agent",
         "surface": ".claude/skills/",
         "source": "https://hermes-agent.nousresearch.com/docs/user-guide/features/context-files"
@@ -210,7 +210,7 @@
       "name": "Devin",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "devin",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://docs.devin.ai/onboard-devin/agents-md"
@@ -225,7 +225,7 @@
       "name": "Goose",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "goose",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://goose-docs.ai/docs/guides/context-engineering/using-goosehints/"
@@ -240,7 +240,7 @@
       "name": "Auggie",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "auggie",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://docs.augmentcode.com/cli/rules"
@@ -255,7 +255,7 @@
       "name": "Autohand Code",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "autohand",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://docs.autohand.ai/working-with-autohand-code/agents-md"
@@ -270,7 +270,7 @@
       "name": "Charm",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "charm",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://github.com/charmbracelet/crush"
@@ -285,7 +285,7 @@
       "name": "Cline",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "cline",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://docs.cline.bot/customization/cline-rules"
@@ -300,7 +300,7 @@
       "name": "Codebuff",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "codebuff",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://www.codebuff.com/docs/help/faq"
@@ -315,7 +315,7 @@
       "name": "Command Code",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "command-code",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://commandcode.ai/docs/memory"
@@ -330,7 +330,7 @@
       "name": "Continue",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "continue",
         "surface": ".claude/skills/ + .continue/rules/simplicio-loop.md",
         "source": "https://docs.continue.dev/customize/deep-dives/rules"
@@ -345,7 +345,7 @@
       "name": "Droid",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "droid",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://docs.factory.ai/harness/agents-md"
@@ -360,7 +360,7 @@
       "name": "Kilocode",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "kilocode",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://kilo.ai/docs/customize/agents-md"
@@ -375,7 +375,7 @@
       "name": "Kimi",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "kimi",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://moonshotai.github.io/kimi-code/en/customization/agents.html"
@@ -405,7 +405,7 @@
       "name": "Mistral Vibe",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "mistral-vibe",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://github.com/mistralai/mistral-vibe"
@@ -422,7 +422,7 @@
         "qwen"
       ],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "qwen",
         "surface": ".claude/skills/ + QWEN.md",
         "source": "https://qwenlm.github.io/qwen-code-docs/en/users/features/memory/"
@@ -437,7 +437,7 @@
       "name": "Rovo Dev",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "rovo-dev",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://support.atlassian.com/rovo/docs/use-memory-in-rovo-dev-cli/"
@@ -452,7 +452,7 @@
       "name": "Gemini CLI",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "gemini",
         "surface": ".claude/skills/ + GEMINI.md",
         "source": "https://geminicli.com/docs/cli/gemini-md/"
@@ -484,7 +484,7 @@
         "orca"
       ],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "orca",
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://www.onorca.dev/docs/agents/supported"
@@ -499,7 +499,7 @@
       "name": "Aider",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "aider",
         "surface": ".claude/skills/ + CONVENTIONS.md",
         "source": "https://aider.chat/docs/usage/conventions.html"
@@ -514,9 +514,9 @@
       "name": "DeepSeek",
       "aliases": [],
       "install": {
-        "status": "manual",
+        "status": "listed",
         "runtime": null,
-        "surface": "none: a model provider, not a host; use a wired host pointed at the DeepSeek API",
+        "surface": "none: a model provider, not a host; point any host at the DeepSeek API",
         "source": "https://api-docs.deepseek.com/guides/coding_agents/"
       },
       "detect": null,
@@ -529,7 +529,7 @@
       "name": "OpenClaw",
       "aliases": [],
       "install": {
-        "status": "wired",
+        "status": "listed",
         "runtime": "openclaw",
         "surface": ".claude/skills/",
         "source": "https://docs.openclaw.ai/tools/skills"

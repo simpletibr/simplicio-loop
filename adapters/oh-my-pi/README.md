@@ -1,6 +1,6 @@
 # oh-my-pi adapter
 
-oh-my-pi (`omp`) discovers context files from several providers, `AGENTS.md` at the repository root among them. Install status: **wired**.
+oh-my-pi (`omp`) discovers context files from several providers, `AGENTS.md` at the repository root among them. Install status: **listed** (installer target, no adapter code).
 
 ## Skill load
 
