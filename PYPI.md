@@ -1,7 +1,10 @@
 # simplicio-loop
 
-**The Universal Looping AI Orchestrator** — a runtime-agnostic **super-plugin** (7 skills) that
-drains any queue of work end-to-end on **any LLM / runtime**:
+**Deterministic operators any agent harness can call, plus a loop that drives them.**
+`simplicio-mapper` surveys a repo, `simplicio-dev-cli` applies an edit plan exactly, and
+impact-based test selection (`scripts/impact_tests.py`, used by `scripts/check.py`) runs only the
+tests a change can reach. None of them provisions a model. The loop (a **super-plugin** of 7 skills) is
+one consumer of them: it drains a queue of work end-to-end,
 `discover → implement → verify → merge → close → watch 24/7`, behind safety gates and evidence
 checks. Not a chatbot. A worker. No headline token-savings percentage is claimed: savings are
 reported only when measured (see [`bench/llm_ab`](https://github.com/wesleysimplicio/simplicio-loop/tree/main/bench/llm_ab),
@@ -25,7 +28,7 @@ simplicio-loop install            # into ./.claude of the current project
 simplicio-loop install --global   # into ~/.claude (all projects)
 ```
 
-Now invoke it from your agent runtime (Claude Code, Cursor, Codex, Gemini, …):
+Now invoke it from a wired host (Claude Code, Codex, Cursor, Grok, Kiro or VS Code):
 
 ```
 /simplicio-loop finish all the open issues
@@ -45,9 +48,14 @@ Now invoke it from your agent runtime (Claude Code, Cursor, Codex, Gemini, …):
 
 ## Highlights
 
-- **Many runtimes, one protocol** — Claude Code, Codex, Cursor, VS Code/Copilot, Gemini, Kiro, OpenCode,
-  Amp, Cline, Continue, Droid, goose, Aider, Simplicio Agent (formerly Hermes), OpenClaw, Orca and more; the
-  full list is `adapters/MATRIX.md` in the repository.
+- **Operators as tools** — `simplicio-mapper handoff . --goal "<task>" --json` for the survey,
+  `simplicio-dev-cli edit --root . --plan plan.json --apply --json` for the exact edit, and
+  `python3 scripts/impact_tests.py --base origin/main --json` (a repo-checkout script) for the tests a
+  change can reach. Any harness that can run a command can call them.
+- **Honest runtime counts** — 6 wired adapters (code and a host test in the repository: Claude Code,
+  Codex, Cursor, Grok, Kiro, VS Code) and 29 listed hosts (a catalog entry and a README, no adapter code;
+  a listing is not proof that the host runs the loop). Per-host status is `adapters/MATRIX.md` in the
+  repository.
 - **Evidence-gated completion** — never a false "done"; exits only on a verified `<promise>`,
   cap, spindle handoff, or STOP.
 - **Token economy** — honest "answer concisely" baseline; savings credited only on verified-correct

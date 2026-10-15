@@ -26,7 +26,7 @@
   <a href="README.ar-SA.md">🇸🇦 العربية</a>
 </p>
 
-**simplicio-loop maakt van GitHub-issues geteste PR's: het brengt de repo in kaart, een AI plant, een deterministische editor past toe, tests verifiëren, squads reviewen.**
+**simplicio-loop levert drie deterministische operators die elk agent-harnas als gewone tools kan aanroepen: `simplicio-mapper` brengt de repo in kaart, `simplicio-dev-cli` past een bewerkingsplan exact toe, en impactgebaseerde testselectie (`scripts/impact_tests.py`) draait alleen de tests die een wijziging bereikt. De loop die GitHub-issues in geteste PR's omzet is één gebruiker ervan.**
 
 <p align="center">
   <img src="../docs/assets/readme/overview-cartoon.webp" alt="Geanimeerde flow in 8 stappen: issues, intake, algemeen coördinator, squads, workers (mapper, plan, dev-cli), squad-review, merge train, main en het Simplicio Live-kanban" width="100%" />
@@ -36,7 +36,23 @@
   <img src="../docs/assets/readme/how-it-works.webp" alt="Geanimeerde flow in 8 stappen: issues, intake, algemeen coördinator, squads, workers (mapper, plan, dev-cli), squad-review, merge train, main en het Simplicio Live-kanban" width="100%" />
 </p>
 
-## Wat het doet
+## De operators
+
+Een agent in een loop laten draaien is niet meer het moeilijke deel: agent-SDK's en frameworks bieden dat al. Het deel dat niet probabilistisch mag zijn, is de repo lezen, de bewerking schrijven en de tests kiezen. Deze drie tools doen dat werk, geen ervan levert een model en elk drukt machineleesbare uitvoer af. Jouw agent (Claude Code, Codex, Cursor, een LangGraph-graaf, een shellscript) beslist; zij voeren uit.
+
+| Operator | Wat het doet | Aanroepbaar vanuit elk harnas |
+| --- | --- | --- |
+| `simplicio-mapper` (survey) | Loopt de repo lokaal door, zonder LLM, en levert een begrensd contextpakket voor een doel in plaats van de hele boom. [Docs](../packages/mapper/README.md) | `simplicio-mapper handoff . --goal "trace the authentication flow" --token-budget 1200 --json` |
+| `simplicio-dev-cli` (deterministische toepassing) | Past een find/replace-bewerkingsplan toe waarbij elke `find` precies één keer moet matchen, draait een beperkte verificatie en drukt één JSON-bon af. Volgens de eigen README levert het geen LLM. [Docs](../packages/dev-cli/README.md) | `simplicio-dev-cli edit --root . --plan plan.json --apply --check "<tests>" --json` |
+| Impactgebaseerde testselectie | `scripts/impact_tests.py` vergelijkt de werkboom op symboolniveau met een basisref en selecteert de testbestanden die een gewijzigde functie, klasse of toewijzing bereiken. `scripts/check.py` gebruikt het, dus een wijziging draait alleen de tests die ze kan raken. [Docs](../docs/GUIDE.md#-tests--local-checks-no-paid-ci) | `python3 scripts/impact_tests.py --base origin/main --json` |
+
+`pip install simplicio-loop` zet `simplicio-mapper` en `simplicio-dev-cli` op je PATH (één wheel, Python 3.11+). `scripts/impact_tests.py` is een script uit de standaardbibliotheek zonder installatiestap: draai het vanuit een checkout of kopieer het naar je repo.
+
+Deze README noemt geen besparingscijfer. Metingen staan in [bench/llm_ab](../bench/llm_ab/README.md), waar de ruwe resultaten per run in `bench/llm_ab/results/` staan (kleine A/B, één model); wat daar niet gemeten is, wordt niet geclaimd.
+
+## De loop is één van hun gebruikers
+
+De loop is de referentiegebruiker: hij neemt een GitHub-issue, laat mapper de repo in kaart brengen, laat een planner in een sandbox een JSON-plan schrijven, geeft dat plan aan `simplicio-dev-cli` en draait de tests (in deze repo draait `scripts/check.py` de impactgeselecteerde subset) voordat hij een PR opent. Vervang de loop door een ander harnas en de operators werken hetzelfde.
 
 ```mermaid
 flowchart LR
@@ -136,6 +152,12 @@ pie showData title Extension points in the 24/7 path (of 50)
 ```
 
 [docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
+
+## Runtimes
+
+- **6 `wired`** adapters hebben code in `adapters/` en een hosttest: Claude Code, Codex, Cursor, Grok, Kiro en VS Code.
+- **29 `listed`** hosts zijn catalogusvermeldingen met een README en zonder adaptercode; 28 daarvan hebben ook een generiek installatiedoel dat de skills en het invoerbestand van de host schrijft. Vermeld staan bewijst niet dat de host de loop draait.
+- De operators hierboven zijn gewone commando's en werken dus vanuit elk harnas, `wired` of niet. Status per host: [adapters/MATRIX.md](../adapters/MATRIX.md) en [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## Meer weten
 

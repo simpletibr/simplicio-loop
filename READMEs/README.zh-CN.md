@@ -26,7 +26,7 @@
   <a href="README.ar-SA.md">🇸🇦 العربية</a>
 </p>
 
-**simplicio-loop 把 GitHub issue 变成经过测试的 PR：它映射仓库，AI 规划，确定性编辑器应用，测试验证，小队（squad）评审。**
+**simplicio-loop 提供三个确定性操作符，任何智能体 harness 都可以把它们当作普通工具调用：`simplicio-mapper` 勘察仓库，`simplicio-dev-cli` 精确应用编辑计划，基于影响的测试选择（`scripts/impact_tests.py`）只运行变更能触及的测试。把 GitHub issue 变成通过测试的 PR 的循环，只是它们的一个使用者。**
 
 <p align="center">
   <img src="../docs/assets/readme/overview-cartoon.webp" alt="8 步动画流程：issue、接收、总协调器、小队、worker（mapper、规划、dev-cli）、小队评审、merge train、main 以及 Simplicio Live 看板" width="100%" />
@@ -36,7 +36,23 @@
   <img src="../docs/assets/readme/how-it-works.webp" alt="8 步动画流程：issue、接收、总协调器、小队、worker（mapper、规划、dev-cli）、小队评审、merge train、main 以及 Simplicio Live 看板" width="100%" />
 </p>
 
-## 它能做什么
+## 操作符
+
+让智能体循环运行已经不是难点：智能体 SDK 和框架已经提供了这一能力。不该有概率性的部分是读取仓库、写入编辑和选择测试。这三个工具负责这些工作，它们都不调用模型，并且都输出机器可读的结果。你的智能体（Claude Code、Codex、Cursor、LangGraph 图、shell 脚本）负责决策，它们负责执行。
+
+| 操作符 | 作用 | 任何 harness 都可调用 |
+| --- | --- | --- |
+| `simplicio-mapper` (survey) | 在本地、不使用 LLM 地遍历仓库，并针对目标返回有上限的上下文包，而不是整棵树。[Docs](../packages/mapper/README.md) | `simplicio-mapper handoff . --goal "trace the authentication flow" --token-budget 1200 --json` |
+| `simplicio-dev-cli`（确定性应用） | 应用 find/replace 编辑计划，其中每个 `find` 必须恰好匹配一次，运行范围受限的验证，并输出一份 JSON 回执。根据其自身 README，它不提供 LLM。[Docs](../packages/dev-cli/README.md) | `simplicio-dev-cli edit --root . --plan plan.json --apply --check "<tests>" --json` |
+| 基于影响的测试选择 | `scripts/impact_tests.py` 在符号级别将工作区与基准引用比较，选出能到达被修改函数、类或赋值的测试文件。`scripts/check.py` 使用它，因此一次变更只运行可能受影响的测试。[Docs](../docs/GUIDE.md#-tests--local-checks-no-paid-ci) | `python3 scripts/impact_tests.py --base origin/main --json` |
+
+`pip install simplicio-loop` 会把 `simplicio-mapper` 和 `simplicio-dev-cli` 放到 PATH 上（同一个 wheel，Python 3.11+）。`scripts/impact_tests.py` 是只依赖标准库的脚本，无需安装步骤：可以在 checkout 中运行，也可以复制到你的仓库里。
+
+本 README 不引用任何节省百分比。测量结果在 [bench/llm_ab](../bench/llm_ab/README.md)，每次运行的原始结果在 `bench/llm_ab/results/`（小规模 A/B，单一模型）。那里没有测量的内容不作声称。
+
+## 循环只是其中一个使用者
+
+循环是参考使用者：它接收一个 GitHub issue，让 mapper 勘察仓库，让沙箱中的规划器写出 JSON 计划，把计划交给 `simplicio-dev-cli`，运行测试（在本仓库中，`scripts/check.py` 运行基于影响选出的子集），然后才打开 PR。把循环换成其他 harness，操作符的工作方式完全相同。
 
 ```mermaid
 flowchart LR
@@ -136,6 +152,12 @@ pie showData title Extension points in the 24/7 path (of 50)
 ```
 
 [docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
+
+## 运行时
+
+- **6 个 `wired`** 适配器在 `adapters/` 中包含代码并带有 host 测试：Claude Code、Codex、Cursor、Grok、Kiro 和 VS Code。
+- **29 个 `listed`** host 是带 README 但没有适配器代码的目录条目；其中 28 个还有通用安装目标，会写入 skills 和 host 的入口文件。列入目录并不证明该 host 能运行循环。
+- 上面的操作符是普通命令，因此无论是否为 `wired`，任何 harness 都能运行它们。各 host 状态见 [adapters/MATRIX.md](../adapters/MATRIX.md) 和 [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json)。
 
 ## 了解更多
 

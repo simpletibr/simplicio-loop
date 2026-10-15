@@ -26,7 +26,7 @@
   <a href="README.ar-SA.md">🇸🇦 العربية</a>
 </p>
 
-**simplicio-loop zamienia issues z GitHuba w przetestowane PR-y: mapuje repo, AI planuje, deterministyczny edytor stosuje zmiany, testy weryfikują, squady robią review.**
+**simplicio-loop dostarcza trzy deterministyczne operatory, które każdy harness agenta może wywołać jak zwykłe narzędzia: `simplicio-mapper` mapuje repo, `simplicio-dev-cli` stosuje plan edycji dokładnie, a wybór testów wg wpływu (`scripts/impact_tests.py`) uruchamia tylko testy, do których zmiana sięga. Pętla, która zamienia issue z GitHuba w przetestowane PR-y, jest jednym z ich konsumentów.**
 
 <p align="center">
   <img src="../docs/assets/readme/overview-cartoon.webp" alt="Animowany przepływ w 8 krokach: issues, intake, główny koordynator, squady, workery (mapper, plan, dev-cli), review squadu, merge train, main i kanban Simplicio Live" width="100%" />
@@ -36,7 +36,23 @@
   <img src="../docs/assets/readme/how-it-works.webp" alt="Animowany przepływ w 8 krokach: issues, intake, główny koordynator, squady, workery (mapper, plan, dev-cli), review squadu, merge train, main i kanban Simplicio Live" width="100%" />
 </p>
 
-## Co robi
+## Operatory
+
+Uruchomienie agenta w pętli nie jest już najtrudniejszą częścią: SDK i frameworki agentów to już oferują. Nie może być probabilistyczne czytanie repo, zapis edycji i dobór testów. Te trzy narzędzia wykonują tę pracę, żadne nie uruchamia modelu, a każde drukuje wynik czytelny dla maszyn. Twój agent (Claude Code, Codex, Cursor, graf LangGraph, skrypt shellowy) decyduje; one wykonują.
+
+| Operator | Co robi | Wywoływalny z dowolnego harnessu |
+| --- | --- | --- |
+| `simplicio-mapper` (survey) | Przechodzi repo lokalnie, bez LLM, i zwraca ograniczony pakiet kontekstu dla celu zamiast całego drzewa. [Docs](../packages/mapper/README.md) | `simplicio-mapper handoff . --goal "trace the authentication flow" --token-budget 1200 --json` |
+| `simplicio-dev-cli` (deterministyczne zastosowanie) | Stosuje plan edycji find/replace, w którym każde `find` musi pasować dokładnie raz, uruchamia ograniczoną weryfikację i drukuje jeden paragon JSON. Według własnego README nie uruchamia LLM. [Docs](../packages/dev-cli/README.md) | `simplicio-dev-cli edit --root . --plan plan.json --apply --check "<tests>" --json` |
+| Wybór testów wg wpływu | `scripts/impact_tests.py` porównuje drzewo robocze z referencją bazową na poziomie symboli i wybiera pliki testów, które sięgają zmienionej funkcji, klasy lub przypisania. `scripts/check.py` z niego korzysta, więc zmiana uruchamia tylko testy, na które może wpłynąć. [Docs](../docs/GUIDE.md#-tests--local-checks-no-paid-ci) | `python3 scripts/impact_tests.py --base origin/main --json` |
+
+`pip install simplicio-loop` umieszcza `simplicio-mapper` i `simplicio-dev-cli` w PATH (jedno wheel, Python 3.11+). `scripts/impact_tests.py` to skrypt biblioteki standardowej bez kroku instalacji: uruchom go z checkoutu lub skopiuj do swojego repo.
+
+Ten README nie podaje żadnej liczby oszczędności. Pomiary są w [bench/llm_ab](../bench/llm_ab/README.md), a surowe wyniki poszczególnych uruchomień w `bench/llm_ab/results/` (mały test A/B, jeden model); tego, czego tam nie zmierzono, nie twierdzimy.
+
+## Pętla jest jednym z jej konsumentów
+
+Pętla jest konsumentem referencyjnym: bierze issue z GitHuba, każe mapperowi zmapować repo, pozwala plannerowi w sandboksie napisać plan JSON, przekazuje plan do `simplicio-dev-cli`, uruchamia testy (w tym repo `scripts/check.py` uruchamia podzbiór wybrany wg wpływu) i dopiero potem otwiera PR. Zamień pętlę na inny harness, a operatory działają tak samo.
 
 ```mermaid
 flowchart LR
@@ -136,6 +152,12 @@ pie showData title Extension points in the 24/7 path (of 50)
 ```
 
 [docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
+
+## Runtime'y
+
+- **6 `wired`** adapterów ma kod w `adapters/` i test hosta: Claude Code, Codex, Cursor, Grok, Kiro i VS Code.
+- **29 `listed`** hostów to wpisy w katalogu z README i bez kodu adaptera; 28 z nich ma też generyczny cel instalacji, który zapisuje skille i plik wejściowy hosta. Bycie na liście nie dowodzi, że host uruchamia pętlę.
+- Operatory powyżej to zwykłe polecenia, więc działają z każdego harnessu, `wired` czy nie. Status każdego hosta: [adapters/MATRIX.md](../adapters/MATRIX.md) i [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## Dowiedz się więcej
 

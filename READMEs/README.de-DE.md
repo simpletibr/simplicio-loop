@@ -26,7 +26,7 @@
   <a href="README.ar-SA.md">🇸🇦 العربية</a>
 </p>
 
-**simplicio-loop macht aus GitHub-Issues getestete PRs: Es kartiert das Repo, eine KI plant, ein deterministischer Editor wendet an, Tests prüfen, Squads reviewen.**
+**simplicio-loop liefert drei deterministische Operatoren, die jedes Agent-Harness als einfache Werkzeuge aufrufen kann: `simplicio-mapper` kartiert das Repo, `simplicio-dev-cli` wendet einen Editierplan exakt an, und die auswirkungsbasierte Testauswahl (`scripts/impact_tests.py`) führt nur die Tests aus, die eine Änderung erreicht. Die Schleife, die GitHub-Issues in geprüfte PRs verwandelt, ist ein Verbraucher davon.**
 
 <p align="center">
   <img src="../docs/assets/readme/overview-cartoon.webp" alt="Animierter Ablauf in 8 Schritten: Issues, Intake, Generalkoordinator, Squads, Worker in der Sandbox, Squad-Review, Merge-Train, main und das Kanban Simplicio Live" width="100%" />
@@ -36,7 +36,23 @@
   <img src="../docs/assets/readme/how-it-works.webp" alt="Animierter Ablauf in 8 Schritten: Issues, Intake, Generalkoordinator, Squads, Worker in der Sandbox, Squad-Review, Merge-Train, main und das Kanban Simplicio Live" width="100%" />
 </p>
 
-## Was es tut
+## Die Operatoren
+
+Einen Agenten in einer Schleife laufen zu lassen ist nicht mehr das Schwierige: Agent-SDKs und Frameworks liefern das bereits mit. Nicht probabilistisch sein muss das Lesen des Repos, das Schreiben der Änderung und die Auswahl der Tests. Diese drei Werkzeuge erledigen diese Arbeit, keines davon stellt ein Modell bereit, und jedes gibt maschinenlesbare Ausgabe aus. Dein Agent (Claude Code, Codex, Cursor, ein LangGraph-Graph, ein Shell-Skript) entscheidet; sie führen aus.
+
+| Operator | Was er tut | Von jedem Harness aufrufbar |
+| --- | --- | --- |
+| `simplicio-mapper` (survey) | Durchläuft das Repo lokal und ohne LLM und liefert ein begrenztes Kontextpaket für ein Ziel statt des ganzen Baums. [Docs](../packages/mapper/README.md) | `simplicio-mapper handoff . --goal "trace the authentication flow" --token-budget 1200 --json` |
+| `simplicio-dev-cli` (deterministische Anwendung) | Wendet einen Find/Replace-Plan an, bei dem jedes `find` genau einmal passen muss, führt eine eingegrenzte Prüfung aus und gibt einen JSON-Beleg aus. Laut seinem eigenen README stellt es kein LLM bereit. [Docs](../packages/dev-cli/README.md) | `simplicio-dev-cli edit --root . --plan plan.json --apply --check "<tests>" --json` |
+| Auswirkungsbasierte Testauswahl | `scripts/impact_tests.py` vergleicht den Arbeitsbaum auf Symbolebene mit einer Basis-Referenz und wählt die Testdateien aus, die eine geänderte Funktion, Klasse oder Zuweisung erreichen. `scripts/check.py` nutzt es, sodass eine Änderung nur die Tests ausführt, die sie beeinflussen kann. [Docs](../docs/GUIDE.md#-tests--local-checks-no-paid-ci) | `python3 scripts/impact_tests.py --base origin/main --json` |
+
+`pip install simplicio-loop` legt `simplicio-mapper` und `simplicio-dev-cli` in deinen PATH (ein Wheel, Python 3.11+). `scripts/impact_tests.py` ist ein Skript der Standardbibliothek ohne Installationsschritt: starte es aus einem Checkout oder kopiere es in dein Repo.
+
+Dieses README nennt keine Einsparungszahl. Messungen liegen in [bench/llm_ab](../bench/llm_ab/README.md), wo die Rohergebnisse je Lauf in `bench/llm_ab/results/` stehen (kleiner A/B-Test, ein Modell); was dort nicht gemessen ist, wird nicht behauptet.
+
+## Die Schleife ist einer ihrer Verbraucher
+
+Die Schleife ist der Referenzverbraucher: Sie nimmt ein GitHub-Issue, lässt den Mapper das Repo kartieren, lässt einen Planer in einer Sandbox einen JSON-Plan schreiben, übergibt diesen Plan an `simplicio-dev-cli`, führt die Tests aus (in diesem Repo führt `scripts/check.py` die auswirkungsbasiert gewählte Teilmenge aus) und öffnet dann einen PR. Ersetzt du die Schleife durch ein anderes Harness, funktionieren die Operatoren gleich.
 
 ```mermaid
 flowchart LR
@@ -136,6 +152,12 @@ pie showData title Extension points in the 24/7 path (of 50)
 ```
 
 [docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
+
+## Runtimes
+
+- **6 `wired`** Adapter enthalten Code in `adapters/` und einen Host-Test: Claude Code, Codex, Cursor, Grok, Kiro und VS Code.
+- **29 `listed`** Hosts sind Katalogeinträge mit README und ohne Adapter-Code; 28 davon haben außerdem ein generisches Installationsziel, das die Skills und die Eintragsdatei des Hosts schreibt. Gelistet zu sein beweist nicht, dass der Host die Schleife ausführt.
+- Die Operatoren oben sind einfache Befehle und funktionieren daher aus jedem Harness, `wired` oder nicht. Status je Host: [adapters/MATRIX.md](../adapters/MATRIX.md) und [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## Mehr erfahren
 

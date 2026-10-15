@@ -20,14 +20,15 @@ bash scripts/install.sh <runtime> [--global] [--target DIR]
 pwsh scripts/install.ps1 <runtime> [-Global] [-Target DIR]
 ```
 
-`<runtime>` is the `install.runtime` of a `wired` host in
-[`simplicio_loop/_catalog/harnesses.json`](simplicio_loop/_catalog/harnesses.json): `claude codex cursor
-vscode grok antigravity kiro opencode gemini aider simplicio_agent openclaw orca github-copilot mimo-code
-amp openclaude pi oh-my-pi devin goose auggie autohand charm cline codebuff command-code continue droid
-kilocode kimi mistral-vibe qwen rovo-dev` (`hermes` still accepted as a legacy alias for
-`simplicio_agent`; DeepSeek is a model provider, see `adapters/deepseek/README.md`). Omit it to
-auto-detect from the current directory. `--target DIR` installs into
-another project; `--global` installs to the runtime's user-wide location.
+`<runtime>` is the `install.runtime` of an entry in
+[`simplicio_loop/_catalog/harnesses.json`](simplicio_loop/_catalog/harnesses.json). There are
+6 wired adapters, which ship code and a host test: `claude codex grok cursor kiro vscode`. The other 29 listed hosts
+are catalog entries with a README and no adapter code. 28 of them have a generic installer target that
+writes the skills and the host's entry file (nothing launches the host, and a listing is not proof that it
+runs the loop): `github-copilot opencode mimo-code amp openclaude antigravity pi oh-my-pi simplicio_agent devin goose auggie autohand charm cline codebuff command-code continue droid kilocode kimi mistral-vibe qwen rovo-dev gemini orca aider openclaw`. The 29th, DeepSeek, is a model provider with no installer target; see
+`adapters/deepseek/README.md`. (`hermes` is still accepted as a legacy alias for `simplicio_agent`.) Omit
+the runtime to auto-detect it from the current directory. `--target DIR` installs into another project;
+`--global` installs to the runtime's user-wide location.
 
 The only requirement is **python3** on PATH (the skills, hooks, and installer are all
 cross-platform Python). For GitHub sources you also want `git` + an authenticated `gh`.
@@ -41,7 +42,7 @@ What the installer does (all reversible — copies + a config edit):
 - prints `simplicio-cli mcp register --client <runtime>` for optional native binding.
 
 Global scope: `install --global` also refreshes the `simplicio-*` skills of every host that already has the loop skill
-(11 hosts, for example `~/.codex/skills/simplicio-*` and `~/.grok/skills/simplicio-*`) and the Loop-owned global rule files
+(the skill directories in `HOST_SKILL_ROOTS` in `simplicio_loop/skill_sync.py`, for example `~/.codex/skills/simplicio-*` and `~/.grok/skills/simplicio-*`) and the Loop-owned global rule files
 a host already has. It creates none of them on a clean HOME. Those files are outside the ownership receipt, so they stay after
 `install --uninstall`. Remove them by hand if you want them gone.
 

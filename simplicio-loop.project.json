@@ -8,7 +8,7 @@
     "skill_brand_name": "simplicio-tasks",
     "display_name": "simplicio-loop — Universal Looping AI Orchestrator",
     "tagline": "The Universal Looping AI Orchestrator",
-    "one_liner": "Super-plugin runtime-agnóstico (6 skills) que drena qualquer fila de trabalho de ponta a ponta em QUALQUER LLM/runtime — discover → implement → verify → merge → close → watch 24/7 — atrás de safety gates e evidence checks, com até 96% menos tokens. Não é um chatbot. É um trabalhador (a worker).",
+    "one_liner": "Super-plugin runtime-agnóstico (6 skills) que drena qualquer fila de trabalho de ponta a ponta em QUALQUER LLM/runtime — discover → implement → verify → merge → close → watch 24/7 — atrás de safety gates e evidence checks, sem prometer percentual de economia (só valores medidos, ver bench/llm_ab). Não é um chatbot. É um trabalhador (a worker).",
     "version": "3.9.3",
     "version_sources_in_lockstep": ["pyproject.toml", ".claude-plugin/plugin.json", "simplicio_loop/__init__ (fallback literals)"],
     "version_note": "O bloco 'Official capability record (v3.4.0)' no README está desatualizado; a versão canônica do pacote é 3.9.3.",
@@ -62,7 +62,7 @@
     "lifecycle_motto": "discover → understand → decide → act → verify → correct → record → repeat",
     "three_differentiators": [
       "É um SUPER-PLUGIN de skills focadas (orquestrador + 5 satélites)",
-      "Roda o MESMO protocolo em 11 runtimes",
+      "Roda o MESMO protocolo onde a skill carrega: 6 adaptadores wired e 29 hosts listed (catálogo, sem código de adapter)",
       "Faz tudo com economia de tokens agressiva e honesta (evidence-gated)"
     ],
     "example_run_trace": [
@@ -174,8 +174,8 @@
       "role": "Compressão de output + memória, byte-preserving. transform_guard fail-closed.",
       "absorbs": "caveman",
       "path": ".claude/skills/simplicio-compress/SKILL.md",
-      "token_impact": "40-60% menos",
-      "two_surfaces": ["Output-side: comprime a PROSA do modelo", "Input-side: comprime contexto permanente UMA vez (memory/docs, ~46% input reduction em memory files)"],
+      "token_impact": "não medido neste repo",
+      "two_surfaces": ["Output-side: comprime a PROSA do modelo", "Input-side: comprime contexto permanente UMA vez (memory/docs, redução medida só quando houver receipt)"],
       "prose_levels": { "lite": "PR bodies/confirmações — tira filler", "full": "default — prosa técnica terse", "ultra": "worker→orquestrador — fragmentos telegráficos" },
       "inviolable_rule": "Código, comandos, error strings, URLs, paths, identifiers, tokens de versão/numéricos ficam EXATOS — nunca parafraseados.",
       "transform_guard": "Zero-LLM, fail-closed: extrai conjunto de code fences/inline-code (por OCORRÊNCIA)/URLs/paths/versões antes e depois. Token perdido → HARD failure (descarta, mantém original byte-idêntico)."
@@ -201,7 +201,7 @@
   "accelerators_and_integrations": [
     { "id": 7, "name": "Understand Anything", "icon": "🧭", "absorbs": "Egonex-AI/Understand-Anything", "what": "Orient por knowledge graph: semantic search, guided tours, dependency graph", "token_impact": "L0 zero tokens", "trigger": ".understand-anything/knowledge-graph.json existe → orientação primária no lugar de signatures-only reads" },
     { "id": 8, "name": "agentsview", "icon": "📊", "absorbs": "kenn-io/agentsview", "what": "Session analytics, cost tracking, descoberta de sessões paradas (stalled-session recovery)", "token_impact": "L1 SQL only", "worker": "scripts/agentsview_adapter.py", "verbs": ["list_ready", "get_details", "claim", "update_status", "attach_evidence", "close", "cost_summary", "agent_breakdown"] },
-    { "id": 9, "name": "LMCache", "icon": "⚡", "absorbs": "LMCache/LMCache", "what": "KV cache entre turnos do loop — 40-70% redução de TTFT em modelos locais (2-10× dependendo do hit ratio)", "token_impact": "GPU time ↓", "install": "pip install lmcache", "relevance": "L2 (fast local) e L3 (strong local); cloud já faz KV cache server-side", "config_env": ["LMCACHE_ENABLED=true", "LMCACHE_CACHE_DIR=~/.cache/lmcache", "LMCACHE_MAX_CACHE_SIZE_GB=10"] },
+    { "id": 9, "name": "LMCache", "icon": "⚡", "absorbs": "LMCache/LMCache", "what": "KV cache entre turnos do loop em modelos locais (ganho de TTFT depende do hit ratio; não medido neste repo)", "token_impact": "GPU time ↓", "install": "pip install lmcache", "relevance": "L2 (fast local) e L3 (strong local); cloud já faz KV cache server-side", "config_env": ["LMCACHE_ENABLED=true", "LMCACHE_CACHE_DIR=~/.cache/lmcache", "LMCACHE_MAX_CACHE_SIZE_GB=10"] },
     { "id": 10, "name": "Simplicio capture engine", "icon": "🗜️", "absorbs": "engine/simplicio_engine.py (nativo, stdlib-only; savings-schema compatível com headroom OSS)", "what": "Proxy de captura transparente: encaminha ao provider real, mede + comprime deterministicamente, escreve proxy_savings.json", "token_impact": "deterministic", "port": 8788 },
     { "id": 11, "name": "video_evidence (hyperframes)", "icon": "🎬", "absorbs": "heygen-com/hyperframes", "what": "Renderiza MP4 demonstrativo DETERMINÍSTICO de uma tela/feature — cumpre '/simplicio-tasks faça um vídeo demonstrativo da tela X' E serve como prova CI-reproduzível de que a mudança de UI funciona", "token_impact": "Evidence producer", "worker": "scripts/video_evidence.py", "contract": "references/video-evidence.md", "requires": "Node 22+ + FFmpeg + hyperframes (sem API keys); toolchain ausente = BLOCKED, nunca fake-pass" }
   ],
@@ -300,20 +300,20 @@
       { "technique": "Terminal-first execution", "savings": "Fatos do shell, não da alucinação do LLM" },
       { "technique": "Output-reduction catalog", "savings": "Caps por tipo de comando (CAP_ERRORS=20, CAP_WARNINGS=10, CAP_LIST=20, CAP_INVENTORY=50) — orient_clamp.py" },
       { "technique": "Tee+CCR cache on failure", "savings": "Nunca re-roda comando falho — lê a saída cacheada" },
-      { "technique": "Signatures-only reads", "savings": "simplicio signatures <file> — 870-line → 65 lines (93%), bodies stripped" },
+      { "technique": "Signatures-only reads", "savings": "simplicio signatures <file> — só as assinaturas, bodies stripped" },
       { "technique": "simplicio-compress", "savings": "Prosa terse + compactação one-time de memória" },
       { "technique": "orient_clamp.py", "savings": "Clamp + tee em todo comando shell, zero wiring" },
       { "technique": "Native response cache", "savings": "Request determinístico (temp=0) repetido → servido do cache, pula a chamada LLM (100% no hit) — simplicio cache; SIMPLICIO_CACHE=0 desabilita" },
-      { "technique": "Simplicio capture proxy + MCP", "savings": "60-95% menos tokens em saídas de tool via daemon de compressão transparente" }
+      { "technique": "Simplicio capture proxy + MCP", "savings": "menos tokens em saídas de tool via daemon de compressão transparente (não medido neste repo)" }
     ],
     "output_reduction_catalog": [
-      { "pattern": "test/spec runner", "recipe": "success→pass:N; on fail keep ≤20 error lines", "exp_savings": "~90%", "skip_if": "piped to structured consumer" },
-      { "pattern": "type/compile check", "recipe": "error lines only; clean→ok", "exp_savings": "~80%", "skip_if": "—" },
-      { "pattern": "diff / show", "recipe": "stat + hunks only, drop context", "exp_savings": "~80%", "skip_if": "piped to structured consumer" },
-      { "pattern": "lint", "recipe": "findings only; clean→ok", "exp_savings": "~80%", "skip_if": "—" },
-      { "pattern": "add / commit / push", "recipe": "collapse to ok <branch/sha>", "exp_savings": "~59%", "skip_if": "—" },
-      { "pattern": "PR / list view", "recipe": "counts + titles only", "exp_savings": "~87%", "skip_if": "--json/--jq present" },
-      { "pattern": "package/image inventory", "recipe": "keep ≤50 rows", "exp_savings": "~50%", "skip_if": "—" },
+      { "pattern": "test/spec runner", "recipe": "success→pass:N; on fail keep ≤20 error lines", "exp_savings": "não medido", "skip_if": "piped to structured consumer" },
+      { "pattern": "type/compile check", "recipe": "error lines only; clean→ok", "exp_savings": "não medido", "skip_if": "—" },
+      { "pattern": "diff / show", "recipe": "stat + hunks only, drop context", "exp_savings": "não medido", "skip_if": "piped to structured consumer" },
+      { "pattern": "lint", "recipe": "findings only; clean→ok", "exp_savings": "não medido", "skip_if": "—" },
+      { "pattern": "add / commit / push", "recipe": "collapse to ok <branch/sha>", "exp_savings": "não medido", "skip_if": "—" },
+      { "pattern": "PR / list view", "recipe": "counts + titles only", "exp_savings": "não medido", "skip_if": "--json/--jq present" },
+      { "pattern": "package/image inventory", "recipe": "keep ≤50 rows", "exp_savings": "não medido", "skip_if": "—" },
       { "pattern": "format / passthrough", "recipe": "run raw", "exp_savings": "0%", "skip_if": "always" }
     ],
     "clamp_primitives": ["success-collapse (exit 0 + clean pattern + no error/warning → 1 linha)", "dedup-with-counts (line ×N)"],
@@ -344,14 +344,14 @@
         "deterministic_edit aplicou mudança → 0 edit tokens",
         "capture proxy / savings_ledger / savings_harness score → gasto medido vs baseline real"
       ],
-      "format_example": "savings: signatures 870→65 lines (93%) · clamp 12KB→0.4KB (tee=.simplicio-loop/orchestrator/tee/…) · cache hit ×1",
+      "format_example": "savings: signatures <before>→<after> lines · clamp <before>→<after> (tee=.simplicio-loop/orchestrator/tee/…) · cache hit ×1",
       "baseline_definition": "control arm = caminho NÃO-orquestrado mais barato e sensato para o MESMO resultado (passe genérico 'answer concisely' só nos arquivos genuinamente necessários), NÃO um strawman verboso; medido via savings_harness snapshot→score com tokenizer fixo"
     }
   },
 
   "token_monitor": {
     "capture_proxy": { "always_on": true, "port": 8788, "role": "Captura + mede Claude + Codex + Simplicio Agent em background; o único serviço auto-started", "savings_file": "~/.simplicio-loop/proxy_savings.json (schema v3)" },
-    "web_dashboard": { "url": "http://127.0.0.1:9090", "shows": ["chart de tokens em tempo real", "savings gauge", "LLMs/runtimes e 141/144 providers (98%) interceptados", "live proxy log"], "opens_once": "na primeira instalação (marker-guarded; re-install/update não reabre; opt-out SIMPLICIO_NO_DASHBOARD=1)", "reopen": ["simplicio-loop dashboard", "simplicio-loop dashboard --stop", "simplicio-loop dashboard --no-browser", "bash scripts/simplicio-economy.sh monitor", "perguntar ao agente: 'open the token dashboard'"] },
+    "web_dashboard": { "url": "http://127.0.0.1:9090", "shows": ["chart de tokens em tempo real", "savings gauge", "LLMs/runtimes e providers interceptados", "live proxy log"], "opens_once": "na primeira instalação (marker-guarded; re-install/update não reabre; opt-out SIMPLICIO_NO_DASHBOARD=1)", "reopen": ["simplicio-loop dashboard", "simplicio-loop dashboard --stop", "simplicio-loop dashboard --no-browser", "bash scripts/simplicio-economy.sh monitor", "perguntar ao agente: 'open the token dashboard'"] },
     "tray_widget": { "what": "Tokens salvos ao vivo na system tray (macOS rumps · Windows/Linux pystray)", "on_demand": ["bash scripts/simplicio-economy.sh tray", "… tray stop"], "never_opens_by_itself": true },
     "service_backends": { "macOS": "launchd", "Linux": "systemd --user", "Windows": "Startup folder" },
     "economy_per_runtime": {
@@ -380,7 +380,7 @@
       { "cmd": "proxy", "what": "Proxy de captura transparente — roteia cada modelo ao provider REAL, comprime+mede+cacheia (sem swap de modelo)" },
       { "cmd": "doctor", "what": "Reachability do proxy + lifetime savings" },
       { "cmd": "cache", "what": "Response cache nativo (stats/clear) — request determinístico repetido servido do cache" },
-      { "cmd": "signatures", "what": "Visão signatures-only de um arquivo (bodies stripped, ~93% menos tokens)" },
+      { "cmd": "signatures", "what": "Visão signatures-only de um arquivo (bodies stripped)" },
       { "cmd": "semantic", "what": "Compressão extractiva reversível (semantic-lite)" },
       { "cmd": "kompress", "what": "ONNX semantic token-pruning via kompress-v2-base real" },
       { "cmd": "detect", "what": "Detecção de content-type + roteamento smart por bloco" },
@@ -475,7 +475,7 @@
   "scripts": [
     { "file": "scripts/install.sh", "role": "Launcher bash p/ install_lib.py; detecta python3 e delega ao installer cross-platform." },
     { "file": "scripts/install.ps1", "role": "Wrapper PowerShell (Windows) p/ install_lib.py; mapeia -Global/-Target." },
-    { "file": "scripts/install_lib.py", "role": "Installer universal (uma lógica, 11 runtimes). Copia 6 skills + hooks, wira o loop onde suportado, garante entry file, imprime linhas MCP-bind. Cria-ou-merge, idempotente." },
+    { "file": "scripts/install_lib.py", "role": "Installer universal (uma lógica; escreve os 6 adaptadores wired e dá o alvo genérico a 28 dos 29 hosts listed). Copia 6 skills + hooks, wira o loop onde suportado, garante entry file, imprime linhas MCP-bind. Cria-ou-merge, idempotente." },
     { "file": "scripts/install_services.py", "role": "Installer cross-platform dos serviços de token-economy (capture proxy, monitor, tray). Backends: launchd/systemd/Startup. Verbs: install, uninstall, status." },
     { "file": "scripts/doctor.py", "role": "Verifica/repara o stack inteiro. Separa REQUIRED (python3, 2 operadores, 6 skills, loop hooks, capture proxy) de OPTIONAL (ONNX models, Rust core, tray dep). --repair, --json. Exit 0 se todos REQUIRED healthy." },
     { "file": "scripts/update.sh", "role": "git pull → reinstala skills/hooks/operadores → reinicia serviços. Stash/restore de edits locais." },
@@ -485,7 +485,7 @@
     { "file": "scripts/simplicio-engine", "role": "Entrypoint bash da engine (proxy + doctor + memory). Prefere o módulo Python nativo; fallback ao binário upstream." },
     { "file": "scripts/check.py", "role": "Local CI runner (zero-custo, stdlib). Roda claims_audit.py + test suite (pytest ou self-run stdlib). Exit 0 só se tudo passa; git pre-push hook." },
     { "file": "scripts/claims_audit.py", "role": "Audita claims mecânicas dos docs (fail-closed, determinístico, sem rede). 4 checks: (1) referenced-scripts-exist; (2) extension-point-count consistente; (3) cited-commands-run (selftest/py_compile); (4) bundle-parity (.claude/skills ≡ simplicio_loop/_bundle byte-idêntico)." },
-    { "file": "scripts/verify_adapters.py", "role": "Verifica o installer nos 11 runtimes (alvo descartável): 6 skills copiadas, entry file com marker, hooks presentes, Claude settings wired. Exit 0/1." },
+    { "file": "scripts/verify_adapters.py", "role": "Verifica o installer por runtime (alvo descartável): 6 skills copiadas, entry file com marker, hooks presentes, Claude settings wired. Exit 0/1." },
     { "file": "scripts/loop_journal.py", "role": "Run-journal + stall/progress detector (memória do loop). Determinístico, model-free. Verbs: record, fingerprint, stall, resume, status, since, selftest (9/9)." },
     { "file": "scripts/savings_harness.py", "role": "Harness de medição de savings (snapshot + scorer offline). Generator caro snapshota baseline/treatment; scorer barato re-lê com tokenizer fixo (sem chamada de modelo). Verbs: snapshot, score, selftest." },
     { "file": "scripts/billing_aggregator.py", "role": "Engine de billing determinístico, model-free, privacy-preserving sobre o metering existente. Verbs: collect, meter, invoice, export, rates, selftest (11/11)." },
@@ -681,7 +681,7 @@
   "pricing": {
     "status": "proposal (draft) — nada é cobrado hoje; o core fica MIT e livre",
     "model": "Open-core + usage-based hosted tier",
-    "free_forever": ["orchestrator loop + 6 skills + hooks", "token economy local (orient_clamp.py, capture engine, savings_ledger on disk, dashboard 127.0.0.1:9090)", "video_evidence local render (hyperframes local)", "self-hosting nos 11 runtimes"],
+    "free_forever": ["orchestrator loop + 6 skills + hooks", "token economy local (orient_clamp.py, capture engine, savings_ledger on disk, dashboard 127.0.0.1:9090)", "video_evidence local render (hyperframes local)", "self-hosting nos 6 adaptadores wired"],
     "tiers": [
       { "tier": "Community", "price": "Free, MIT", "who": "indivíduos, OSS", "gets": "Engine completo self-hosted, todas skills/hooks, dashboard local, video_evidence local" },
       { "tier": "Pro (hosted)", "price": "~$29/dev/mo", "who": "small teams", "gets": "Watcher 24/7 gerenciado, dashboard hospedado com histórico+reports, operadores como serviço, priority model-routing" },
@@ -742,8 +742,8 @@
     "key_visuals_for_infographic": [
       "Hub central 'simplicio-tasks' com 5 satélites orbitando (orient, loop, review, compress, learn)",
       "Pipeline horizontal de 11 camadas (demand sources → 24/7 watcher) com a seta de re-feed voltando ao início",
-      "Tabela 11 runtimes × 3 capacidades (skill load / loop drive / native bind) com semáforos ✅⚠️❌",
-      "Gauge de economia 'até 96% menos tokens' + catálogo de clamp",
+      "Tabela dos runtimes (6 wired, 29 listed) × 3 capacidades (skill load / loop drive / native bind) com semáforos ✅⚠️❌",
+      "Gauge de economia (só valores medidos, sem percentual de manchete) + catálogo de clamp",
       "Diagrama do evidence-gated loop: <promise> só sai com prova (teste/PR/re-query) + cap + STOP",
       "Stack de operadores: AI DECIDE → simplicio-mapper (survey) → simplicio-dev-cli (operate 6-layer) → evidence",
       "Selo de segurança fail-closed (action_gate bloqueia force-push/secret) vs fail-open (resto)"
@@ -755,10 +755,10 @@
       { "scene": 4, "title": "Discover + DAG", "beats": ["50 issues descobertas", "dedup", "dependency DAG montado", "autoscale fleet = 14"], "duration_s": 12 },
       { "scene": 5, "title": "O ciclo por item", "beats": ["read body+ACs → orient code → plan → deterministic_edit → run → verify → PR", "destaque: 'WORKS, not just compiles'"], "duration_s": 15 },
       { "scene": 6, "title": "Quality + Safety gates", "beats": ["AC gate", "adversarial review (thermos, 3 rubricas)", "action_gate fail-closed bloqueia force-push/segredo"], "duration_s": 12 },
-      { "scene": 7, "title": "Token economy", "beats": ["signatures 870→65 linhas (93%)", "clamp + tee cache", "dashboard 127.0.0.1:9090 ao vivo", "até 96% menos tokens"], "duration_s": 12 },
+      { "scene": 7, "title": "Token economy", "beats": ["signatures-read: só as assinaturas, não o arquivo inteiro", "clamp + tee cache", "dashboard 127.0.0.1:9090 ao vivo", "só economia medida, sem percentual de manchete"], "duration_s": 12 },
       { "scene": 8, "title": "Evidence-gated loop", "beats": ["<promise> SÓ com prova", "stall detector troca estratégia", "nunca um falso 'done'"], "duration_s": 10 },
       { "scene": 9, "title": "Video evidence", "beats": ["'faça um vídeo demonstrativo da tela X'", "web_verify captura screenshots → hyperframes → MP4 determinístico anexado ao PR"], "duration_s": 10 },
-      { "scene": 10, "title": "11 runtimes, um protocolo", "beats": ["Logos: Claude, Codex, Copilot, Cursor, Gemini, Antigravity, Kiro, OpenCode, Aider, Simplicio Agent, OpenClaw", "mesma cor, só a velocidade difere"], "duration_s": 10 },
+      { "scene": 10, "title": "Runtimes: 6 wired, 29 listed", "beats": ["Logos dos 6 adaptadores wired: Claude Code, Codex, Cursor, Grok, Kiro, VS Code", "mesma cor, só a velocidade difere"], "duration_s": 10 },
       { "scene": 11, "title": "24/7", "beats": ["merge · close · idle · acorda com novo trabalho", "loop infinito girando"], "duration_s": 8 },
       { "scene": 12, "title": "CTA", "beats": ["pip install simplicio-loop", "bash scripts/install.sh claude", "Discord badge", "GitHub stars"], "duration_s": 8 }
     ],
@@ -766,7 +766,7 @@
       "discover → understand → decide → act → verify → correct → record → repeat",
       "A IA decide; os operadores agem.",
       "Nunca um falso 'done' — saída só com evidência concreta.",
-      "Mesmo protocolo, mesmos gates, mesma segurança nos 11 runtimes — só a velocidade difere.",
+      "Mesmo protocolo, mesmos gates, mesma segurança onde a skill carrega — só a velocidade difere.",
       "O token mais barato é o que não se gasta.",
       "Enforced, not just described — action_gate é fail-closed."
     ]

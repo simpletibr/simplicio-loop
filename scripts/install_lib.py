@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """simplicio-loop — checkout installer.
 
-The hosts are listed in `simplicio_loop/_catalog/harnesses.json`; this script wires every `wired`
-host (`RUNTIMES` below). The packaged command (`python -m simplicio_loop.install` /
-`simplicio-loop install --host ...`, simplicio_loop/install/planner.py) covers the original
-subset of them and never advertises a host this script does not wire.
+The hosts are listed in `simplicio_loop/_catalog/harnesses.json`. Of them, 6 wired adapters ship
+code and a host test, and the other 29 listed hosts are catalog entries with no adapter code; 28 of
+those have a generic installer target here, which writes the skills and the host's entry file
+(a listing is not proof that the host runs the loop; DeepSeek, the 29th, is a model provider with
+no target). `RUNTIMES` below holds the wired and the listed targets. The packaged command
+(`python -m simplicio_loop.install` / `simplicio-loop install --host ...`,
+simplicio_loop/install/planner.py) covers the original subset of them and never advertises a host
+this script does not install.
 
 Copies the 7 skills + hooks into a target, wires the loop where the runtime supports it,
 ensures the runtime's entry/instructions file references the skill, and prints the MCP-bind
@@ -17,7 +21,7 @@ Also installs+verifies the REQUIRED loop operator distributions (`simplicio-cli`
 Usage:
     python3 scripts/install_lib.py <runtime> [--global] [--target DIR] [--skip-operators] [--lite]
                                     [--with-runtime-mcp]
-    <runtime> = the `install.runtime` of a `wired` host in the catalog (the keys of RUNTIMES below;
+    <runtime> = the `install.runtime` of a wired or listed host in the catalog (the keys of RUNTIMES below;
                hermes is accepted as a legacy alias for simplicio_agent)
     omit <runtime> to auto-detect.
 
