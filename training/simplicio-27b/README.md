@@ -73,6 +73,7 @@ Unlike standard conversational models that employ unbounded, verbose Chain-of-Th
   - **Gradient Checkpointing**: Unsloth Native
 - **Context Length**: 4,096 tokens (native training window; extensible up to 262,144 tokens)
 - **Training Trajectories**: Synthetic multi-language trajectories adhering to the 50 Points of Simplicio-Loop
+- **Train/val split**: `python3 generate_dataset.py` de-duplicates candidates by normalised instruction text (lowercase, collapsed whitespace, stripped) and partitions the unique instructions into disjoint `data/*_train.jsonl` and `data/*_val.jsonl` with a seeded, hash-ordered split. [`data/SPLIT.json`](./data/SPLIT.json) records the seed, the counts and the sha256 of each file; `tests/test_training_split_disjoint.py` checks zero train/val overlap, zero overlap with the benchmark cases, matching digests, and that regenerating with the recorded seed reproduces the files byte for byte. The generator has only 5 hand-written scenarios and 8 templated domains, so the set is small (13 unique instructions); the earlier files repeated them 95 times and held every val instruction in train as well.
 
 ---
 

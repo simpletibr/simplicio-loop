@@ -4,12 +4,28 @@
 Simplicio-Loop (50 Pontos) Synthetic Dataset Generator for Simplicio 27B
 Generates high-fidelity software engineering trajectories embodying all 50 points
 of the Simplicio-Loop across diverse stacks: Python, TypeScript, Rust, Go, SQL, etc.
+
+Train/val split (#1824): every candidate is de-duplicated by normalised instruction text, then the
+unique instructions are partitioned into disjoint train and val files by a seeded, hash-ordered
+split. The run is a pure function of the seed (no global RNG), and `data/SPLIT.json` records the
+seed and the sha256 of each file, so `python3 generate_dataset.py --seed <seed>` reproduces the
+data byte for byte.
 """
 
+import argparse
+import hashlib
 import json
+import math
 import os
-import random
-from typing import List, Dict
+from typing import Dict, List, Optional, Sequence, Tuple
+
+SPLIT_SEED = 1824
+VAL_FRACTION = 0.2
+CANDIDATE_COUNT = 95
+NORMALIZATION = "lowercase, collapse whitespace, strip"
+TRAIN_FILE = "simplicio_loop_50pts_train.jsonl"
+VAL_FILE = "simplicio_loop_50pts_val.jsonl"
+MANIFEST_FILE = "SPLIT.json"
 
 SYSTEM_PROMPT = (
     "Voce e o Simplicio 27B, treinado para executar tarefas de desenvolvimento "
@@ -515,7 +531,34 @@ GROUP BY user_id
     }
 ]
 
-def generate_variations(base_scenarios: List[Dict], count: int = 60) -> List[Dict]:
+def _stable_int(seed: int, *parts: object) -> int:
+    """Platform- and Python-version-independent integer derived from the seed (sha256)."""
+    raw = ":".join(str(p) for p in (seed,) + parts).encode("utf-8")
+    return int.from_bytes(hashlib.sha256(raw).digest()[:8], "big")
+
+
+def normalize_instruction(text: str) -> str:
+    """Dedup key: lowercase, collapse runs of whitespace, strip."""
+    return " ".join(text.lower().split())
+
+
+VARIATION_DOMAINS = [
+    ("Python", "Microservico de Autenticacao JWT", "Validar expiracao com tolerancia de relogio (leeway 10s)", "PyJWT.decode"),
+    ("TypeScript", "Frontend de Pagamentos", "Evitar duplo clique em botao de checkout com estado de submissao", "useMutation hook"),
+    ("Rust", "Fila de Mensagens em Memoria", "Substituir Mutex global por canal Tokio MPSC assincrono", "tokio::sync::mpsc"),
+    ("Go", "Coletor de Metricas Prometheus", "Prevenir vazamento de rotina HTTP no healthcheck com contexto com timeout", "context.WithTimeout"),
+    ("Python", "Worker Assincrono Celery", "Configurar idempotencia de tarefa com chave Redis e setnx", "redis.set(nx=True)"),
+    ("TypeScript", "Design System Modal", "Travar o foco no modal (focus trap) e restaurar foco ao fechar", "tabIndex e keydown Escape"),
+    ("SQL", "Relatorio Financeiro de Fechamento", "Adicionar janela analitica SUM() OVER (PARTITION BY account_id ORDER BY trans_date)", "Window function"),
+    ("Go", "CLI de Deploy de Clusters", "Implementar sinalizacao os.Interrupt para rollback limpo", "signal.Notify(SIGINT, SIGTERM)")
+]
+
+
+def generate_variations(base_scenarios: List[Dict], count: int = 60, seed: int = SPLIT_SEED) -> List[Dict]:
+    """`count` candidates: the base scenarios, then seeded draws from VARIATION_DOMAINS.
+
+    Draws repeat (there are only a handful of domains), so callers must dedup the result.
+    """
     dataset = []
     for sc in base_scenarios:
         dataset.append({
@@ -523,20 +566,10 @@ def generate_variations(base_scenarios: List[Dict], count: int = 60) -> List[Dic
             "context": sc["context"],
             "simplicio_trajectory": sc["trajectory"]
         })
-        
-    domains = [
-        ("Python", "Microservico de Autenticacao JWT", "Validar expiracao com tolerancia de relogio (leeway 10s)", "PyJWT.decode"),
-        ("TypeScript", "Frontend de Pagamentos", "Evitar duplo clique em botao de checkout com estado de submissao", "useMutation hook"),
-        ("Rust", "Fila de Mensagens em Memoria", "Substituir Mutex global por canal Tokio MPSC assincrono", "tokio::sync::mpsc"),
-        ("Go", "Coletor de Metricas Prometheus", "Prevenir vazamento de rotina HTTP no healthcheck com contexto com timeout", "context.WithTimeout"),
-        ("Python", "Worker Assincrono Celery", "Configurar idempotencia de tarefa com chave Redis e setnx", "redis.set(nx=True)"),
-        ("TypeScript", "Design System Modal", "Travar o foco no modal (focus trap) e restaurar foco ao fechar", "tabIndex e keydown Escape"),
-        ("SQL", "Relatorio Financeiro de Fechamento", "Adicionar janela analitica SUM() OVER (PARTITION BY account_id ORDER BY trans_date)", "Window function"),
-        ("Go", "CLI de Deploy de Clusters", "Implementar sinalizacao os.Interrupt para rollback limpo", "signal.Notify(SIGINT, SIGTERM)")
-    ]
 
+    domains = VARIATION_DOMAINS
     for i in range(count - len(base_scenarios)):
-        lang, title, task_desc, target_sym = random.choice(domains)
+        lang, title, task_desc, target_sym = domains[_stable_int(seed, "draw", i) % len(domains)]
         
         item = {
             "instruction": f"Implemente a correcao para {task_desc} no contexto de {title}.",
@@ -614,27 +647,110 @@ def generate_variations(base_scenarios: List[Dict], count: int = 60) -> List[Dic
         dataset.append(item)
     return dataset
 
-def main():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    output_dir = os.path.join(base_dir, "data")
+def dedup_by_instruction(records: Sequence[Dict]) -> Tuple[List[Dict], int]:
+    """Keep the first record per normalised instruction; return (unique, number removed)."""
+    seen = set()
+    unique: List[Dict] = []
+    for rec in records:
+        key = normalize_instruction(rec["instruction"])
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(rec)
+    return unique, len(records) - len(unique)
+
+
+def split_disjoint(
+    records: Sequence[Dict], seed: int = SPLIT_SEED, val_fraction: float = VAL_FRACTION
+) -> Tuple[List[Dict], List[Dict]]:
+    """Partition de-duplicated records into disjoint (train, val).
+
+    Records are ordered by sha256(seed, normalised instruction), so the result depends on the seed
+    and on the instruction texts only, never on input order or on a global RNG. The first
+    round(n * val_fraction) records (at least 1, at most n - 1) become val; the rest are train.
+    """
+    keyed = [(normalize_instruction(r["instruction"]), r) for r in records]
+    if len({k for k, _ in keyed}) != len(keyed):
+        raise ValueError("split_disjoint needs unique instructions: run dedup_by_instruction first")
+    if len(keyed) < 2:
+        raise ValueError("need at least 2 unique instructions to build a train/val split")
+    keyed.sort(key=lambda kr: (_stable_int(seed, "split", kr[0]), kr[0]))
+    n_val = max(1, min(len(keyed) - 1, math.floor(len(keyed) * val_fraction + 0.5)))
+    val = [r for _, r in keyed[:n_val]]
+    train = [r for _, r in keyed[n_val:]]
+    return train, val
+
+
+def build_split(seed: int = SPLIT_SEED, candidates: int = CANDIDATE_COUNT) -> Dict:
+    """Generate candidates, dedup by instruction, split disjointly. Pure function of the seed."""
+    raw = generate_variations(SCENARIOS, count=candidates, seed=seed)
+    unique, removed = dedup_by_instruction(raw)
+    train, val = split_disjoint(unique, seed=seed, val_fraction=VAL_FRACTION)
+    return {
+        "train": train,
+        "val": val,
+        "stats": {
+            "candidates": len(raw),
+            "unique_instructions": len(unique),
+            "duplicates_removed": removed,
+        },
+    }
+
+
+def _write_jsonl(path: str, rows: Sequence[Dict]) -> None:
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        for item in rows:
+            f.write(json.dumps(item, ensure_ascii=False) + "\n")
+
+
+def _sha256_file(path: str) -> str:
+    with open(path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
+
+
+def write_split(output_dir: str, split: Dict, seed: int) -> Dict:
+    """Write both jsonl files plus SPLIT.json (seed + sha256 of each file); return the manifest."""
     os.makedirs(output_dir, exist_ok=True)
-    
-    train_data = generate_variations(SCENARIOS, count=80)
-    val_data = generate_variations(SCENARIOS[:3], count=15)
-    
-    train_path = os.path.join(output_dir, "simplicio_loop_50pts_train.jsonl")
-    val_path = os.path.join(output_dir, "simplicio_loop_50pts_val.jsonl")
-    
-    with open(train_path, "w", encoding="utf-8") as f:
-        for item in train_data:
-            f.write(json.dumps(item, ensure_ascii=False) + "\n")
-            
-    with open(val_path, "w", encoding="utf-8") as f:
-        for item in val_data:
-            f.write(json.dumps(item, ensure_ascii=False) + "\n")
-            
-    print(f"Generated {len(train_data)} training samples in {train_path}")
-    print(f"Generated {len(val_data)} validation samples in {val_path}")
+    files = {}
+    for name, rows in ((TRAIN_FILE, split["train"]), (VAL_FILE, split["val"])):
+        path = os.path.join(output_dir, name)
+        _write_jsonl(path, rows)
+        files[name] = {"rows": len(rows), "sha256": _sha256_file(path)}
+    manifest = {
+        "seed": seed,
+        "normalization": NORMALIZATION,
+        "split_method": (
+            "unique instructions ordered by sha256(seed:split:normalized_instruction); "
+            "the first round(unique * val_fraction) are val, the rest are train"
+        ),
+        "val_fraction": VAL_FRACTION,
+        "generator": "generate_dataset.py",
+        "regenerate": "python3 generate_dataset.py --seed %d" % seed,
+        **split["stats"],
+        "files": files,
+    }
+    with open(os.path.join(output_dir, MANIFEST_FILE), "w", encoding="utf-8", newline="\n") as f:
+        f.write(json.dumps(manifest, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
+    return manifest
+
+
+def main(argv: Optional[Sequence[str]] = None) -> None:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    parser = argparse.ArgumentParser(description="Generate the disjoint train/val split.")
+    parser.add_argument("--output-dir", default=os.path.join(base_dir, "data"))
+    parser.add_argument("--seed", type=int, default=SPLIT_SEED)
+    args = parser.parse_args(argv)
+
+    split = build_split(seed=args.seed)
+    manifest = write_split(args.output_dir, split, args.seed)
+
+    stats = split["stats"]
+    print(
+        f"Candidates {stats['candidates']} -> {stats['unique_instructions']} unique instructions "
+        f"({stats['duplicates_removed']} duplicates removed); seed {args.seed}"
+    )
+    for name, entry in manifest["files"].items():
+        print(f"Wrote {entry['rows']} rows to {os.path.join(args.output_dir, name)} (sha256 {entry['sha256'][:12]}...)")
 
 if __name__ == "__main__":
     main()
