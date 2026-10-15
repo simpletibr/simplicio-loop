@@ -26,7 +26,25 @@
   <a href="READMEs/README.ar-SA.md">🇸🇦 العربية</a>
 </p>
 
-**simplicio-loop turns GitHub issues into tested PRs: it maps the repo, an AI plans, a deterministic editor applies, tests verify, squads review.**
+**simplicio-loop ships three deterministic operators that any agent harness can call as plain tools: `simplicio-mapper` surveys a repo, `simplicio-dev-cli` applies an edit plan exactly, and impact-based test selection (`scripts/impact_tests.py`) runs only the tests a change can reach. The loop that turns GitHub issues into tested PRs is one consumer of them.**
+
+## The operators
+
+Looping an agent is no longer the hard part: agent SDKs and frameworks now ship it. The part that must not be probabilistic is reading the repo, writing the edit and choosing the tests. These three tools do that work, none of them provisions a model, and each prints machine-readable output. Your agent (Claude Code, Codex, Cursor, a LangGraph graph, a shell script) decides; they execute.
+
+| Operator | What it does | Call it from any harness |
+| --- | --- | --- |
+| `simplicio-mapper` (survey) | Walks the repo locally, without an LLM, and returns a bounded context pack for a goal instead of the whole tree. [Docs](packages/mapper/README.md) | `simplicio-mapper handoff . --goal "trace the authentication flow" --token-budget 1200 --json` |
+| `simplicio-dev-cli` (deterministic apply) | Applies a find/replace edit plan where each `find` must match exactly once, runs a scoped verification and prints one JSON receipt. It never provisions an LLM, per its README. [Docs](packages/dev-cli/README.md) | `simplicio-dev-cli edit --root . --plan plan.json --apply --check "<tests>" --json` |
+| Impact-based test selection | `scripts/impact_tests.py` diffs the working tree against a base ref at symbol level and selects the test files that reach a changed function, class or assignment. `scripts/check.py` uses it, so a change runs only the tests it can affect. [Docs](docs/GUIDE.md#-tests--local-checks-no-paid-ci) | `python3 scripts/impact_tests.py --base origin/main --json` |
+
+`pip install simplicio-loop` puts `simplicio-mapper` and `simplicio-dev-cli` on your PATH (one wheel, Python 3.11+). `scripts/impact_tests.py` is a standard-library script with no install step: run it from a checkout or copy it into your repo.
+
+This README quotes no savings figure. Measurements live in [bench/llm_ab](bench/llm_ab/README.md), where the raw per-run results are in `bench/llm_ab/results/` (small A/B, a single model), and anything not measured there is not claimed.
+
+## The loop is one consumer of them
+
+The loop is the reference consumer: it takes a GitHub issue, has the mapper survey the repo, lets a planner in a sandbox write a JSON plan, hands that plan to `simplicio-dev-cli`, then runs the tests (in this repo, `scripts/check.py` runs the impact-selected subset) before it opens a PR. Swap the loop for any other harness and the operators work the same.
 
 <p align="center">
   <img src="docs/assets/readme/overview-cartoon.webp" alt="Animated flow in 8 steps: issues, intake, general coordinator, squads, workers (mapper, plan, dev-cli), squad review, merge train, main and the Simplicio Live kanban" width="100%" />
@@ -35,8 +53,6 @@
 <p align="center">
   <img src="docs/assets/readme/how-it-works.webp" alt="Animated flow in 8 steps: issues, intake, general coordinator, squads, workers (mapper, plan, dev-cli), squad review, merge train, main and the Simplicio Live kanban" width="100%" />
 </p>
-
-## What it does
 
 ```mermaid
 flowchart LR
@@ -156,6 +172,12 @@ pie showData title Extension points in the 24/7 path (of 50)
 ```
 
 [docs/EXTENSION_POINTS_SERVICE.md](docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
+
+## Runtimes
+
+- **6 wired adapters** ship code in `adapters/` and a host test: Claude Code, Codex, Cursor, Grok, Kiro and VS Code.
+- **29 listed hosts** are catalog entries with a README and no adapter code; 28 of them also have a generic installer target that writes the skills and the host's entry file. A listing is not proof that the host runs the loop.
+- The operators above are plain commands, so they work from any harness, wired or not. Per-host status: [adapters/MATRIX.md](adapters/MATRIX.md) and [simplicio_loop/_catalog/harnesses.json](simplicio_loop/_catalog/harnesses.json).
 
 ## Learn more
 

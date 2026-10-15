@@ -3,6 +3,10 @@
 A host is *wired* when `adapters/<host>/` ships code (and a `tests/host_<host>/` test). Every other
 catalog entry is *listed*: a README under `adapters/` and, for most, an installer target that writes the
 skills and the host's entry file. The number the public docs print is the number this tree measures.
+
+#1821 extends that to every doc a user reads first (README, the 14 translations, PYPI.md, INSTALL.md,
+docs/GUIDE.md, the project manifest, the installer docstring): each one that states a host count states
+the measured wired/listed pair, and no stale blanket count survives.
 """
 from __future__ import annotations
 
@@ -122,3 +126,86 @@ def test_bytecode_is_ignored(path: str) -> None:
 @pytest.mark.parametrize("doc", ("AGENTS.md", "llms.txt"))
 def test_instruction_files_carry_no_release_line(doc: str) -> None:
     assert not RELEASE_LINE_RE.findall(_text(doc)), f"{doc} must not state a version; pyproject.toml owns it"
+
+
+# --- #1821: every owned doc prints the measured wired/listed pair, in every language -------------
+TRANSLATIONS = tuple(sorted(f"READMEs/{p.name}" for p in (REPO / "READMEs").glob("*.md")))
+# Docs that state the pair. The status words stay literal (`wired` / `listed`, the catalog values) in
+# every language, so one language-neutral pattern reads all of them: "6 wired adapters", "29 listed
+# hosts", "6 adaptadores `wired`", "29 hosts `listed`".
+PAIR_DOCS = ("README.md", "PYPI.md", "INSTALL.md", "docs/GUIDE.md", "simplicio-loop.project.json") + TRANSLATIONS
+# Docs that may state it (the installer docstring) and the instruction file that already does.
+OWNED_DOCS = PAIR_DOCS + ("llms.txt", "scripts/install_lib.py")
+STATUS_COUNT_RE = re.compile(r"(\d+)\s+(?:[^\s\d`]+\s+){0,3}`?(wired|listed)`?(?![\w-])", re.IGNORECASE)
+STALE_PHRASES = ("35 runtimes", "35 hosts", "35-runtimes", "11 runtimes", "48 ext", "32 host", "3 guaranteed",
+                 "32 best-effort", "32 best--effort", "35%20(3")
+UNQUALIFIED_COUNT_RE = re.compile(
+    r"\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
+    r"(?:twenty|thirty|forty|fifty)(?:[- ]\w+)?)[ -](?:distinct |agent )?(?:runtimes|hosts|host surfaces)\b"
+    r"(?!\s+`?(?:wired|listed)\b)",  # "29 hosts `listed`": the qualifier may follow the noun
+    re.IGNORECASE)
+
+
+def _status_counts(text: str) -> dict[str, set[str]]:
+    found: dict[str, set[str]] = {"wired": set(), "listed": set()}
+    for number, status in STATUS_COUNT_RE.findall(text):
+        found[status.lower()].add(number)
+    return found
+
+
+def _measured_counts() -> tuple[str, str]:
+    wired = len(_measured_wired())
+    return str(wired), str(len(_entries()) - wired)
+
+
+@pytest.mark.parametrize("doc", OWNED_DOCS)
+def test_owned_doc_carries_no_stale_or_unqualified_host_count(doc: str) -> None:
+    text = _text(doc)
+    lowered = text.lower()
+    assert not [p for p in STALE_PHRASES if p in lowered], f"{doc}: stale count phrase"
+    assert not UNQUALIFIED_COUNT_RE.findall(text), f"{doc}: say '<n> wired adapters' / '<n> listed hosts', not a blanket count"
+
+
+@pytest.mark.parametrize("doc", PAIR_DOCS)
+def test_owned_doc_prints_the_measured_wired_and_listed_pair(doc: str) -> None:
+    wired, listed = _measured_counts()
+    counts = _status_counts(_text(doc))
+    assert counts["wired"] == {wired}, f"{doc}: wired count must be exactly {wired}, found {sorted(counts['wired'])}"
+    assert counts["listed"] == {listed}, f"{doc}: listed count must be exactly {listed}, found {sorted(counts['listed'])}"
+
+
+@pytest.mark.parametrize("doc", ("llms.txt", "scripts/install_lib.py"))
+def test_doc_that_may_state_the_pair_never_states_a_wrong_one(doc: str) -> None:
+    wired, listed = _measured_counts()
+    counts = _status_counts(_text(doc))
+    assert counts["wired"] <= {wired} and counts["listed"] <= {listed}, doc
+
+
+def test_install_docs_do_not_call_every_installer_target_a_wired_host() -> None:
+    # The installer targets include the listed hosts; only 6 of them are wired.
+    for doc in ("INSTALL.md", "scripts/install_lib.py"):
+        assert not re.search(r"install\.runtime`?\s+of\s+a\s+`?wired`?\s+host", _text(doc)), doc
+
+
+def test_guide_wired_bullet_names_only_wired_hosts() -> None:
+    guide = _text("docs/GUIDE.md")
+    bullets = re.findall(r"^- \*\*Wired[^\n]*(?:\n(?!- |\n|#)[^\n]*)*", guide, flags=re.MULTILINE)
+    assert bullets, "docs/GUIDE.md must have a '- **Wired ...' bullet in the runtimes section"
+    wired_ids = set(_measured_wired())
+    listed_names = [e["name"] for e in _entries() if e["id"] not in wired_ids]
+    for bullet in bullets:
+        leaked = [n for n in listed_names if re.search(rf"(?<![\w-]){re.escape(n)}(?![\w-])", bullet)]
+        assert not leaked, f"docs/GUIDE.md calls listed host(s) wired: {leaked}"
+
+
+def test_pypi_runtime_line_does_not_present_listed_hosts_as_working() -> None:
+    pypi = _text("PYPI.md")
+    wired_ids = set(_measured_wired())
+    listed_names = [e["name"] for e in _entries() if e["id"] not in wired_ids and len(e["name"]) > 4]
+    line = next((ln for ln in pypi.splitlines() if "wired" in ln.lower()), "")
+    assert line, "PYPI.md must say which hosts are wired"
+    unlabeled = [ln for ln in pypi.splitlines()
+                 if "listed" not in ln.lower() and "wired" not in ln.lower()
+                 and sum(1 for n in listed_names if n in ln) >= 3]
+    assert not unlabeled, f"PYPI.md name-drops listed hosts as if they ran the loop: {unlabeled}"
+

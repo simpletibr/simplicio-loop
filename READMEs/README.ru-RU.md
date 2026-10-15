@@ -26,7 +26,7 @@
   <a href="README.ar-SA.md">🇸🇦 العربية</a>
 </p>
 
-**simplicio-loop превращает issue в GitHub в протестированные PR: он картирует репозиторий, ИИ планирует, детерминированный редактор применяет, тесты проверяют, сквады ревьюят.**
+**simplicio-loop поставляет три детерминированных оператора, которые любой харнесс агента может вызывать как обычные инструменты: `simplicio-mapper` картографирует репозиторий, `simplicio-dev-cli` применяет план правок точно, а отбор тестов по влиянию (`scripts/impact_tests.py`) запускает только те тесты, до которых доходит изменение. Цикл, который превращает issue GitHub в проверенные PR, — один из их потребителей.**
 
 <p align="center">
   <img src="../docs/assets/readme/overview-cartoon.webp" alt="Анимированный поток из 8 шагов: issue, intake, общий координатор, сквады, воркеры (mapper, план, dev-cli), ревью сквада, merge train, main и канбан Simplicio Live" width="100%" />
@@ -36,7 +36,23 @@
   <img src="../docs/assets/readme/how-it-works.webp" alt="Анимированный поток из 8 шагов: issue, intake, общий координатор, сквады, воркеры (mapper, план, dev-cli), ревью сквада, merge train, main и канбан Simplicio Live" width="100%" />
 </p>
 
-## Что он делает
+## Операторы
+
+Запуск агента в цикле уже не самая сложная часть: SDK и фреймворки агентов это умеют. Не должны быть вероятностными чтение репозитория, запись правки и выбор тестов. Эти три инструмента делают именно эту работу, ни один не запускает модель, и каждый выводит машиночитаемый результат. Ваш агент (Claude Code, Codex, Cursor, граф LangGraph, shell-скрипт) решает; они выполняют.
+
+| Оператор | Что делает | Вызывается из любого харнесса |
+| --- | --- | --- |
+| `simplicio-mapper` (survey) | Обходит репозиторий локально, без LLM, и возвращает ограниченный пакет контекста для цели, а не всё дерево. [Docs](../packages/mapper/README.md) | `simplicio-mapper handoff . --goal "trace the authentication flow" --token-budget 1200 --json` |
+| `simplicio-dev-cli` (детерминированное применение) | Применяет план правок find/replace, где каждый `find` должен совпасть ровно один раз, запускает ограниченную проверку и выводит один JSON-чек. По собственному README, LLM не подключает. [Docs](../packages/dev-cli/README.md) | `simplicio-dev-cli edit --root . --plan plan.json --apply --check "<tests>" --json` |
+| Отбор тестов по влиянию | `scripts/impact_tests.py` сравнивает рабочее дерево с базовой ссылкой на уровне символов и выбирает файлы тестов, которые достигают изменённой функции, класса или присваивания. `scripts/check.py` использует его, поэтому изменение запускает только затрагиваемые им тесты. [Docs](../docs/GUIDE.md#-tests--local-checks-no-paid-ci) | `python3 scripts/impact_tests.py --base origin/main --json` |
+
+`pip install simplicio-loop` кладёт `simplicio-mapper` и `simplicio-dev-cli` в PATH (одно колесо, Python 3.11+). `scripts/impact_tests.py` — скрипт стандартной библиотеки без шага установки: запустите его из checkout или скопируйте в свой репозиторий.
+
+Этот README не называет цифр экономии. Измерения лежат в [bench/llm_ab](../bench/llm_ab/README.md), где сырые результаты по запускам находятся в `bench/llm_ab/results/` (небольшой A/B, одна модель); то, чего там нет, не утверждается.
+
+## Цикл — один из их потребителей
+
+Цикл — эталонный потребитель: он берёт issue GitHub, просит mapper снять карту репозитория, даёт планировщику в песочнице написать JSON-план, передаёт план в `simplicio-dev-cli`, запускает тесты (в этом репозитории `scripts/check.py` запускает подмножество, выбранное по влиянию) и только потом открывает PR. Замените цикл другим харнессом, и операторы будут работать так же.
 
 ```mermaid
 flowchart LR
@@ -136,6 +152,12 @@ pie showData title Extension points in the 24/7 path (of 50)
 ```
 
 [docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
+
+## Рантаймы
+
+- **6 `wired`** адаптеров содержат код в `adapters/` и тест хоста: Claude Code, Codex, Cursor, Grok, Kiro и VS Code.
+- **29 `listed`** хостов — записи каталога с README и без кода адаптера; у 28 из них есть также общая цель установки, которая записывает skills и входной файл хоста. Наличие в списке не доказывает, что хост запускает цикл.
+- Операторы выше — обычные команды, поэтому они работают из любого харнесса, `wired` или нет. Статус по хостам: [adapters/MATRIX.md](../adapters/MATRIX.md) и [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## Подробнее
 

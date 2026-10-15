@@ -26,7 +26,7 @@
   <a href="README.ar-SA.md">🇸🇦 العربية</a>
 </p>
 
-**يحوّل simplicio-loop مشكلات GitHub إلى طلبات دمج (PR) مختبرة: يرسم خارطة للمستودع، ويخطط ذكاء اصطناعي، ويطبق محرر حتمي، وتتحقق الاختبارات، وتراجع الفرق (squads).**
+**يوفّر simplicio-loop ثلاثة مشغّلات حتمية يمكن لأي بيئة وكيل استدعاؤها كأدوات عادية: `simplicio-mapper` يرسم خريطة المستودع، و`simplicio-dev-cli` يطبّق خطة التعديل بدقة، واختيار الاختبارات حسب الأثر (`scripts/impact_tests.py`) يشغّل فقط الاختبارات التي يطالها التغيير. الحلقة التي تحوّل issues في GitHub إلى PRs مختبَرة هي أحد مستهلكيها.**
 
 <p align="center">
   <img src="../docs/assets/readme/overview-cartoon.webp" alt="مسار متحرك من 8 خطوات: المشكلات، الاستقبال، المنسق العام، الفرق، العمّال (mapper، خطة، dev-cli)، مراجعة الفريق، merge train، main ولوحة Simplicio Live" width="100%" />
@@ -36,7 +36,23 @@
   <img src="../docs/assets/readme/how-it-works.webp" alt="مسار متحرك من 8 خطوات: المشكلات، الاستقبال، المنسق العام، الفرق، العمّال (mapper، خطة، dev-cli)، مراجعة الفريق، merge train، main ولوحة Simplicio Live" width="100%" />
 </p>
 
-## ماذا يفعل
+## المشغّلات
+
+تشغيل وكيل في حلقة لم يعد الجزء الصعب: حزم SDK والأطر الخاصة بالوكلاء توفّره بالفعل. الجزء الذي يجب ألا يكون احتماليًا هو قراءة المستودع وكتابة التعديل واختيار الاختبارات. هذه الأدوات الثلاث تتولى ذلك العمل، ولا يستدعي أيٌّ منها نموذجًا، ويطبع كلٌّ منها مخرجات يمكن للآلة قراءتها. وكيلك (Claude Code أو Codex أو Cursor أو رسم LangGraph أو سكربت shell) يقرّر؛ وهي تنفّذ.
+
+| المشغّل | ما الذي يفعله | يمكن استدعاؤه من أي بيئة |
+| --- | --- | --- |
+| `simplicio-mapper` (survey) | يمسح المستودع محليًا دون LLM ويعيد حزمة سياق محدودة لهدف معيّن بدلًا من الشجرة كلها. [Docs](../packages/mapper/README.md) | `simplicio-mapper handoff . --goal "trace the authentication flow" --token-budget 1200 --json` |
+| `simplicio-dev-cli` (التطبيق الحتمي) | يطبّق خطة تعديل find/replace يجب أن يطابق فيها كل `find` مرة واحدة بالضبط، ويشغّل تحققًا محدود النطاق، ويطبع إيصال JSON واحدًا. وبحسب README الخاص به، فهو لا يوفّر LLM. [Docs](../packages/dev-cli/README.md) | `simplicio-dev-cli edit --root . --plan plan.json --apply --check "<tests>" --json` |
+| اختيار الاختبارات حسب الأثر | يقارن `scripts/impact_tests.py` شجرة العمل بمرجع أساس على مستوى الرموز، ويختار ملفات الاختبار التي تصل إلى دالة أو صنف أو إسناد تغيّر. يستخدمه `scripts/check.py`، لذا فالتغيير يشغّل فقط الاختبارات التي قد يؤثر فيها. [Docs](../docs/GUIDE.md#-tests--local-checks-no-paid-ci) | `python3 scripts/impact_tests.py --base origin/main --json` |
+
+يضع `pip install simplicio-loop` كلًا من `simplicio-mapper` و`simplicio-dev-cli` في PATH (حزمة wheel واحدة، Python 3.11+). و`scripts/impact_tests.py` سكربت بمكتبة قياسية دون خطوة تثبيت: شغّله من checkout أو انسخه إلى مستودعك.
+
+لا يذكر هذا README أي رقم للتوفير. القياسات موجودة في [bench/llm_ab](../bench/llm_ab/README.md)، والنتائج الخام لكل تشغيل في `bench/llm_ab/results/` (اختبار A/B صغير، نموذج واحد)، وما لم يُقَس هناك لا يُدّعى.
+
+## الحلقة أحد مستهلكيها
+
+الحلقة هي المستهلك المرجعي: تأخذ issue من GitHub، وتجعل mapper يرسم خريطة المستودع، وتترك مخطِّطًا داخل sandbox يكتب خطة JSON، ثم تمرّر الخطة إلى `simplicio-dev-cli` وتشغّل الاختبارات (في هذا المستودع يشغّل `scripts/check.py` المجموعة الجزئية المختارة حسب الأثر) قبل أن تفتح PR. استبدل الحلقة ببيئة أخرى وستعمل المشغّلات بالطريقة نفسها.
 
 ```mermaid
 flowchart LR
@@ -136,6 +152,12 @@ pie showData title Extension points in the 24/7 path (of 50)
 ```
 
 [docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
+
+## بيئات التشغيل
+
+- **6 محوّلات `wired`** تحتوي على كود في `adapters/` واختبار للمضيف: Claude Code وCodex وCursor وGrok وKiro وVS Code.
+- **29 مضيفًا `listed`** هي مدخلات في الكتالوج لها README ولا تحتوي على كود محوّل؛ ولدى 28 منها أيضًا هدف تثبيت عام يكتب الـ skills وملف الإدخال الخاص بالمضيف. وجود المضيف في القائمة لا يثبت أنه يشغّل الحلقة.
+- المشغّلات أعلاه أوامر عادية، لذا تعمل من أي بيئة، سواء كانت `wired` أم لا. الحالة لكل مضيف: [adapters/MATRIX.md](../adapters/MATRIX.md) و[simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## المزيد
 

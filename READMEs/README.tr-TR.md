@@ -26,7 +26,7 @@
   <a href="README.ar-SA.md">🇸🇦 العربية</a>
 </p>
 
-**simplicio-loop, GitHub issue'larını test edilmiş PR'lara çevirir: depoyu haritalar, bir yapay zekâ planlar, deterministik bir editör uygular, testler doğrular, squad'lar gözden geçirir.**
+**simplicio-loop, her agent harness'ın sıradan araç gibi çağırabileceği üç deterministik operatör sunar: `simplicio-mapper` depoyu haritalar, `simplicio-dev-cli` bir düzenleme planını birebir uygular ve etki tabanlı test seçimi (`scripts/impact_tests.py`) yalnızca bir değişikliğin ulaştığı testleri çalıştırır. GitHub issue'larını test edilmiş PR'lara dönüştüren döngü bunların tüketicilerinden biridir.**
 
 <p align="center">
   <img src="../docs/assets/readme/overview-cartoon.webp" alt="8 adımlık animasyonlu akış: issue'lar, intake, genel koordinatör, squad'lar, worker'lar (mapper, plan, dev-cli), squad review, merge train, main ve Simplicio Live kanban" width="100%" />
@@ -36,7 +36,23 @@
   <img src="../docs/assets/readme/how-it-works.webp" alt="8 adımlık animasyonlu akış: issue'lar, intake, genel koordinatör, squad'lar, worker'lar (mapper, plan, dev-cli), squad review, merge train, main ve Simplicio Live kanban" width="100%" />
 </p>
 
-## Ne yapar
+## Operatörler
+
+Bir ajanı döngüde çalıştırmak artık zor kısım değil: ajan SDK'ları ve framework'leri bunu zaten sunuyor. Olasılıksal olmaması gereken kısım depoyu okumak, düzenlemeyi yazmak ve testleri seçmek. Bu üç araç o işi yapar, hiçbiri bir model çalıştırmaz ve her biri makine tarafından okunabilir çıktı basar. Ajanınız (Claude Code, Codex, Cursor, bir LangGraph grafiği, bir shell betiği) karar verir; onlar uygular.
+
+| Operatör | Ne yapar | Herhangi bir harness'ten çağrılabilir |
+| --- | --- | --- |
+| `simplicio-mapper` (survey) | Depoyu yerel olarak, LLM kullanmadan tarar ve tüm ağaç yerine bir hedef için sınırlı bir bağlam paketi döndürür. [Docs](../packages/mapper/README.md) | `simplicio-mapper handoff . --goal "trace the authentication flow" --token-budget 1200 --json` |
+| `simplicio-dev-cli` (deterministik uygulama) | Her `find` kısmının tam bir kez eşleşmesi gereken bir find/replace düzenleme planını uygular, sınırlı bir doğrulama çalıştırır ve tek bir JSON makbuzu basar. Kendi README'sine göre bir LLM sağlamaz. [Docs](../packages/dev-cli/README.md) | `simplicio-dev-cli edit --root . --plan plan.json --apply --check "<tests>" --json` |
+| Etki tabanlı test seçimi | `scripts/impact_tests.py` çalışma ağacını bir temel referansla sembol düzeyinde karşılaştırır ve değişen bir fonksiyona, sınıfa veya atamaya ulaşan test dosyalarını seçer. `scripts/check.py` bunu kullanır; böylece bir değişiklik yalnızca etkileyebileceği testleri çalıştırır. [Docs](../docs/GUIDE.md#-tests--local-checks-no-paid-ci) | `python3 scripts/impact_tests.py --base origin/main --json` |
+
+`pip install simplicio-loop` ile `simplicio-mapper` ve `simplicio-dev-cli` PATH'inize girer (tek bir wheel, Python 3.11+). `scripts/impact_tests.py` kurulum adımı gerektirmeyen bir standart kütüphane betiğidir: bir checkout'tan çalıştırın veya kendi deponuza kopyalayın.
+
+Bu README hiçbir tasarruf rakamı vermez. Ölçümler [bench/llm_ab](../bench/llm_ab/README.md) içindedir; çalıştırma başına ham sonuçlar `bench/llm_ab/results/` altındadır (küçük bir A/B, tek model). Orada ölçülmeyen hiçbir şey iddia edilmez.
+
+## Döngü bunların tüketicilerinden biri
+
+Döngü referans tüketicidir: bir GitHub issue'sunu alır, mapper'ın depoyu haritalamasını sağlar, bir sandbox planlayıcının JSON planı yazmasına izin verir, bu planı `simplicio-dev-cli`'a verir, testleri çalıştırır (bu depoda `scripts/check.py` etki ile seçilen alt kümeyi çalıştırır) ve ancak ondan sonra bir PR açar. Döngüyü başka bir harness ile değiştirin; operatörler aynı şekilde çalışır.
 
 ```mermaid
 flowchart LR
@@ -136,6 +152,12 @@ pie showData title Extension points in the 24/7 path (of 50)
 ```
 
 [docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
+
+## Çalışma zamanları
+
+- **6 `wired`** adaptör `adapters/` altında kod ve bir host testi içerir: Claude Code, Codex, Cursor, Grok, Kiro ve VS Code.
+- **29 `listed`** host, README'si olan ve adaptör kodu olmayan katalog girdileridir; bunların 28'inin ayrıca skill'leri ve host'un giriş dosyasını yazan genel bir kurulum hedefi vardır. Listelenmiş olmak, host'un döngüyü çalıştırdığını kanıtlamaz.
+- Yukarıdaki operatörler sıradan komutlardır; bu yüzden `wired` olsun ya da olmasın her harness'ten çalışırlar. Host başına durum: [adapters/MATRIX.md](../adapters/MATRIX.md) ve [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## Daha fazlası
 

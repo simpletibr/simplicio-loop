@@ -26,7 +26,7 @@
   <a href="README.ar-SA.md">🇸🇦 العربية</a>
 </p>
 
-**simplicio-loopは、GitHubのissueをテスト済みのPRに変えます。リポジトリをマップし、AIが計画し、決定的エディタが適用し、テストが検証し、スカッドがレビューします。**
+**simplicio-loopは、どのエージェントハーネスからも通常のツールとして呼び出せる3つの決定的オペレーターを提供します。`simplicio-mapper`はリポジトリを調査し、`simplicio-dev-cli`は編集計画を正確に適用し、影響ベースのテスト選択（`scripts/impact_tests.py`）は変更が及ぶテストだけを実行します。GitHubのissueをテスト済みのPRに変えるループは、その利用者の一つです。**
 
 <p align="center">
   <img src="../docs/assets/readme/overview-cartoon.webp" alt="8ステップのアニメーション: issue、インテーク、総括コーディネータ、スカッド、サンドボックスのワーカー、スカッドのレビュー、マージトレイン、main、Simplicio Liveカンバン" width="100%" />
@@ -36,7 +36,23 @@
   <img src="../docs/assets/readme/how-it-works.webp" alt="8ステップのアニメーション: issue、インテーク、総括コーディネータ、スカッド、サンドボックスのワーカー、スカッドのレビュー、マージトレイン、main、Simplicio Liveカンバン" width="100%" />
 </p>
 
-## できること
+## オペレーター
+
+エージェントをループで回すことは、もはや難しい部分ではありません。エージェントSDKやフレームワークがすでに提供しています。確率的であってはならないのは、リポジトリの読み取り、編集の書き込み、テストの選択です。この3つのツールがその作業を担い、どれもモデルを呼び出さず、それぞれ機械可読な出力を返します。エージェント（Claude Code、Codex、Cursor、LangGraphのグラフ、シェルスクリプトなど）が判断し、これらが実行します。
+
+| オペレーター | 役割 | どのハーネスからでも呼べる |
+| --- | --- | --- |
+| `simplicio-mapper`（survey） | リポジトリをローカルで（LLMなしで）走査し、全体のツリーではなく目的に対する上限付きのコンテキストパックを返します。[Docs](../packages/mapper/README.md) | `simplicio-mapper handoff . --goal "trace the authentication flow" --token-budget 1200 --json` |
+| `simplicio-dev-cli`（決定的な適用） | 各`find`がちょうど1回だけ一致しなければならない find/replace の編集計画を適用し、範囲を絞った検証を実行して JSON の受領書を1つ出力します。自身の README によれば LLM は提供しません。[Docs](../packages/dev-cli/README.md) | `simplicio-dev-cli edit --root . --plan plan.json --apply --check "<tests>" --json` |
+| 影響ベースのテスト選択 | `scripts/impact_tests.py`は作業ツリーを基準refとシンボル単位で比較し、変更された関数・クラス・代入に到達するテストファイルを選びます。`scripts/check.py`がこれを使うため、変更は影響しうるテストだけを実行します。[Docs](../docs/GUIDE.md#-tests--local-checks-no-paid-ci) | `python3 scripts/impact_tests.py --base origin/main --json` |
+
+`pip install simplicio-loop` で `simplicio-mapper` と `simplicio-dev-cli` が PATH に入ります（単一の wheel、Python 3.11+）。`scripts/impact_tests.py` は標準ライブラリだけで動くスクリプトでインストール手順はありません。checkout から実行するか、自分のリポジトリにコピーしてください。
+
+この README は節約率の数値を載せていません。計測結果は [bench/llm_ab](../bench/llm_ab/README.md) にあり、実行ごとの生の結果は `bench/llm_ab/results/` にあります（小規模な A/B、単一モデル）。そこで計測されていないことは主張しません。
+
+## ループはその利用者の一つ
+
+ループは参照用の利用者です。GitHub の issue を受け取り、mapper にリポジトリの地図を作らせ、サンドボックス内のプランナーに JSON の計画を書かせ、その計画を `simplicio-dev-cli` に渡し、テストを実行してから（このリポジトリでは `scripts/check.py` が影響ベースで選ばれたサブセットを実行します）PR を開きます。ループを別のハーネスに置き換えても、オペレーターは同じように動きます。
 
 ```mermaid
 flowchart LR
@@ -136,6 +152,12 @@ pie showData title Extension points in the 24/7 path (of 50)
 ```
 
 [docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
+
+## ランタイム
+
+- **6 `wired`** アダプターは `adapters/` にコードがあり、ホストのテストを持ちます：Claude Code、Codex、Cursor、Grok、Kiro、VS Code。
+- **29 `listed`** ホストは README のあるカタログ項目で、アダプターのコードはありません。そのうち28には、skills とホストのエントリファイルを書き込む汎用インストール先があります。一覧に載っていることは、そのホストがループを実行することを証明しません。
+- 上のオペレーターは普通のコマンドなので、`wired` かどうかに関係なく、どのハーネスからでも動きます。ホストごとの状態：[adapters/MATRIX.md](../adapters/MATRIX.md) と [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json)。
 
 ## さらに詳しく
 

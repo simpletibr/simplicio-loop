@@ -26,7 +26,7 @@
   <a href="README.ar-SA.md">🇸🇦 العربية</a>
 </p>
 
-**simplicio-loop trasforma le issue di GitHub in PR testate: mappa il repo, un'IA pianifica, un editor deterministico applica, i test verificano e gli squad revisionano.**
+**simplicio-loop offre tre operatori deterministici che qualsiasi harness di agenti può chiamare come strumenti: `simplicio-mapper` mappa il repo, `simplicio-dev-cli` applica un piano di modifica esattamente, e la selezione dei test per impatto (`scripts/impact_tests.py`) esegue solo i test che una modifica raggiunge. Il loop che trasforma le issue di GitHub in PR testate è uno dei loro consumatori.**
 
 <p align="center">
   <img src="../docs/assets/readme/overview-cartoon.webp" alt="Flusso animato in 8 passi: issue, intake, coordinatore generale, squad, worker in sandbox, revisione dello squad, merge train, main e il kanban Simplicio Live" width="100%" />
@@ -36,7 +36,23 @@
   <img src="../docs/assets/readme/how-it-works.webp" alt="Flusso animato in 8 passi: issue, intake, coordinatore generale, squad, worker in sandbox, revisione dello squad, merge train, main e il kanban Simplicio Live" width="100%" />
 </p>
 
-## Cosa fa
+## Gli operatori
+
+Far girare un agente in un loop non è più la parte difficile: SDK e framework per agenti lo offrono già. La parte che non deve essere probabilistica è leggere il repo, scrivere la modifica e scegliere i test. Questi tre strumenti fanno quel lavoro, nessuno di essi fornisce un modello e ognuno stampa output leggibile da macchina. Il tuo agente (Claude Code, Codex, Cursor, un grafo LangGraph, uno script shell) decide; loro eseguono.
+
+| Operatore | Cosa fa | Richiamabile da qualsiasi harness |
+| --- | --- | --- |
+| `simplicio-mapper` (survey) | Scorre il repo in locale, senza LLM, e restituisce un pacchetto di contesto limitato per un obiettivo invece dell'intero albero. [Docs](../packages/mapper/README.md) | `simplicio-mapper handoff . --goal "trace the authentication flow" --token-budget 1200 --json` |
+| `simplicio-dev-cli` (applicazione deterministica) | Applica un piano di modifica find/replace in cui ogni `find` deve corrispondere esattamente una volta, esegue una verifica circoscritta e stampa una ricevuta JSON. Non fornisce un LLM, secondo il proprio README. [Docs](../packages/dev-cli/README.md) | `simplicio-dev-cli edit --root . --plan plan.json --apply --check "<tests>" --json` |
+| Selezione dei test per impatto | `scripts/impact_tests.py` confronta l'albero di lavoro con un ref di base a livello di simbolo e seleziona i file di test che raggiungono una funzione, classe o assegnazione modificata. `scripts/check.py` lo usa, quindi una modifica esegue solo i test che può influenzare. [Docs](../docs/GUIDE.md#-tests--local-checks-no-paid-ci) | `python3 scripts/impact_tests.py --base origin/main --json` |
+
+`pip install simplicio-loop` mette `simplicio-mapper` e `simplicio-dev-cli` nel PATH (un'unica wheel, Python 3.11+). `scripts/impact_tests.py` è uno script della libreria standard senza passaggi di installazione: eseguilo da un checkout o copialo nel tuo repo.
+
+Questo README non riporta alcuna cifra di risparmio. Le misure sono in [bench/llm_ab](../bench/llm_ab/README.md), dove i risultati grezzi per esecuzione sono in `bench/llm_ab/results/` (A/B piccolo, un solo modello); ciò che non è misurato lì non viene affermato.
+
+## Il loop è uno dei suoi consumatori
+
+Il loop è il consumatore di riferimento: prende una issue di GitHub, fa mappare il repo a mapper, lascia che un pianificatore in sandbox scriva un piano JSON, consegna il piano a `simplicio-dev-cli`, esegue i test (in questo repo, `scripts/check.py` esegue il sottoinsieme selezionato per impatto) e poi apre una PR. Sostituisci il loop con un altro harness e gli operatori funzionano allo stesso modo.
 
 ```mermaid
 flowchart LR
@@ -136,6 +152,12 @@ pie showData title Extension points in the 24/7 path (of 50)
 ```
 
 [docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
+
+## Runtime
+
+- **6 `wired`** adapter contengono codice in `adapters/` e un test di host: Claude Code, Codex, Cursor, Grok, Kiro e VS Code.
+- **29 `listed`** host sono voci del catalogo con README e senza codice di adapter; 28 di loro hanno anche un target di installazione generico che scrive le skill e il file di ingresso dell'host. Essere elencato non prova che l'host esegua il loop.
+- Gli operatori sopra sono comandi semplici, quindi funzionano da qualsiasi harness, `wired` o no. Stato per host: [adapters/MATRIX.md](../adapters/MATRIX.md) e [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## Per saperne di più
 
