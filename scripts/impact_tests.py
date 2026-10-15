@@ -37,8 +37,9 @@ class BaseRefUnresolved(RuntimeError):
         self.base = base
         super().__init__(
             "base ref %r does not resolve in this checkout (a shallow clone without it, or no remote-tracking ref), "
-            "so the change cannot be diffed: run `git fetch origin main` (or `git fetch --depth 1 origin main`), "
-            "or pass --full to run every test file, or --base REF with a ref that exists" % base)
+            "so the change cannot be diffed: run `git fetch origin main:refs/remotes/origin/main` (a plain `git fetch "
+            "origin main` writes only FETCH_HEAD in a single-branch clone), or pass --full to run every test file, or "
+            "--base REF with a ref that exists" % base)
 
 
 def resolve_base(base: str) -> str:

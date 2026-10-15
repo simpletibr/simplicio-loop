@@ -48,7 +48,8 @@ def test_an_unresolvable_base_raises_the_typed_reason_with_the_fix_in_the_messag
     except impact.BaseRefUnresolved as error:
         assert error.reason == "impact_base_unresolved" and error.base == "origin/main"
         message = str(error)
-        assert "git fetch origin main" in message and "--full" in message and "--base" in message
+        # A plain `git fetch origin main` writes only FETCH_HEAD in a single-branch clone: the refspec is the fix.
+        assert "git fetch origin main:refs/remotes/origin/main" in message and "--full" in message and "--base" in message
     else:
         raise AssertionError("an unresolvable base must fail closed, not select nothing")
 
@@ -68,7 +69,7 @@ def test_the_impact_cli_exits_2_and_prints_the_reason_when_the_base_is_missing(t
     monkeypatch.setattr(impact, "ROOT", repo)
     assert impact.main(["--base", "origin/main"]) == 2
     err = capsys.readouterr().err
-    assert "impact_base_unresolved" in err and "git fetch origin main" in err
+    assert "impact_base_unresolved" in err and "git fetch origin main:refs/remotes/origin/main" in err
     assert capsys.readouterr().out == ""
 
 
@@ -85,7 +86,7 @@ def test_check_turns_an_unresolvable_base_into_a_failed_tests_gate_that_runs_no_
 
     assert not result.ok and result.reason_code == "impact_base_unresolved"
     assert ran == []  # the gate stops before any test file is selected or run
-    assert "git fetch origin main" in capsys.readouterr().out
+    assert "git fetch origin main:refs/remotes/origin/main" in capsys.readouterr().out
 
 
 def test_a_package_gate_with_an_unresolvable_base_fails_closed_before_any_tool_runs(monkeypatch):
