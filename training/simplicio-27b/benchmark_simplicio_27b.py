@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Simplicio 27B: Real Benchmark Evaluation Suite
-Evaluates:
-1. Surgical Diff Accuracy (Search/Replace hit rate & AST parse integrity)
-2. Token Economy (Reasoning tokens vs baseline CoT)
-3. 50-Point Simplicio-Loop Conformance (Phase tag validation)
-4. Functional Correctness (Unit test pass rate)
+Simplicio 27B: small smoke-evaluation harness.
+
+It prints ONLY what it measures on the run you give it, over the cases in TEST_CASES:
+1. Surgical diff hit rate: the SEARCH chunk is found verbatim in the original code.
+2. AST integrity: the patched Python still passes ast.parse().
+3. Phase conformance: all five tags (<orient> <plan> <patch> <validate> <deliver>) are present.
+4. Generated tokens per task: counted from the model output (no baseline, no comparison).
+
+It does NOT run pytest or any unit test, so it says nothing about functional correctness, and it
+compares against no other model. TEST_CASES must stay disjoint from data/*.jsonl (the train/val
+splits); tests/test_training_benchmark_overlap.py enforces that. No published evaluation exists yet
+(UNVERIFIED): see README.md.
 """
 
 import os
@@ -18,20 +24,6 @@ import argparse
 from typing import List, Dict, Tuple
 
 TEST_CASES = [
-    {
-        "id": "py_pydantic_validator",
-        "lang": "python",
-        "file": "user_schema.py",
-        "original_code": """class UserSchema(BaseModel):
-    name: str
-    tax_id: str = Field(..., min_length=11, max_length=14)
-
-    class Config:
-        from_attributes = True
-""",
-        "task": "Sanitize tax_id removing punctuation using Pydantic v2 field_validator with mode='before'.",
-        "context": "FastAPI service with Pydantic 2.6. User tax_id must be normalized to 11 digits."
-    },
     {
         "id": "py_dict_key_error",
         "lang": "python",
@@ -191,7 +183,6 @@ def run_benchmark(model, tokenizer, test_cases: List[Dict]) -> Dict:
         "surgical_diff_accuracy": (search_matches / total) * 100.0,
         "ast_syntax_pass_rate": (ast_valid_count / total) * 100.0,
         "avg_tokens_per_task": total_tokens / total,
-        "estimated_token_savings": "56.3% vs CoT prolixo"
     }
     
     print("=" * 75)

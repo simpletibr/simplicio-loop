@@ -1,6 +1,6 @@
 """
-Official 2026 LiveCodeBench (LCB) Runner for Simplicio 27B
-Evaluates contamination-free competitive coding, self-repair, and runtime execution.
+LiveCodeBench-style scaffold for Simplicio 27B.
+Lists two sample problems. It does NOT run a model, execute test cases or publish a score.
 """
 
 import sys
@@ -34,21 +34,14 @@ SAMPLE_LCB_PROBLEMS = [
 
 def main():
     print("=" * 80)
-    print("🚀 OFFICIAL 2026 LIVECODEBENCH (LCB) RUNNER (SIMPLICIO 27B HARNESS)")
-    print("Evaluating contamination-free code generation with strict runtime execution.")
+    print("LIVECODEBENCH-STYLE SCAFFOLD (SIMPLICIO 27B)")
+    print("Sample competitive-coding problems with their test cases.")
     print("=" * 80)
-    print(f"Loaded {len(SAMPLE_LCB_PROBLEMS)} sample LiveCodeBench competition problems.")
+    print(f"Loaded {len(SAMPLE_LCB_PROBLEMS)} sample LiveCodeBench-style problems.")
     for p in SAMPLE_LCB_PROBLEMS:
         print(f"  - [{p['question_id']}] {p['title']} ({p['difficulty']})")
-    print("\nReady for model evaluation via LiveCodeBench execution pipeline.")
+    print("\nScaffold only: no model inference or test execution is wired in, so no result is produced.")
 
-
-    if '--compare' in sys.argv:
-        sys.path.append(os.path.dirname(__file__))
 
 if __name__ == "__main__":
     main()
-    if "--compare" in sys.argv:
-        sys.path.append(os.path.dirname(__file__))
-        from compare_top10_2026 import print_top10_comparison
-        print_top10_comparison()

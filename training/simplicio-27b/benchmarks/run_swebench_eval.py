@@ -1,7 +1,7 @@
 """
-Official 2026 SWE-bench Verified & Lite Harness Runner for Simplicio 27B
-Formats repository context, executes the 5-phase Simplicio-Loop (<orient>, <plan>, <patch>, <validate>, <deliver>),
-and emits official predictions in swebench all_preds.jsonl format.
+SWE-bench style scaffold for Simplicio 27B.
+Formats repository context into a 5-phase Simplicio-Loop prompt (<orient>, <plan>, <patch>, <validate>, <deliver>)
+for three sample instances. It does NOT run a model, export all_preds.jsonl or publish a score.
 """
 
 import os
@@ -55,21 +55,14 @@ def format_swebench_prompt(instance: Dict) -> str:
 
 def main():
     print("=" * 80)
-    print("🚀 OFFICIAL 2026 SWE-BENCH VERIFIED & LITE RUNNER (SIMPLICIO 27B HARNESS)")
-    print("Formats multi-file repository issues, executes Simplicio-Loop, and exports all_preds.jsonl.")
+    print("SWE-BENCH STYLE SCAFFOLD (SIMPLICIO 27B)")
+    print("Formats sample repository issues into Simplicio-Loop prompts.")
     print("=" * 80)
-    print(f"Loaded {len(SAMPLE_SWEBENCH_INSTANCES)} official SWE-bench sample instances.")
+    print(f"Loaded {len(SAMPLE_SWEBENCH_INSTANCES)} sample SWE-bench-style instances.")
     for inst in SAMPLE_SWEBENCH_INSTANCES:
         print(f"  - [{inst['instance_id']}] Repo: {inst['repo']}")
-    print("\nReady to run swebench evaluation via swebench.harness.run_evaluation.")
+    print("\nScaffold only: no model inference or swebench.harness evaluation is wired in, so no result is produced.")
 
-
-    if '--compare' in sys.argv:
-        sys.path.append(os.path.dirname(__file__))
 
 if __name__ == "__main__":
     main()
-    if "--compare" in sys.argv:
-        sys.path.append(os.path.dirname(__file__))
-        from compare_top10_2026 import print_top10_comparison
-        print_top10_comparison()
