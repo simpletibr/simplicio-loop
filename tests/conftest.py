@@ -15,6 +15,18 @@ for _local_module_root in (_REPO_ROOT / "scripts", _REPO_ROOT / "hooks"):
 from simplicio_loop.core_network_guard import install as install_core_network_guard
 
 
+def _materialise_bundle() -> None:
+    """#1817: simplicio_loop/_bundle/ is generated from source, not committed. Create it (or refresh a
+    drifted copy) before any test imports or reads it, so a fresh checkout runs the suite unchanged."""
+    import sync_bundle
+
+    if sync_bundle.check():
+        sync_bundle.sync()
+
+
+_materialise_bundle()
+
+
 @pytest.fixture(autouse=True)
 def disable_operator_bootstrap_network_by_default(monkeypatch) -> None:
     """Hermetic tests opt into the real bootstrap explicitly at their test seam."""

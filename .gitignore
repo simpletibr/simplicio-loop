@@ -53,3 +53,7 @@ d/
 # distinct from the root .simplicio-loop/ rules above which carry their own tracked exceptions.
 packages/*/.simplicio-loop/
 hbp-inbox.bin
+
+# simplicio_loop/_bundle/ is GENERATED from the canonical sources at build time (#1817): never commit it.
+# `scripts/sync_bundle.py` (run by setup.py, scripts/check.py and tests/conftest.py) recreates it.
+simplicio_loop/_bundle/

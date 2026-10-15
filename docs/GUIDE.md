@@ -1375,7 +1375,7 @@ The default test selection is symbol-level (`scripts/impact_tests.py`): it diffs
 `--base` (default `origin/main`), keeps the top-level functions, classes and assignments whose source
 changed, and selects the test files that name such a symbol and reach its module. Tests that name a
 changed non-Python file (for example `SKILL.md`) and changed test files are selected too; generated
-mirrors (`plugin/`, `simplicio_loop/_bundle/`) are covered by the parity gates. `--full` runs every
+mirrors (`plugin/` is checked by the parity gates; `simplicio_loop/_bundle/` is generated, not committed, #1817). `--full` runs every
 test file; `--core-gate` keeps its fixed core selection.
 
 Monorepo (`packages/mapper`, `packages/dev-cli`): `bash scripts/dev_install.sh`
@@ -1407,7 +1407,7 @@ advanced, opt-in capabilities you reach for when the task calls for them.
   substitute for pytest collection.
 - **Claims audit** (`scripts/claims_audit.py`, fail-closed) — every `scripts/*.py` the docs
   reference exists · the extension-point count agrees across all files · each cited worker command
-  actually runs · the shipped `simplicio_loop/_bundle/` skills are **byte-identical** to source.
+  actually runs · the generated `simplicio_loop/_bundle/` (rebuilt from source, #1817) matches its sources byte-for-byte.
 - **Impact audit** (`scripts/impact_audit.py`) — for any code task, proves the declared task
   surface covers the local blast radius: dependencies, reverse dependents, and related tests.
   ```bash

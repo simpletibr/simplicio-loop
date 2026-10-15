@@ -1,6 +1,7 @@
 # ADR-0001 — keep versioned `plugin/`/`_bundle/` mirrors + automated sync (close #117 as won't-do)
 
-- **Status:** accepted
+- **Status:** accepted (the `_bundle/` half superseded by #1817: `simplicio_loop/_bundle/` is now
+  generated at build time, git-ignored and no longer versioned; `plugin/` stays versioned and checked)
 - **Date:** 2026-07-07
 - **Supersedes / relates to:** none. Resolves the #117 vs #98 fork in strategy.
 
