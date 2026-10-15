@@ -952,3 +952,92 @@ def main(argv: List[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     return args.func(args)
+
+
+# -- first-run help (issue #1812) ---------------------------------------------------------------------------------
+# `prepare --example` prints this file. A test compiles and validates it, so the example cannot rot.
+EXAMPLE_TASK = """System: calc
+Feature: add mul(a, b)
+Type: Feature
+
+AS a calc user
+I WANT a mul(a, b) function in calc/ops.py
+SO THAT I can multiply numbers
+
+1. Acceptance Criteria
+
+Scenario 1: mul multiplies two numbers
+  Given calc/ops.py has add(a, b)
+  When I call mul(3, 4)
+  Then it returns 12 and tests/test_ops.py has a test_mul test [RN01]
+
+2. Business Rules
+
+RN01 - mul lives in calc/ops.py next to add.
+
+8. Additional Information
+
+Independent verifier: `python3 -m pytest -q`
+Unit verifier: `python3 -m pytest -q tests/test_ops.py`
+"""
+
+_SCENARIO_LINE_RE = re.compile(r"^\s*(?:Cen[áa]rio|Scenario)\s+\d+\s*:", re.I)
+_RULE_DEFINITION_RE = re.compile(r"^\s*(RN\d+)\s*[–-]\s*\S", re.I)
+_ACCEPTANCE_RE = SECTION_PATTERNS["acceptance_criteria"]
+
+
+def contract_hints(text: str) -> List[Dict[str, Any]]:
+    """Where a task file breaks the contract shape, with the line number (issue #1812, observation 3).
+
+    Each hint has ``line`` (1-based, or None when the line is missing), ``found`` (the offending text),
+    ``problem`` and ``fix``. The first hint is the one the `next:` line names.
+    """
+    lines = (text or "").replace("\r\n", "\n").splitlines()
+    hints: List[Dict[str, Any]] = []
+    acceptance_line = None
+    for number, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        bare = re.sub(r"^#{1,6}\s*", "", stripped) if stripped.startswith("#") else ""
+        if bare and any(rx.match(bare) for rx in SECTION_PATTERNS.values()):
+            hints.append({
+                "line": number, "found": stripped,
+                "problem": "section heading has '#' and is not read as a section",
+                "fix": f"write '{bare}' on its own line, without '#'",
+            })
+            if _ACCEPTANCE_RE.match(bare) and acceptance_line is None:
+                acceptance_line = number
+        elif acceptance_line is None and _ACCEPTANCE_RE.match(line):
+            acceptance_line = number
+    if acceptance_line is None:
+        hints.append({
+            "line": None, "found": "",
+            "problem": "no '1. Acceptance Criteria' line",
+            "fix": "add the line '1. Acceptance Criteria' (no '#') above the scenarios",
+        })
+    scenario_lines = [n for n, line in enumerate(lines, start=1) if _SCENARIO_LINE_RE.match(line)]
+    if not scenario_lines:
+        hints.append({
+            "line": acceptance_line, "found": "",
+            "problem": "no 'Scenario N: <title>' line under '1. Acceptance Criteria'",
+            "fix": "add 'Scenario 1: <title>' with 'Given', 'When' and 'Then' lines under it",
+        })
+    for position, start in enumerate(scenario_lines):
+        end = scenario_lines[position + 1] if position + 1 < len(scenario_lines) else len(lines)
+        block = lines[start:end]
+        if not any(THEN_RE.match(line) for line in block[1:]):
+            hints.append({
+                "line": start, "found": lines[start - 1].strip(),
+                "problem": "scenario has no 'Then' line",
+                "fix": "add 'Then <expected result>' under the scenario",
+            })
+    defined = {m.group(1).upper() for line in lines for m in [_RULE_DEFINITION_RE.match(line)] if m}
+    for number, line in enumerate(lines, start=1):
+        for ref in RULE_REF_RE.findall(line):
+            if ref.upper() not in defined:
+                hints.append({
+                    "line": number, "found": line.strip(),
+                    "problem": f"references undefined rule {ref.upper()}",
+                    "fix": f"define '{ref.upper()} - <rule>' under '2. Business Rules' or remove the reference",
+                })
+                break
+    return hints

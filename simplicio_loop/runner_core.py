@@ -748,6 +748,32 @@ def _repo_fingerprint(repo_path: Path, *, ignore_paths: Set[str] | None = None) 
     }
 
 
+def changed_paths_since(repo_path: Path, planned_head: str) -> List[str]:
+    """Repo-relative paths the freshness fingerprint sees as changed since the planned commit (#1812).
+
+    Same filter as `_repo_fingerprint`: loop-generated state, tool caches and `.simplicio-loop/` are
+    not listed, because they never make a plan stale. Tracked paths come from the working tree against
+    the planned commit (this covers committed and uncommitted edits); untracked paths are added.
+    """
+    names: set[str] = set()
+    try:
+        if planned_head:
+            diff = _run_cmd(["git", "diff", "--name-only", "-z", planned_head], repo_path)
+            if diff.returncode == 0:
+                names.update(item for item in (diff.stdout or "").split("\0") if item)
+        untracked = _run_cmd(["git", "ls-files", "-z", "--others", "--exclude-standard"], repo_path)
+        if untracked.returncode == 0:
+            names.update(item for item in (untracked.stdout or "").split("\0") if item)
+    except Exception:
+        return []
+    kept = []
+    for rel in sorted(names):
+        if _is_loop_generated_path(rel) or _is_tool_cache_path(rel) or rel.startswith(".simplicio-loop/"):
+            continue
+        kept.append(rel)
+    return kept
+
+
 def _repo_state_equivalent(left: Dict[str, str], right: Dict[str, str]) -> bool:
     """Return True when repo content and base commit are unchanged.
 
