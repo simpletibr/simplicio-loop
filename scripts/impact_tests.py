@@ -28,6 +28,28 @@ RUN_OUTPUT = ("bench/llm_ab/results/",)  # benchmark output, not code
 TEST_DIRS = ("tests", "packages/mapper/tests", "packages/dev-cli/tests")
 
 
+class BaseRefUnresolved(RuntimeError):
+    """The base ref names no commit here, so the change cannot be diffed. Selecting nothing would be a silent pass."""
+
+    reason = "impact_base_unresolved"
+
+    def __init__(self, base: str) -> None:
+        self.base = base
+        super().__init__(
+            "base ref %r does not resolve in this checkout (a shallow clone without it, or no remote-tracking ref), "
+            "so the change cannot be diffed: run `git fetch origin main` (or `git fetch --depth 1 origin main`), "
+            "or pass --full to run every test file, or --base REF with a ref that exists" % base)
+
+
+def resolve_base(base: str) -> str:
+    """The commit ``base`` names. Raises BaseRefUnresolved when it names none."""
+    done = subprocess.run(["git", "rev-parse", "--verify", "--quiet", base + "^{commit}"], cwd=ROOT,
+                          capture_output=True, text=True, check=False)
+    if done.returncode != 0 or not done.stdout.strip():
+        raise BaseRefUnresolved(base)
+    return done.stdout.strip()
+
+
 def _git(*args: str) -> str:
     return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, check=False).stdout
 
@@ -127,7 +149,9 @@ def _conftest_rule(path: str, symbols: set[str]) -> tuple[Path, frozenset[str], 
 
 def impacted_tests(base: str) -> tuple[list[str], dict[str, list[str]]]:
     """A test is impacted when it reaches a changed symbol through its module, runs a changed file by path,
-    names a changed non-Python file, or is itself changed. A changed conftest.py reaches the tests below it."""
+    names a changed non-Python file, or is itself changed. A changed conftest.py reaches the tests below it.
+    Raises BaseRefUnresolved when ``base`` does not resolve."""
+    resolve_base(base)  # fail closed: an unresolvable base is never an empty selection
     keys: dict[str, list[str]] = {}
     selected: set[str] = set()
     modules: list[_Module] = []
@@ -174,7 +198,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.root:
         global ROOT
         ROOT = Path(args.root).resolve()
-    tests, keys = impacted_tests(args.base)
+    try:
+        tests, keys = impacted_tests(args.base)
+    except BaseRefUnresolved as error:
+        print("impact_tests: FAIL (%s): %s" % (error.reason, error), file=sys.stderr)
+        return 2
     if args.json:
         print(json.dumps({"tests": tests, "symbols": keys}, indent=1))
     else:

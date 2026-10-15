@@ -622,8 +622,8 @@ def test_token_monitor_status_is_redacted_before_it_is_returned(handle, monkeypa
 # --- 6. Host, Origin and DNS rebinding -----------------------------------------------------
 
 FOREIGN_HOSTS = ['evil.com', '127.0.0.1.evil.com', 'localhost.evil.com', 'evil.com:%(port)d',
-                 '127.0.0.1.evil.com:%(port)d', '127.0.0.1:1', '127.0.0.1:', 'LOCALHOST:%(port)d',
-                 '127.0.0.1', 'localhost', '[::1]:%(port)d', '0.0.0.0:%(port)d', '', 'null']
+                 '127.0.0.1.evil.com:%(port)d', '127.0.0.1:1', '127.0.0.1:', '127.0.0.1',
+                 'localhost', '[::1]:%(port)d', '0.0.0.0:%(port)d', '', 'null']
 
 
 @pytest.mark.parametrize('host', FOREIGN_HOSTS)
@@ -647,6 +647,12 @@ def test_foreign_origin_is_403_on_read_and_static_routes(handle, origin):
     for path in ('/api/runs', '/static/live/app.js', '/api/health'):
         status, _, _ = _request(handle.port, 'GET', path, headers)
         assert status == 403, (origin, path, status)
+
+
+def test_loopback_host_names_are_case_insensitive_and_still_need_the_bound_port(handle):
+    '''DNS and HTTP host names ignore case, so `LOCALHOST:<port>` is this server; the port is still required.'''
+    assert _request(handle.port, 'GET', '/api/runs', {'Host': 'LOCALHOST:%d' % handle.port, **AUTH})[0] == 200
+    assert _request(handle.port, 'GET', '/api/health', {'Host': 'LOCALHOST'})[0] == 403
 
 
 def test_same_origin_loopback_host_is_accepted_with_and_without_origin(handle):

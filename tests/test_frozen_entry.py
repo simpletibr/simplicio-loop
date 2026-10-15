@@ -532,6 +532,10 @@ def test_an_environment_given_as_a_positional_argument_is_left_alone(monkeypatch
 
 CHILD = """
 import signal, sys, time
+# A launcher may start this child with SIGINT ignored (a background job of a non-interactive shell). An
+# ignored signal stays ignored by design, so the child sets the default dispositions it is meant to test.
+signal.signal(signal.SIGINT, signal.default_int_handler)
+signal.signal(signal.SIGTERM, signal.SIG_DFL)
 sys.path.insert(0, {root!r})
 from simplicio_loop import frozen
 {pre}
