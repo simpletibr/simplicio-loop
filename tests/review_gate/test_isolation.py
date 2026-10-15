@@ -68,6 +68,7 @@ def test_child_env_is_the_allowlist_plus_extra_with_an_empty_home(secrets, monke
     monkeypatch.setenv("LANG", "C.UTF-8")
     monkeypatch.setenv("SOME_OTHER", "x")
     monkeypatch.delenv("TERM", raising=False)  # a host shell may set TERM (allowlisted): the expected env does not depend on it
+    monkeypatch.delenv("TZ", raising=False)  # TZ is allowlisted too (watcher247/sandbox.py ALLOWED_ENV): a host with TZ set must not change the expectation
     env = isolation.child_env({"PYTHONPATH": ".", "HOME": "/root"})
     assert env == {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "HOME": str(isolation.NO_HOME), "SIMPLICIO_LOOP_DAEMON": "0",
                    "PYTHONPATH": ".", "PYTHONDONTWRITEBYTECODE": "1"}  # `extra` cannot move HOME; no token survives

@@ -69,15 +69,14 @@ def _run_bounded(*args, **kwargs):
 
 
 def _pytest_command():
-    """Use the pytest executable selected by the active environment.
+    """Run pytest as ``sys.executable -m pytest``: the interpreter that runs this gate.
 
-    ``uv run pytest`` may intentionally expose a standalone pytest executable
-    while ``uv run python -m pytest`` uses a project interpreter without the
-    pytest module installed.  The local gate must follow the former so its
-    result matches the documented source-checkout command.
+    A ``pytest`` found on PATH can belong to another interpreter (a ``uv tool`` or ``pipx`` venv, a
+    system package) that lacks this project's dependencies, so collection fails with ``ModuleNotFoundError``
+    for a reason unrelated to the repository (#1825). The interpreter running ``check.py`` is the one the
+    developer installed ``.[dev]`` into, so it is the only pytest whose result is the repository's.
     """
-    executable = shutil.which("pytest")
-    return [executable] if executable else [sys.executable, "-m", "pytest"]
+    return [sys.executable, "-m", "pytest"]
 
 # #118 — opt-in satellite files excluded from the mandatory core; see the scripts inventory.
 SATELLITE_TEST_STEMS = frozenset([

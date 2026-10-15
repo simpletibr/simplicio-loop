@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import io
 import json
+import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -11,7 +13,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from simplicio_loop import turbo_provider
+from simplicio_loop import turbo, turbo_provider
 from simplicio_loop.cli_impl import main as cli_main
 import asyncio
 from simplicio_loop.turbo import run_turbo
@@ -23,6 +25,65 @@ FIXTURE = ROOT / "bench" / "llm_ab" / "fixture_hard"
 SOLUTION = ROOT / "tests" / "fixtures" / "llm_ab_hard_solution"
 HIDDEN = ROOT / "bench" / "llm_ab" / "hidden" / "check_hard.py"
 SKILL = ROOT / ".claude" / "skills" / "simplicio-loop" / "SKILL.md"
+DEV_CLI_SOURCE = ROOT / "packages" / "dev-cli"
+MAPPER_SOURCE = ROOT / "packages" / "mapper"
+
+# The engine shells out to `simplicio-dev-cli` and, for the survey, `simplicio-mapper`. These tests exercise
+# the operators that ship in this repository, so they must not depend on console scripts that happen to be
+# installed: a source checkout without `pip install -e .` has none (#1825), and an installed one may be a
+# different build. Each launcher runs the package from this checkout; with the probe variable set it prints
+# the file it imported instead, so a test can prove where the code came from.
+_LAUNCHER_CODE = (
+    "import os, sys\n"
+    "sys.path.insert(0, %r)\n"
+    "import %s as entry\n"
+    "if os.environ.get('SIMPLICIO_TEST_LAUNCHER_PROBE'):\n"
+    "    print(entry.__file__)\n"
+    "    raise SystemExit(0)\n"
+    "raise SystemExit(entry.main())\n"
+)
+_OPERATORS = (  # console script, source root, entry module
+    ("simplicio-dev-cli", DEV_CLI_SOURCE, "simplicio.cli"),
+    ("simplicio-mapper", MAPPER_SOURCE, "simplicio_mapper.cli"),
+)
+
+
+@pytest.fixture(scope="module")
+def in_repo_operators(tmp_path_factory):
+    """A directory holding executables that run the in-repo operators, or None where they cannot be built."""
+    if os.name == "nt":  # POSIX launchers; Windows keeps resolving the installed console scripts
+        return None
+    for _, source, module in _OPERATORS:
+        entry = source.joinpath(*module.split("."))
+        if not (entry.with_suffix(".py").is_file() or (entry / "__init__.py").is_file()):
+            pytest.skip(f"the in-repo operator source is absent ({source}); nothing to run the engine against")
+    directory = tmp_path_factory.mktemp("in-repo-operators")
+    for name, source, module in _OPERATORS:
+        code = _LAUNCHER_CODE % (str(source), module)
+        launcher = directory / name
+        launcher.write_text(f"#!/bin/sh\nexec {shlex.quote(sys.executable)} -c {shlex.quote(code)} \"$@\"\n", encoding="utf-8")
+        launcher.chmod(0o755)
+    return directory
+
+
+@pytest.fixture(autouse=True)
+def use_the_in_repo_operators(monkeypatch, in_repo_operators):
+    if in_repo_operators is not None:
+        monkeypatch.setenv("PATH", str(in_repo_operators) + os.pathsep + os.environ.get("PATH", ""))
+        monkeypatch.setattr(turbo, "_dev_cli_bin", lambda: str(in_repo_operators / "simplicio-dev-cli"))
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the in-repo launchers are POSIX shell scripts")
+@pytest.mark.parametrize("name, source", [(n, s) for n, s, _ in _OPERATORS])
+def test_the_engine_runs_the_in_repo_operators_not_whatever_is_installed(name, source, tmp_path):
+    found = shutil.which(name)
+    assert found, f"{name} must resolve to the in-repo launcher"
+    probe = subprocess.run([found], capture_output=True, text=True, cwd=tmp_path,
+                           env={**os.environ, "PYTHONPATH": "", "SIMPLICIO_TEST_LAUNCHER_PROBE": "1"})
+    assert probe.returncode == 0, probe.stderr
+    assert Path(probe.stdout.strip()).resolve().is_relative_to(source.resolve()), probe.stdout
+    assert Path(turbo._dev_cli_bin()).name == "simplicio-dev-cli"
+    assert Path(turbo._dev_cli_bin()).parent == Path(found).parent
 
 
 class _Response(io.BytesIO):

@@ -468,6 +468,25 @@ def _git_commit_exists(sha, repo_root):
     return False
 
 
+SHALLOW_UNVERIFIED = "UNVERIFIED (shallow clone)"
+
+
+def _is_shallow_repo(repo_root):
+    """True when `repo_root` is a shallow clone (its history is truncated on purpose).
+
+    In a shallow clone a receipt commit older than the clone depth is unreachable by construction,
+    so "not found" says nothing about whether the receipt is genuine (#1825). Any failure to ask git
+    (no git, not a repository, no such directory) is "not shallow": the caller then keeps the strict,
+    fail-closed verdict.
+    """
+    try:
+        r = subprocess.run(["git", "rev-parse", "--is-shallow-repository"],
+                           capture_output=True, text=True, cwd=repo_root)
+    except OSError:
+        return False
+    return r.returncode == 0 and r.stdout.strip() == "true"
+
+
 def validate_receipt(receipt_path, repo_root=REPO):
     """A receipt backing a 'verified' claim must be a real artifact bound to THIS repo's git
     history, not an arbitrary/copied JSON blob (#294 step 4: 'claims quantitativos com receipt,
@@ -480,6 +499,12 @@ def validate_receipt(receipt_path, repo_root=REPO):
     Returns (ok, reason). A receipt whose `commit` doesn't resolve to a real reachable commit
     (fabricated, foreign-repo, or stale-format hash) is rejected — this is the mechanical answer
     to "receipt de outro commit/versão é rejeitado".
+
+    One exception, and it is never silent: when the repository is a shallow clone the commit may
+    simply predate the clone depth, so a well-formed hash that is absent from the truncated history
+    is neither proven nor refuted. It returns (True, "UNVERIFIED (shallow clone): ...") and the
+    caller must surface that label. A malformed hash, a missing field, or an absent commit in a full
+    clone still fails.
     """
     try:
         with open(receipt_path, encoding="utf-8") as f:
@@ -495,6 +520,9 @@ def validate_receipt(receipt_path, repo_root=REPO):
     if not ts:
         return False, "receipt %s: missing 'generated_at'/'created_at' timestamp" % receipt_path
     if not _git_commit_exists(commit, repo_root):
+        if re.match(r"^[0-9a-fA-F]{7,40}$", str(commit)) and _is_shallow_repo(repo_root):
+            return True, ("%s: receipt %s cites commit %s, which is not in this shallow history; "
+                          "run `git fetch --unshallow` to verify it" % (SHALLOW_UNVERIFIED, receipt_path, commit))
         return False, ("receipt %s: commit '%s' does not resolve to a real commit reachable in "
                         "this repo's history — receipt from another commit/version rejected" %
                         (receipt_path, commit))
@@ -510,8 +538,11 @@ def check_quantitative_claims():
       a) All claims in CLAIMS manifest have valid status.
       b) Unknown quantitative numbers in scanned docs are flagged.
       c) Any claim marked 'verified' has a receipt that validates (real commit + timestamp).
+         In a shallow clone a receipt commit missing from the truncated history is reported as
+         "UNVERIFIED (shallow clone)" in the detail, not as a failure (#1825).
     """
     failures = []
+    unverified = []  # receipts whose commit a shallow clone cannot prove or refute (#1825)
     # a) Manifest integrity
     for c in CLAIMS:
         if c["status"] not in ("verified", "unverified"):
@@ -527,6 +558,8 @@ def check_quantitative_claims():
                 r_ok, r_reason = validate_receipt(rpath, REPO)
                 if not r_ok:
                     failures.append("claim %s: %s" % (c["id"], r_reason))
+                elif r_reason.startswith(SHALLOW_UNVERIFIED):
+                    unverified.append("claim %s: %s" % (c["id"], r_reason))
     # Manifest must not be empty
     if not CLAIMS:
         failures.append("claims_manifest.CLAIMS is empty — no claims registered")
@@ -538,8 +571,12 @@ def check_quantitative_claims():
             "add it or mark as 'unverified'" % (match_text, doc_rel)
         )
     ok = not failures
-    return ok, ("all quantitative claims registered in manifest (%d total)" % len(CLAIMS)
-                if ok else "; ".join(failures))
+    if not ok:
+        return ok, "; ".join(failures)
+    detail = "all quantitative claims registered in manifest (%d total)" % len(CLAIMS)
+    if unverified:
+        detail += "; " + "; ".join(unverified)
+    return ok, detail
 
 
 def check_prose_commands():
