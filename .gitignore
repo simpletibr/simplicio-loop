@@ -11,6 +11,7 @@
 .simplicio/
 *.egg-info/
 __pycache__/
+*.py[cod]
 dist/
 *.db
 .serena/

@@ -1,6 +1,6 @@
 # Auggie adapter
 
-Auggie (Augment's CLI agent) reads `AGENTS.md` and `CLAUDE.md` rule files; the workspace-root file is always included. Install status: **wired**.
+Auggie (Augment's CLI agent) reads `AGENTS.md` and `CLAUDE.md` rule files; the workspace-root file is always included. Install status: **listed** (installer target, no adapter code).
 
 ## Skill load
 

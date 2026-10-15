@@ -2,7 +2,8 @@
 
 `simplicio_loop/_catalog/harnesses.json` is the single list of hosts. These tests pin it to the
 upstream registry, tie it to the installer, the adapter directories and the matrix document, and
-install every `wired` runtime into a throwaway target.
+install every installer target (wired or listed) into a throwaway target. Which status an entry gets is
+pinned to the adapter code in `tests/test_adapter_scope_honesty.py`.
 """
 from __future__ import annotations
 
@@ -61,7 +62,7 @@ def _readmes(entry: dict) -> list[str]:
             if (d / "README.md").is_file()]
 
 
-WIRED = [(e["id"], e["install"]["runtime"]) for e in _entries() if e["install"]["status"] == "wired"]
+INSTALLABLE = [(e["id"], e["install"]["runtime"]) for e in _entries() if e["install"]["runtime"] is not None]
 
 
 def test_catalog_pins_the_upstream_registry() -> None:
@@ -89,11 +90,11 @@ def test_every_entry_is_valid() -> None:
         assert all(NAME_RE.match(alias) for alias in entry["aliases"]), entry["id"]
         install = entry["install"]
         assert INSTALL_KEYS <= set(install), entry["id"]
-        assert install["status"] in {"wired", "manual"}, entry["id"]
+        assert install["status"] in {"wired", "listed"}, entry["id"]
         if install["status"] == "wired":
             assert isinstance(install["runtime"], str) and install["runtime"], entry["id"]
         else:
-            assert install["runtime"] is None, entry["id"]
+            assert install["runtime"] is None or (isinstance(install["runtime"], str) and install["runtime"]), entry["id"]
         assert install["surface"].strip(), entry["id"]
         assert install["source"].startswith("https://"), entry["id"]
         assert isinstance(entry["llm"], dict) and "status" in entry["llm"], entry["id"]
@@ -118,14 +119,14 @@ def test_every_entry_has_an_adapter_readme_that_covers_the_loop() -> None:
                    for text in readmes), entry["id"]
 
 
-def test_manual_entries_list_exact_steps_in_their_readme() -> None:
-    manual = [e for e in _entries() if e["install"]["status"] == "manual"]
+def test_entries_without_an_installer_target_list_exact_steps_in_their_readme() -> None:
+    manual = [e for e in _entries() if e["install"]["runtime"] is None]
     assert manual
     for entry in manual:
         assert any("```" in text for text in _readmes(entry)), entry["id"]
 
 
-def test_wired_runtime_is_an_installer_target_named_like_its_adapter() -> None:
+def test_installer_runtime_is_an_installer_target_named_like_its_adapter() -> None:
     for entry in _entries():
         runtime = entry["install"]["runtime"]
         if runtime is None:
@@ -158,14 +159,14 @@ def test_dry_run_plan_knows_every_entry_file() -> None:
     assert install_plan.ENTRY_FILES == expected
 
 
-def test_wheel_installer_never_advertises_a_host_the_catalog_does_not_wire() -> None:
+def test_wheel_installer_never_advertises_a_host_without_an_installer_target() -> None:
     from simplicio_loop.install import planner
 
-    assert set(planner.HOSTS) <= {runtime for _, runtime in WIRED}
+    assert set(planner.HOSTS) <= {runtime for _, runtime in INSTALLABLE}
 
 
 def test_both_launchers_delegate_every_runtime_to_the_python_installer() -> None:
-    runtimes = {runtime for _, runtime in WIRED}
+    runtimes = {runtime for _, runtime in INSTALLABLE}
     for launcher in ("install.sh", "install.ps1"):
         text = (REPO / "scripts" / launcher).read_text(encoding="utf-8")
         assert "install_lib.py" in text, launcher
@@ -197,8 +198,8 @@ def _install(runtime: str, target: Path, home: Path) -> subprocess.CompletedProc
         stdin=subprocess.DEVNULL, timeout=120, check=False)
 
 
-@pytest.mark.parametrize("runtime", [runtime for _, runtime in WIRED])
-def test_wired_runtime_installs_into_a_throwaway_target_and_is_idempotent(
+@pytest.mark.parametrize("runtime", [runtime for _, runtime in INSTALLABLE])
+def test_installer_target_installs_into_a_throwaway_target_and_is_idempotent(
         runtime: str, tmp_path: Path) -> None:
     target, home = tmp_path / "project", tmp_path / "home"
     target.mkdir()

@@ -1,6 +1,6 @@
 # OpenClaude adapter
 
-OpenClaude (an open-source coding-agent CLI for any model provider) reads `AGENTS.md` as its primary project instruction file. Install status: **wired**.
+OpenClaude (an open-source coding-agent CLI for any model provider) reads `AGENTS.md` as its primary project instruction file. Install status: **listed** (installer target, no adapter code).
 
 ## Skill load
 

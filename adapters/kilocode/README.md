@@ -1,6 +1,6 @@
 # Kilocode adapter
 
-Kilo Code treats `AGENTS.md` as its primary instruction file. Install status: **wired**.
+Kilo Code treats `AGENTS.md` as its primary instruction file. Install status: **listed** (installer target, no adapter code).
 
 ## Skill load
 

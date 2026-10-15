@@ -76,8 +76,8 @@ recorded evidence. Facts are `MEASURED|`
 only with receipts; otherwise `UNVERIFIED|`. Missing dependencies fail closed; never fabricate
 context, tests, savings or provider output.
 This repository ships a runtime-agnostic **super-plugin**: the Universal Looping AI
-Orchestrator plus five satellite skills, packaged for 35 runtimes. Any agent runtime that
-reads `AGENTS.md` / skill folders can run it.
+Orchestrator plus five satellite skills, with 6 wired adapters and 29 listed hosts (see
+Runtimes). Any agent runtime that reads `AGENTS.md` / skill folders can load it.
 
 ## What to load
 
@@ -108,13 +108,13 @@ auto-clamp). See [`hooks/README.md`](hooks/README.md).
 
 ## Runtimes
 
-35 runtimes are listed in [`simplicio_loop/_catalog/harnesses.json`](simplicio_loop/_catalog/harnesses.json)
-and documented in [`adapters/MATRIX.md`](adapters/MATRIX.md): the 32 host surfaces of `simpletibr/simplicio`
-(Claude Code, Codex, Grok, Cursor, GitHub Copilot, OpenCode, MiMo Code, Amp, OpenClaude, Antigravity, Pi,
-oh-my-pi, Hermes / Simplicio Agent, Devin, goose, Auggie, Autohand Code, Charm, Cline, Codebuff, Command
-Code, Continue, Droid, Kilo Code, Kimi, Kiro, Mistral Vibe, Qwen Code, Rovo Dev, Gemini, VS Code, Orca) plus
-Aider, DeepSeek and OpenClaw. Install every `wired` one with `scripts/install.sh <runtime>` (or `install.ps1`);
-DeepSeek is a model provider, not a host, so its adapter README lists manual steps.
+Wired and listed are different claims. **6 wired adapters** ship code in `adapters/` and a test in
+`tests/host_<host>/`: Claude Code, Codex, Cursor, Grok, Kiro and VS Code. The other **29 listed hosts** in
+[`simplicio_loop/_catalog/harnesses.json`](simplicio_loop/_catalog/harnesses.json) are catalog entries with a
+README and no adapter code: 28 of them have a generic installer target that writes the skills and the host's
+entry file (a listing is not proof the host runs the loop), and DeepSeek is a model provider with manual
+steps. Status per host: [`adapters/MATRIX.md`](adapters/MATRIX.md). Install a host that has an installer
+target with `scripts/install.sh <runtime>` (or `install.ps1`).
 
 ## Activation
 
@@ -328,7 +328,7 @@ The complete installed-entry-point and `simplicio-loop` command map is
 `--help` before invoking a command (not `simplicio-loop turbo` for a task run: the skill and the quick flow
 above give its two commands in full). Every new public command must have
 meaningful `help=` text, documentation in that file, and a help regression
-check. Current release: Loop 3.49.0 (Mapper 0.26.34 and Dev CLI 0.18.16 are bundled).
+check. The release version lives in `pyproject.toml` only (`python3 scripts/version_sync.py check`).
 
 For GitHub work items, keep the body focused on objective, implementation,
 deployment, and tests. Do not add an Acceptance Criteria section to new or

@@ -1,6 +1,6 @@
 # Charm adapter
 
-Charm's Crush includes `AGENTS.md` among its default context files. Install status: **wired**.
+Charm's Crush includes `AGENTS.md` among its default context files. Install status: **listed** (installer target, no adapter code).
 
 ## Skill load
 

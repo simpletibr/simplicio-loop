@@ -1,6 +1,6 @@
 # Continue adapter
 
-Continue reads rules only from `.continue/rules/`; it does not read `AGENTS.md`. Install status: **wired**.
+Continue reads rules only from `.continue/rules/`; it does not read `AGENTS.md`. Install status: **listed** (installer target, no adapter code).
 
 ## Skill load
 

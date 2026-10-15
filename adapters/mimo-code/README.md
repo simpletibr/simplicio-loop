@@ -1,6 +1,6 @@
 # MiMo Code adapter
 
-MiMo Code (Xiaomi's terminal coding agent) reads `AGENTS.md` as its primary rules file. Install status: **wired**.
+MiMo Code (Xiaomi's terminal coding agent) reads `AGENTS.md` as its primary rules file. Install status: **listed** (installer target, no adapter code).
 
 ## Skill load
 
