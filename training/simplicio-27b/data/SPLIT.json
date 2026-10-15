@@ -1,0 +1,21 @@
+{
+  "candidates": 95,
+  "duplicates_removed": 82,
+  "files": {
+    "simplicio_loop_50pts_train.jsonl": {
+      "rows": 10,
+      "sha256": "cd90f175a30f843e72dd51d951b15d487886fcba66dd312f7996c495c4a8beb3"
+    },
+    "simplicio_loop_50pts_val.jsonl": {
+      "rows": 3,
+      "sha256": "4bd620d07e87472aa89ce89d69799f39fea86a01877a1ed65c33f29381391d0e"
+    }
+  },
+  "generator": "generate_dataset.py",
+  "normalization": "lowercase, collapse whitespace, strip",
+  "regenerate": "python3 generate_dataset.py --seed 1824",
+  "seed": 1824,
+  "split_method": "unique instructions ordered by sha256(seed:split:normalized_instruction); the first round(unique * val_fraction) are val, the rest are train",
+  "unique_instructions": 13,
+  "val_fraction": 0.2
+}
