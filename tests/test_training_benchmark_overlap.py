@@ -174,8 +174,17 @@ def test_benchmark_cases_are_discovered():
 
 
 def test_train_and_val_data_present():
+    # The expected count comes from the committed split manifest, not a hard-coded floor. A loader
+    # that silently reads nothing would make every overlap assertion vacuously true, so the
+    # detector must scan exactly the rows the manifest records (13 unique instructions after #1824
+    # de-duplication: 10 train + 3 val). A stale number here would hide a loader regression.
+    with open(os.path.join(DATA_DIR, "SPLIT.json"), encoding="utf-8") as fh:
+        manifest = json.load(fh)
+    expected = sum(entry["rows"] for entry in manifest["files"].values())
+    assert expected > 0, "split manifest records no rows"
+    assert expected == manifest["unique_instructions"]
     blobs = load_train_val_text()
-    assert len(blobs) >= 50
+    assert len(blobs) == expected, "scanned %d train/val records, manifest records %d" % (len(blobs), expected)
 
 
 def test_tax_id_case_is_gone_from_every_benchmark():
