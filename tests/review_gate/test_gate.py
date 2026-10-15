@@ -10,7 +10,7 @@ from typing import NamedTuple
 import pytest
 
 from simplicio_loop.review_gate import diffs, gate, identity
-from simplicio_loop.review_gate.model import ERROR, FAIL, PASS, CheckResult, Level
+from simplicio_loop.review_gate.model import ERROR, FAIL, PASS, SKIPPED, CheckResult, Level
 from tests.review_gate import scenario
 
 WORKER = identity.Agent("worker-1", "worker", "haiku-5.5", "local")
@@ -169,15 +169,24 @@ def _wrapped_runs(tmp_path, name, **overrides):
 
 def test_the_sandbox_wrapper_is_built_for_the_head_tree_and_wraps_every_pytest_run(tmp_path):
     run, seen = _wrapped_runs(tmp_path, "dead", n_mutants=2)
-    # each run wrapped for the tree it runs in (the sandbox chdirs there): redgreen head+main, line_coverage probe+run, mutation x3
-    assert [root.name for root, _ in seen] == ["head", "base", "head", "head", "head", "head", "head"]
+    # line_coverage probes `import coverage` in the gate's interpreter first. Without coverage the gate reports the check
+    # SKIPPED (an honest skip) and runs no coverage pass, so the expected runs follow the reported outcome, not an assumed
+    # install: a fresh `pip install -e .[dev]` without pytest-cov has no coverage module (#1825).
+    line = _check(run, "line_coverage")
+    coverage_pass = line.status != SKIPPED
+    # each run wrapped for the tree it runs in (the sandbox chdirs there): redgreen head+main, line_coverage probe(+run), mutation x3
+    expected = ["head", "base", "head", *(["head"] if coverage_pass else []), "head", "head", "head"]
+    assert [root.name for root, _ in seen] == expected
+    if not coverage_pass:
+        assert "coverage" in line.reasons[0]
     assert all(root.parent.name == f"pr-11-{run.head[:7]}" for root, _ in seen)
     code = [argv[argv.index("-c") + 1] for _, argv in seen]  # every run is `python [-P] -c <code>`, the code after the flag
     assert all("-c" in argv for _, argv in seen)
     assert code.count("import coverage") == 1  # the one probe; every other run is a pytest run
     assert all("pytest.main" in c for c in code if c != "import coverage")
-    assert [argv[1] for _, argv in seen[2:4]] == ["-P", "-P"]  # line_coverage's probe and run import from the interpreter's own path
-    assert len(seen) == 2 + 2 + 3  # redgreen on head and on main, line_coverage probe and run, the unmutated tree, two mutants
+    if coverage_pass:
+        assert [argv[1] for _, argv in seen[2:4]] == ["-P", "-P"]  # line_coverage's probe and run import from the interpreter's own path
+    assert len(seen) == len(expected)  # redgreen on head and on main, the line_coverage probe (and run), the unmutated tree, two mutants
 
 
 def test_the_mutants_run_the_changed_tests_then_the_neighbors_and_never_a_conftest(tmp_path):
