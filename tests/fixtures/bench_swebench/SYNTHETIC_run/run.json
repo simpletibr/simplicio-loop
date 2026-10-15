@@ -1,0 +1,7 @@
+{
+  "SYNTHETIC": "SYNTHETIC FIXTURE - invented numbers for unit tests; NOT a benchmark result",
+  "harness_version": "simplicio-swebench-harness/1",
+  "run_id": "SYNTHETIC-fixture-run",
+  "schema": "simplicio-swebench-run/1",
+  "synthetic": true
+}

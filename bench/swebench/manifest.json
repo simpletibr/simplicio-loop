@@ -1,0 +1,22 @@
+{
+  "dataset": {
+    "name": "princeton-nlp/SWE-bench_Verified",
+    "revision": "c104f840cc67f8b6eec6f759ebc8b2693d585d4a",
+    "revision_source": "huggingface.co/api/datasets/princeton-nlp/SWE-bench_Verified, field sha, read 2026-10-14; metadata only, the dataset file was not downloaded",
+    "split": "test"
+  },
+  "instances": [],
+  "manifest_id": "c5915b9ca31b0322c55e989087a014cd923d2dfd7296c7a3102791c172d994c8",
+  "schema": "simplicio-swebench-manifest/1",
+  "selection": {
+    "algorithm": "stratified-by-repo; largest-remainder allocation; lowest sha256 rank inside each stratum",
+    "allocation": null,
+    "n": 30,
+    "pool_sha256": null,
+    "pool_size": null,
+    "rule": "1. Pool = every row of the dataset split, reduced to instance_id and repo (plus base_commit, version and difficulty when present). Row order in the pool does not matter. 2. Stratum = repo; size_r = number of pool rows with that repo; total = sum of size_r. 3. Allocation with exact integers: floor_r = (n * size_r) // total; the n - sum(floor_r) leftover seats go, one each, to the repos with the largest remainder (n * size_r) % total, ties broken by repo name ascending. 4. rank(seed, instance_id) = sha256(utf8(seed + '|' + instance_id)) as lowercase hex. 5. Inside each stratum keep the alloc_r instance_ids with the lowest (rank, instance_id). 6. The manifest lists the kept rows sorted by instance_id; manifest_id = sha256 of canonical JSON {dataset: {name, revision}, ids: sorted instance_ids}.",
+    "seed": "simplicio-1819"
+  },
+  "status": "TEMPLATE (UNVERIFIED)",
+  "status_reason": "The instance-ID list is not in this file. It could not be read without downloading the dataset, and no ID was invented. Build it with: swe_manifest.py build --ids-file IDS.json --expect-revision c104f840cc67f8b6eec6f759ebc8b2693d585d4a"
+}

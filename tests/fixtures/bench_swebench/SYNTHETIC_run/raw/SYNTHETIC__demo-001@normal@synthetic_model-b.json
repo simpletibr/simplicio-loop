@@ -1,0 +1,60 @@
+{
+  "arms": {
+    "normal": {
+      "arm": "normal",
+      "model": "synthetic/model-b",
+      "tasks": [
+        {
+          "check_output_tail": "SYNTHETIC",
+          "index": 1,
+          "instance_id": "SYNTHETIC__demo-001",
+          "kind": "swebench-verified",
+          "repo": "SYNTHETIC/demo",
+          "status": "ok",
+          "success": true,
+          "totals": {
+            "cached_tokens": 0,
+            "completion_tokens": 1000,
+            "cost_source": "computed-from-tokens",
+            "cost_usd": 0.0,
+            "prompt_tokens": 8000,
+            "reasoning_tokens": 0
+          },
+          "turns": 3,
+          "wall_s": 10.0
+        }
+      ],
+      "total_wall_s": 10.0
+    }
+  },
+  "meta": {
+    "SYNTHETIC": "SYNTHETIC FIXTURE - invented numbers for unit tests; NOT a benchmark result",
+    "agent": "opencode",
+    "arm": "normal",
+    "dataset": {
+      "name": "SYNTHETIC/not-a-dataset",
+      "revision": "0000000000000000000000000000000000000000"
+    },
+    "date": "2000-01-01",
+    "harness_version": "simplicio-swebench-harness/1",
+    "instance_id": "SYNTHETIC__demo-001",
+    "loop": "off",
+    "main_commit": "0000000",
+    "manifest_id": "synthetic00000000",
+    "model": "openrouter/synthetic/model-b",
+    "pricing": {
+      "available": true,
+      "completion": 4e-06,
+      "fetched_at": "2000-01-01T00:00:00+00:00",
+      "input_cache_read": null,
+      "input_cache_write": null,
+      "internal_reasoning": null,
+      "model": "synthetic/model-b",
+      "prompt": 2e-06
+    },
+    "run_id": "SYNTHETIC-fixture-run",
+    "synthetic": true,
+    "task_set": "swebench-verified"
+  },
+  "schema": "simplicio-swebench-raw/1"
+}
