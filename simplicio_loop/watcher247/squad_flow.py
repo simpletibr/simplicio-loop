@@ -40,7 +40,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .. import execution_report, merge_train, model_roles, pr_evidence, squad_capacity, squad_metrics, squad_routing, squads
+from .. import execution_report, merge_lockfree, merge_train, model_roles, pr_evidence, squad_capacity, squad_metrics, squad_routing, squads
 from ..review_gate import comment as review_comment, identity
 from . import config, proc, sandbox, squad_review, state
 
@@ -229,7 +229,8 @@ async def _review(repo: str, repo_plan: RepoPlan, squad: squads.Squad, issue: in
         return {"pr": number, "issue": issue, "approved": False,
                 "reasons": [r for check in report.blockers for r in check.reasons]}
     return {"pr": number, "issue": issue, "approved": True, "reasons": [], "head": head,
-            "branch": data.get("headRefName") or f"loop/issue-{issue}"}  # loop/issue-N-rK for a reattempt
+            "branch": data.get("headRefName") or f"loop/issue-{issue}",  # loop/issue-N-rK for a reattempt
+            "files": [f["path"] for f in data.get("files") or [] if isinstance(f, dict) and f.get("path")]}
 
 
 async def _train_test(dest: Path, test_cmd: str, issues: list[int], branches: dict[int, str] | None = None) -> bool:
@@ -252,17 +253,27 @@ async def _train_test(dest: Path, test_cmd: str, issues: list[int], branches: di
     return (await proc.run(argv, timeout=config.TURBO_TIMEOUT_S, cwd=dest, env=env)).returncode == 0
 
 
-async def _merge(repo: str, repo_plan: RepoPlan, approved: dict[int, int], heads: dict[int, str], runner, gate,
-                 login: str, test_cmd: str, branches: dict[int, str] | None = None) -> dict:
-    """Gate each approved PR with squads.squad_gate (approval written by `login`), then merge the rest in squad order through merge_train."""
-    full = f"{config.ORG}/{repo}"
-    passed, blocked = [], []
+async def _gate_all(full: str, approved: dict[int, int], login: str, runner) -> tuple[list[int], dict[int, str]]:
+    """squad_gate for each approved PR (approval written by `login`): the issues that passed, in approved order, and the reason of each that did not."""
+    passed: list[int] = []
+    reasons: dict[int, str] = {}
     for issue, pr in approved.items():
         try:
             verdict = await squads.squad_gate_for_pr(full, pr, approvers=[login], runner=runner)
         except squads.SquadGateError:  # fail closed: no gate verdict, no merge
-            verdict = {"approved": False}
-        (passed if verdict["approved"] else blocked).append(issue)
+            verdict = {"approved": False, "reason": "gate_error"}
+        if verdict["approved"]:
+            passed.append(issue)
+        else:
+            reasons[issue] = str(verdict.get("reason") or "not approved")
+    return passed, reasons
+
+
+async def _merge(repo: str, repo_plan: RepoPlan, approved: dict[int, int], heads: dict[int, str], runner, gate,
+                 login: str, test_cmd: str, branches: dict[int, str] | None = None) -> dict:
+    """Gate each approved PR with squads.squad_gate (approval written by `login`), then merge the rest in squad order through merge_train."""
+    full = f"{config.ORG}/{repo}"
+    passed, blocked = await _gate_all(full, approved, login, runner)
     result = {"merged": [], "failed": [], "gate_blocked": sorted(approved[i] for i in blocked)}
     merged_prs: list[int] = []
 
@@ -285,8 +296,62 @@ async def _merge(repo: str, repo_plan: RepoPlan, approved: dict[int, int], heads
     return result
 
 
-async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gate) -> dict:
-    """After the workers: squad review per PR, then the opt-in batch merge. Returns the status block per repo."""
+async def _post_merge_tests(dest: Path, test_cmd: str, tests: list[str] | None) -> tuple[bool, tuple]:
+    """The impacted test files of main (`tests`), or the whole verify when None: sandboxed like the batch train's test (#1820)."""
+    argv = shlex.split(test_cmd) + (list(tests) if tests else [])
+    env = sandbox.scrubbed_env(os.environ, home=Path.home())
+    done = await proc.run(sandbox.wrap(argv, clone=dest, state_dir=config.ROOT), timeout=config.TURBO_TIMEOUT_S, cwd=dest, env=env)
+    return done.returncode == 0, merge_lockfree.parse_failing(done.stdout)
+
+
+async def _merge_lockfree(repo: str, repo_plan: RepoPlan, approved: dict[int, int], heads: dict[int, str], files: dict[int, frozenset],
+                          squad_of: dict[int, str], runner, gate, login: str, test_cmd: str) -> dict:
+    """Lock-free mode (#1820, opt-in): each approved PR merges on its own, with no batch and no shared test. The approval gate still
+    runs first for every PR. After each merge the impacted tests run on main; a red one opens a revert PR and stops the tick's merges.
+
+    The repo lock covers only the base clone's git steps and the post-merge run, never a merge."""
+    full = f"{config.ORG}/{repo}"
+    passed, reasons = await _gate_all(full, approved, login, runner)
+    rank = {step.issue: i for i, step in enumerate(repo_plan.plan.merge_order)}
+    order = sorted(approved, key=lambda issue: rank.get(issue, len(rank)))  # the plan's merge order, as the batch train uses it
+    issue_of = {pr: issue for issue, pr in approved.items()}
+    states = [merge_lockfree.PRState(
+        pr=approved[i], issue=i, head=heads[approved[i]], files=files.get(i, frozenset()), approved=i in passed,
+        gate_reason=reasons.get(i, ""), tests_green=True,  # _review approves only a PR whose worker verify measured green
+        squad=squad_of.get(i, "")) for i in order]
+    dest = config.WORK / repo
+    forge = merge_lockfree.Forge(full, dest, proc.run)
+
+    async def merge(pr: int, head: str) -> str | None:
+        sha = await forge.merge(pr, head)  # pinned to the reviewed head; no lock: it is a single gh call
+        if sha:
+            _stamp(repo_plan.merged_at, issue_of[pr])  # the instant the merge is observed
+        return sha
+
+    async def check(pr: int, merge_sha: str) -> merge_lockfree.PostMerge:
+        async with gate.repo_lock(repo):
+            main_sha = await forge.checkout_main()
+            before = await forge.parent(merge_sha)
+            return await merge_lockfree.post_merge_check(
+                main_sha, impacted=lambda _sha: forge.impacted(before),
+                run_tests=lambda tests, _sha: _post_merge_tests(dest, test_cmd, tests))
+
+    async def on_red(red: merge_lockfree.Red) -> merge_lockfree.Action:
+        async with gate.repo_lock(repo):
+            return await merge_lockfree.on_red(red, policy=merge_lockfree.RED_POLICY, forge=forge)
+
+    report = await merge_lockfree.merge_pass(states, merge=merge, check=check, on_red=on_red)
+    return {"merged": report.merged, "failed": sorted(report.failed), "gate_blocked": sorted(approved[i] for i in reasons),
+            "lockfree": {"refused": {str(k): v for k, v in report.refused.items()},
+                         "waited": {str(k): v for k, v in report.waited.items()},
+                         "pending": {str(k): v for k, v in report.pending.items()},
+                         "red": report.red,
+                         "actions": [{"kind": a.kind, "url": a.url, "detail": a.detail} for a in report.actions]}}
+
+
+async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gate, merge_mode: str | None = None) -> dict:
+    """After the workers: squad review per PR, then the opt-in merge (batch train, or lock-free with `merge_mode`). Returns the status block per repo."""
+    mode = merge_mode or merge_lockfree.mode_from_env()  # batch unless SIMPLICIO_247_MERGE_MODE is exactly `lockfree`
     done = {(w.repo, int(w.issue["number"])): o for w, o in zip(batch, outcomes) if isinstance(o, Outcome)}
     summary: dict[str, Any] = {}
     reviews: dict[tuple[str, int], dict] = {}
@@ -295,6 +360,8 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
         approved: dict[int, int] = {}
         heads: dict[int, str] = {}
         branches: dict[int, str] = {}  # issue -> the PR's real head branch
+        files: dict[int, frozenset] = {}  # issue -> the files of its PR (lock-free: the overlap rule)
+        squad_of: dict[int, str] = {}  # issue -> its squad (lock-free: who gets a red)
         rejected: dict[str, list[str]] = {}
         for squad in repo_plan.plan.squads:
             for issue in squad.issues:
@@ -307,6 +374,8 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
                     approved[issue] = review["pr"]
                     heads[review["pr"]] = review["head"]
                     branches[issue] = review["branch"]
+                    files[issue] = frozenset(review["files"])
+                    squad_of[issue] = squad.id
                     _stamp(repo_plan.ready_at, issue)  # ready to merge: from here a dependent PR waits for its dependencies
                 else:
                     rejected[str(review["pr"])] = review["reasons"]
@@ -321,7 +390,11 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
             if login is None:
                 login = await own_login()
             test_cmd = next(w.verify for w in batch if w.repo == repo_plan.repo)  # the repo's loop.toml verify, the one its workers ran
-            entry.update(await _merge(repo_plan.repo, repo_plan, approved, heads, runner, gate, login, test_cmd, branches))
+            if mode == merge_lockfree.MODE_LOCKFREE:
+                entry.update(await _merge_lockfree(repo_plan.repo, repo_plan, approved, heads, files, squad_of, runner, gate, login, test_cmd))
+            else:
+                entry.update(await _merge(repo_plan.repo, repo_plan, approved, heads, runner, gate, login, test_cmd, branches))
+        entry["merge_mode"] = mode
         entry["task_metrics"], entry["metrics"] = _repo_metrics(repo_plan, done)
         summary[repo_plan.repo] = entry
     await asyncio.to_thread(write_report, plans, done, reviews)
