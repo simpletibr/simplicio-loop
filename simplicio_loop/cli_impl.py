@@ -161,6 +161,9 @@ from .cli_commands.doctor import (
 from .cli_commands.economy import (
     economy_command, add_economy,
 )
+from .cli_commands.tools import (
+    add_ecc, add_deploy, add_agent_slots, add_generation_broker, add_hub_drain_plan,
+)
 
 BUNDLE = bundle_root()  # importlib.resources, not a source-tree path: the same call works from a frozen binary
 DASHBOARD = BUNDLE / "hooks" / "simplicio_dashboard.py"
@@ -299,21 +302,9 @@ def main(argv=None) -> int:
 
     add_economy(sub)
 
-    p_ecc = sub.add_parser("ecc", help="inspect the opt-in ECC advisory integration")
-    ecc_sub = p_ecc.add_subparsers(dest="ecc_command", required=True)
-    p_ecc_doctor = ecc_sub.add_parser("doctor", help="verify ECC provenance and safety policy")
-    p_ecc_doctor.add_argument("--repo", default=".", help="repository root")
-    p_ecc_doctor.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    add_ecc(sub)
 
-    p_deploy = sub.add_parser(
-        "deploy", help="plan a gated serverless deployment (dry-run unless --apply is explicit)"
-    )
-    p_deploy.add_argument("--repo", default=".")
-    p_deploy.add_argument("--backend", choices=("modal", "daytona"), default="modal")
-    p_deploy.add_argument("--environment", default="")
-    p_deploy.add_argument("--image", default="")
-    p_deploy.add_argument("--apply", action="store_true")
-    p_deploy.add_argument("--action-gate", action="store_true")
+    add_deploy(sub)
 
     add_verify(sub)
 
@@ -361,12 +352,8 @@ def main(argv=None) -> int:
     add_sync_source(sub)
 
     add_drain(sub)
-    p_slots = sub.add_parser("agent-slots", help="inspect and reclaim Loop-owned agent capacity")
-    p_slots.add_argument("slot_args", nargs=argparse.REMAINDER,
-                         help="pass-through args for the JSON-first agent slot registry")
-    p_generation_broker = sub.add_parser(
-        "generation-broker", help="operate persisted generation bindings")
-    p_generation_broker.add_argument("broker_args", nargs=argparse.REMAINDER)
+    add_agent_slots(sub)
+    add_generation_broker(sub)
     p_queue = sub.add_parser("queue", help="operate the durable local task queue")
     p_queue.add_argument("--repo", default=".")
     p_queue.add_argument(
@@ -399,10 +386,7 @@ def main(argv=None) -> int:
         }
         queue_command = queue_sub.add_parser(queue_action, help=queue_help_text[queue_action])
         queue_command.add_argument("task_id")
-    sub.add_parser(
-        "hub-drain-plan",
-        help="read-only PT-BR/EN GitHub drain intake; never executes the plan",
-    )
+    add_hub_drain_plan(sub)
     add_ledger(sub)
 
     if argv_list:
