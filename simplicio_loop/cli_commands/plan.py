@@ -23,6 +23,7 @@ from ..evidence import redact_sensitive_text
 from ..json_order import stable_first
 from ..loop_execution_receipt import publish_loop_execution_for_flow
 from ..state_dir import ensure_state_dir
+from .execution import (_public_flow_from_status)
 
 def _write_task_contract(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -178,7 +179,7 @@ def run(repo: str, task_path: str, delivery_arg: str, max_iterations: int,
         target = Path(result_file)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(json.dumps(outcome, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    public_payload = impl()._public_flow_from_status(payload, "run", payload)
+    public_payload = _public_flow_from_status(payload, "run", payload)
     print(json.dumps(public_payload, ensure_ascii=False, indent=2))
     if public_payload.get("status") == "VERIFIED" and public_payload.get("verified") is True:
         return 0
@@ -285,7 +286,7 @@ def _redirect_run_to_wave(argv: Sequence[str]) -> int:
             status = armed or {"manifest": {"run_id": run_id}, "state": {}, "run_dir": ""}
     from ..run_outcome import persist_run_outcome
     outcome = persist_run_outcome(status)
-    public_payload = impl()._public_flow_from_status(status, "run", status)
+    public_payload = _public_flow_from_status(status, "run", status)
     if args.result_file:
         target = Path(args.result_file)
         target.parent.mkdir(parents=True, exist_ok=True)
