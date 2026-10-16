@@ -167,6 +167,9 @@ from .cli_commands.tools import (
 from .cli_commands.queue import (
     add_queue,
 )
+from .cli_commands.watch247 import (
+    _WATCH247_QUIET, add_watch247,
+)
 
 BUNDLE = bundle_root()  # importlib.resources, not a source-tree path: the same call works from a frozen binary
 DASHBOARD = BUNDLE / "hooks" / "simplicio_dashboard.py"
@@ -180,10 +183,6 @@ def _prose_as_turbo(argv: Sequence[str]) -> list[str]:
     """`simplicio-loop "<task>" [flags]` runs `simplicio-loop turbo --repo . --task "<task>" [flags]`."""
     words = _prose_words(argv)
     return ["turbo", "--repo", ".", "--task", " ".join(words), *argv[len(words):]]
-
-
-_WATCH247_QUIET = ("The GitHub token is never an argument: pipe it to --github-token-stdin (with --email), "
-                   "or run `watch247 setup` in a terminal for a hidden prompt. See --help.")
 
 
 class _Parser(argparse.ArgumentParser):
@@ -311,25 +310,7 @@ def main(argv=None) -> int:
 
     add_verify(sub)
 
-    p_watch247 = sub.add_parser(
-        "watch247", help="run the 24/7 watcher for simplicio-* repos", allow_abbrev=False,
-        quiet=_WATCH247_QUIET)
-    p_watch247.add_argument("action", nargs="?", choices=["login-check", "setup"],
-                            help="login-check: exec CLI logins (#1467); setup: first-run credentials")
-    p_watch247.add_argument("--email", help="setup: the Simplicio account e-mail")
-    p_watch247.add_argument("--github-token-stdin", action="store_true",
-                            help="setup: read the GitHub token from stdin (never an argument: argv shows in ps)")
-    p_watch247.add_argument("--check", action="store_true",
-                            help="setup: only check the Simplicio account step (after the login); no token is asked")
-    p_watch247.add_argument("--once", action="store_true", help="run one tick and exit")
-    p_watch247.add_argument("--dry-run", action="store_true", help="simulate without mutations")
-    p_watch247.add_argument("--state-dir", help="override state directory")
-    p_watch247.add_argument(
-        "--mode", choices=("batch", "lockfree"), default=None,
-        help="merge train mode (default: batch, or SIMPLICIO_247_MERGE_MODE when set). batch: one cumulative test per batch of up to 4 approved PRs, bisect on red, "
-             "serial merge. lockfree (opt-in, #1820): merge each approved PR whose targeted tests are green, run the impacted "
-             "tests on main after it, and open a revert PR on red (never force-push, never merge a revert). The approval gate "
-             "applies to both modes; a merge still needs SIMPLICIO_247_AUTO_MERGE=1. See docs/MERGE_LOCKFREE.md.")
+    add_watch247(sub)
 
     add_progress(sub)
 
