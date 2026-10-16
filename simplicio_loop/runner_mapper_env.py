@@ -13,6 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Mapping
+
 from .store_adapter import StorageRoute, StoreAdapterError
 
 
@@ -289,5 +290,6 @@ def _execution_profile() -> str:
         return "standalone"
     raise RuntimeError("SIMPLICIO_EXECUTION_PROFILE must be standalone")
 
+# Late imports (#1818): bound after this module's definitions so the runner modules can import each other.
 from .runner_core import (_PROVIDER_SECRET_ENV, _subprocess_env)  # noqa: E402
 from . import runner_core as _runner_core  # noqa: E402

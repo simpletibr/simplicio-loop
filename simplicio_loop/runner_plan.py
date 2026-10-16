@@ -15,6 +15,7 @@ from typing import (
     Sequence,
     Tuple,
 )
+
 from . import dashboard_events as _dashboard_events, plan_paths
 from .plan_contract import PLAN_SCHEMA
 from .remote_queue import QueueUnavailable
@@ -841,7 +842,5 @@ def _operator_receipt_hash(receipt: Mapping[str, Any]) -> str:
 
 
 # Moved to runner_plan_providers (#1818). Re-exported here so import paths and patch targets keep working.
-from .runner_plan_providers import (  # noqa: E402,F401
-    _mechanical_fixture_plan,
-    _provider_worker_plan,
-)
+# Late imports (#1818): bound after this module's definitions so the runner modules can import each other.
+from .runner_plan_providers import (_mechanical_fixture_plan, _provider_worker_plan)  # noqa: E402

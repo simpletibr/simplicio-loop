@@ -9,6 +9,7 @@ import hashlib
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
+
 from .planning_gate import content_hash as _planning_content_hash, evaluate_mutation_authority, mutation_authority_required
 from .execution_route import _stable_hash as _execution_route_hash, capability_fingerprint, normalize_capability_manifest, route_receipt_is_current, decide_route, verify_route_hash
 
@@ -661,12 +662,43 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
         })
     return _runner_execute.read_status(repo, run_id)
 
-from .runner_core import (_load_json, _verify_run_stack_lock, _verify_storage_route, _write_json, OPERATOR_RECEIPT_SCHEMA, PLAN_REQUIRED, STORAGE_ROUTE_RECEIPT, _repo_state_equivalent, _git_current_branch)  # noqa: E402
+# Late imports (#1818): bound after this module's definitions so the runner modules can import each other.
+from .runner_core import (
+    _load_json,
+    _verify_run_stack_lock,
+    _verify_storage_route,
+    _write_json,
+    OPERATOR_RECEIPT_SCHEMA,
+    PLAN_REQUIRED,
+    STORAGE_ROUTE_RECEIPT,
+    _repo_state_equivalent,
+    _git_current_branch,
+)  # noqa: E402
 from .runner_deps import (_assert_task_dependencies_ready)  # noqa: E402
-from .runner_taskspec import (_task_goal, _task_spec_payload, _task_spec_hash, _context_handoff_args, _criteria_text, _constraints_text)  # noqa: E402
+from .runner_taskspec import (
+    _task_goal,
+    _task_spec_payload,
+    _task_spec_hash,
+    _context_handoff_args,
+    _criteria_text,
+    _constraints_text,
+)  # noqa: E402
 from .runner_mapper_env import (_execution_profile, _devcli_cmd, _devcli_env, _operator_env)  # noqa: E402
-from .runner_plan import (_resolve_host_edit_plan, _validate_minimal_host_plan_paths, _compile_minimal_host_plan, _operator_receipt_hash, _finish_operator_blocked)
-from .runner_plan_providers import (_provider_worker_plan)
+from .runner_plan import (
+    _resolve_host_edit_plan,
+    _validate_minimal_host_plan_paths,
+    _compile_minimal_host_plan,
+    _operator_receipt_hash,
+    _finish_operator_blocked,
+)  # noqa: E402
+from .runner_plan_providers import (_provider_worker_plan)  # noqa: E402
 from .runner_lifecycle import (_emit_event, _task_ac_ids)  # noqa: E402
-from .runner_execute import (_raise_if_maintenance_deferred, _capture_operator_checkpoint, _build_effect_request, _devcli_verification_failed, _restore_operator_checkpoint, _operator_failure_fingerprint)  # noqa: E402
+from .runner_execute import (
+    _raise_if_maintenance_deferred,
+    _capture_operator_checkpoint,
+    _build_effect_request,
+    _devcli_verification_failed,
+    _restore_operator_checkpoint,
+    _operator_failure_fingerprint,
+)  # noqa: E402
 from . import runner_execute as _runner_execute  # noqa: E402

@@ -189,4 +189,10 @@ def _ordered_dispatch_items(items: Iterable[Mapping[str, Any]]) -> list[Dict[str
         raise ValueError("operator dispatch dependency cycle: " + ", ".join(unresolved))
     return result
 
-from .runner_core import (_TASK_NUMBER_RE, _DEPENDENCY_NOTE_RE, _DEPENDENCY_PREFIX_RE, _load_json)  # noqa: E402
+# Late imports (#1818): bound after this module's definitions so the runner modules can import each other.
+from .runner_core import (
+    _TASK_NUMBER_RE,
+    _DEPENDENCY_NOTE_RE,
+    _DEPENDENCY_PREFIX_RE,
+    _load_json,
+)  # noqa: E402

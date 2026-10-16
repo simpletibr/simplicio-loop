@@ -24,6 +24,7 @@ from typing import (
     Sequence,
     Tuple,
 )
+
 from .technical_debt import record_notice as _record_technical_debt
 from .checkpoint_lifecycle import CheckpointLifecycle, LifecycleError
 from .planning_gate import (
@@ -440,6 +441,5 @@ def execute_operator_batch(
 
 
 # Moved to runner_dispatch_batch (#1818). Re-exported here so import paths and patch targets keep working.
-from .runner_dispatch_batch import (  # noqa: E402,F401
-    dispatch_operator_batch,
-)
+# Late imports (#1818): bound after this module's definitions so the runner modules can import each other.
+from .runner_dispatch_batch import (dispatch_operator_batch)  # noqa: E402

@@ -12,6 +12,7 @@ from collections import deque
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, ThreadPoolExecutor, wait
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple
+
 from . import local_capacity
 
 
@@ -815,11 +816,30 @@ def dispatch_operator_batch(
         _write_json(journal_path.with_suffix(".json"), result)
     return result
 
+# Late imports (#1818): bound after this module's definitions so the runner modules can import each other.
 from .runner_deps import (_ordered_dispatch_items, _item_dependencies)  # noqa: E402
-from .runner_wave import (_operator_worker_limit, _resolve_dispatch_mode, _load_prior_dispatch_records, _build_native_prism_scheduler, _ensure_deferred_worktree_context, _release_shared_context)  # noqa: E402
-from .runner_core import (BATCH_SCHEMA, NATIVE_PRISM_SCHEMA, _write_json, _append_jsonl, _is_deterministic_operator_failure, _load_json)  # noqa: E402
+from .runner_wave import (
+    _operator_worker_limit,
+    _resolve_dispatch_mode,
+    _load_prior_dispatch_records,
+    _build_native_prism_scheduler,
+    _ensure_deferred_worktree_context,
+    _release_shared_context,
+)  # noqa: E402
+from .runner_core import (
+    BATCH_SCHEMA,
+    NATIVE_PRISM_SCHEMA,
+    _write_json,
+    _append_jsonl,
+    _is_deterministic_operator_failure,
+    _load_json,
+)  # noqa: E402
 from .runner_lane import (_operator_dispatch_item)  # noqa: E402
 from .runner_execute import (_terminate_owned_process)  # noqa: E402
-from .runner_preflight import (_require_json_receipt, _validate_run_receipts, _persist_batch_preflight_block)  # noqa: E402
+from .runner_preflight import (
+    _require_json_receipt,
+    _validate_run_receipts,
+    _persist_batch_preflight_block,
+)  # noqa: E402
 from .runner_dispatch import (_append_dispatch_journal, _dispatch_journal_recovery)  # noqa: E402
 from . import runner_dispatch as _runner_dispatch  # noqa: E402

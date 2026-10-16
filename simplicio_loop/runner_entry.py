@@ -10,6 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
+
 from .delivery import normalize_delivery_target
 from .evidence import redact_sensitive_text
 from . import dashboard_events as _dashboard_events
@@ -640,9 +641,41 @@ def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
     _runner._transition(run_dir, state, "done", "automatic task-to-verify conduct completed", receipt=str(watcher_path))
     return _runner.read_status(repo, run_id)
 
-from .runner_core import (_write_json, _append_jsonl, _default_completion_state, _load_json, STORAGE_ROUTE_RECEIPT, OPERATOR_RECEIPT_SCHEMA, _subprocess_env)  # noqa: E402
-from .runner_lifecycle import (_write_scratchpad, _write_watcher_challenge, _emit_event, _run_with_operator_recovery, _maybe_auto_build_planning_receipt, _task_ac_ids, _persist_external_completion_response, _ensure_verified_loop_journal)  # noqa: E402
-from .runner_plan import (_build_anchor, _build_plan_with_hints, _candidate_targets, _extract_repo_file_hints)  # noqa: E402
+# Late imports (#1818): bound after this module's definitions so the runner modules can import each other.
+from .runner_core import (
+    _write_json,
+    _append_jsonl,
+    _default_completion_state,
+    _load_json,
+    STORAGE_ROUTE_RECEIPT,
+    OPERATOR_RECEIPT_SCHEMA,
+    _subprocess_env,
+)  # noqa: E402
+from .runner_lifecycle import (
+    _write_scratchpad,
+    _write_watcher_challenge,
+    _emit_event,
+    _run_with_operator_recovery,
+    _maybe_auto_build_planning_receipt,
+    _task_ac_ids,
+    _persist_external_completion_response,
+    _ensure_verified_loop_journal,
+)  # noqa: E402
+from .runner_plan import (
+    _build_anchor,
+    _build_plan_with_hints,
+    _candidate_targets,
+    _extract_repo_file_hints,
+)  # noqa: E402
 from .runner_taskspec import (_task_goal)  # noqa: E402
-from .runner import (RUNNER_SCHEMA, STATE_SCHEMA, _coverage, _default_maintenance_state, _freeze_stack_lock, _freeze_storage_route, _prepare_operator_receipt, _ensure_current_quality_matrix)  # noqa: E402
+from .runner import (
+    RUNNER_SCHEMA,
+    STATE_SCHEMA,
+    _coverage,
+    _default_maintenance_state,
+    _freeze_stack_lock,
+    _freeze_storage_route,
+    _prepare_operator_receipt,
+    _ensure_current_quality_matrix,
+)  # noqa: E402
 from . import runner as _runner  # noqa: E402

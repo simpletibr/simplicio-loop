@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Collection, Dict, Iterable, List, Literal, Mapping, Optional, Sequence, Set, Tuple, TypedDict
 
+
+
 from .delivery import (build_delivery_receipt, normalize_delivery_target,
                        reconcile_delivery_observation, write_delivery_receipt)
 from .evidence import build_evidence_receipt, redact_sensitive_text
@@ -794,8 +796,5 @@ def sync_source_state(repo: str, run_id: str, source: str, external_repo: str = 
 
 
 # Moved to runner_entry (#1818). Re-exported here so import paths and patch targets keep working.
-from .runner_entry import (  # noqa: E402,F401
-    arm_run,
-    _conduct_run,
-    verify_run,
-)
+# Late imports (#1818): bound after this module's definitions so the runner modules can import each other.
+from .runner_entry import (arm_run, _conduct_run, verify_run)  # noqa: E402

@@ -10,6 +10,7 @@ import hashlib
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Sequence, Tuple
+
 from .authority_boundary import prepare_authorization_handoff
 
 
@@ -329,6 +330,7 @@ def _context_handoff_args(
         "authorization": authorization_handoff,
     }
 
-from .runner_core import (_load_json, _write_json)
-from .runner_mapper_env import (_degraded_mapper_fallback_enabled)
+# Late imports (#1818): bound after this module's definitions so the runner modules can import each other.
+from .runner_core import (_load_json, _write_json)  # noqa: E402
+from .runner_mapper_env import (_degraded_mapper_fallback_enabled)  # noqa: E402
 from . import runner_core as _runner_core  # noqa: E402

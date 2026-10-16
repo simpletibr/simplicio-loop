@@ -13,6 +13,7 @@ from typing import (
     Mapping,
     Optional,
 )
+
 from . import dashboard_events as _dashboard_events
 from .receipt_verifier import (
     EVIDENCE_RECEIPT_SCHEMA as _EVIDENCE_RECEIPT_CONTENT_SCHEMA,

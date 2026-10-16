@@ -17,6 +17,7 @@ from typing import (
     Optional,
     Sequence,
 )
+
 from .evidence import build_evidence_receipt, redact_sensitive_text
 from .plan_contract import validate_plan
 from .planning_gate import (
@@ -880,6 +881,5 @@ def execute_operator(repo: str, run_id: str, task_index: int = 1, *,
 
 
 # Moved to runner_execute_unleased (#1818). Re-exported here so import paths and patch targets keep working.
-from .runner_execute_unleased import (  # noqa: E402,F401
-    _execute_operator_unleased,
-)
+# Late imports (#1818): bound after this module's definitions so the runner modules can import each other.
+from .runner_execute_unleased import (_execute_operator_unleased)  # noqa: E402

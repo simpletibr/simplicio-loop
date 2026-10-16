@@ -9,6 +9,7 @@ import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Sequence
+
 from . import dashboard_events as _dashboard_events
 from .provider_worker import OPENROUTER_MODEL, ProviderWorkerError, forwarded_environment, proposal_to_mechanical_plan
 
@@ -313,6 +314,7 @@ def _provider_worker_plan(
         _write_json(receipt_path, blocked)
         raise ProviderWorkerError(blocked["error"], reason_code=blocked["reason_code"]) from exc
 
+# Late imports (#1818): bound after this module's definitions so the runner modules can import each other.
 from .runner_core import (_write_json)  # noqa: E402
 from .runner_plan import (_provider_context_with_current_targets)  # noqa: E402
 from . import runner_plan as _runner_plan  # noqa: E402

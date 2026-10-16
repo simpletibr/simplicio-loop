@@ -24,6 +24,7 @@ from typing import (
     Set,
     Tuple,
 )
+
 from .merge_executor import MergeExecutor, MergeExecutorError
 from .authority_boundary import prepare_authorization_handoff
 from .store_adapter import StorageRoute, StoreAdapterError, verify_route_receipt
@@ -791,7 +792,8 @@ def read_status(repo: str, run_id: str = "") -> Dict[str, Any]:
 
 
 # Moved to runner_deps (#1818). Re-exported here so import paths and patch targets keep working.
-from .runner_deps import (  # noqa: E402,F401
+# Late imports (#1818): bound after this module's definitions so the runner modules can import each other.
+from .runner_deps import (
     _normalize_dependency_reference,
     _dependency_references,
     _task_dependency_references,
@@ -801,11 +803,11 @@ from .runner_deps import (  # noqa: E402,F401
     _completed_task_aliases,
     _omit_satisfied_dispatch_dependencies,
     _ordered_dispatch_items,
-)
+)  # noqa: E402
 
 
 # Moved to runner_taskspec (#1818). Re-exported here so import paths and patch targets keep working.
-from .runner_taskspec import (  # noqa: E402,F401
+from .runner_taskspec import (
     _criteria_text,
     _constraints_text,
     _task_goal,
@@ -813,11 +815,11 @@ from .runner_taskspec import (  # noqa: E402,F401
     _task_spec_hash,
     _derive_context_handle,
     _context_handoff_args,
-)
+)  # noqa: E402
 
 
 # Moved to runner_mapper_env (#1818). Re-exported here so import paths and patch targets keep working.
-from .runner_mapper_env import (  # noqa: E402,F401
+from .runner_mapper_env import (
     _devcli_env,
     _devcli_has_mapper_manifest,
     _devcli_command_path,
@@ -832,4 +834,4 @@ from .runner_mapper_env import (  # noqa: E402,F401
     _operator_env,
     _operator_timeout,
     _execution_profile,
-)
+)  # noqa: E402
