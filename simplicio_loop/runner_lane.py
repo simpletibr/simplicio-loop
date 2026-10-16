@@ -13,6 +13,7 @@ from typing import (
     Mapping,
     Optional,
 )
+
 from . import dashboard_events as _dashboard_events
 from .receipt_verifier import (
     EVIDENCE_RECEIPT_SCHEMA as _EVIDENCE_RECEIPT_CONTENT_SCHEMA,
@@ -28,19 +29,8 @@ from .execution_route import (
     decide_route,
     verify_route_hash,
 )
-from .runner_core import (
-    _classify_devcli_receipt_failure,
-    _classify_operator_exception_reason_code,
-    _is_deterministic_operator_failure,
-    _receipt_max_age_seconds,
-    _now,
-    _load_json,
-    _write_json,
-    _auto_merge_enabled,
-    _dispatch_merge_pr,
-    _mapper_journal_enabled,
-    read_status,
-)
+from .runner_core import (_classify_devcli_receipt_failure, _classify_operator_exception_reason_code, _is_deterministic_operator_failure, _receipt_max_age_seconds, _now, _load_json, _write_json, _auto_merge_enabled, _dispatch_merge_pr, read_status)
+from .runner_mapper_env import (_mapper_journal_enabled)
 from .runner_plan import (
     _ensure_mapper_operations_store,
     _claim_mapper_operation_attempt,
