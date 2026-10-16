@@ -3256,6 +3256,12 @@ def main(argv=None) -> int:
     p_watch247.add_argument("--once", action="store_true", help="run one tick and exit")
     p_watch247.add_argument("--dry-run", action="store_true", help="simulate without mutations")
     p_watch247.add_argument("--state-dir", help="override state directory")
+    p_watch247.add_argument(
+        "--mode", choices=("batch", "lockfree"), default=None,
+        help="merge train mode (default: batch, or SIMPLICIO_247_MERGE_MODE when set). batch: one cumulative test per batch of up to 4 approved PRs, bisect on red, "
+             "serial merge. lockfree (opt-in, #1820): merge each approved PR whose targeted tests are green, run the impacted "
+             "tests on main after it, and open a revert PR on red (never force-push, never merge a revert). The approval gate "
+             "applies to both modes; a merge still needs SIMPLICIO_247_AUTO_MERGE=1. See docs/MERGE_LOCKFREE.md.")
 
     p_progress = sub.add_parser("progress", help="render visual progress for a run")
     p_progress.add_argument("--repo", default=".", help="repository root")
@@ -3635,6 +3641,9 @@ def main(argv=None) -> int:
         from .watcher247.__main__ import main as watcher247_main
         if args.state_dir:
             watcher247_config.set_state_dir(args.state_dir)
+        if args.mode:  # the merge train's mode for this run (#1820); not given = batch, or whatever the environment already says
+            from . import merge_lockfree
+            os.environ[merge_lockfree.MODE_ENV] = args.mode
         return asyncio.run(watcher247_main(once=args.once, dry_run=args.dry_run))
     if command == "progress":
         run_id = args.run_id or args.run_flag
