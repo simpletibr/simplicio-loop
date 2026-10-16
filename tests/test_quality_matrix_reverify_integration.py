@@ -230,12 +230,13 @@ def test_cli_populate_fills_unit_and_system_categories(tmp_path):
     # #283: the per-category test-runner split (scripts/test_categories.py) auto-fills unit and
     # system the same way regression/benchmark/coverage were already auto-filled -- `system` is
     # the fast lane (one file) so this stays cheap; `unit` legitimately takes tens of seconds
-    # (346 real tests), hence the wider timeout.
+    # (346 real tests), hence the wider timeout. populate has no knob that shrinks the unit tier, so the
+    # budget is the tier's real cost on a loaded 2-CPU host (measured: over 180 s there, which failed it).
     proc = subprocess.run(
         [PY, os.path.join(REPO, "scripts", "quality_matrix.py"), "populate",
          "--run-dir", str(tmp_path), "--base", "HEAD",
          "--skip-coverage", "--skip-integration", "--skip-regression", "--skip-benchmark"],
-        cwd=REPO, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=180,
+        cwd=REPO, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=1500,
     )
     assert proc.returncode in (0, 1), proc.stderr
     receipt = json.loads((tmp_path / "quality-matrix.json").read_text(encoding="utf-8"))

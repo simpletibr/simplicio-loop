@@ -47,7 +47,7 @@ dependencies = [
 [project.optional-dependencies]
 # Dev/test dependencies used by the local quality gate and secure-transport fixtures.
 # build + hatchling: packages/mapper's wheel test runs `python -m build --no-isolation`, which needs both importable here (#1825).
-dev = ["setuptools>=77", "pytest>=7", "pytest-cov>=4", "cryptography>=42,<50", "pyyaml", "build>=1,<2", "hatchling>=1.27,<1.33"]
+dev = ["setuptools>=77", "pytest>=7", "pytest-cov>=4", "cryptography>=42,<50", "pyyaml", "build>=1,<2", "hatchling>=1.27,<1.33", "wheel"]
 ml = ["model2vec>=0.3", "numpy>=1.21"]
 uvloop = ["uvloop>=0.19; platform_system != 'Windows'"]
 # Browser e2e + axe-core for the Simplicio Live components (tests/test_live_components_e2e_system.py).

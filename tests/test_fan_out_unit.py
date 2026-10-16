@@ -65,7 +65,10 @@ def test_detect_capacity_respects_env_cap():
         _restore_env("FAN_OUT_MAX_WORKERS", old)
 
 
-def test_detect_capacity_falls_back_to_default_on_bad_env():
+def test_detect_capacity_falls_back_to_default_on_bad_env(monkeypatch):
+    # The default cap of 4 is only reachable on a host with at least 4 CPUs (workers = min(cap, cpu_count)).
+    # Pin the CPU count so the test does not depend on the machine it runs on.
+    monkeypatch.setattr(os, "cpu_count", lambda: 8)
     old = os.environ.get("FAN_OUT_MAX_WORKERS")
     os.environ["FAN_OUT_MAX_WORKERS"] = "not-a-number"
     try:

@@ -5,6 +5,8 @@ import asyncio
 import io
 import json
 import subprocess
+import sys
+import time
 from unittest.mock import AsyncMock
 
 from bench.llm_ab import llm_client as lc
@@ -34,7 +36,17 @@ def test_wave_does_not_sleep_after_the_first_call(tmp_path, monkeypatch):
         slept.append(seconds)
         return await real_sleep(seconds, *args, **kwargs)
 
-    monkeypatch.setattr("time.sleep", lambda seconds: slept.append(seconds))
+    real_sleep = time.sleep
+
+    def engine_sleep(seconds):
+        # subprocess.wait() polls with time.sleep. Patching that out would turn a real child-process wait
+        # into a busy loop and count stdlib polling as an engine sleep, so stdlib callers get the real sleep.
+        if sys._getframe(1).f_globals.get("__name__") == "subprocess":
+            real_sleep(seconds)
+            return
+        slept.append(seconds)
+
+    monkeypatch.setattr("time.sleep", engine_sleep)
     monkeypatch.setattr(asyncio, "sleep", recording_sleep)
 
     async def complete(arm, messages, **kwargs):

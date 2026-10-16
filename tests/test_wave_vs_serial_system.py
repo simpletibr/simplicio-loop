@@ -8,7 +8,9 @@ worktree overhead, so the engine stays on the parallel path.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -63,10 +65,15 @@ def _seed_run_dir(repo: Path, run_id: str) -> Path:
     return run_dir
 
 
-def _fake(sleep_s: float, timeline: list):
+def _fake(sleep_s: float, timeline: list, rendezvous: threading.Barrier | None = None):
     def fake(item, retry_budget, owned_process_registry=None):
         task_index = int(item["task_index"])
         repo_dir = Path(item["repo"])
+        if rendezvous is not None:
+            # Every lane must reach this point before any lane sleeps. Overlap is then proven by the
+            # barrier itself, not by how long git worktree setup happened to take on a loaded machine.
+            # A serial dispatch would hold the first lane here until the barrier timeout breaks it.
+            rendezvous.wait()
         started = time.monotonic()
         time.sleep(sleep_s)
         (repo_dir / FILES_BY_INDEX[task_index]).write_text(f"lane-{task_index}\n", encoding="utf-8")
@@ -84,6 +91,12 @@ def _fake(sleep_s: float, timeline: list):
             "evidence_receipt": "",
         }]
     return fake
+
+
+def _admit_requested(repo_path, lane_count, requested_workers, **_kwargs):
+    workers = max(1, min(lane_count, requested_workers or lane_count))
+    return workers, {"admitted": True, "reason_code": "PINNED_BY_TEST", "reason": "pinned_by_test",
+                     "evidence": {}}
 
 
 def _overlaps(timeline: list) -> bool:
@@ -110,8 +123,14 @@ def test_parallel_wave_versus_serial_records_the_faster_path(tmp_path, monkeypat
     run_id = "wave-vs-serial"
     run_dir = _seed_run_dir(parallel_repo, run_id)
     parallel_timeline: list = []
-    patch_runner(monkeypatch, "_run_operator_item_process", _fake(SLEEP_S, parallel_timeline),
-    )
+    rendezvous = threading.Barrier(len(FILES_BY_INDEX), timeout=60)
+    patch_runner(monkeypatch, "_run_operator_item_process",
+                 _fake(SLEEP_S, parallel_timeline, rendezvous))
+    # The physical admission governor sizes the wave from this machine's live CPU and pressure
+    # (a 2-CPU host admits 1 lane), which made `overlapped` depend on the host, not on the dispatch.
+    # Admission has its own tests; here the requested lane count is admitted so the test pins the
+    # dispatch behaviour: three disjoint lanes run at once.
+    monkeypatch.setattr("simplicio_loop.runner_wave._wave_capacity_admission", _admit_requested)
     parallel_started = time.monotonic()
     result = runner_mod._wave_worktree_dispatch(
         repo_path=parallel_repo,
@@ -150,7 +169,10 @@ def test_parallel_wave_versus_serial_records_the_faster_path(tmp_path, monkeypat
         "decision": decision,
         "reason": reason,
     }
-    RECEIPT.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+    # The committed receipt is evidence from #1357; only an explicit refresh may rewrite it. A plain
+    # test run must never modify a tracked file.
+    if os.environ.get("SIMPLICIO_REFRESH_WAVE_RECEIPT") == "1":
+        RECEIPT.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
 
     assert lanes == 3
     assert overlapped

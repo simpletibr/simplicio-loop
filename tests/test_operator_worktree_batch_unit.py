@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from simplicio_loop import runner
+from simplicio_loop import local_capacity, runner
 from tests.runner_patch import patch_runner
 
 pytestmark = pytest.mark.usefixtures("admitting_capacity")  # host pressure must not decide these dispatch tests
@@ -169,6 +169,10 @@ def _success(repo, run_id, task_index):
 
 def test_dispatch_allocates_and_persists_isolated_context_without_git(monkeypatch, tmp_path):
     monkeypatch.setenv("SIMPLICIO_LOOP_DISPATCH_MODE", "thread")
+    # Admission sizes concurrency from this host's CPU count (safe workers = cpus - 1). Pin the count so the
+    # expected overlap does not depend on the machine the suite runs on.
+    monkeypatch.setattr(local_capacity, "_allowed_cpu_count", lambda: 8)
+    monkeypatch.setattr(local_capacity, "_cgroup_cpu_capacity", lambda: None)
     queue = FakeQueue(tmp_path / "workers")
     calls = []
 

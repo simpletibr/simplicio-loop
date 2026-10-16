@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from simplicio_loop import runner
+from simplicio_loop import local_capacity, runner
 from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
 
@@ -47,6 +47,10 @@ def memory_dispatch_journal(monkeypatch):
 
 
 def test_dispatch_operator_batch_refills_without_wave_barrier(monkeypatch, tmp_path):
+    # Admission sizes concurrency from this host's CPU count (safe workers = cpus - 1). Pin the count so the
+    # expected overlap does not depend on the machine the suite runs on.
+    monkeypatch.setattr(local_capacity, "_allowed_cpu_count", lambda: 8)
+    monkeypatch.setattr(local_capacity, "_cgroup_cpu_capacity", lambda: None)
     active = 0
     peak = 0
     calls = []
@@ -82,8 +86,7 @@ def test_dispatch_operator_batch_refills_without_wave_barrier(monkeypatch, tmp_p
 
     assert result["max_workers"] == 2
     assert result["refill_count"] == len(calls) - result["initial_admissions"]
-    # Local capacity may conservatively reduce physical overlap to one worker;
-    # the invariant is bounded overlap plus refill, not a host-specific peak.
+    # With the host pinned above, two workers are admitted; the invariant stays bounded overlap plus refill.
     assert 1 <= peak <= result["max_workers"]
     assert sorted(calls) == [1, 2, 3, 4]
     assert result["completed_task_indices"] == [1, 2, 3, 4]
