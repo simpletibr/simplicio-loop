@@ -148,6 +148,9 @@ from .cli_commands.lifecycle import (
     checkpoint_lifecycle, oracle, maintenance_deferred, deliver, decide, sync_source, add_oracle,
     add_checkpoint, add_maintenance, add_deliver, add_decide, add_sync_source,
 )
+from .cli_commands.drain import (
+    _drain_cli_failure, _read_drain_snapshot, _valid_drain_result, drain, add_drain,
+)
 
 BUNDLE = bundle_root()  # importlib.resources, not a source-tree path: the same call works from a frozen binary
 DASHBOARD = BUNDLE / "hooks" / "simplicio_dashboard.py"
@@ -244,27 +247,6 @@ def economy_command(args) -> int:
     return 2
 
 
-def _drain_cli_failure(reason_code: str, reason: str, **extra) -> dict:
-    """Compatibility wrapper for the focused command helpers."""
-    return _inspection_cli.drain_cli_failure(DRAIN_SCHEMA, reason_code, reason, **extra)
-
-
-def _read_drain_snapshot(path: str):
-    return _inspection_cli.read_drain_snapshot(path, _drain_cli_failure)
-
-
-def _valid_drain_result(payload) -> bool:
-    return _inspection_cli.valid_drain_result(DRAIN_SCHEMA, payload)
-
-
-def drain(action: str, snapshot_path: str, receipt_path: str, polls_required: int) -> int:
-    """Compatibility wrapper that preserves CLI-level dependency monkeypatches."""
-    return _inspection_cli.drain(
-        action, snapshot_path, receipt_path, polls_required,
-        evaluator=evaluate_drain, persist=persist_drain_receipt, load=load_drain_receipt,
-        receipt_error=DrainReceiptError, failure=_drain_cli_failure,
-        snapshot_reader=_read_drain_snapshot, result_validator=_valid_drain_result,
-    )
 def _load_handshake(handshake_json: str, handshake_file: str):
     """Compatibility wrapper that preserves CLI-level validator monkeypatches."""
     return _inspection_cli._load_handshake(
@@ -746,15 +728,7 @@ def main(argv=None) -> int:
 
     add_sync_source(sub)
 
-    p_drain = sub.add_parser("drain", help="evaluate, persist, or load a queue-drain receipt")
-    p_drain.add_argument("action", nargs="?", default="",
-                          help="operation to perform: evaluate, persist, or load")
-    p_drain.add_argument("--snapshot", "--snapshot-file", dest="snapshot_path", default="",
-                         help="JSON scheduler/source snapshot (evaluate and persist)")
-    p_drain.add_argument("--receipt", "--receipt-file", dest="receipt_path", default="",
-                         help="receipt JSON path (persist and load)")
-    p_drain.add_argument("--polls-required", type=int, default=2,
-                         help="identical empty polls required (default: %(default)s)")
+    add_drain(sub)
     p_slots = sub.add_parser("agent-slots", help="inspect and reclaim Loop-owned agent capacity")
     p_slots.add_argument("slot_args", nargs=argparse.REMAINDER,
                          help="pass-through args for the JSON-first agent slot registry")
