@@ -26,7 +26,7 @@ class _Bootloader:
 def _isolated(tmp_path, monkeypatch):
     monkeypatch.setenv('SIMPLICIO_DASHBOARD_STATE', str(tmp_path / 'state' / 'dashboard.json'))
     monkeypatch.setenv('HOME', str(tmp_path / 'home'))
-    monkeypatch.setattr(cli, '_spawn', lambda port, repos, log: _Bootloader())
+    monkeypatch.setattr(cli, '_spawn', lambda port, repos, log, **_kw: _Bootloader())  # cli passes allow_hosts=
     monkeypatch.setattr(cli, '_startup', lambda log: (4321, 'tok'))
     monkeypatch.setattr(cli, '_parent_pid', lambda pid: BOOTLOADER_PID if pid == SERVER_PID else None)
 
@@ -57,7 +57,7 @@ def test_a_second_start_reuses_the_server(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(cli, '_health', lambda port: {'pid': SERVER_PID})
     cli.main(['--port', '0', '--no-browser', '--repo', str(tmp_path)])
     spawned = []
-    monkeypatch.setattr(cli, '_spawn', lambda *a: spawned.append(a))
+    monkeypatch.setattr(cli, '_spawn', lambda *a, **_kw: spawned.append(a))
 
     assert cli.main(['--port', '0', '--no-browser', '--repo', str(tmp_path)]) == 0
 

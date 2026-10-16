@@ -161,7 +161,12 @@ def test_the_detached_helper_never_runs_code_from_the_mapped_repository(tmp_path
     repo.mkdir()
     (repo / shadow).write_text('raise SystemExit("REPO CODE RAN")\n', encoding="utf-8")
     argv = msm.index_argv("/bin/true", str(repo))
-    result = subprocess.run(argv, cwd=str(repo), capture_output=True, text=True, timeout=60)
+    # A relative PYTHONPATH entry (the `PYTHONPATH=.` a developer exports) resolves against the child's cwd, the
+    # mapped repo, and -P does not stop it. index_argv cannot control the caller's environment, so this test
+    # drops relative entries to check what index_argv owns: the cwd is never put first on sys.path.
+    absolute = [p for p in os.environ.get("PYTHONPATH", "").split(os.pathsep) if p and os.path.isabs(p)]
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(absolute)}
+    result = subprocess.run(argv, cwd=str(repo), capture_output=True, text=True, timeout=60, env=env)
     assert "REPO CODE RAN" not in result.stderr + result.stdout
     assert result.returncode == 0, result.stderr
 

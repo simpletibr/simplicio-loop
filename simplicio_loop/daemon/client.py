@@ -60,6 +60,19 @@ def _log_tail(where: protocol.Paths) -> str:
         return ""
 
 
+# The autostarted daemon must run the same simplicio_loop as the client that starts it. The daemon key, and so
+# its socket, comes from the package directory: `-P -m simplicio_loop.daemon` imports whichever copy is installed
+# on the path, which can be another one, so the client would wait for a socket that is never created. The child
+# therefore puts the client's own package root first on sys.path.
+_CHILD_BOOT = ("import sys; sys.path.insert(0, sys.argv[1]); "
+               "from simplicio_loop.daemon.control import main; sys.exit(main(['serve']))")
+
+
+def _default_start_command() -> list[str]:
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return [sys.executable, "-P", "-c", _CHILD_BOOT, root]
+
+
 def _start(where: protocol.Paths, directory: str, command: Optional[Sequence[str]], environ: Mapping[str, str],
            wait_s: float) -> socket.socket:
     """Start the daemon in its own session, then wait until its socket answers."""
@@ -68,7 +81,7 @@ def _start(where: protocol.Paths, directory: str, command: Optional[Sequence[str
     log = os.open(where.log, os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
     try:
         process = subprocess.Popen(
-            list(command or [sys.executable, "-P", "-m", "simplicio_loop.daemon", "serve"]),
+            list(command or _default_start_command()),
             stdin=subprocess.DEVNULL, stdout=log, stderr=log, cwd=directory, env=_daemon_env(environ),
             start_new_session=True, close_fds=True)
     finally:

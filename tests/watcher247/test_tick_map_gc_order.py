@@ -23,7 +23,9 @@ def test_map_gc_not_called_when_onboarding_pending(env, monkeypatch):
     """Mutant E: _map_gc_bases must NOT run when onboarding is pending (no GitHub token)."""
     calls = []
     monkeypatch.setattr(tick, "_map_gc_bases", lambda: calls.append("gc"))
-    monkeypatch.delenv("GH_TOKEN", raising=False)
+    # Onboarding is pending only when NO token variable holds a value; the host may export either one.
+    for name in onboarding.TOKEN_ENV:
+        monkeypatch.delenv(name, raising=False)
     fake = env(FakeRun({"simplicio-a": [issue(1)]}))
     baseline()
     run_tick()
