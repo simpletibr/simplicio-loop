@@ -140,6 +140,10 @@ from .cli_commands.execution import (
     _attach_dispatch, _finalize_public_flow, _public_flow_from_status, _persist_prism_wave_receipt,
     resume, tick, batch, cancel, add_resume, add_tick, add_batch, add_wave, add_prism, add_cancel,
 )
+from .cli_commands.status import (
+    _render_status_text, status, progress, preflight, verify, add_status, add_preflight,
+    add_verify, add_progress,
+)
 
 BUNDLE = bundle_root()  # importlib.resources, not a source-tree path: the same call works from a frozen binary
 DASHBOARD = BUNDLE / "hooks" / "simplicio_dashboard.py"
@@ -154,52 +158,6 @@ def extensions_doctor(provider: str, policy: str, schema: str) -> int:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 2
     print(json.dumps(payload, ensure_ascii=False, indent=2))
-    return 0
-
-
-def verify(repo: str, run_id: str) -> int:
-    from .runner import verify_run
-    payload = verify_run(repo, run_id)
-    print(json.dumps(stable_first(payload), ensure_ascii=False, indent=2))
-    return 0 if payload["state"].get("phase") == "done" else 1
-
-
-def _render_status_text(payload: dict) -> str:
-    """Human-readable one-screen summary of a run status payload."""
-    state = payload.get("state") or {}
-    lines = ["simplicio-loop run status", ""]
-    run_dir = payload.get("run_dir", "")
-    if run_dir:
-        lines.append(f"run_dir: {run_dir}")
-    completion = state.get("completion") or {}
-    lines.append(f"phase: {state.get('phase', 'UNKNOWN')}")
-    lines.append(f"completion_tag: {completion.get('tag', 'UNVERIFIED')}")
-    coverage = completion.get("coverage")
-    if coverage:
-        lines.append(f"coverage: {coverage}")
-    delivery = state.get("delivery") or {}
-    lines.append(f"delivery_ready: {delivery.get('ready', False)}")
-    route = payload.get("execution_route") or state.get("execution_route") or {}
-    lines.append(f"execution_route: {route.get('route', 'UNVERIFIED')}")
-    lines.append(f"route_receipt_sha: {route.get('receipt_sha', '') or 'UNVERIFIED'}")
-    lines.append(f"route_backend: {route.get('backend', 'UNVERIFIED')}")
-    return "\n".join(lines) + "\n"
-
-
-def status(repo: str, run_id: str, as_json: bool = False, as_text: bool = False) -> int:
-    try:
-        payload = read_status(repo, run_id)
-        if (payload.get("state") or {}).get("phase") == "no_runs":
-            payload.update({"schema": "simplicio.status/v1", "status": "UNVERIFIED",
-                            "reason_code": "run_missing"})
-    except (FileNotFoundError, OSError, ValueError, KeyError) as exc:
-        payload = {"schema": "simplicio.status/v1", "status": "UNVERIFIED",
-                   "reason_code": "run_missing", "error": str(exc)}
-    # Default remains JSON (backwards-compatible). --text opts into the human summary.
-    if as_text and not as_json:
-        print(_render_status_text(payload))
-    else:
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -282,74 +240,6 @@ def economy_command(args) -> int:
     return 2
 
 
-def preflight(repo: str, as_json: bool = False, *, strict: bool = False) -> int:
-    """Verify the bound operators (mapper, dev-cli).
-
-    Under ``--strict`` / ``SIMPLICIO_LOOP_STRICT=1`` hand-edit is reported as
-    forbidden.
-
-    Returns exit 0 when all *required* operators are present, 1 otherwise.
-    """
-    import os as _os
-
-    from .finding_router import route_finding as _route_finding
-    from .strict_mode import preflight_payload, recommended_env
-
-    repo_path = Path(repo).resolve()
-    if strict:
-        _os.environ["SIMPLICIO_LOOP_STRICT"] = "1"
-    from . import version_drift
-
-    payload = preflight_payload(str(repo_path), strict=strict)
-    all_present = bool(payload.get("all_present"))
-    missing = list(payload.get("missing_operators") or [])
-    drift = version_drift.check(version_drift.running_version(), repo=repo_path)
-    if drift is not None:
-        payload["version_drift"] = drift
-    if as_json:
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
-    else:
-        print("simplicio-loop preflight" + (" [STRICT]" if payload.get("strict") else ""))
-        required = set(payload.get("required_operators") or [])
-        for op in payload.get("operators") or []:
-            name = op.get("name", "")
-            present = bool(op.get("present"))
-            if present:
-                mark = "OK "
-            elif name in required or name in {"simplicio-mapper", "simplicio-dev-cli"}:
-                mark = "MISSING"
-            else:
-                mark = "OPTIONAL"
-            ver = f" ({op['version']})" if op.get("version") else ""
-            extra = ""
-            if name == "simplicio-dev-cli" and op.get("resolved_as"):
-                extra = f" via {op['resolved_as']}"
-            print(f"  [{mark}] {name}{ver}{extra}")
-        print("  all_present: true" if all_present else "  NOT ALL REQUIRED OPERATORS PRESENT")
-        print(f"  execution_profile: {payload.get('execution_profile')}")
-        print(f"  hand_edit_forbidden: {payload.get('hand_edit_forbidden')}")
-        if payload.get("strict"):
-            print("  recommended_env:")
-            for key, value in (recommended_env() or {}).items():
-                print(f"    {key}={value}")
-        drift_line = version_drift.format_line(drift)
-        if drift_line:
-            print(drift_line)
-    if not all_present:
-        for name in missing:
-            _route_finding(
-                stage="preflight",
-                finding_id=f"missing-operator-{name}",
-                severity="high",
-                source=f"preflight:{name}",
-                confirmed=True,
-                item_id=None,
-                repo=str(repo_path),
-                detail=f"bound operator {name} not present or not operational",
-            )
-    return 0 if all_present else 1
-
-
 def checkpoint_lifecycle(args) -> int:
     root = Path(args.repo).resolve()
     lifecycle = CheckpointLifecycle(
@@ -393,32 +283,6 @@ def oracle(loop_dir: str, run_dir: str, response_text: str, flow_gap: str,
         payload["receipt_path"] = persist_completion_receipt(verdict, loop_dir, run_dir)
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0 if payload.get("parity") and payload.get("signature", [False])[0] else 1
-
-
-def progress(repo: str, run_id: str, fmt: str, once: bool, interval: float,
-             no_animation: bool = False, ascii_only: bool = False) -> int:
-    """Render a run's portable progress event for an LLM, terminal, or dashboard."""
-    try:
-        status = read_status(repo, run_id)
-    except (FileNotFoundError, OSError, ValueError, KeyError) as exc:
-        print(json.dumps({"schema": "simplicio.progress/v1", "status": "UNVERIFIED",
-                          "reason_code": "run_missing", "error": str(exc)}, ensure_ascii=False))
-        return 2
-    if not status or not status.get("run_dir"):
-        print(json.dumps({"schema": "simplicio.progress/v1", "status": "UNVERIFIED",
-                          "reason_code": "run_missing"}, ensure_ascii=False))
-        return 2
-    if fmt != "json":
-        try:
-            from .dashboard import cli as dashboard_cli
-            hint = dashboard_cli.panel_hint()
-            if hint is not None:
-                print(hint, file=sys.stderr)
-        except Exception:
-            pass
-    stream_progress(status["run_dir"], fmt=fmt, once=once, interval=interval,
-                    no_animation=no_animation, ascii_only=ascii_only)
-    return 0
 
 
 def maintenance_deferred(repo: str, run_id: str, mode: str, disposition: str,
@@ -776,13 +640,7 @@ def main(argv=None) -> int:
     p_oracle.add_argument("--flow-gap", default="")
     p_oracle.add_argument("--write-receipt", action="store_true")
 
-    p_status = sub.add_parser("status", help="show the latest run state or a specific run")
-    p_status.add_argument("--repo", default=".", help="repository root")
-    p_status.add_argument("--run-id", default="", help="run id to inspect")
-    p_status.add_argument("--json", action="store_true",
-                          help="emit machine-readable JSON (this is also the default)")
-    p_status.add_argument("--text", dest="as_text", action="store_true",
-                          help="emit human-readable text instead of JSON")
+    add_status(sub)
 
     p_stack = sub.add_parser("stack", help="create or verify an installed-stack lock")
     stack_sub = p_stack.add_subparsers(dest="stack_command", required=True)
@@ -881,16 +739,7 @@ def main(argv=None) -> int:
     p_squads = sub.add_parser("squads", help="plan squads and check the squad merge gate")
     configure_squads_commands(p_squads.add_subparsers(dest="squads_command", required=True))
 
-    p_preflight = sub.add_parser(
-        "preflight", help="verify bound operators (mapper/dev-cli) are installed")
-    p_preflight.add_argument("--repo", default=".", help="repository root")
-    p_preflight.add_argument("--json", action="store_true",
-                             help="emit machine-readable JSON (default: human-readable text)")
-    p_preflight.add_argument(
-        "--strict",
-        action="store_true",
-        help="arm SIMPLICIO_LOOP_STRICT: forbid hand-edit, lock evidence/mutation authority",
-    )
+    add_preflight(sub)
 
     p_economy = sub.add_parser(
         "economy",
@@ -941,9 +790,7 @@ def main(argv=None) -> int:
     p_deploy.add_argument("--apply", action="store_true")
     p_deploy.add_argument("--action-gate", action="store_true")
 
-    p_verify = sub.add_parser("verify", help="run the independent watcher and delivery gates")
-    p_verify.add_argument("--repo", default=".", help="repository root")
-    p_verify.add_argument("run_id", help="run id to verify")
+    add_verify(sub)
 
     p_watch247 = sub.add_parser(
         "watch247", help="run the 24/7 watcher for simplicio-* repos", allow_abbrev=False,
@@ -965,20 +812,7 @@ def main(argv=None) -> int:
              "tests on main after it, and open a revert PR on red (never force-push, never merge a revert). The approval gate "
              "applies to both modes; a merge still needs SIMPLICIO_247_AUTO_MERGE=1. See docs/MERGE_LOCKFREE.md.")
 
-    p_progress = sub.add_parser("progress", help="render visual progress for a run")
-    p_progress.add_argument("--repo", default=".", help="repository root")
-    p_progress.add_argument("run_id", nargs="?", help="run id to render (legacy positional form)")
-    p_progress.add_argument("--run", dest="run_flag", default="",
-                            help="run id to render (explicit form)")
-    p_progress.add_argument("--format", choices=("text", "json", "markdown", "ansi"),
-                            default="text", dest="fmt", help="output format")
-    p_progress.add_argument("--once", action="store_true", help="render one snapshot")
-    p_progress.add_argument("--no-animation", action="store_true",
-                            help="emit one static snapshot without spinner/ANSI control codes")
-    p_progress.add_argument("--ascii", action="store_true", dest="ascii_only",
-                            help="use ASCII icons/bar for terminals without Unicode support")
-    p_progress.add_argument("--interval", type=float, default=0.25,
-                            help="animation polling interval in seconds")
+    add_progress(sub)
 
     add_resume(sub)
 
