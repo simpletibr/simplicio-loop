@@ -665,7 +665,8 @@ from .runner_core import (_load_json, _verify_run_stack_lock, _verify_storage_ro
 from .runner_deps import (_assert_task_dependencies_ready)  # noqa: E402
 from .runner_taskspec import (_task_goal, _task_spec_payload, _task_spec_hash, _context_handoff_args, _criteria_text, _constraints_text)  # noqa: E402
 from .runner_mapper_env import (_execution_profile, _devcli_cmd, _devcli_env, _operator_env)  # noqa: E402
-from .runner_plan import (_resolve_host_edit_plan, _validate_minimal_host_plan_paths, _compile_minimal_host_plan, _operator_receipt_hash, _provider_worker_plan, _finish_operator_blocked)  # noqa: E402
+from .runner_plan import (_resolve_host_edit_plan, _validate_minimal_host_plan_paths, _compile_minimal_host_plan, _operator_receipt_hash, _finish_operator_blocked)
+from .runner_plan_providers import (_provider_worker_plan)
 from .runner_lifecycle import (_emit_event, _task_ac_ids)  # noqa: E402
 from .runner_execute import (_raise_if_maintenance_deferred, _capture_operator_checkpoint, _build_effect_request, _devcli_verification_failed, _restore_operator_checkpoint, _operator_failure_fingerprint)  # noqa: E402
 from . import runner_execute as _runner_execute  # noqa: E402
