@@ -900,18 +900,21 @@ options:
   --host HOST           make this installed agent CLI the default host (a host id, for example
                         codex)
 === squads rc=0
-usage: simplicio-loop squads [-h] {plan,gate,metrics} ...
+usage: simplicio-loop squads [-h] {plan,gate,metrics,run} ...
 
 positional arguments:
-  {plan,gate,metrics}
-    plan               plan squads, file ownership and merge order for a set of issues
-    gate               check an authorized squad approval is newer than the last real commit of a
-                       PR (fails closed)
-    metrics            escalation rate and dependency wait from squad execution-reports (measured
-                       values only)
+  {plan,gate,metrics,run}
+    plan                plan squads, file ownership and merge order for a set of issues
+    gate                check an authorized squad approval is newer than the last real commit of a
+                        PR (fails closed)
+    metrics             escalation rate and dependency wait from squad execution-reports (measured
+                        values only)
+    run                 execute a planned wave: one worktree and one worker per squad, ownership
+                        check, continuation, merge in plan order behind the approval gate (a dry
+                        run unless --execute)
 
 options:
-  -h, --help           show this help message and exit
+  -h, --help            show this help message and exit
 === squads gate rc=0
 usage: simplicio-loop squads gate [-h] --pr PR [--repo REPO] [--approver LOGIN]
                                   [--trusted-association ASSOC] [--json]
@@ -960,6 +963,40 @@ options:
   --ownership OWNERSHIP
                         JSON {"owner": ["path/glob", ...]}
   --json                machine-readable output (always JSON)
+=== squads run rc=0
+usage: simplicio-loop squads run [-h] --plan PATH|-|JSON [--issues PATH|-|JSON] [--execute]
+                                 [--approver LOGIN] [--mode {batch,lockfree}]
+                                 [--max-continuations N] [--repo REPO] [--base BASE]
+                                 [--run-dir DIR] [--json]
+
+Execute the output of `squads plan --json`. Without --execute it prints the preview and the exact
+commands and spawns nothing. With --execute it runs the workers, checks the ownership of every
+change, commits and tests each squad, and merges only with an authorized approval (--approver).
+
+options:
+  -h, --help            show this help message and exit
+  --plan PATH|-|JSON    the output of `squads plan --json`: a file path, '-' for stdin, or the
+                        JSON itself
+  --issues PATH|-|JSON  the issues of the plan (as for squads plan); their titles and bodies are
+                        the worker's task text
+  --execute             really run the workers, commit and test each squad, and merge with the
+                        approval gate; without it the command only prints the preview (nothing is
+                        spawned)
+  --approver LOGIN      gh login whose approval lets a PR merge (repeatable). Without it, nothing
+                        is pushed or merged
+  --mode {batch,lockfree}
+                        merge path: batch (one PR at a time, main verified after each; default) or
+                        lockfree (approved PRs merge without waiting for each other, a red main
+                        stops the run)
+  --max-continuations N
+                        continuations of a worker that stops at its budget before its squad is
+                        BLOCKED (default: 3, or SIMPLICIO_SQUADS_MAX_CONTINUATIONS)
+  --repo REPO           the git repository the squads branch from (default: current directory)
+  --base BASE           the ref each squad branches from and merges into (default: main)
+  --run-dir DIR         folder for the worktrees and state.json (default:
+                        <repo>/.simplicio/squads-run/<plan id>); a rerun of the same plan resumes
+                        from it
+  --json                machine-readable output: one JSON document with the preview inside
 === stack rc=0
 usage: simplicio-loop stack [-h] {lock,verify} ...
 
