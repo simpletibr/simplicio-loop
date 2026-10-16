@@ -149,19 +149,8 @@ from .runner_preflight import (  # noqa: F401
     _run_mapper,
     _build_plan,
 )  # noqa: F401
-from .runner_execute import (  # noqa: F401
-    _EffectRequest,
-    _terminate_owned_process,
-    _execute_operator_effect_unchecked,
-    _execute_operator_effect,
-    _changed_paths,
-    _plan_relevant_changed_paths,
-    _restore_operator_checkpoint,
-    _operator_run_diff_coverage,
-    conclude_run,
-    _execute_operator_unleased,
-    execute_operator,
-)  # noqa: F401
+from .runner_execute import (_EffectRequest, _terminate_owned_process, _execute_operator_effect_unchecked, _execute_operator_effect, _changed_paths, _plan_relevant_changed_paths, _restore_operator_checkpoint, _operator_run_diff_coverage, conclude_run, execute_operator)
+from .runner_execute_unleased import (_execute_operator_unleased)
 from .runner_lane import (  # noqa: F401
     _operator_dispatch_item,
     _verify_worker_receipt_pair,
@@ -179,11 +168,8 @@ from .runner_wave import (  # noqa: F401
     _release_shared_context,
     _wave_worktree_dispatch,
 )  # noqa: F401
-from .runner_dispatch import (  # noqa: F401
-    _dispatch_journal_backend,
-    dispatch_operator_batch,
-    execute_operator_batch,
-)  # noqa: F401
+from .runner_dispatch import (_dispatch_journal_backend, execute_operator_batch)
+from .runner_dispatch_batch import (dispatch_operator_batch)
 
 RUNNER_SCHEMA = "simplicio.run-manifest/v1"
 STATE_SCHEMA = "simplicio.run-state/v1"
