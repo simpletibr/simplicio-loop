@@ -703,7 +703,7 @@
     "adapters": "adapters/ (MATRIX.md + 11 READMEs por runtime)",
     "app": "app/ (providers.json — 144 providers · simplicio_tray.py)",
     "bin": "bin/simplicio (entry da engine)",
-    "pip_bundle": "simplicio_loop/ (__init__.py, cli.py, _bundle/{hooks,skills} byte-idênticos à source)",
+    "pip_bundle": "simplicio_loop/ (__init__.py, cli.py, _bundle/{hooks,skills} gerados no build a partir da source: gitignored, não versionados)",
     "plugin_manifests": [".claude-plugin/plugin.json", ".claude-plugin/marketplace.json", ".cursor-plugin/", ".codex/config.toml + hooks.json"],
     "runtime_state_dirs": [".simplicio-loop/orchestrator/{loop,tee,learn,STOP,patterns.jsonl,orient.toml}", ".simplicio-loop/{*.json survey artifacts}", "~/.simplicio-loop/{proxy_savings.json,memory.json,cache,logs,copilot_oauth.json}"],
     "assets": ["assets/simplicio-loop-hero.jpg (213KB)", "assets/simplicio-loop-logo.png (504KB)", "assets/simplicio-loop-overview.png (1.9MB)", "assets/tray-icon.png"],

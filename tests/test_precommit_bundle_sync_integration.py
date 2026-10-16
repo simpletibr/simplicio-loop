@@ -84,7 +84,7 @@ def test_sync_bundle_check_verb_runs_without_crashing():
     assert "bundle sync:" in r.stdout
 
 
-def test_precommit_hook_syncs_both_mirrors_and_stages_them(tmp_path):
+def test_precommit_hook_syncs_both_mirrors_and_stages_only_the_committed_one(tmp_path):
     root = str(tmp_path / "fixture_repo")
     _build_fixture_repo(root)
 
@@ -112,11 +112,11 @@ def test_precommit_hook_syncs_both_mirrors_and_stages_them(tmp_path):
     with open(bundle_skill, encoding="utf-8") as f:
         assert f.read() == "---\n---\nv2\n"
 
-    # both regenerated trees must be staged into the SAME commit, not left as untracked noise
+    # the committed plugin/ mirror must be staged into the SAME commit, not left as untracked noise
     staged = _git(["diff", "--cached", "--name-only"], root).stdout
     assert "plugin/skills/demo-skill/SKILL.md" in staged
-    assert os.path.join("simplicio_loop", "_bundle", "skills", "demo-skill",
-                         "SKILL.md").replace(os.sep, "/") in staged
+    # simplicio_loop/_bundle/ is gitignored since #1817: it is regenerated on disk but never staged
+    assert "simplicio_loop/_bundle/" not in staged
 
 
 def test_precommit_hook_ignores_unwatched_paths(tmp_path):

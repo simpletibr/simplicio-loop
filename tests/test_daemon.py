@@ -267,18 +267,21 @@ def test_two_concurrent_requests_keep_their_own_cwd_and_env(daemons, run_dir, tm
         repo.mkdir()
         repos.append(repo)
     results: dict[str, Result] = {}
+    rendezvous = tmp_path / "rendezvous"
 
     def go(name: str, repo: Path) -> None:
-        env = {"PATH": os.environ["PATH"], "REQ_VAR": name, "HOLD_S": "0.6"}
+        # Concurrency is proven by a rendezvous inside the two commands, not by a wall-clock bound:
+        # each command returns only after the other has also arrived (see daemon_helpers.state).
+        env = {"PATH": os.environ["PATH"], "REQ_VAR": name, "RENDEZVOUS_DIR": str(rendezvous)}
         results[name] = call(run_dir, "state", cwd=repo, env=env)
 
     threads = [threading.Thread(target=go, args=(n, r)) for n, r in zip(("a", "b"), repos)]
-    started = time.monotonic()
     for t in threads:
         t.start()
     for t in threads:
-        t.join(30)
-    assert time.monotonic() - started < 1.15, "the two requests did not run at the same time"
+        t.join(60)
+    for name in ("a", "b"):
+        assert name in results and results[name].rc == 0, "the two requests did not run at the same time"
     for name, repo in zip(("a", "b"), repos):
         seen = json.loads(results[name].out)
         assert seen["cwd"] == str(repo.resolve()) and seen["var"] == name

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""simplicio-loop — pre-commit hook: auto-sync plugin/ and _bundle/ from source (#98).
+"""simplicio-loop — pre-commit hook: auto-sync plugin/ from source, refresh the local bundle (#98).
 
 Triggered by git pre-commit. Detects staged changes in the monitored source paths
 (defined in mirror_manifest.py as the single source of truth) and runs BOTH
-`sync_plugin.py` (writes plugin/) and `sync_bundle.py` (writes simplicio_loop/_bundle/)
-automatically, adding the regenerated files to the same commit.
+`sync_plugin.py` (writes plugin/, which is committed and so is staged into the same commit) and
+`sync_bundle.py` (refreshes simplicio_loop/_bundle/ on disk; that tree is gitignored since #1817,
+so it is regenerated but never staged).
 
 Fail-open, per syncer: if either sync fails (e.g. python3 unavailable in the hook, a bug in one
 of the two scripts), the commit proceeds silently regardless — a failure in one syncer does not
@@ -43,13 +44,13 @@ try:
 except Exception:
     WATCHED_SOURCE_DIRS = [os.path.join(".claude", "skills"), "hooks", "scripts", "tests"]
 
-# The two syncers this hook runs when a watched path is staged — writes plugin/ and
-# simplicio_loop/_bundle/ respectively (#98: previously only sync_plugin.py ran here, leaving
-# _bundle/ a manually-maintained mirror — see docs/adr/0001-keep-versioned-mirrors-over-build-
-# time-vendoring.md "Known gap").
+# The two syncers this hook runs when a watched path is staged. sync_plugin.py writes the
+# committed plugin/ mirror; sync_bundle.py refreshes simplicio_loop/_bundle/, which setup.py also
+# generates at build time (#1817) and which is gitignored, so it is never staged.
 SYNC_SCRIPTS = ["sync_plugin.py", "sync_bundle.py"]
-# The mirror output trees to `git add` after a successful (or partially successful) sync.
-GENERATED_TREES = ["plugin", os.path.join("simplicio_loop", "_bundle")]
+# The committed mirror trees to `git add` after a successful (or partially successful) sync.
+# simplicio_loop/_bundle/ is deliberately absent: it is gitignored (#1817), so staging it is a no-op.
+GENERATED_TREES = ["plugin"]
 
 
 def _monitored_paths():
@@ -112,7 +113,7 @@ def _run_sync():
 
 
 def _stage_generated_files():
-    """Stage any files under the regenerated mirror trees (plugin/, simplicio_loop/_bundle/)."""
+    """Stage any files under the regenerated committed mirror trees (plugin/)."""
     for rel in GENERATED_TREES:
         full = os.path.join(REPO, rel)
         if not os.path.exists(full):
@@ -131,7 +132,7 @@ def main():
         return 0  # nothing to sync — pass
 
     print("[pre-commit] simplicio-loop: source files changed — syncing plugin/ + "
-          "simplicio_loop/_bundle/...")
+          "the local simplicio_loop/_bundle/...")
     _run_sync()
     _stage_generated_files()
     return 0  # always exit 0 (fail-open — check.py/claims_audit.py are the backstop)

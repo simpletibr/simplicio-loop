@@ -21,6 +21,7 @@ Thirteen checks:
                                 byte-identical under `simplicio_loop/_bundle/` — checked in BOTH
                                 directions, so an orphan left behind in `_bundle/` after a source
                                 rename/delete is caught too (not just a forward source->bundle walk).
+                                A missing bundle (fresh checkout, #1817) is generated first.
   5. plugin-parity              The lean marketplace plugin tree mirrors the source files it ships
                                 (skills + wired hooks + runtime helper scripts + parity tests).
   6. skill-count                Every "<N> skills" claim agrees with the seven canonical
@@ -346,6 +347,16 @@ def check_bundle_parity():
     # all must mirror source byte-for-byte, checked in BOTH directions (#70): forward
     # (source -> bundle: nothing shipped is missing/stale) AND reverse (bundle -> source: no
     # orphan file left behind by a rename/delete still ships in the pip wheel undetected).
+    # #1817: simplicio_loop/_bundle/ is a gitignored build output. A standalone run on a fresh
+    # checkout has none yet, so generate it once, as scripts/check.py does. A bundle that is present
+    # but stale is NOT regenerated here: that is still reported as drift.
+    materialised = False
+    if not os.path.isdir(os.path.join(REPO, "simplicio_loop", "_bundle")):
+        if HERE not in sys.path:
+            sys.path.insert(0, HERE)
+        import sync_bundle  # noqa: E402 — the bundle's single generator (#1817)
+        sync_bundle.sync()
+        materialised = True
     pairs = [
         (os.path.join(REPO, ".claude", "skills"),
          os.path.join(REPO, "simplicio_loop", "_bundle", "skills")),
@@ -401,8 +412,9 @@ def check_bundle_parity():
             if _read(sp) != _read(bp):
                 drift.append("%s: differs: %s" % (tag, rel))
     ok = not drift
+    note = " (bundle was missing: generated from source first)" if materialised else ""
     return ok, ("bundle ≡ source, both directions (skills + hooks + runtime scripts + parity tests)"
-                if ok else "; ".join(drift))
+                + note if ok else "; ".join(drift))
 
 
 def check_plugin_sync():

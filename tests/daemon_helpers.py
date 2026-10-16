@@ -23,6 +23,17 @@ def state() -> int:
         "daemon_only": os.environ.get("DAEMON_ONLY"), "has_path": "PATH" in os.environ,
     }
     print(json.dumps(seen))
+    rendezvous = os.environ.get("RENDEZVOUS_DIR")
+    if rendezvous:
+        # Two requests that really run at the same time both reach this point and wait for each other;
+        # a daemon that serialises requests never gets two arrivals, so this times out and fails.
+        os.makedirs(rendezvous, exist_ok=True)
+        open(os.path.join(rendezvous, os.environ.get("REQ_VAR") or str(os.getpid())), "w").close()
+        deadline = time.monotonic() + 20
+        while len(os.listdir(rendezvous)) < 2:
+            if time.monotonic() > deadline:
+                return 3
+            time.sleep(0.01)
     if os.environ.get("HOLD_S"):
         time.sleep(float(os.environ["HOLD_S"]))
         seen["woke"] = time.time()
