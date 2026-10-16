@@ -721,12 +721,19 @@ def configure_commands(subparsers: argparse._SubParsersAction) -> None:
     metrics.add_argument("--compare", nargs=2, metavar=("BEFORE", "AFTER"),
                          help="two `metrics --json` outputs (or report files), baseline first then v2: numbers side by side, each side labeled with its mode, with n and warnings; refuses two runs of the same mode")
     metrics.add_argument("--json", action="store_true", help="machine-readable output")
+    from . import squads_run  # lazy: squads_run imports this module
+
+    squads_run.configure_run(subparsers)
 
 
 def dispatch(args: argparse.Namespace) -> int:
     """plan: 0 ok, 2 blocked. gate: 0 approved, 1 not approved, 2 error. metrics: 0 ok, 2 error."""
     if args.squads_command == "metrics":
         return squad_metrics.dispatch(args)
+    if args.squads_command == "run":
+        from . import squads_run  # lazy: squads_run imports this module
+
+        return squads_run.dispatch(args)
     try:
         if args.squads_command == "plan":
             ownership = json.loads(args.ownership) if args.ownership else None
