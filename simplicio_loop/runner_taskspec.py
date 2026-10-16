@@ -329,5 +329,6 @@ def _context_handoff_args(
         "authorization": authorization_handoff,
     }
 
-from .runner_core import (_load_json, _degraded_mapper_fallback_enabled, _write_json)  # noqa: E402
+from .runner_core import (_load_json, _write_json)
+from .runner_mapper_env import (_degraded_mapper_fallback_enabled)
 from . import runner_core as _runner_core  # noqa: E402

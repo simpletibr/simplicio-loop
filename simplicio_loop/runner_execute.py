@@ -40,37 +40,8 @@ from .execution_route import (
     verify_route_hash,
 )
 from .openrouter_operator import enabled as _openrouter_operator_enabled
-from .runner_core import (
-    OPERATOR_RECEIPT_SCHEMA,
-    PLAN_REQUIRED,
-    _now,
-    _load_json,
-    _write_json,
-    _verify_run_stack_lock,
-    STORAGE_ROUTE_RECEIPT,
-    _verify_storage_route,
-    _run_cmd,
-    _git_current_branch,
-    _operator_env,
-    _operator_timeout,
-    _devcli_env,
-    _devcli_cmd,
-    _execution_profile,
-    _hookwall_digest,
-    _is_loop_generated_path,
-    _repo_fingerprint,
-    _repo_state_equivalent,
-    _criteria_text,
-    _constraints_text,
-    _task_goal,
-    _task_spec_payload,
-    _task_spec_hash,
-    _context_handoff_args,
-    _is_tool_cache_path,
-    _assert_task_dependencies_ready,
-    _mapper_journal_enabled,
-    read_status,
-)
+from .runner_core import (OPERATOR_RECEIPT_SCHEMA, PLAN_REQUIRED, _now, _load_json, _write_json, _verify_run_stack_lock, STORAGE_ROUTE_RECEIPT, _verify_storage_route, _run_cmd, _git_current_branch, _hookwall_digest, _is_loop_generated_path, _repo_fingerprint, _repo_state_equivalent, _criteria_text, _constraints_text, _task_goal, _task_spec_payload, _task_spec_hash, _context_handoff_args, _is_tool_cache_path, _assert_task_dependencies_ready, read_status)
+from .runner_mapper_env import (_operator_env, _operator_timeout, _devcli_env, _devcli_cmd, _execution_profile, _mapper_journal_enabled)
 from .runner_lifecycle import _transition, _emit_event, _task_ac_ids
 from .runner_plan import (
     _ensure_mapper_operations_store,

@@ -25,33 +25,8 @@ from .ecc_guidance import (
 from .openrouter_operator import (
     external_preflight_admissible as _external_preflight_admissible,
 )
-from .runner_core import (
-    changed_paths_since,
-    MAPPER_MIN_VERSION,
-    MAPPER_REQUIRED_VERBS,
-    DEVCLI_REQUIRED_TOKENS,
-    DEVCLI_MIN_VERSION,
-    DEVCLI_REQUIRED_CAPABILITIES,
-    BATCH_PREFLIGHT_SCHEMA,
-    _now,
-    _load_json,
-    _write_json,
-    _verify_storage_route,
-    _run_cmd,
-    _mapper_timeout_seconds,
-    _mapper_supports_command,
-    _mapper_inspection_is_fresh,
-    _mapper_inspection_reports_stale,
-    _degraded_mapper_fallback_enabled,
-    _degraded_mapper_payload,
-    _devcli_env,
-    _devcli_cmd,
-    _repo_fingerprint,
-    _repo_state_equivalent,
-    _parse_version_tuple,
-    _preflight_override,
-    _resolved_identity,
-)
+from .runner_core import (changed_paths_since, MAPPER_MIN_VERSION, MAPPER_REQUIRED_VERBS, DEVCLI_REQUIRED_TOKENS, DEVCLI_MIN_VERSION, DEVCLI_REQUIRED_CAPABILITIES, BATCH_PREFLIGHT_SCHEMA, _now, _load_json, _write_json, _verify_storage_route, _run_cmd, _repo_fingerprint, _repo_state_equivalent, _parse_version_tuple, _preflight_override, _resolved_identity)
+from .runner_mapper_env import (_mapper_timeout_seconds, _mapper_supports_command, _mapper_inspection_is_fresh, _mapper_inspection_reports_stale, _degraded_mapper_fallback_enabled, _degraded_mapper_payload, _devcli_env, _devcli_cmd)
 from .runner_lifecycle import _transition, _emit_event
 from .runner_plan import _build_plan_with_hints
 

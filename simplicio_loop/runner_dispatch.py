@@ -34,29 +34,8 @@ from .planning_gate import (
 from . import local_capacity
 from .run_journal import RunJournal
 from .mapper_run_journal import MapperRunJournal
-from .runner_core import (
-    _subprocess_env,
-    BatchPreflightError,
-    _is_deterministic_operator_failure,
-    BATCH_SCHEMA,
-    NATIVE_PRISM_SCHEMA,
-    _now,
-    _load_json,
-    _write_json,
-    _append_jsonl,
-    _task_goal,
-    WAVE_INLINE_MAX_TASKS,
-    _auto_worktree_dispatch,
-    _task_dependency_references,
-    _task_aliases,
-    _assert_task_dependencies_ready,
-    _item_dependencies,
-    _completed_task_aliases,
-    _omit_satisfied_dispatch_dependencies,
-    _ordered_dispatch_items,
-    _mapper_journal_enabled,
-    read_status,
-)
+from .runner_core import (_subprocess_env, BatchPreflightError, _is_deterministic_operator_failure, BATCH_SCHEMA, NATIVE_PRISM_SCHEMA, _now, _load_json, _write_json, _append_jsonl, _task_goal, WAVE_INLINE_MAX_TASKS, _auto_worktree_dispatch, _task_dependency_references, _task_aliases, _assert_task_dependencies_ready, _item_dependencies, _completed_task_aliases, _omit_satisfied_dispatch_dependencies, _ordered_dispatch_items, read_status)
+from .runner_mapper_env import (_mapper_journal_enabled)
 from .runner_plan import (
     _mapper_operations_database,
     _ensure_mapper_operations_store,
