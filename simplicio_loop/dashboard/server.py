@@ -28,7 +28,7 @@ import urllib.parse
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from simplicio_loop import __version__, dashboard_events, input_ceiling, stage_agents
 from simplicio_loop.dashboard import STATIC_DIR, agent_map, alerts, budget, config, history, lane_extras, langfuse_view, runs, trends, webhook
@@ -106,7 +106,11 @@ def extract_token(query: Mapping[str, str], headers: Any) -> str | None:
 
 
 def _host_allowed(host: str, port: int | None, allowed_hosts: Any = None) -> bool:
-    '''Host must be 127.0.0.1, localhost, a Tailscale name (.ts.net) or IP (100.x), or in allowed_hosts.'''
+    '''Host must be 127.0.0.1, localhost, a Tailscale name (.ts.net) or IP (100.x), or in allowed_hosts.
+
+    A loopback Host must name the bound port: a portless loopback Host is a foreign request, not this server.
+    A Tailscale or allow-listed Host may arrive without a port through a proxy (Tailscale Serve).
+    '''
     if not host:
         return False
     name, _, given = host.partition(':')
@@ -132,7 +136,30 @@ def _host_allowed(host: str, port: int | None, allowed_hosts: Any = None) -> boo
     if is_ts or is_custom:
         return given == '' or given.isdigit()
 
-    return given == str(port) or given == ''
+    return given == str(port)
+
+
+def _origin_allowed(origin: str, host: str) -> bool:
+    '''The Origin must be the page's own scheme://host[:port], with no path, and name the Host's host.
+
+    A loopback Origin is plain http on the bound port: an https page or a portless origin (port 80) on
+    loopback is some other service. A Tailscale or allow-listed Origin may be https through a proxy.
+    '''
+    try:
+        parts = urllib.parse.urlsplit(origin)
+        origin_port = parts.port
+    except ValueError:
+        return False
+    if parts.scheme not in ('http', 'https') or parts.path or parts.query or parts.fragment:
+        return False
+    host_name, _, host_port_text = host.partition(':')
+    host_name = host_name.lower()
+    if parts.username or parts.password or (parts.hostname or '') != host_name:
+        return False
+    if host_name in (HOST, 'localhost'):
+        host_port = int(host_port_text) if host_port_text.isdigit() else 80
+        return parts.scheme == 'http' and (80 if origin_port is None else origin_port) == host_port
+    return origin_port is None or not host_port_text.isdigit() or origin_port == int(host_port_text)
 
 
 def _is_public(path: str) -> bool:
@@ -147,20 +174,8 @@ def guard(method: str, path: str, headers: Any, query: Mapping[str, str], token:
     if not _host_allowed(host, port, allowed_hosts):
         return 403
     origin = _header(headers, 'Origin')
-    if origin is not None:
-        try:
-            parts = urllib.parse.urlsplit(origin)
-            origin_name = (parts.hostname or '').lower()
-            origin_port = parts.port
-            host_name, _, host_port_str = host.partition(':')
-            host_port = int(host_port_str) if host_port_str.isdigit() else None
-            if parts.scheme in ('http', 'https') and origin_name == host_name.lower():
-                if origin_port is not None and host_port is not None and origin_port != host_port:
-                    return 403
-            else:
-                return 403
-        except Exception:
-            return 403
+    if origin is not None and not _origin_allowed(origin, host):
+        return 403
     if not _is_public(path) and not token_matches(extract_token(query, headers), token):
         return 401
     return 200 if method == 'GET' else 405

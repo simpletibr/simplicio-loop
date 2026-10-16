@@ -97,13 +97,14 @@ def test_preflight_json_carries_the_version_report_only_when_a_checkout_is_known
     assert payload["version_drift"]["source"] == "3.50.0"
 
 
-def test_doctor_distribution_row_warns_when_the_install_is_older(tmp_path, monkeypatch):
+def test_doctor_distribution_row_warns_when_the_install_is_older(tmp_path):
+    # The checkout is passed through `environ`, the mapping doctor reads. The host's own environment, its
+    # installed metadata (direct_url.json, or a stray simplicio_loop.egg-info on sys.path) never decides it.
     checkout = _checkout(tmp_path / "simplicio-loop", version="3.50.0", tag="v3.50.0")
-    monkeypatch.setenv("SIMPLICIO_LOOP_SOURCE", str(checkout))
 
     result = doctor_overview.collect(
-        installed="3.49.0", kind="pip", only="distribution", repo=str(tmp_path), environ={},
-        state_dir=tmp_path / "state")
+        installed="3.49.0", kind="pip", only="distribution", repo=str(tmp_path),
+        environ={"SIMPLICIO_LOOP_SOURCE": str(checkout)}, state_dir=tmp_path / "state")
 
     row = result["checks"][0]
     assert row["name"] == "distribution"

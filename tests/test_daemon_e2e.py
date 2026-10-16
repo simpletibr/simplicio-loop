@@ -32,6 +32,18 @@ LAUNCH = "import sys; from simplicio_loop.daemon.client import main; sys.exit(ma
 VOLATILE = ("run_id", "wall_s", "execution_report", "receipts", "repo", "map")
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _absolute_pythonpath():
+    """A relative PYTHONPATH entry (`PYTHONPATH=.`) is resolved by the child against its own cwd, the test's temp
+    repo. The child then imports another simplicio_loop, its daemon key differs, and the test reads the wrong log.
+    Making the entries absolute gives the parent and the child the same import path and the same daemon key."""
+    with pytest.MonkeyPatch.context() as patch:
+        entries = [os.path.abspath(entry) for entry in os.environ.get("PYTHONPATH", "").split(os.pathsep) if entry]
+        if entries:
+            patch.setenv("PYTHONPATH", os.pathsep.join(entries))
+        yield
+
+
 @pytest.fixture(scope="module")
 def daemon_dir(tmp_path_factory):
     directory = tmp_path_factory.mktemp("d")

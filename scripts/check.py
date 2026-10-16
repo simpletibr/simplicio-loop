@@ -197,17 +197,28 @@ def _deselected_test_count(output):
 _IMPACT_CACHE = {}
 
 
+def _impact_module():
+    sys.path.insert(0, HERE)
+    import impact_tests
+
+    return impact_tests
+
+
 def _impacted_test_files(base):
     """Repo-relative test files the change vs ``base`` can affect (scripts/impact_tests.py).
 
-    Computed once per run: the root gate and both package gates ask for the same answer.
+    Computed once per run: the root gate and both package gates ask for the same answer. Raises
+    impact_tests.BaseRefUnresolved when ``base`` does not resolve, so no caller can read it as "nothing to run".
     """
     if base not in _IMPACT_CACHE:
-        sys.path.insert(0, HERE)
-        import impact_tests
-
-        _IMPACT_CACHE[base] = impact_tests.impacted_tests(base)[0]
+        _IMPACT_CACHE[base] = _impact_module().impacted_tests(base)[0]
     return _IMPACT_CACHE[base]
+
+
+def _impact_base_failure(error):
+    """The FAIL result for an impact base ref that does not resolve: it names the fix, and runs no test."""
+    print("impact: FAIL (%s): %s" % (error.reason, error))
+    return GateResult(False, error.reason)
 
 
 def run_tests(only_core=False, impact=False, base_ref="origin/main"):
@@ -222,7 +233,12 @@ def run_tests(only_core=False, impact=False, base_ref="origin/main"):
         test_files = _core_test_files(tests_dir)
         label = "tests/ (core-gate — satellite tests skipped)"
     elif impact:
-        test_files = [os.path.join(REPO, t) for t in _impacted_test_files(base_ref)
+        try:
+            impacted = _impacted_test_files(base_ref)
+        except _impact_module().BaseRefUnresolved as error:
+            _hr("tests (impact)")
+            return _impact_base_failure(error)
+        test_files = [os.path.join(REPO, t) for t in impacted
                       if t.startswith("tests/") and os.path.isfile(os.path.join(REPO, t))]
         label = "tests/ (impact vs %s: %d files)" % (base_ref, len(test_files))
         if not test_files:
@@ -515,6 +531,13 @@ def run_package_gate(pkg, impact=False, base="origin/main"):
     if pkg == "loop":
         print("(the root package's gate is the rest of this script's default run)")
         return GateResult(True, "delegated_to_default_gate")
+
+    if impact:
+        try:
+            _impacted_test_files(base)
+        except _impact_module().BaseRefUnresolved as error:
+            _hr("package-gate: %s" % pkg)
+            return _impact_base_failure(error)
 
     if pkg == "mapper":
         fail = _run_step(
