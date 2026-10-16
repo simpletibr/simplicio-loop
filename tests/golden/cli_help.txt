@@ -1,0 +1,1273 @@
+=== (top level) rc=0
+usage: simplicio-loop [-h] [-V]
+                      {install,turbo,update,login,logout,auth,setup,dashboard,task,prototype,plan,prepare,arm,orient,apply,retrieve,extensions,oracle,status,stack,doctor,inspect,map,squads,preflight,economy,ecc,deploy,verify,watch247,progress,resume,tick,batch,wave,prism,cancel,checkpoint,maintenance-deferred,defer-maintenance,deliver,decide,sync-source,drain,agent-slots,generation-broker,queue,hub-drain-plan,ledger,findings,learn} ...
+
+Install the simplicio-loop super-plugin, open the Token Monitor dashboard, or compile task
+markdown into a canonical task contract.
+
+positional arguments:
+  {install,turbo,update,login,logout,auth,setup,dashboard,task,prototype,plan,prepare,arm,orient,apply,retrieve,extensions,oracle,status,stack,doctor,inspect,map,squads,preflight,economy,ecc,deploy,verify,watch247,progress,resume,tick,batch,wave,prism,cancel,checkpoint,maintenance-deferred,defer-maintenance,deliver,decide,sync-source,drain,agent-slots,generation-broker,queue,hub-drain-plan,ledger,findings,learn}
+    install             install bundled skills + hooks into a runtime
+    turbo               run a task in two commands: Mapper survey, you write the plan, dev-cli
+                        applies it (no key needed)
+    update              install the latest GitHub release of simpletibr/simplicio-loop
+    login               sign in with the Simplicio login shared with the Runtime
+    logout              delete the shared login file (this logs the Runtime out too)
+    auth                inspect the shared Simplicio login
+    setup               check the machine, find agent CLIs and the GitHub login (run it after
+                        install)
+    dashboard           open the Simplicio Live panel; --tokens opens the Token Monitor
+    task                compile, validate, or preview markdown task contracts
+    prototype           Prototype-First gate: plan/classify/validate-schema/doctor (#568 P0)
+    plan                compile a raw task into a contract and preview it
+    prepare (arm)       arm and preflight a run without executing tasks or calling a provider
+    orient              orient a task through the Mapper survey
+    apply               apply one ops.json (Turn 2 of the plan-once/apply-once hot path, issue
+                        #1310)
+    retrieve            retrieve and verify a tee-cache output
+    extensions          negotiate installed Loop extension runtimes
+    oracle              evaluate completion and cross-runtime parity
+    status              show the latest run state or a specific run
+    stack               create or verify an installed-stack lock
+    doctor              inspect the installed stack or storage routing (default: stack health
+                        overview)
+    inspect             inspect storage routing and MapperStore capabilities
+    map                 map-service cross-module status
+    squads              plan squads and check the squad merge gate
+    preflight           verify bound operators (mapper/dev-cli) are installed
+    economy             fastest + cheapest profile: token economy, bounded CPU/RAM, Prism/asyncio
+                        parallel
+    ecc                 inspect the opt-in ECC advisory integration
+    deploy              plan a gated serverless deployment (dry-run unless --apply is explicit)
+    verify              run the independent watcher and delivery gates
+    watch247            run the 24/7 watcher for simplicio-* repos
+    progress            render visual progress for a run
+    resume              resume a non-terminal run
+    tick                execute one planned task through simplicio-dev-cli
+    batch               continuously dispatch ready tasks through simplicio-dev-cli
+    wave                dispatch a governed wave with reconciliation barriers
+    prism               dispatch work through the governed Prism route
+    cancel              cancel a non-terminal run
+    checkpoint          inspect, cancel, or garbage-collect candidate checkpoints
+    maintenance-deferred (defer-maintenance)
+                        record a maintenance-deferred backlog-only transition
+    deliver             reconcile delivery state against local/external source evidence
+    decide              apply a human decision and invalidate dependent artifacts
+    sync-source         requery external source state and reconcile delivery
+    drain               evaluate, persist, or load a queue-drain receipt
+    agent-slots         inspect and reclaim Loop-owned agent capacity
+    generation-broker   operate persisted generation bindings
+    queue               operate the durable local task queue
+    hub-drain-plan      read-only PT-BR/EN GitHub drain intake; never executes the plan
+    ledger              validate/replay the operational event ledger
+    findings            WI-466: inspect and reconcile continuous findings
+    learn               derive durable lessons from completed runs
+
+options:
+  -h, --help            show this help message and exit
+  -V, --version         show program's version number and exit
+=== agent-slots rc=0
+usage: simplicio-loop agent-slots [-h] ...
+
+positional arguments:
+  slot_args   pass-through args for the JSON-first agent slot registry
+
+options:
+  -h, --help  show this help message and exit
+=== apply rc=0
+usage: simplicio-loop apply [-h] [--repo REPO] [--json] [--pretty] ops
+
+positional arguments:
+  ops          ops.json path, or - for stdin
+
+options:
+  -h, --help   show this help message and exit
+  --repo REPO  repository root
+  --json       no-op: apply always emits exactly one JSON document on stdout
+  --pretty     print the full receipt-shaped result, indented (issue #1336: default is a compact
+               short summary -- status, per-task status/tail on failure, next_effort, receipt_path
+               -- full per-task/diff detail stays in the receipt file)
+=== arm rc=0
+usage: simplicio-loop prepare [-h] [--task TASK] [--example] [--repo REPO]
+                              [--delivery {implemented,verified,pr-open,merge-ready,merged,released,deployed}]
+                              [--max-iterations MAX_ITERATIONS]
+
+options:
+  -h, --help            show this help message and exit
+  --task TASK           markdown task file (the shape: `simplicio-loop prepare --example`)
+  --example             print a valid markdown task file to stdout (copy it, edit it, pass it to
+                        --task)
+  --repo REPO           repository root
+  --delivery {implemented,verified,pr-open,merge-ready,merged,released,deployed}
+                        requested delivery target
+  --max-iterations MAX_ITERATIONS
+                        safety cap
+=== auth rc=0
+usage: simplicio-loop auth [-h] {status} ...
+
+positional arguments:
+  {status}
+    status    who is logged in, expiry, entitlement; never prints a token
+
+options:
+  -h, --help  show this help message and exit
+=== auth status rc=0
+usage: simplicio-loop auth status [-h] [--json] [--online]
+
+options:
+  -h, --help  show this help message and exit
+  --json      emit one machine-readable JSON document
+  --online    also run the subscription check (may refresh the token, then asks the server)
+=== batch rc=0
+usage: simplicio-loop batch [-h] [--repo REPO] [--task-indices TASK_INDICES]
+                            [--max-workers MAX_WORKERS] [--retry-budget RETRY_BUDGET]
+                            [--provider-worker {openrouter}] [--batch-size BATCH_SIZE] [--serial]
+                            run_id
+
+positional arguments:
+  run_id                run id to dispatch
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO           repository root
+  --task-indices TASK_INDICES
+                        comma-separated 1-based task indices (default: every task in the contract)
+  --max-workers MAX_WORKERS
+                        worker demand (default/0: automatic; live CPU/RAM/disk admission governs
+                        concurrency; positive values set an explicit ceiling)
+  --retry-budget RETRY_BUDGET
+                        retries after the first attempt
+  --provider-worker {openrouter}
+                        explicitly authorize the external OpenRouter proposal worker
+  --batch-size BATCH_SIZE
+                        Prism wave width (default/minimum: 10; no logical upper bound, e.g. 30)
+  --serial              disable the default isolated fan-out and force the shared-run serial lane
+=== cancel rc=0
+usage: simplicio-loop cancel [-h] [--repo REPO] run_id
+
+positional arguments:
+  run_id       run id to cancel
+
+options:
+  -h, --help   show this help message and exit
+  --repo REPO  repository root
+=== checkpoint rc=0
+usage: simplicio-loop checkpoint [-h] [--repo REPO] --task-id TASK_ID --attempt-id ATTEMPT_ID
+                                 --source-commit SOURCE_COMMIT
+                                 --mapper-generation MAPPER_GENERATION [--base-path BASE_PATH]
+                                 [--candidate-id CANDIDATE_ID] [--shard-id SHARD_ID]
+                                 [--reason REASON] [--retention-seconds RETENTION_SECONDS]
+                                 [--apply]
+                                 {inspect,cancel,gc}
+
+positional arguments:
+  {inspect,cancel,gc}
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --task-id TASK_ID
+  --attempt-id ATTEMPT_ID
+  --source-commit SOURCE_COMMIT
+  --mapper-generation MAPPER_GENERATION
+  --base-path BASE_PATH
+  --candidate-id CANDIDATE_ID
+  --shard-id SHARD_ID
+  --reason REASON
+  --retention-seconds RETENTION_SECONDS
+  --apply
+=== dashboard rc=0
+usage: simplicio-loop dashboard [-h] [--run RUN_ID] [--repo PATH] [--port PORT]
+                                [--allow-host HOST] [--no-browser] [--stop] [--status]
+                                [--snapshot OUT] [--history] [--tui] [--tokens]
+
+options:
+  -h, --help         show this help message and exit
+  --run RUN_ID       run to show (default: the newest active run)
+  --repo PATH        repository root to watch; repeatable (default: the current directory)
+  --port PORT        loopback port for the server (default: 8765; 0 or "auto" picks a free port)
+  --allow-host HOST  additional host header to allow for remote access; repeatable
+  --no-browser       do not open the panel in a browser
+  --stop             stop the running dashboard
+  --status           print the dashboard status as JSON (never the token)
+  --snapshot OUT     write a static HTML snapshot of a run to OUT, without starting a server
+  --history          with --snapshot: write the run history, trends and heatmap page instead of
+                     one run
+  --tui              stream a run in the terminal
+  --tokens           open the legacy token monitor on port 9090; goes only with --port, --no-
+                     browser, --stop
+=== decide rc=0
+usage: simplicio-loop decide [-h] [--repo REPO] --decision-id DECISION_ID --answer ANSWER
+                             [--impact IMPACT]
+                             run_id
+
+positional arguments:
+  run_id                run id to update
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO           repository root
+  --decision-id DECISION_ID
+                        decision/question identifier
+  --answer ANSWER       human answer
+  --impact IMPACT       impact classification
+=== defer-maintenance rc=0
+usage: simplicio-loop maintenance-deferred [-h] [--repo REPO] --mode {active,maintenance_deferred}
+                                           --disposition {operator,backlog_only}
+                                           --correction-summary CORRECTION_SUMMARY
+                                           --deferral-reason DEFERRAL_REASON
+                                           [--resume-instruction RESUME_INSTRUCTION]
+                                           [--evidence-status EVIDENCE_STATUS]
+                                           run_id
+
+positional arguments:
+  run_id                run id to update
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO           repository root
+  --mode {active,maintenance_deferred}
+                        explicit runner mode
+  --disposition {operator,backlog_only}
+                        explicit runner disposition
+  --correction-summary CORRECTION_SUMMARY
+  --deferral-reason DEFERRAL_REASON
+  --resume-instruction RESUME_INSTRUCTION
+  --evidence-status EVIDENCE_STATUS
+=== deliver rc=0
+usage: simplicio-loop deliver [-h] [--repo REPO] --state STATE [--source-kind SOURCE_KIND]
+                              [--payload-file PAYLOAD_FILE]
+                              run_id
+
+positional arguments:
+  run_id                run id to reconcile
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO           repository root
+  --state STATE         delivery state reached
+  --source-kind SOURCE_KIND
+                        source kind for this reconciliation
+  --payload-file PAYLOAD_FILE
+                        JSON file with source evidence payload
+=== deploy rc=0
+usage: simplicio-loop deploy [-h] [--repo REPO] [--backend {modal,daytona}]
+                             [--environment ENVIRONMENT] [--image IMAGE] [--apply] [--action-gate]
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --backend {modal,daytona}
+  --environment ENVIRONMENT
+  --image IMAGE
+  --apply
+  --action-gate
+=== doctor rc=0
+usage: simplicio-loop doctor [-h] [--online] [--storage] [--route {legacy,shadow,mapper}]
+                             [--data-dir DATA_DIR] [--repo REPO]
+                             [--require-capability REQUIRE_CAPABILITY] [--json]
+                             {stack,source,all,login,mapper} ...
+
+Inspect stack health and component readiness. Running without a subcommand executes the general
+stack health overview (equivalent to 'doctor all') without requiring --storage or a subcommand.
+
+options:
+  -h, --help            show this help message and exit
+  --online              overview: ask GitHub for the latest release (offline by default)
+  --storage             inspect the Loop storage adapter boundary
+  --route {legacy,shadow,mapper}
+  --data-dir DATA_DIR
+  --repo REPO           repository root for cutover diagnostics
+  --require-capability REQUIRE_CAPABILITY
+  --json                emit machine-readable JSON
+
+subcommands:
+  subcommands for targeted component inspection (default: runs overview)
+
+  {stack,source,all,login,mapper}
+    stack               report installed component identity and route readiness
+    source              report SourceAdapter v1 contract readiness
+    all                 overview: login, update, distribution, Runtime, PATH operators, disk (same
+                        as bare `doctor`)
+    login               only the login check (shared with the Runtime)
+    mapper              check that the installed simplicio_mapper is the expected build
+=== doctor all rc=0
+usage: simplicio-loop doctor all [-h] [--json] [--online]
+
+options:
+  -h, --help  show this help message and exit
+  --json      emit machine-readable JSON
+  --online    ask GitHub for the latest release (offline by default)
+=== doctor login rc=0
+usage: simplicio-loop doctor login [-h] [--json]
+
+options:
+  -h, --help  show this help message and exit
+  --json      emit machine-readable JSON
+=== doctor mapper rc=0
+usage: simplicio-loop doctor mapper [-h] [--repo REPO] [--json]
+
+options:
+  -h, --help   show this help message and exit
+  --repo REPO  monorepo checkout to compare the commit with
+  --json       emit machine-readable JSON
+=== doctor source rc=0
+usage: simplicio-loop doctor source [-h]
+                                    [--provider {local,github,azure-devops,jira-cloud,asana,trello}]
+                                    [--json]
+
+options:
+  -h, --help            show this help message and exit
+  --provider {local,github,azure-devops,jira-cloud,asana,trello}
+  --json                emit machine-readable JSON
+=== doctor stack rc=0
+usage: simplicio-loop doctor stack [-h] [--json]
+
+options:
+  -h, --help  show this help message and exit
+  --json      emit machine-readable JSON
+=== drain rc=0
+usage: simplicio-loop drain [-h] [--snapshot SNAPSHOT_PATH] [--receipt RECEIPT_PATH]
+                            [--polls-required POLLS_REQUIRED]
+                            [action]
+
+positional arguments:
+  action                operation to perform: evaluate, persist, or load
+
+options:
+  -h, --help            show this help message and exit
+  --snapshot, --snapshot-file SNAPSHOT_PATH
+                        JSON scheduler/source snapshot (evaluate and persist)
+  --receipt, --receipt-file RECEIPT_PATH
+                        receipt JSON path (persist and load)
+  --polls-required POLLS_REQUIRED
+                        identical empty polls required (default: 2)
+=== ecc rc=0
+usage: simplicio-loop ecc [-h] {doctor} ...
+
+positional arguments:
+  {doctor}
+    doctor    verify ECC provenance and safety policy
+
+options:
+  -h, --help  show this help message and exit
+=== ecc doctor rc=0
+usage: simplicio-loop ecc doctor [-h] [--repo REPO] [--json]
+
+options:
+  -h, --help   show this help message and exit
+  --repo REPO  repository root
+  --json       emit machine-readable JSON
+=== economy rc=0
+usage: simplicio-loop economy [-h] {status,print,apply} ...
+
+positional arguments:
+  {status,print,apply}
+    status              show recommended vs applied economy-parallel env
+    print               print shell exports (ps1 on Windows, sh elsewhere)
+    apply               apply profile to this process + ~/.simplicio-loop + Windows User env
+
+options:
+  -h, --help            show this help message and exit
+=== economy apply rc=0
+usage: simplicio-loop economy apply [-h] [--user] [--no-user] [--json]
+
+options:
+  -h, --help  show this help message and exit
+  --user      persist to Windows User env / shell files (default)
+  --no-user   only mutate the current process environ
+  --json
+=== economy print rc=0
+usage: simplicio-loop economy print [-h] [--shell {auto,ps1,sh}] [--json]
+
+options:
+  -h, --help            show this help message and exit
+  --shell {auto,ps1,sh}
+  --json
+=== economy status rc=0
+usage: simplicio-loop economy status [-h] [--json]
+
+options:
+  -h, --help  show this help message and exit
+  --json
+=== extensions rc=0
+usage: simplicio-loop extensions [-h] {doctor} ...
+
+positional arguments:
+  {doctor}
+    doctor    dry-run an exact provider/runtime handshake
+
+options:
+  -h, --help  show this help message and exit
+=== extensions doctor rc=0
+usage: simplicio-loop extensions doctor [-h] --provider PROVIDER [--policy POLICY]
+                                        [--schema SCHEMA] [--json]
+
+options:
+  -h, --help           show this help message and exit
+  --provider PROVIDER
+  --policy POLICY
+  --schema SCHEMA
+  --json               machine-readable output (always JSON)
+=== findings rc=0
+usage: simplicio-loop findings [-h] {list,report,reconcile,doctor,import} ...
+
+positional arguments:
+  {list,report,reconcile,doctor,import}
+    list                list all routed findings (JSONL)
+    report              show aggregated finding counts by stage/severity
+    reconcile           show dedup state and untracked findings
+    doctor              health-check the findings store and router state
+    import              create one GitHub issue for each JSON finding
+
+options:
+  -h, --help            show this help message and exit
+=== findings doctor rc=0
+usage: simplicio-loop findings doctor [-h] [--json]
+
+options:
+  -h, --help  show this help message and exit
+  --json      emit machine-readable JSON
+=== findings import rc=0
+usage: simplicio-loop findings import [-h] [--repo-map REPO_MAP] [--label LABEL] [--dry-run]
+                                      [--receipt RECEIPT]
+                                      path
+
+positional arguments:
+  path                 JSON array of findings or object with findings array
+
+options:
+  -h, --help           show this help message and exit
+  --repo-map REPO_MAP  JSON map from source parent to owner/repo
+  --label LABEL        label to add to each issue (repeatable)
+  --dry-run            resolve repositories without creating issues
+  --receipt RECEIPT    persistent batch receipt path for safe retries
+=== findings list rc=0
+usage: simplicio-loop findings list [-h] [--json]
+
+options:
+  -h, --help  show this help message and exit
+  --json      emit machine-readable JSON
+=== findings reconcile rc=0
+usage: simplicio-loop findings reconcile [-h] [--json]
+
+options:
+  -h, --help  show this help message and exit
+  --json      emit machine-readable JSON
+=== findings report rc=0
+usage: simplicio-loop findings report [-h] [--json]
+
+options:
+  -h, --help  show this help message and exit
+  --json      emit machine-readable JSON
+=== generation-broker rc=0
+usage: simplicio-loop generation-broker [-h] ...
+
+positional arguments:
+  broker_args
+
+options:
+  -h, --help   show this help message and exit
+=== hub-drain-plan rc=0
+usage: simplicio-loop hub-drain-plan [-h] [--workspace WORKSPACE] [--checkpoint CHECKPOINT]
+                                     [--no-map]
+                                     request [request ...]
+
+Build a read-only GitHub issue drain plan. This command never executes the plan.
+
+positional arguments:
+  request               PT-BR/EN natural all-issues request
+
+options:
+  -h, --help            show this help message and exit
+  --workspace WORKSPACE
+                        local Git checkout used for canonical mapping
+  --checkpoint CHECKPOINT
+                        integrity-checked intake checkpoint
+  --no-map              record canonical mapping as unsupported
+=== inspect rc=0
+usage: simplicio-loop inspect [-h] --storage [--route {legacy,shadow,mapper}]
+                              [--data-dir DATA_DIR] [--repo REPO]
+                              [--require-capability REQUIRE_CAPABILITY] [--json]
+
+options:
+  -h, --help            show this help message and exit
+  --storage             inspect the Loop storage adapter boundary
+  --route {legacy,shadow,mapper}
+  --data-dir DATA_DIR
+  --repo REPO           repository root for cutover diagnostics
+  --require-capability REQUIRE_CAPABILITY
+  --json                emit machine-readable JSON
+=== install rc=0
+usage: simplicio-loop install [-h] [--target TARGET] [--global] [--host HOST] [--dry-run]
+                              [--check] [--json] [--verify] [--uninstall] [--prune-project-copies]
+
+options:
+  -h, --help            show this help message and exit
+  --target TARGET       project directory to install into
+  --global              install into ~/.claude instead of the project
+  --host HOST           host id or 'all'
+  --dry-run             plan only; write nothing
+  --check               write nothing; exit 0 when the install is up to date, 10 when changes are
+                        pending
+  --json                emit one machine-readable JSON document
+  --verify              validate plan version/digest
+  --uninstall           remove only what install registered; with --dry-run, list it and remove
+                        nothing
+  --prune-project-copies
+                        detect and remove stale project-scope copies when installing globally
+=== learn rc=0
+usage: simplicio-loop learn [-h] {retrospective} ...
+
+positional arguments:
+  {retrospective}
+    retrospective  deduplicate trajectory lessons and write a receipt
+
+options:
+  -h, --help       show this help message and exit
+=== learn retrospective rc=0
+usage: simplicio-loop learn retrospective [-h] [--repo REPO] [--run RUN_ID]
+
+options:
+  -h, --help    show this help message and exit
+  --repo REPO
+  --run RUN_ID
+=== ledger rc=0
+usage: simplicio-loop ledger [-h] {replay,validate} ...
+
+positional arguments:
+  {replay,validate}
+    replay           replay events with hash-chain and context validation
+    validate         validate events with hash-chain and context validation
+
+options:
+  -h, --help         show this help message and exit
+=== ledger replay rc=0
+usage: simplicio-loop ledger replay [-h] --path PATH [--compatibility] [--recover-trailing]
+                                    [--handshake-json HANDSHAKE_JSON |
+                                    --handshake-file HANDSHAKE_FILE]
+
+options:
+  -h, --help            show this help message and exit
+  --path PATH           JSONL EventLedger path
+  --compatibility       explicitly allow legacy v1 rows without context/handshake
+  --recover-trailing    drop one corrupt trailing JSONL row under the ledger lock
+  --handshake-json HANDSHAKE_JSON
+                        inline executor handshake JSON (strict mode requires it)
+  --handshake-file HANDSHAKE_FILE
+                        file containing executor handshake JSON (strict mode requires it)
+=== ledger validate rc=0
+usage: simplicio-loop ledger validate [-h] --path PATH [--compatibility] [--recover-trailing]
+                                      [--handshake-json HANDSHAKE_JSON |
+                                      --handshake-file HANDSHAKE_FILE]
+
+options:
+  -h, --help            show this help message and exit
+  --path PATH           JSONL EventLedger path
+  --compatibility       explicitly allow legacy v1 rows without context/handshake
+  --recover-trailing    drop one corrupt trailing JSONL row under the ledger lock
+  --handshake-json HANDSHAKE_JSON
+                        inline executor handshake JSON (strict mode requires it)
+  --handshake-file HANDSHAKE_FILE
+                        file containing executor handshake JSON (strict mode requires it)
+=== login rc=0
+usage: simplicio-loop login [-h] [--json] [--no-browser]
+
+options:
+  -h, --help    show this help message and exit
+  --json        emit one machine-readable JSON document
+  --no-browser  ask the Runtime not to open a browser
+=== logout rc=0
+usage: simplicio-loop logout [-h] [--yes] [--json]
+
+options:
+  -h, --help  show this help message and exit
+  --yes       confirm: without it nothing is deleted
+  --json      emit one machine-readable JSON document
+=== maintenance-deferred rc=0
+usage: simplicio-loop maintenance-deferred [-h] [--repo REPO] --mode {active,maintenance_deferred}
+                                           --disposition {operator,backlog_only}
+                                           --correction-summary CORRECTION_SUMMARY
+                                           --deferral-reason DEFERRAL_REASON
+                                           [--resume-instruction RESUME_INSTRUCTION]
+                                           [--evidence-status EVIDENCE_STATUS]
+                                           run_id
+
+positional arguments:
+  run_id                run id to update
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO           repository root
+  --mode {active,maintenance_deferred}
+                        explicit runner mode
+  --disposition {operator,backlog_only}
+                        explicit runner disposition
+  --correction-summary CORRECTION_SUMMARY
+  --deferral-reason DEFERRAL_REASON
+  --resume-instruction RESUME_INSTRUCTION
+  --evidence-status EVIDENCE_STATUS
+=== map rc=0
+usage: simplicio-loop map [-h] {status,verify,doctor,gc,build} ...
+
+positional arguments:
+  {status,verify,doctor,gc,build}
+    status              report cache hit/build/wait/invalidate counters from a running session
+    verify              map-service verify
+    doctor              map-service doctor
+    gc                  remove stale map scratch, orphan locks and old bases (--dry-run lists
+                        them)
+    build               build a canonical or worktree map receipt
+
+options:
+  -h, --help            show this help message and exit
+=== map build rc=0
+usage: simplicio-loop map build [-h] [--repo REPO] [--mode {canonical,overlay}]
+                                [--tree-hash TREE_HASH] [--file FILES] [--trace-id TRACE_ID]
+                                [--json]
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --mode {canonical,overlay}
+  --tree-hash TREE_HASH
+  --file FILES
+  --trace-id TRACE_ID
+  --json
+=== map doctor rc=0
+usage: simplicio-loop map doctor [-h] [--repo REPO] [--json]
+
+options:
+  -h, --help   show this help message and exit
+  --repo REPO  repository root
+  --json
+=== map gc rc=0
+usage: simplicio-loop map gc [-h] [--repo REPO] [--dry-run] [--keep KEEP] [--max-age MAX_AGE]
+                             [--json]
+
+options:
+  -h, --help         show this help message and exit
+  --repo REPO        repository root
+  --dry-run          list what would be removed, remove nothing
+  --keep KEEP        newest bases to keep besides those a live worktree references (default 3)
+  --max-age MAX_AGE  seconds without a write before scratch or a lock is stale (default 3600)
+  --json
+=== map status rc=0
+usage: simplicio-loop map status [-h] [--repo REPO] [--status-file STATUS_FILE] [--json]
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO           repository root
+  --status-file STATUS_FILE
+                        explicit status file (default: <repo>/.simplicio-
+                        loop/orchestrator/map/status.json)
+  --json                emit machine-readable JSON
+=== map verify rc=0
+usage: simplicio-loop map verify [-h] [--repo REPO] [--json]
+
+options:
+  -h, --help   show this help message and exit
+  --repo REPO  repository root
+  --json
+=== oracle rc=0
+usage: simplicio-loop oracle [-h] [--loop-dir LOOP_DIR] [--run-dir RUN_DIR]
+                             [--response-text RESPONSE_TEXT] [--flow-gap FLOW_GAP]
+                             [--write-receipt]
+
+options:
+  -h, --help            show this help message and exit
+  --loop-dir LOOP_DIR
+  --run-dir RUN_DIR
+  --response-text RESPONSE_TEXT
+  --flow-gap FLOW_GAP
+  --write-receipt
+=== orient rc=0
+usage: simplicio-loop orient [-h] [--repo REPO] [--task TASKS] [--brief] [--tee]
+                             [--target TARGETS] [--verbose] [--json] [--pretty]
+
+options:
+  -h, --help        show this help message and exit
+  --repo REPO       repository root
+  --task TASKS      task text or issue objective (repeatable with --brief for N tasks)
+  --brief           compact multi-task rendering (issue #1310, Turn 1 of the plan-once/apply-once
+                    hot path): route first, deduped target content, plan groups, suggested checks,
+                    Mapper generation + context hash, and the exact `apply` command
+  --tee             persist full JSON output in the reversible tee cache
+  --target TARGETS  repo-relative source file selected by Mapper or the task (repeatable)
+  --verbose         include full receipts/probes/policy text (default: leads with bounded context
+                    only)
+  --json            no-op: orient always emits exactly one JSON document on stdout
+  --pretty          indent --brief output for humans (issue #1336: default is compact, no-indent
+                    JSON -- the smaller and more stable the OpenCode tool output, the higher the
+                    prompt-cache hit rate on repeat turns)
+=== plan rc=0
+usage: simplicio-loop plan [-h] --task TASK [--out OUT]
+
+options:
+  -h, --help   show this help message and exit
+  --task TASK  markdown task file
+  --out OUT    where to write the compiled contract
+=== preflight rc=0
+usage: simplicio-loop preflight [-h] [--repo REPO] [--json] [--strict]
+
+options:
+  -h, --help   show this help message and exit
+  --repo REPO  repository root
+  --json       emit machine-readable JSON (default: human-readable text)
+  --strict     arm SIMPLICIO_LOOP_STRICT: forbid hand-edit, lock evidence/mutation authority
+=== prepare rc=0
+usage: simplicio-loop prepare [-h] [--task TASK] [--example] [--repo REPO]
+                              [--delivery {implemented,verified,pr-open,merge-ready,merged,released,deployed}]
+                              [--max-iterations MAX_ITERATIONS]
+
+options:
+  -h, --help            show this help message and exit
+  --task TASK           markdown task file (the shape: `simplicio-loop prepare --example`)
+  --example             print a valid markdown task file to stdout (copy it, edit it, pass it to
+                        --task)
+  --repo REPO           repository root
+  --delivery {implemented,verified,pr-open,merge-ready,merged,released,deployed}
+                        requested delivery target
+  --max-iterations MAX_ITERATIONS
+                        safety cap
+=== prism rc=0
+usage: simplicio-loop prism [-h] [--repo REPO] [--task-indices TASK_INDICES]
+                            [--max-workers MAX_WORKERS] [--retry-budget RETRY_BUDGET]
+                            [--provider-worker {openrouter}] [--batch-size BATCH_SIZE] [--serial]
+                            run_id
+
+positional arguments:
+  run_id                run id to dispatch
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO           repository root
+  --task-indices TASK_INDICES
+                        comma-separated 1-based task indices (default: every task in the contract)
+  --max-workers MAX_WORKERS
+                        worker demand (default/0: automatic; live CPU/RAM/disk admission governs
+                        concurrency; positive values set an explicit ceiling)
+  --retry-budget RETRY_BUDGET
+                        retries after the first attempt
+  --provider-worker {openrouter}
+                        explicitly authorize the external OpenRouter proposal worker
+  --batch-size BATCH_SIZE
+                        Prism wave width (default/minimum: 10; no logical upper bound, e.g. 30)
+  --serial              disable the default isolated fan-out and force the shared-run serial lane
+=== progress rc=0
+usage: simplicio-loop progress [-h] [--repo REPO] [--run RUN_FLAG]
+                               [--format {text,json,markdown,ansi}] [--once] [--no-animation]
+                               [--ascii] [--interval INTERVAL]
+                               [run_id]
+
+positional arguments:
+  run_id                run id to render (legacy positional form)
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO           repository root
+  --run RUN_FLAG        run id to render (explicit form)
+  --format {text,json,markdown,ansi}
+                        output format
+  --once                render one snapshot
+  --no-animation        emit one static snapshot without spinner/ANSI control codes
+  --ascii               use ASCII icons/bar for terminals without Unicode support
+  --interval INTERVAL   animation polling interval in seconds
+=== prototype rc=0
+usage: simplicio-loop prototype [-h] ...
+
+positional arguments:
+  prototype_args  pass-through args for `simplicio-loop prototype`
+
+options:
+  -h, --help      show this help message and exit
+=== queue rc=0
+usage: simplicio-loop queue [-h] [--repo REPO] [--route {legacy,mapper}] [--mapper-db MAPPER_DB]
+                            [--mapper-init]
+                            {status,resume,doctor,reclaim,migrate,top,drain,gc,inspect,cancel} ...
+
+positional arguments:
+  {status,resume,doctor,reclaim,migrate,top,drain,gc,inspect,cancel}
+    status              show queue health and pending work
+    resume              resume a legacy queue task
+    doctor              check queue storage and MapperStore readiness
+    reclaim             reclaim abandoned queue work
+    migrate             migrate legacy queue state into MapperStore
+    top                 list the highest-priority ready queue tasks
+    drain               wait for active queue work to finish
+    gc                  garbage-collect retained queue state
+    inspect             inspect one task by id
+    cancel              cancel one task by id
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --route {legacy,mapper}
+                        storage route (default: mapper; use legacy only for compatibility actions)
+  --mapper-db MAPPER_DB
+  --mapper-init
+=== queue cancel rc=0
+usage: simplicio-loop queue cancel [-h] task_id
+
+positional arguments:
+  task_id
+
+options:
+  -h, --help  show this help message and exit
+=== queue doctor rc=0
+usage: simplicio-loop queue doctor [-h]
+
+options:
+  -h, --help  show this help message and exit
+=== queue drain rc=0
+usage: simplicio-loop queue drain [-h] [--timeout TIMEOUT]
+
+options:
+  -h, --help         show this help message and exit
+  --timeout TIMEOUT
+=== queue gc rc=0
+usage: simplicio-loop queue gc [-h] [--apply]
+
+options:
+  -h, --help  show this help message and exit
+  --apply
+=== queue inspect rc=0
+usage: simplicio-loop queue inspect [-h] task_id
+
+positional arguments:
+  task_id
+
+options:
+  -h, --help  show this help message and exit
+=== queue migrate rc=0
+usage: simplicio-loop queue migrate [-h] [--apply]
+
+options:
+  -h, --help  show this help message and exit
+  --apply
+=== queue reclaim rc=0
+usage: simplicio-loop queue reclaim [-h]
+
+options:
+  -h, --help  show this help message and exit
+=== queue resume rc=0
+usage: simplicio-loop queue resume [-h]
+
+options:
+  -h, --help  show this help message and exit
+=== queue status rc=0
+usage: simplicio-loop queue status [-h]
+
+options:
+  -h, --help  show this help message and exit
+=== queue top rc=0
+usage: simplicio-loop queue top [-h] [--limit LIMIT]
+
+options:
+  -h, --help     show this help message and exit
+  --limit LIMIT
+=== resume rc=0
+usage: simplicio-loop resume [-h] [--repo REPO] run_id
+
+positional arguments:
+  run_id       run id to resume
+
+options:
+  -h, --help   show this help message and exit
+  --repo REPO  repository root
+=== retrieve rc=0
+usage: simplicio-loop retrieve [-h] [--repo REPO] path
+
+positional arguments:
+  path
+
+options:
+  -h, --help   show this help message and exit
+  --repo REPO
+=== setup rc=0
+usage: simplicio-loop setup [-h] [--check] [--dry-run] [--json] [--yes] [--github-token-stdin]
+                            [--host HOST]
+
+options:
+  -h, --help            show this help message and exit
+  --check               change nothing and ask nothing; exit 0 when nothing is pending, 10 when
+                        something is
+  --dry-run             show what would be installed or written; change nothing
+  --json                print one JSON document (no token)
+  --yes                 also install system packages (git, bwrap) when you are root or `sudo -n`
+                        works
+  --github-token-stdin  read the GitHub token from a pipe (never as an argument)
+  --host HOST           make this installed agent CLI the default host (a host id, for example
+                        codex)
+=== squads rc=0
+usage: simplicio-loop squads [-h] {plan,gate,metrics} ...
+
+positional arguments:
+  {plan,gate,metrics}
+    plan               plan squads, file ownership and merge order for a set of issues
+    gate               check an authorized squad approval is newer than the last real commit of a
+                       PR (fails closed)
+    metrics            escalation rate and dependency wait from squad execution-reports (measured
+                       values only)
+
+options:
+  -h, --help           show this help message and exit
+=== squads gate rc=0
+usage: simplicio-loop squads gate [-h] --pr PR [--repo REPO] [--approver LOGIN]
+                                  [--trusted-association ASSOC] [--json]
+
+options:
+  -h, --help            show this help message and exit
+  --pr PR
+  --repo REPO           owner/name (default: current repository)
+  --approver LOGIN      gh login allowed to approve (repeatable; e.g. $(gh api user --jq .login));
+                        with no --approver and no --trusted-association every approval is rejected
+  --trusted-association ASSOC
+                        also accept comments whose authorAssociation is this (repeatable): OWNER,
+                        MEMBER, COLLABORATOR
+  --json                machine-readable output (always JSON)
+=== squads metrics rc=0
+usage: simplicio-loop squads metrics [-h] [--reports PATH [PATH ...]] [--compare BEFORE AFTER]
+                                     [--json]
+
+options:
+  -h, --help            show this help message and exit
+  --reports PATH [PATH ...]
+                        execution-report/v1 files, or directories searched for *.json (latest.json
+                        is skipped)
+  --compare BEFORE AFTER
+                        two `metrics --json` outputs (or report files), baseline first then v2:
+                        numbers side by side, each side labeled with its mode, with n and
+                        warnings; refuses two runs of the same mode
+  --json                machine-readable output
+=== squads plan rc=0
+usage: simplicio-loop squads plan [-h] --issues ISSUES [--family FAMILY] [--squads auto|N]
+                                  [--max-workers MAX_WORKERS] [--ownership OWNERSHIP] [--json]
+
+options:
+  -h, --help            show this help message and exit
+  --issues ISSUES       path to .json file, '-' for stdin, or inline JSON list of issues, each an
+                        object with an integer "number" key and optional "title", "body",
+                        "labels", "depends_on" (issue numbers) and "paths" (globs); e.g.
+                        [{"number": 1812, "title": "...", "body": "...", "paths":
+                        ["simplicio_loop/**"]}]
+  --family FAMILY       runtime family of model_roles (default: claude)
+  --squads auto|N       how many squads run at once: auto (default) sizes them from the demand of
+                        the issues and the measured machine, N >= 1 forces N squads (also
+                        SIMPLICIO_SQUADS=N; the flag wins)
+  --max-workers MAX_WORKERS
+                        workers per squad, at most (default: 4)
+  --ownership OWNERSHIP
+                        JSON {"owner": ["path/glob", ...]}
+  --json                machine-readable output (always JSON)
+=== stack rc=0
+usage: simplicio-loop stack [-h] {lock,verify} ...
+
+positional arguments:
+  {lock,verify}
+    lock         persist a deterministic lock from JSON component observations
+    verify       verify current observations against a persisted lock
+
+options:
+  -h, --help     show this help message and exit
+=== stack lock rc=0
+usage: simplicio-loop stack lock [-h] --components COMPONENTS [--registry REGISTRY]
+                                 --route {standalone} [--run-id RUN_ID] [--output OUTPUT]
+
+options:
+  -h, --help            show this help message and exit
+  --components COMPONENTS
+                        JSON component observations
+  --registry REGISTRY   optional simplicio.stack-registry/v1 compatibility registry; blocks
+                        incompatible locks
+  --route {standalone}
+  --run-id RUN_ID
+  --output OUTPUT
+=== stack verify rc=0
+usage: simplicio-loop stack verify [-h] --lock LOCK --components COMPONENTS [--route {standalone}]
+
+options:
+  -h, --help            show this help message and exit
+  --lock LOCK           persisted stack lock JSON
+  --components COMPONENTS
+                        JSON component observations
+  --route {standalone}
+=== status rc=0
+usage: simplicio-loop status [-h] [--repo REPO] [--run-id RUN_ID] [--json] [--text]
+
+options:
+  -h, --help       show this help message and exit
+  --repo REPO      repository root
+  --run-id RUN_ID  run id to inspect
+  --json           emit machine-readable JSON (this is also the default)
+  --text           emit human-readable text instead of JSON
+=== sync-source rc=0
+usage: simplicio-loop sync-source [-h] [--repo REPO] --source SOURCE
+                                  [--external-repo EXTERNAL_REPO] [--pr PR] [--tag TAG]
+                                  run_id
+
+positional arguments:
+  run_id                run id to update
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO           repository root
+  --source SOURCE       external source kind
+  --external-repo EXTERNAL_REPO
+                        external repo identifier, ex owner/name
+  --pr PR               pull request number
+  --tag TAG             release tag
+=== task rc=0
+usage: simplicio-loop task [-h] ...
+
+positional arguments:
+  task_args   pass-through args for `simplicio-loop task`
+
+options:
+  -h, --help  show this help message and exit
+=== tick rc=0
+usage: simplicio-loop tick [-h] [--repo REPO] [--task-index TASK_INDEX]
+                           [--provider-worker {openrouter}]
+                           run_id
+
+positional arguments:
+  run_id                run id to tick
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO           repository root
+  --task-index TASK_INDEX
+                        1-based task index
+  --provider-worker {openrouter}
+                        explicitly authorize the external OpenRouter proposal worker
+=== turbo rc=0
+usage: simplicio-loop turbo [-h] [--repo REPO] [--task TASK] [--target TARGET] [--context CONTEXT]
+                            [--tasks-file TASKS_FILE] [--window PATH:START-END] [--verify VERIFY]
+                            [--apply PLAN] [--run-id ID] [--leave-open] [--provider {openrouter}]
+
+Default way to run a task, in exactly two commands; `simplicio-loop "<task>"` is the shortest form
+of the first. Host mode needs no provider and no key: the invoking model plans and simplicio-dev-
+cli edits. Command 1, `turbo --task T [--verify V]`: Mapper surveys the repo and the command
+prints a request (status needs_plan): the task, the map slice, the current text of the files it
+names, the plan format and the ONE next command, with a heredoc for the plan. Command 2, `turbo
+--apply - [--verify V] <<'PLAN'` followed by the find/replace JSON plan and `PLAN`: the plan is
+read from stdin (`--apply FILE` reads a file), dev-cli applies it and --verify runs the tests;
+status ok or failed, with dev-cli's reason and an excerpt of the file when a find did not match.
+Do not explore, list or read files, or run the tests yourself, between the two. `--provider
+openrouter` is headless automation only; agents invoking the skill must not use it: one model call
+per lane to OpenRouter (deepseek/deepseek-v4.1-flash, override with SIMPLICIO_TURBO_MODEL) on a
+pinned session with reasoning off; it needs OPENROUTER_API_KEY and stops with
+turbo_provider_key_missing without it. Prints one JSON document; exit 0 ok or needs_plan, 1
+failed, 2 blocked.
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO           repository to change (default: .)
+  --task TASK           task text; repeat for several tasks. Name the files to change in the text
+  --target TARGET       with one --task: the file to create or change
+  --context CONTEXT     with one --task: another file the model must see; repeatable
+  --tasks-file TASKS_FILE
+                        JSON list of {text, target?, context?, depends_on?}
+  --window PATH:START-END
+                        request: also show these lines of a file too big to be shown whole;
+                        repeatable
+  --verify VERIFY       shell command run in the repo after the plan is applied, e.g. tests
+  --apply PLAN          command 2: apply this JSON find/replace plan through dev-cli, then run
+                        --verify; `-` reads the plan from stdin (a heredoc), anything else is a
+                        file
+  --run-id ID           continue the run the request printed: its stage events and receipts join
+                        that run
+  --leave-open          with --apply and --run-id: an ok run stays open after verify, for the
+                        caller to close (the 24/7 watcher writes its pr stage, then done)
+  --provider {openrouter}
+                        headless automation only; agents invoking the skill must not use it (asks
+                        this provider for the plan, needs OPENROUTER_API_KEY)
+=== update rc=0
+usage: simplicio-loop update [-h] [--check] [--dry-run] [--force]
+
+options:
+  -h, --help  show this help message and exit
+  --check     change nothing; exit 0 when up to date, 10 when an update is available, 2 on error
+  --dry-run   print what would run; change nothing
+  --force     reinstall even when already on the latest release; allows a downgrade
+=== verify rc=0
+usage: simplicio-loop verify [-h] [--repo REPO] run_id
+
+positional arguments:
+  run_id       run id to verify
+
+options:
+  -h, --help   show this help message and exit
+  --repo REPO  repository root
+=== watch247 rc=0
+usage: simplicio-loop watch247 [-h] [--email EMAIL] [--github-token-stdin] [--check] [--once]
+                               [--dry-run] [--state-dir STATE_DIR] [--mode {batch,lockfree}]
+                               [{login-check,setup}]
+
+positional arguments:
+  {login-check,setup}   login-check: exec CLI logins (#1467); setup: first-run credentials
+
+options:
+  -h, --help            show this help message and exit
+  --email EMAIL         setup: the Simplicio account e-mail
+  --github-token-stdin  setup: read the GitHub token from stdin (never an argument: argv shows in
+                        ps)
+  --check               setup: only check the Simplicio account step (after the login); no token
+                        is asked
+  --once                run one tick and exit
+  --dry-run             simulate without mutations
+  --state-dir STATE_DIR
+                        override state directory
+  --mode {batch,lockfree}
+                        merge train mode (default: batch, or SIMPLICIO_247_MERGE_MODE when set).
+                        batch: one cumulative test per batch of up to 4 approved PRs, bisect on
+                        red, serial merge. lockfree (opt-in, #1820): merge each approved PR whose
+                        targeted tests are green, run the impacted tests on main after it, and
+                        open a revert PR on red (never force-push, never merge a revert). The
+                        approval gate applies to both modes; a merge still needs
+                        SIMPLICIO_247_AUTO_MERGE=1. See docs/MERGE_LOCKFREE.md.
+=== wave rc=0
+usage: simplicio-loop wave [-h] [--repo REPO] [--task-indices TASK_INDICES]
+                           [--max-workers MAX_WORKERS] [--retry-budget RETRY_BUDGET]
+                           [--provider-worker {openrouter}] [--batch-size BATCH_SIZE] [--serial]
+                           run_id
+
+positional arguments:
+  run_id                run id to dispatch
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO           repository root
+  --task-indices TASK_INDICES
+                        comma-separated 1-based task indices (default: every task in the contract)
+  --max-workers MAX_WORKERS
+                        worker demand (default/0: automatic; live CPU/RAM/disk admission governs
+                        concurrency; positive values set an explicit ceiling)
+  --retry-budget RETRY_BUDGET
+                        retries after the first attempt
+  --provider-worker {openrouter}
+                        explicitly authorize the external OpenRouter proposal worker
+  --batch-size BATCH_SIZE
+                        Prism wave width (default/minimum: 10; no logical upper bound, e.g. 30)
+  --serial              disable the default isolated fan-out and force the shared-run serial lane
+=== tasks rc=0
+usage: simplicio-loop tasks [-h] {run} ...
+
+positional arguments:
+  {run}
+    run       run the gated discover-to-PR pipeline
+
+options:
+  -h, --help  show this help message and exit
+=== intake rc=0
+usage: simplicio-loop intake [-h] --from PATH|URL|- [--map KEY=PATH] [--repo REPO] [--out OUT]
+                             [--json] [--freeze-backlog] [--goal GOAL]
+
+Normalize a tracker export (JSON array/{items|issues|data|value|nodes: [...]}, CSV, the existing
+tasks.md Markdown grammar, or an http(s) URL returning JSON) into a tasks.md file simplicio-loop
+prepare/wave can compile. Auto-detects the common field names of GitHub, Jira, Linear, ClickUp,
+GitLab and Azure DevOps exports; --map overrides any field. No credentials are handled here —
+fetch an authenticated source with your own connector/CLI first.
+
+options:
+  -h, --help         show this help message and exit
+  --from PATH|URL|-  tracker export to read: a local .json/.csv/.md file, '-' for stdin, or an
+                     http(s) URL returning JSON
+  --map KEY=PATH     override a normalized field (id, title, body, labels, depends_on, source,
+                     url) with a dotted source path, e.g. --map title=fields.summary. Repeatable.
+  --repo REPO        repository root the output tasks.md belongs to
+  --out OUT          where to write the compiled tasks.md
+  --json             print a machine-readable per-item summary
+  --freeze-backlog   also freeze the item list into --repo's scripts/task_backlog.py backlog
+                     (skipped with a warning if that script is not present in --repo)
+  --goal GOAL        backlog goal text (only used with --freeze-backlog); defaults to 'Drain N
+                     intake item(s)'
+=== handoff rc=0
+usage: simplicio-loop handoff [-h] {write,read,check} ...
+
+Write, read and check agent handoffs (simplicio.agent-handoff/v1).
+
+positional arguments:
+  {write,read,check}
+    write             mask secrets, validate and store a handoff
+    read              print a stored handoff
+    check             ok, handoff or over for the next request
+
+options:
+  -h, --help          show this help message and exit
+
+check exits 0 for ok, 3 for handoff, 4 for over; every command exits 2 on an error.
+=== author rc=0
+usage: simplicio-loop author [-h] --repo REPO --task-file TASK_FILE [--verify VERIFY]
+                             [--rounds ROUNDS] [--timeout SECONDS] [--family FAMILY]
+                             [--allow-unsandboxed]
+
+Open the LLM CLI with tools in a worktree, verify its edits and send failures back to the same
+session.
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO           the worktree the CLI edits (use an isolated git worktree, not your main
+                        checkout)
+  --task-file TASK_FILE
+                        file with the task text
+  --verify VERIFY       command run in the worktree after each round; its failure output is the
+                        next correction
+  --rounds ROUNDS       author round plus corrections, at most this many (1 to 10, default 3)
+  --timeout SECONDS     time limit of one CLI round (60 to 3600; default:
+                        SIMPLICIO_247_AUTHOR_TIMEOUT_S, else 900)
+  --family FAMILY       CLI family (default claude; only claude is supported)
+  --allow-unsandboxed   run without bwrap (manual use only)
+=== run rc=0
+usage: simplicio-loop run (redirecionado para wave) [-h] [--task TASK] [--repo REPO]
+                                                    [--delivery {implemented,verified,pr-open,merge-ready,merged,released,deployed}]
+                                                    [--max-iterations MAX_ITERATIONS]
+                                                    [--provider-worker {openrouter}]
+                                                    [--task-indices TASK_INDICES]
+                                                    [--max-workers MAX_WORKERS]
+                                                    [--retry-budget RETRY_BUDGET]
+                                                    [--batch-size BATCH_SIZE] [--serial]
+                                                    [--result-file RESULT_FILE]
+                                                    [--quality-provider QUALITY_PROVIDER]
+                                                    [--quality-policy QUALITY_POLICY]
+                                                    [--require-handshake-fingerprint REQUIRE_HANDSHAKE_FINGERPRINT]
+                                                    [run_id]
+
+O comando 'run' foi descontinuado e redireciona automaticamente para o fluxo padrão 'wave'.
+
+positional arguments:
+  run_id                ID do run a ser despachado via wave
+
+options:
+  -h, --help            show this help message and exit
+  --task TASK           arquivo markdown de tarefa para armar e despachar
+  --repo REPO           diretório raiz do repositório
+  --delivery {implemented,verified,pr-open,merge-ready,merged,released,deployed}
+                        requested delivery target, one of: implemented, verified, pr-open, merge-
+                        ready, merged, released, deployed (use 'implemented' for a local-only run)
+  --max-iterations MAX_ITERATIONS
+                        limite de iterações
+  --provider-worker {openrouter}
+                        autorizar worker OpenRouter
+  --task-indices TASK_INDICES
+                        índices de tarefas
+  --max-workers MAX_WORKERS
+                        máximo de workers
+  --retry-budget RETRY_BUDGET
+                        orçamento de retentativas
+  --batch-size BATCH_SIZE
+                        tamanho da onda/batch
+  --serial              execução serial
+  --result-file RESULT_FILE
+                        arquivo de resultado JSON
+  --quality-provider QUALITY_PROVIDER
+                        optional quality provider name (simplicio_loop.quality_providers.<name>)
+  --quality-policy QUALITY_POLICY
+                        policy string forwarded to the quality provider
+  --require-handshake-fingerprint REQUIRE_HANDSHAKE_FINGERPRINT
+                        fail closed unless this exact extension runtime fingerprint still executes
+[simplicio-loop] AVISO: O comando 'run' foi descontinuado. Redirecionando automaticamente para o fluxo padrão 'wave'...
+=== daemon rc=2
+usage: simplicio-loop daemon serve|status|stop
+=== (version) rc=0
+simplicio-loop 3.50.0
