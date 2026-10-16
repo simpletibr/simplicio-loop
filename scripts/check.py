@@ -331,6 +331,15 @@ def run_tests(only_core=False, impact=False, base_ref="origin/main"):
     return GateResult(False, "pytest_unavailable")
 
 
+def ensure_bundle_materialised():
+    """#1817: simplicio_loop/_bundle/ is generated from source, not committed. The audit and the
+    mirror-parity steps read it, so refresh a missing or drifted copy first (a no-op when in sync)."""
+    sys.path.insert(0, HERE)
+    import sync_bundle
+    if sync_bundle.check():
+        sync_bundle.sync()
+
+
 def run_mirror_parity():
     _hr("mirror-parity")
     path = os.path.join(HERE, "mirror_parity.py")
@@ -689,6 +698,7 @@ def main():
                   "--clean-env-only", "--token-budget", "--repo-budget", "--conformance",
                   "--package-content"}
     any_only = any(a in args for a in only_flags) or core_gate or package_mode
+    ensure_bundle_materialised()
     results = {name: GateResult(True, "not_run") for name in (
         "audit", "mirror_parity", "tests", "loop_contract", "clean_env",
         "token_budget", "repo_budget", "conformance", "package_content", "contract_headers",
