@@ -319,7 +319,7 @@ def _run_step(step: str, target: str, is_global: bool, runtime: str,
     elif step == "scripts":
         _lib.copy_scripts(target, is_global)
     elif step == "entry":
-        _lib.ensure_entry(target, cfg["entry"], runtime)
+        _lib.ensure_entry(target, cfg["entry"])
     elif step == "claude_settings":
         _lib.merge_claude_hooks(target, is_global)
     elif step == "full_stack":

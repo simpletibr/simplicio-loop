@@ -155,8 +155,8 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## Runtime'y
 
-- **6 `wired`** adapterów ma kod w `adapters/` i test hosta: Claude Code, Codex, Cursor, Grok, Kiro i VS Code.
-- **29 `listed`** hostów to wpisy w katalogu z README i bez kodu adaptera; 28 z nich ma też generyczny cel instalacji, który zapisuje skille i plik wejściowy hosta. Bycie na liście nie dowodzi, że host uruchamia pętlę.
+- **26 `wired`** adapterów ma kod w `adapters/` i test hosta: Claude Code, Codex, Cursor, Grok, Kiro i VS Code.
+- **9 `listed`** hostów to wpisy w katalogu z README i bez kodu adaptera; 8 z nich ma też generyczny cel instalacji, który zapisuje skille i plik wejściowy hosta. Bycie na liście nie dowodzi, że host uruchamia pętlę.
 - Operatory powyżej to zwykłe polecenia, więc działają z każdego harnessu, `wired` czy nie. Status każdego hosta: [adapters/MATRIX.md](../adapters/MATRIX.md) i [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## Dowiedz się więcej

@@ -155,8 +155,8 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## بيئات التشغيل
 
-- **6 محوّلات `wired`** تحتوي على كود في `adapters/` واختبار للمضيف: Claude Code وCodex وCursor وGrok وKiro وVS Code.
-- **29 مضيفًا `listed`** هي مدخلات في الكتالوج لها README ولا تحتوي على كود محوّل؛ ولدى 28 منها أيضًا هدف تثبيت عام يكتب الـ skills وملف الإدخال الخاص بالمضيف. وجود المضيف في القائمة لا يثبت أنه يشغّل الحلقة.
+- **26 محوّلات `wired`** تحتوي على كود في `adapters/` واختبار للمضيف: Claude Code وCodex وCursor وGrok وKiro وVS Code.
+- **9 مضيفًا `listed`** هي مدخلات في الكتالوج لها README ولا تحتوي على كود محوّل؛ ولدى 8 منها أيضًا هدف تثبيت عام يكتب الـ skills وملف الإدخال الخاص بالمضيف. وجود المضيف في القائمة لا يثبت أنه يشغّل الحلقة.
 - المشغّلات أعلاه أوامر عادية، لذا تعمل من أي بيئة، سواء كانت `wired` أم لا. الحالة لكل مضيف: [adapters/MATRIX.md](../adapters/MATRIX.md) و[simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## المزيد

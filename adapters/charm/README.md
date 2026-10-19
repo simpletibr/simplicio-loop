@@ -1,6 +1,6 @@
 # Charm adapter
 
-Charm's Crush includes `AGENTS.md` among its default context files. Install status: **listed** (installer target, no adapter code).
+Charm's Crush includes `AGENTS.md` among its default context files. Install status: **wired** (adapter code in `adapters/charm/adapter.py`, tested in `tests/host_charm/`).
 
 ## Skill load
 

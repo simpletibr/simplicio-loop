@@ -155,8 +155,8 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## ランタイム
 
-- **6 `wired`** アダプターは `adapters/` にコードがあり、ホストのテストを持ちます：Claude Code、Codex、Cursor、Grok、Kiro、VS Code。
-- **29 `listed`** ホストは README のあるカタログ項目で、アダプターのコードはありません。そのうち28には、skills とホストのエントリファイルを書き込む汎用インストール先があります。一覧に載っていることは、そのホストがループを実行することを証明しません。
+- **26 `wired`** アダプターは `adapters/` にコードがあり、ホストのテストを持ちます：Claude Code、Codex、Cursor、Grok、Kiro、VS Code。
+- **9 `listed`** ホストは README のあるカタログ項目で、アダプターのコードはありません。そのうち8には、skills とホストのエントリファイルを書き込む汎用インストール先があります。一覧に載っていることは、そのホストがループを実行することを証明しません。
 - 上のオペレーターは普通のコマンドなので、`wired` かどうかに関係なく、どのハーネスからでも動きます。ホストごとの状態：[adapters/MATRIX.md](../adapters/MATRIX.md) と [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json)。
 
 ## さらに詳しく

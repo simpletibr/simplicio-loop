@@ -1,6 +1,6 @@
 # Auggie adapter
 
-Auggie (Augment's CLI agent) reads `AGENTS.md` and `CLAUDE.md` rule files; the workspace-root file is always included. Install status: **listed** (installer target, no adapter code).
+Auggie (Augment's CLI agent) reads `AGENTS.md` and `CLAUDE.md` rule files; the workspace-root file is always included. Install status: **wired** (adapter code in `adapters/auggie/adapter.py`, tested in `tests/host_auggie/`).
 
 ## Skill load
 

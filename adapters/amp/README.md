@@ -1,6 +1,6 @@
 # Amp adapter
 
-Amp (Sourcegraph's coding agent) includes every `AGENTS.md` from the working directory and its parents up to `$HOME`. Install status: **listed** (installer target, no adapter code).
+Amp (Sourcegraph's coding agent) includes every `AGENTS.md` from the working directory and its parents up to `$HOME`. Install status: **wired** (adapter code in `adapters/amp/adapter.py`, tested in `tests/host_amp/`).
 
 ## Skill load
 

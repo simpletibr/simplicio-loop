@@ -155,8 +155,8 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## Runtimes
 
-- **6 `wired`** adaptateurs contiennent du code dans `adapters/` et un test d'hôte : Claude Code, Codex, Cursor, Grok, Kiro et VS Code.
-- **29 `listed`** hôtes sont des entrées du catalogue avec un README et sans code d'adaptateur ; 28 d'entre eux ont aussi une cible d'installation générique qui écrit les skills et le fichier d'entrée de l'hôte. Être listé ne prouve pas que l'hôte exécute la boucle.
+- **26 `wired`** adaptateurs contiennent du code dans `adapters/` et un test d'hôte : Claude Code, Codex, Cursor, Grok, Kiro et VS Code.
+- **9 `listed`** hôtes sont des entrées du catalogue avec un README et sans code d'adaptateur ; 8 d'entre eux ont aussi une cible d'installation générique qui écrit les skills et le fichier d'entrée de l'hôte. Être listé ne prouve pas que l'hôte exécute la boucle.
 - Les opérateurs ci-dessus sont des commandes simples : ils fonctionnent depuis n'importe quel harnais, `wired` ou non. Statut par hôte : [adapters/MATRIX.md](../adapters/MATRIX.md) et [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## En savoir plus

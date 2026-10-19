@@ -155,8 +155,8 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## Çalışma zamanları
 
-- **6 `wired`** adaptör `adapters/` altında kod ve bir host testi içerir: Claude Code, Codex, Cursor, Grok, Kiro ve VS Code.
-- **29 `listed`** host, README'si olan ve adaptör kodu olmayan katalog girdileridir; bunların 28'inin ayrıca skill'leri ve host'un giriş dosyasını yazan genel bir kurulum hedefi vardır. Listelenmiş olmak, host'un döngüyü çalıştırdığını kanıtlamaz.
+- **26 `wired`** adaptör `adapters/` altında kod ve bir host testi içerir: Claude Code, Codex, Cursor, Grok, Kiro ve VS Code.
+- **9 `listed`** host, README'si olan ve adaptör kodu olmayan katalog girdileridir; bunların 8'inin ayrıca skill'leri ve host'un giriş dosyasını yazan genel bir kurulum hedefi vardır. Listelenmiş olmak, host'un döngüyü çalıştırdığını kanıtlamaz.
 - Yukarıdaki operatörler sıradan komutlardır; bu yüzden `wired` olsun ya da olmasın her harness'ten çalışırlar. Host başına durum: [adapters/MATRIX.md](../adapters/MATRIX.md) ve [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## Daha fazlası

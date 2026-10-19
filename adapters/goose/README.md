@@ -1,6 +1,6 @@
 # Goose adapter
 
-goose loads `AGENTS.md` and `.goosehints` by default, at every level of the working directory hierarchy. Install status: **listed** (installer target, no adapter code).
+goose loads `AGENTS.md` and `.goosehints` by default, at every level of the working directory hierarchy. Install status: **wired** (adapter code in `adapters/goose/adapter.py`, tested in `tests/host_goose/`).
 
 ## Skill load
 

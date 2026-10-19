@@ -1,6 +1,6 @@
 # Codebuff adapter
 
-Codebuff reads one project file per directory: `knowledge.md`, else `AGENTS.md`, else `CLAUDE.md`. Install status: **listed** (installer target, no adapter code).
+Codebuff reads one project file per directory: `knowledge.md`, else `AGENTS.md`, else `CLAUDE.md`. Install status: **wired** (adapter code in `adapters/codebuff/adapter.py`, tested in `tests/host_codebuff/`).
 
 ## Skill load
 

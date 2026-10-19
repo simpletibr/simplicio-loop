@@ -1,0 +1,77 @@
+"""The marker block Loop writes into a host's entry file (AGENTS.md, GEMINI.md, ...).
+
+Two installers write this block: the packaged `simplicio-loop install` (planner.py) and the checkout installer
+(scripts/install_lib.py). Both call `merge` and `remove` here, so they write the same bytes and never fight over the
+block. Loop owns only the block; the rest of a file that already existed stays the user's. Standard library only:
+the checkout installer imports this module too.
+"""
+from __future__ import annotations
+
+BEGIN = "<!-- simplicio-loop:begin -->"
+END = "<!-- simplicio-loop:end -->"
+LEGACY_BEGIN = "<!-- simplicio-tasks:begin -->"
+LEGACY_END = "<!-- simplicio-tasks:end -->"
+
+
+def block() -> str:
+    """The block, from BEGIN to END (no trailing newline)."""
+    body = (
+        BEGIN + "\n"
+        "## simplicio-loop — Unified Core + Loop (multi-LLM floor)\n\n"
+        "Load and follow `.claude/skills/simplicio-loop/SKILL.md` and companions "
+        "(`simplicio-orient`, `simplicio-review`, `simplicio-compress`, `simplicio-learn`, "
+        "`simplicio-autoresearch`; `simplicio-tasks` = legacy alias) **IN FULL**.\n\n"
+        "**Operator floor (Claude / Codex / Grok / Cursor / VS Code / Antigravity / Kiro / Hermes):**\n"
+        "1. Arm STRICT env (`SIMPLICIO_LOOP_STRICT=1`, `FORBID_HAND_EDIT=1`, "
+        "`EXECUTION_PROFILE=standalone`). There is no Runtime/MCP backend in this stack.\n"
+        "2. `simplicio-loop preflight --strict --json` before work.\n"
+        "3. Core: survey with `simplicio-mapper`; mutate with "
+        "`simplicio-dev-cli edit --plan` — not host Write/Edit under STRICT.\n"
+        "4. Host integrations (Orca, boards, chat) **only if the client requested** them "
+        "(`docs/CLIENT_INTEGRATIONS.md`).\n"
+        "5. Evidence-gated close/PR; MEASURED|/UNVERIFIED|; no theater ACs.\n"
+        "6. Self-paced hosts re-read `.simplicio-loop/orchestrator/loop/scratchpad.md` every turn.\n\n"
+        "Rules: `packaging/host-rules/simplicio-loop-operator-flow.md` · "
+        "`docs/MULTI_LLM_CONTRACT.md` · clamp: `python3 hooks/orient_clamp.py -- <cmd>`.\n"
+    )
+    body += (
+        "\nInvoke: `/simplicio-loop <body of work>` · "
+        "Prism drain: `python3 scripts/arm_drain_prism.py --repo . --slots 4 --json`\n"
+        + END
+    )
+    return body
+
+
+def merge(existing: str) -> str:
+    """`existing` with the block in place: appended below the user's text, or refreshed where it already is.
+
+    A legacy `simplicio-tasks` block is replaced by the current one, where it stands.
+    """
+    begin, end = _markers(existing)
+    if begin is None:
+        return (existing.rstrip() + "\n\n" if existing.strip() else "") + block() + "\n"
+    pre = existing.split(begin)[0].rstrip()
+    post = existing.split(end, 1)[1]
+    return (pre + "\n\n" if pre else "") + block() + post
+
+
+def remove(existing: str) -> str | None:
+    """`existing` without the block, or None when there is no block. Text the user wrote around it stays."""
+    start = existing.find(BEGIN)
+    if start < 0:
+        return None
+    stop = existing.find(END, start)
+    if stop < 0:
+        return None
+    stop += len(END)
+    head = existing[:start].rstrip()
+    tail = existing[stop:].lstrip("\n")
+    return (head + "\n" if head else "") + tail
+
+
+def _markers(existing: str) -> tuple[str | None, str | None]:
+    if BEGIN in existing and END in existing:
+        return BEGIN, END
+    if LEGACY_BEGIN in existing and LEGACY_END in existing:
+        return LEGACY_BEGIN, LEGACY_END
+    return None, None

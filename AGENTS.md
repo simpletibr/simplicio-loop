@@ -76,7 +76,7 @@ recorded evidence. Facts are `MEASURED|`
 only with receipts; otherwise `UNVERIFIED|`. Missing dependencies fail closed; never fabricate
 context, tests, savings or provider output.
 This repository ships a runtime-agnostic **super-plugin**: the Universal Looping AI
-Orchestrator plus five satellite skills, with 6 wired adapters and 29 listed hosts (see
+Orchestrator plus five satellite skills, with 26 wired adapters and 9 listed hosts (see
 Runtimes). Any agent runtime that reads `AGENTS.md` / skill folders can load it.
 
 ## What to load
@@ -108,10 +108,11 @@ auto-clamp). See [`hooks/README.md`](hooks/README.md).
 
 ## Runtimes
 
-Wired and listed are different claims. **6 wired adapters** ship code in `adapters/` and a test in
-`tests/host_<host>/`: Claude Code, Codex, Cursor, Grok, Kiro and VS Code. The other **29 listed hosts** in
+Wired and listed are different claims. **26 wired adapters** ship code in `adapters/` and a test in
+`tests/host_<host>/`: Claude Code, Codex, Cursor, Grok, Kiro, VS Code, and the 20 hosts whose surface is
+`.claude/skills/` + `AGENTS.md` (`adapters/MATRIX.md`). The other **9 listed hosts** in
 [`simplicio_loop/_catalog/harnesses.json`](simplicio_loop/_catalog/harnesses.json) are catalog entries with a
-README and no adapter code: 28 of them have a generic installer target that writes the skills and the host's
+README and no adapter code: 8 of them have a generic installer target that writes the skills and the host's
 entry file (a listing is not proof the host runs the loop), and DeepSeek is a model provider with manual
 steps. Status per host: [`adapters/MATRIX.md`](adapters/MATRIX.md). Install a host that has an installer
 target with `scripts/install.sh <runtime>` (or `install.ps1`).

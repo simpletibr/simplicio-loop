@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from simplicio_loop import cli, cli_impl, host_rules, skill_sync
+from simplicio_loop.install import entry
 from simplicio_loop.install.planner import apply_plan, plan_install
 
 
@@ -88,13 +89,15 @@ def test_files_that_loop_does_not_own_are_left_alone_and_reported(repo, bundle):
     assert (other / "SKILL.md").read_text(encoding="utf-8") == "mine\n"
 
 
-def test_an_existing_entry_file_is_left_alone_not_overwritten(repo, bundle):
+def test_an_existing_entry_file_keeps_its_text_and_gets_the_marker_block(repo, bundle):
     (repo / "AGENTS.md").write_text("# my own agents file\n", encoding="utf-8")
     result = apply(repo, bundle, host="codex")
-    assert "AGENTS.md" in result["changes"]["left_alone"]
-    assert (repo / "AGENTS.md").read_text(encoding="utf-8") == "# my own agents file\n"
-    fresh = apply(repo, bundle, host="grok")  # same entry file, already there
-    assert "AGENTS.md" in fresh["changes"]["left_alone"]
+    assert "AGENTS.md" in result["changes"]["updated"]
+    text = (repo / "AGENTS.md").read_text(encoding="utf-8")
+    assert text.startswith("# my own agents file\n") and text.count(entry.BEGIN) == 1
+    fresh = apply(repo, bundle, host="grok")  # same entry file, the block is already there
+    assert "AGENTS.md" not in fresh["changes"]["created"] + fresh["changes"]["updated"]
+    assert (repo / "AGENTS.md").read_text(encoding="utf-8") == text
 
 
 def test_dry_run_reports_the_same_changes_and_writes_nothing(repo, bundle):

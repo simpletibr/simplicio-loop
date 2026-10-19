@@ -155,8 +155,8 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## Runtimes
 
-- **6 `wired`** adapters hebben code in `adapters/` en een hosttest: Claude Code, Codex, Cursor, Grok, Kiro en VS Code.
-- **29 `listed`** hosts zijn catalogusvermeldingen met een README en zonder adaptercode; 28 daarvan hebben ook een generiek installatiedoel dat de skills en het invoerbestand van de host schrijft. Vermeld staan bewijst niet dat de host de loop draait.
+- **26 `wired`** adapters hebben code in `adapters/` en een hosttest: Claude Code, Codex, Cursor, Grok, Kiro en VS Code.
+- **9 `listed`** hosts zijn catalogusvermeldingen met een README en zonder adaptercode; 8 daarvan hebben ook een generiek installatiedoel dat de skills en het invoerbestand van de host schrijft. Vermeld staan bewijst niet dat de host de loop draait.
 - De operators hierboven zijn gewone commando's en werken dus vanuit elk harnas, `wired` of niet. Status per host: [adapters/MATRIX.md](../adapters/MATRIX.md) en [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## Meer weten

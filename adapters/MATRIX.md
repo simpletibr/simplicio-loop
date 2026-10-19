@@ -29,10 +29,11 @@ is measured from the tree rather than declared:
 - **wired** — `adapters/<host>/` ships code (`adapter.py`, hooks) and `tests/host_<host>/` tests it.
   `scripts/install.sh <runtime>` (`scripts/install.ps1` on Windows) installs it, and
   `tests/test_harness_catalog.py` installs it into a throwaway target and checks that a second run changes
-  nothing. There are **6 wired adapters**: Claude Code, Codex, Cursor, Grok, Kiro and VS Code.
-- **listed** — a catalog entry and a README under `adapters/`, no adapter code. 28 of the **29 listed hosts**
+  nothing. There are **26 wired adapters**: Claude Code, Codex and Cursor (Tier 1), and 23 Tier 2 hosts marked
+  `wired` below (Grok, Kiro, VS Code and the 20 hosts on the `AGENTS.md` surface).
+- **listed** — a catalog entry and a README under `adapters/`, no adapter code. 8 of the **9 listed hosts**
   have an installer target: the generic installer writes the skills and the host's entry file (the same test
-  checks that, idempotently) and nothing launches the host. DeepSeek, the 29th, is a model provider with no
+  checks that, idempotently) and nothing launches the host. DeepSeek, the ninth, is a model provider with no
   installer target; its adapter README lists the manual steps.
 
 `tests/test_adapter_scope_honesty.py` fails when a status, or a count printed in `AGENTS.md`, `llms.txt` or
@@ -68,43 +69,43 @@ These three are covered by:
 
 ### Tier 2 — Best-effort (ungated)
 
-The other 32 hosts are documented on a best-effort basis: three of them (VS Code, Grok, Kiro) are wired,
-the other 29 are listed hosts. Contributions welcome, no gate, no parity promise per release:
+The other 32 hosts are documented on a best-effort basis: 23 of them are wired (VS Code, Grok, Kiro and the
+20 hosts on the `AGENTS.md` surface), the other 9 are listed hosts. Contributions welcome, no gate, no parity promise per release:
 
 | # | Runtime | Skill load | Loop drive | Hooks | Feedback | Install | Adapter |
 |---|---|---|---|---|---|---|---|
 | 4 | **VS Code (Copilot)** | `.github/copilot-instructions.md` | self-paced (tasks) | ⚠️ tasks | N2 (transcript) + N3 | wired | [vscode](vscode/README.md) |
 | 5 | **Grok** | `~/.grok/skills` + `~/.grok/rules` + `AGENTS.md` | self-paced | — | N2 + N3 | wired | [grok](grok/README.md) |
-| 6 | **Antigravity** | rules / `AGENTS.md` | self-paced | ⚠️ | N2 (transcript) + N3 | listed | [antigravity](antigravity/README.md) |
+| 6 | **Antigravity** | rules / `AGENTS.md` | self-paced | ⚠️ | N2 (transcript) + N3 | wired | [antigravity](antigravity/README.md) |
 | 7 | **Kiro** | `.kiro/steering/` | self-paced (specs) | ⚠️ | N2 (transcript) + N3 | wired | [kiro](kiro/README.md) |
 | 8 | **OpenCode** | `AGENTS.md` + config | self-paced | ⚠️ | N2 (transcript) + N3 | listed | [opencode](opencode/README.md) |
 | 9 | **Gemini** (CLI / Code Assist) | `GEMINI.md` → `SKILL.md` | self-paced | ⚠️ | N2 (transcript) + N3 | listed | [gemini](gemini/README.md) |
-| 10 | **Kimi** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | listed | [kimi](kimi/README.md) |
+| 10 | **Kimi** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [kimi](kimi/README.md) |
 | 11 | **Qwen** (Code / CLI) | `QWEN.md` | self-paced | — | N2 (transcript) + N3 | listed | [qwen](qwen/README.md) |
 | 12 | **DeepSeek** | none: a model provider, run through any host | the host's | — | the host's | listed (manual) | [deepseek](deepseek/README.md) |
 | 13 | **Aider** | `CONVENTIONS.md` (read) | self-paced | ❌ | N2 (inlined transcript) + N3 | listed | [aider](aider/README.md) |
 | 14 | **Simplicio Agent** *(formerly Hermes)* | native skill recall | native loop | ✅ native | N1-equiv (native tick) + N3 | listed | [simplicio_agent](simplicio_agent/README.md) |
 | 15 | **OpenClaw** | plugin SDK / `skills/` | native scheduler | ✅ native | N1-equiv (native tick) + N3 | listed | [openclaw](openclaw/README.md) |
-| 16 | **Orca** *(client opt-in only — not default)* | via inner agent (`.claude/skills/` + `AGENTS.md`) | **no core Orca hook**; inner agent hook / self-paced if client installed Orca | — | N1/N2 (inner) + N3 | listed | [orca](orca/README.md) |
+| 16 | **Orca** *(client opt-in only — not default)* | via inner agent (`.claude/skills/` + `AGENTS.md`) | **no core Orca hook**; inner agent hook / self-paced if client installed Orca | — | N1/N2 (inner) + N3 | wired | [orca](orca/README.md) |
 | 17 | **GitHub Copilot** | `.github/copilot-instructions.md` | self-paced | — | N2 (transcript) + N3 | listed | [github-copilot](github-copilot/README.md) |
-| 18 | **MiMo Code** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | listed | [mimo-code](mimo-code/README.md) |
-| 19 | **Amp** | `AGENTS.md` (+ native `.claude/skills/`) | self-paced | — | N2 (transcript) + N3 | listed | [amp](amp/README.md) |
-| 20 | **OpenClaude** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | listed | [openclaude](openclaude/README.md) |
-| 21 | **Pi** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | listed | [pi](pi/README.md) |
-| 22 | **oh-my-pi** | `AGENTS.md` (+ native `.claude/skills/`) | self-paced | — | N2 (transcript) + N3 | listed | [oh-my-pi](oh-my-pi/README.md) |
-| 23 | **Devin** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | listed | [devin](devin/README.md) |
-| 24 | **goose** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | listed | [goose](goose/README.md) |
-| 25 | **Auggie** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | listed | [auggie](auggie/README.md) |
-| 26 | **Autohand Code** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | listed | [autohand](autohand/README.md) |
-| 27 | **Charm** (Crush) | `AGENTS.md` (+ native `.claude/skills/`) | self-paced | — | N2 (transcript) + N3 | listed | [charm](charm/README.md) |
-| 28 | **Cline** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | listed | [cline](cline/README.md) |
-| 29 | **Codebuff** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | listed | [codebuff](codebuff/README.md) |
-| 30 | **Command Code** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | listed | [command-code](command-code/README.md) |
+| 18 | **MiMo Code** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [mimo-code](mimo-code/README.md) |
+| 19 | **Amp** | `AGENTS.md` (+ native `.claude/skills/`) | self-paced | — | N2 (transcript) + N3 | wired | [amp](amp/README.md) |
+| 20 | **OpenClaude** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [openclaude](openclaude/README.md) |
+| 21 | **Pi** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [pi](pi/README.md) |
+| 22 | **oh-my-pi** | `AGENTS.md` (+ native `.claude/skills/`) | self-paced | — | N2 (transcript) + N3 | wired | [oh-my-pi](oh-my-pi/README.md) |
+| 23 | **Devin** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [devin](devin/README.md) |
+| 24 | **goose** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [goose](goose/README.md) |
+| 25 | **Auggie** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [auggie](auggie/README.md) |
+| 26 | **Autohand Code** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [autohand](autohand/README.md) |
+| 27 | **Charm** (Crush) | `AGENTS.md` (+ native `.claude/skills/`) | self-paced | — | N2 (transcript) + N3 | wired | [charm](charm/README.md) |
+| 28 | **Cline** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [cline](cline/README.md) |
+| 29 | **Codebuff** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [codebuff](codebuff/README.md) |
+| 30 | **Command Code** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [command-code](command-code/README.md) |
 | 31 | **Continue** | `.continue/rules/simplicio-loop.md` | self-paced | — | N2 (transcript) + N3 | listed | [continue](continue/README.md) |
-| 32 | **Droid** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | listed | [droid](droid/README.md) |
-| 33 | **Kilo Code** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | listed | [kilocode](kilocode/README.md) |
-| 34 | **Mistral Vibe** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | listed | [mistral-vibe](mistral-vibe/README.md) |
-| 35 | **Rovo Dev** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | listed | [rovo-dev](rovo-dev/README.md) |
+| 32 | **Droid** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [droid](droid/README.md) |
+| 33 | **Kilo Code** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [kilocode](kilocode/README.md) |
+| 34 | **Mistral Vibe** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [mistral-vibe](mistral-vibe/README.md) |
+| 35 | **Rovo Dev** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [rovo-dev](rovo-dev/README.md) |
 
 Every Tier 2 row is **best-effort, not gated**: the installer writes the files the host's documentation
 says it reads (each catalog entry links that documentation) and `scripts/verify_adapters.py` proves the
@@ -171,7 +172,7 @@ where supported. There is no Runtime/MCP backend in this stack.
   optional independently of the skill-loading mechanism.
 
 The promise: **same protocol, same gates, same safety wherever the skill loads. The three Tier 1
-adapters are verified mechanically; the other three wired adapters and the 29 listed hosts are
+adapters are verified mechanically; the other 23 wired hosts and the 9 listed hosts are
 best-effort with contributions welcome.**
 
 ## Verifying an adapter

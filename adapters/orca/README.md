@@ -15,6 +15,10 @@ Orca is a **host of hosts**: the simplicio-loop protocol runs inside whichever i
 Orca drives. The adapter therefore installs into the *repo* (which every Orca worktree sees), and
 the inner runtime picks the skills up natively. **There is no Orca stop-hook in the core loop.**
 
+Install status: **wired** (adapter code in `adapters/orca/adapter.py`, tested in `tests/host_orca/`). Its AGENTS.md
+surface is **UNVERIFIED**: the Orca docs pages checked do not name AGENTS.md. Installed by name only
+(`--host orca-dev`), never by `--host all`.
+
 ## Install (only if client requested Orca)
 
 ```bash

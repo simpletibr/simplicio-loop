@@ -30,8 +30,8 @@ pwsh scripts/install.ps1 <runtime> [-Global] [-Target DIR]
 
 `<runtime>` is the `install.runtime` of an entry in
 [`simplicio_loop/_catalog/harnesses.json`](simplicio_loop/_catalog/harnesses.json). There are
-6 wired adapters, which ship code and a host test: `claude codex grok cursor kiro vscode`. The other 29 listed hosts
-are catalog entries with a README and no adapter code. 28 of them have a generic installer target that
+26 wired adapters, which ship code and a host test: `claude codex grok cursor kiro vscode` and 20 AGENTS.md hosts. The other 9 listed hosts
+are catalog entries with a README and no adapter code. 8 of them have a generic installer target that
 writes the skills and the host's entry file (nothing launches the host, and a listing is not proof that it
 runs the loop): `github-copilot opencode mimo-code amp openclaude antigravity pi oh-my-pi simplicio_agent devin goose auggie autohand charm cline codebuff command-code continue droid kilocode kimi mistral-vibe qwen rovo-dev gemini orca aider openclaw`. The 29th, DeepSeek, is a model provider with no installer target; see
 `adapters/deepseek/README.md`. (`hermes` is still accepted as a legacy alias for `simplicio_agent`.) Omit

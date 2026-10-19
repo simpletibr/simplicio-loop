@@ -1,6 +1,6 @@
 # Cline adapter
 
-Cline reads `AGENTS.md` natively, next to its own `.clinerules/` rules. Install status: **listed** (installer target, no adapter code).
+Cline reads `AGENTS.md` natively, next to its own `.clinerules/` rules. Install status: **wired** (adapter code in `adapters/cline/adapter.py`, tested in `tests/host_cline/`).
 
 ## Skill load
 

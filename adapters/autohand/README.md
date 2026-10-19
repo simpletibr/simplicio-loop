@@ -1,6 +1,6 @@
 # Autohand Code adapter
 
-Autohand Code loads a global `~/.autohand/AGENTS.md`, then the `AGENTS.md` at the project root. Install status: **listed** (installer target, no adapter code).
+Autohand Code loads a global `~/.autohand/AGENTS.md`, then the `AGENTS.md` at the project root. Install status: **wired** (adapter code in `adapters/autohand/adapter.py`, tested in `tests/host_autohand/`).
 
 ## Skill load
 

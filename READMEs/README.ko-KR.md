@@ -155,8 +155,8 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## 런타임
 
-- **6 `wired`** 어댑터는 `adapters/`에 코드가 있고 호스트 테스트가 있습니다: Claude Code, Codex, Cursor, Grok, Kiro, VS Code.
-- **29 `listed`** 호스트는 README가 있는 카탈로그 항목이며 어댑터 코드는 없습니다. 이 중 28개에는 skills와 호스트의 진입 파일을 쓰는 일반 설치 대상도 있습니다. 목록에 있다고 해서 그 호스트가 루프를 실행한다는 증거는 아닙니다.
+- **26 `wired`** 어댑터는 `adapters/`에 코드가 있고 호스트 테스트가 있습니다: Claude Code, Codex, Cursor, Grok, Kiro, VS Code.
+- **9 `listed`** 호스트는 README가 있는 카탈로그 항목이며 어댑터 코드는 없습니다. 이 중 8개에는 skills와 호스트의 진입 파일을 쓰는 일반 설치 대상도 있습니다. 목록에 있다고 해서 그 호스트가 루프를 실행한다는 증거는 아닙니다.
 - 위의 오퍼레이터는 평범한 명령이므로 `wired`인지와 관계없이 어떤 하네스에서든 동작합니다. 호스트별 상태: [adapters/MATRIX.md](../adapters/MATRIX.md), [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## 더 알아보기

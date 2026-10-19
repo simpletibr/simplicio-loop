@@ -1,6 +1,6 @@
 # Command Code adapter
 
-Command Code loads `AGENTS.md` project memory into every session (it reads `AGENTS.md`, not `CLAUDE.md`). Install status: **listed** (installer target, no adapter code).
+Command Code loads `AGENTS.md` project memory into every session (it reads `AGENTS.md`, not `CLAUDE.md`). Install status: **wired** (adapter code in `adapters/command-code/adapter.py`, tested in `tests/host_command-code/`).
 
 ## Skill load
 

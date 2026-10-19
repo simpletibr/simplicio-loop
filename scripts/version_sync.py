@@ -43,6 +43,7 @@ SCHEMA = "simplicio.version-sync/v1"
 # in this one mechanical command prevents a new package release from leaving an older host
 # adapter/marketplace descriptor behind (the exact failure mode tracked by #558).
 ADAPTER_VERSION_FILES = (
+    "adapters/agents_md.py",  # the shared AGENTS.md-surface adapter every per-host adapter binds
     "adapters/claude/adapter.py",
     "adapters/codex/adapter.py",
     "adapters/cursor/adapter.py",

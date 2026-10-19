@@ -187,8 +187,9 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## Runtimes
 
-- **6 wired adapters** ship code in `adapters/` and a host test: Claude Code, Codex, Cursor, Grok, Kiro and VS Code.
-- **29 listed hosts** are catalog entries with a README and no adapter code; 28 of them also have a generic installer target that writes the skills and the host's entry file. A listing is not proof that the host runs the loop.
+- **26 wired adapters** ship code in `adapters/` and a host test: Claude Code, Codex, Cursor, Grok, Kiro, VS Code, and
+  20 `AGENTS.md` hosts on the `.claude/skills/` surface (see [adapters/MATRIX.md](adapters/MATRIX.md)).
+- **9 listed hosts** are catalog entries with a README and no adapter code; 8 of them also have a generic installer target that writes the skills and the host's entry file. A listing is not proof that the host runs the loop.
 - The operators above are plain commands, so they work from any harness, wired or not. Per-host status: [adapters/MATRIX.md](adapters/MATRIX.md) and [simplicio_loop/_catalog/harnesses.json](simplicio_loop/_catalog/harnesses.json).
 
 ## Learn more

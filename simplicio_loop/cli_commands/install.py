@@ -138,6 +138,8 @@ def install(target: Path, globally: bool, host: str = "claude",
         print(f"simplicio-loop uninstall {'dry_run (nothing removed)' if dry_run else 'applied'}: "
               f"{verb} {len(payload['removed'])} files, {len(payload['removed_dirs'])} empty directories")
         print("\n".join(f"  {verb}: {rel}" for rel in payload["removed"] + [f"{rel}/" for rel in payload["removed_dirs"]]))
+        if payload["edited"]:
+            print(f"  edited (Loop's marker block removed, the rest of the file kept): {', '.join(payload['edited'])}")
         if payload["kept"]:
             print(f"  kept (not empty, holds files Loop did not install): {', '.join(payload['kept'])}")
         if globally:

@@ -1,5 +1,7 @@
 # Antigravity adapter
 
+Install status: **wired** (adapter code in `adapters/antigravity/adapter.py`, tested in `tests/host_antigravity/`).
+
 Antigravity (Google's agentic IDE) is a strong agent runtime with MCP support and a
 rules/instructions file. It has no public stop-hook, so the loop self-paces.
 

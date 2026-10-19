@@ -1,6 +1,6 @@
 # Devin adapter
 
-Devin (Cognition) looks for an `AGENTS.md` in the repository before it starts coding. Install status: **listed** (installer target, no adapter code).
+Devin (Cognition) looks for an `AGENTS.md` in the repository before it starts coding. Install status: **wired** (adapter code in `adapters/devin/adapter.py`, tested in `tests/host_devin/`).
 
 ## Skill load
 

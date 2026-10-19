@@ -1,6 +1,6 @@
 # Kimi adapter
 
-Kimi Code CLI (Moonshot AI) builds its prompt from the workspace `AGENTS.md`; `/init` generates one. Install status: **listed** (installer target, no adapter code).
+Kimi Code CLI (Moonshot AI) builds its prompt from the workspace `AGENTS.md`; `/init` generates one. Install status: **wired** (adapter code in `adapters/kimi/adapter.py`, tested in `tests/host_kimi/`).
 
 ## Skill load
 

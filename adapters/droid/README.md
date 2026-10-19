@@ -1,6 +1,6 @@
 # Droid adapter
 
-Factory's Droid searches for `AGENTS.md` from the working directory up to the git root. Install status: **listed** (installer target, no adapter code).
+Factory's Droid searches for `AGENTS.md` from the working directory up to the git root. Install status: **wired** (adapter code in `adapters/droid/adapter.py`, tested in `tests/host_droid/`).
 
 ## Skill load
 

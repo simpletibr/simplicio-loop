@@ -52,8 +52,8 @@ Now invoke it from a wired host (Claude Code, Codex, Cursor, Grok, Kiro or VS Co
   `simplicio-dev-cli edit --root . --plan plan.json --apply --json` for the exact edit, and
   `python3 scripts/impact_tests.py --base origin/main --json` (a repo-checkout script) for the tests a
   change can reach. Any harness that can run a command can call them.
-- **Honest runtime counts** — 6 wired adapters (code and a host test in the repository: Claude Code,
-  Codex, Cursor, Grok, Kiro, VS Code) and 29 listed hosts (a catalog entry and a README, no adapter code;
+- **Honest runtime counts** — 26 wired adapters (code and a host test in the repository: Claude Code,
+  Codex, Cursor, Grok, Kiro, VS Code, and 20 AGENTS.md hosts) and 9 listed hosts (a catalog entry and a README, no adapter code;
   a listing is not proof that the host runs the loop). Per-host status is `adapters/MATRIX.md` in the
   repository.
 - **Evidence-gated completion** — never a false "done"; exits only on a verified `<promise>`,

@@ -1,6 +1,6 @@
 # Pi adapter
 
-Pi (the `pi` coding agent) loads `AGENTS.md` or `CLAUDE.md` context files from its agent directory, the working directory and the parent directories. Install status: **listed** (installer target, no adapter code).
+Pi (the `pi` coding agent) loads `AGENTS.md` or `CLAUDE.md` context files from its agent directory, the working directory and the parent directories. Install status: **wired** (adapter code in `adapters/pi/adapter.py`, tested in `tests/host_pi/`).
 
 ## Skill load
 

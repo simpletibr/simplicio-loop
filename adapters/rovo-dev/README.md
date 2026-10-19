@@ -1,6 +1,6 @@
 # Rovo Dev adapter
 
-Rovo Dev (Atlassian) keeps its project memory in `AGENTS.md`. Install status: **listed** (installer target, no adapter code).
+Rovo Dev (Atlassian) keeps its project memory in `AGENTS.md`. Install status: **wired** (adapter code in `adapters/rovo-dev/adapter.py`, tested in `tests/host_rovo-dev/`).
 
 ## Skill load
 

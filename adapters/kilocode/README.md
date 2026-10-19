@@ -1,6 +1,6 @@
 # Kilocode adapter
 
-Kilo Code treats `AGENTS.md` as its primary instruction file. Install status: **listed** (installer target, no adapter code).
+Kilo Code treats `AGENTS.md` as its primary instruction file. Install status: **wired** (adapter code in `adapters/kilocode/adapter.py`, tested in `tests/host_kilocode/`).
 
 ## Skill load
 

@@ -14,21 +14,32 @@ from pathlib import Path
 from typing import Any, Iterator, Mapping
 
 from .. import __version__, distribution
+from . import entry
 
 SCHEMA = "simplicio.loop-install-plan/v1"
 OWNERSHIP_SCHEMA = "simplicio.loop-install-ownership/v2"
 RECEIPT = Path(".simplicio-loop") / "install-ownership.json"
-HOSTS = (
-    "claude", "codex", "cursor", "vscode", "grok", "kiro",
-    "antigravity", "opencode", "gemini", "aider", "simplicio_agent", "openclaw",
+CATALOG = Path(__file__).resolve().parent.parent / "_catalog" / "harnesses.json"
+# Hosts whose surface is `.claude/skills/` + an AGENTS.md marker block (catalog surface ".claude/skills/ + AGENTS.md").
+# One row per host: the layout below and the host's adapter (adapters/<host>/) follow from this list.
+AGENTS_MD_HOSTS = (
+    "codex", "grok", "antigravity", "mimo-code", "amp", "openclaude", "pi", "oh-my-pi", "devin", "goose", "auggie",
+    "autohand", "charm", "cline", "codebuff", "command-code", "droid", "kilocode", "kimi", "mistral-vibe", "rovo-dev",
+    "orca",
 )
+# Client opt-in: installable by name (`--host orca-dev`), never part of `--host all`.
+OPT_IN_HOSTS = ("orca",)
+HOSTS = (
+    "claude", "cursor", "vscode", "kiro", "opencode", "gemini", "aider", "simplicio_agent", "openclaw",
+    *(host for host in AGENTS_MD_HOSTS if host not in OPT_IN_HOSTS),
+)
+AGENTS_MD_LAYOUT = {".claude/skills": "skills", "AGENTS.md": "entry"}
 HOST_LAYOUT = {
     "claude": {".claude/skills": "skills", "hooks": "hooks"},
     "cursor": {".claude/skills": "skills", "hooks": "hooks"},
-    "codex": {".claude/skills": "skills", "AGENTS.md": "entry"},
     "vscode": {".claude/skills": "skills", ".github/copilot-instructions.md": "entry"},
-    "grok": {".claude/skills": "skills", "AGENTS.md": "entry"},
     "kiro": {".claude/skills": "skills", ".kiro/steering/simplicio-loop.md": "entry"},
+    **{host: dict(AGENTS_MD_LAYOUT) for host in AGENTS_MD_HOSTS},
 }
 
 
@@ -76,6 +87,17 @@ def _put(path: Path, data: bytes, source, changes: dict, root: Path, dry_run: bo
         shutil.copymode(source, path)
 
 
+def runtime_for(host: str) -> str:
+    """The installer runtime a host id names: a runtime id, or a catalog id or alias (`orca-dev`, `claude-code`)."""
+    installable = (*HOSTS, *OPT_IN_HOSTS)
+    if host in installable:
+        return host
+    for item in json.loads(CATALOG.read_text(encoding="utf-8"))["harnesses"]:
+        if host in [item["id"], *item["aliases"]] and item["install"]["runtime"] in installable:
+            return item["install"]["runtime"]
+    raise InstallError(f"unknown host: {host}")
+
+
 def plan_install(
     target: str | Path,
     *,
@@ -83,15 +105,14 @@ def plan_install(
     globally: bool = False,
     version: str = __version__,
 ) -> dict[str, Any]:
-    if host not in HOSTS and host != "all":
-        raise InstallError(f"unknown host: {host}")
-    hosts = list(HOSTS) if host == "all" else [host]
+    hosts = list(HOSTS) if host == "all" else [runtime_for(host)]
     root = Path(target).resolve()
     actions = []
     for item in hosts:
-        layout = HOST_LAYOUT.get(item, {".claude/skills": "skills"})
-        if globally:
-            layout = {".claude/skills": "skills", ".claude/hooks": "hooks"}
+        layout = dict(HOST_LAYOUT.get(item, {".claude/skills": "skills"}))
+        if globally:  # the home directory: skills and hooks under ~/.claude, the host's entry file beside them
+            layout = {".claude/skills": "skills", ".claude/hooks": "hooks",
+                      **{dest: kind for dest, kind in layout.items() if kind == "entry"}}
         for dest, kind in layout.items():
             actions.append({
                 "host": item,
@@ -112,10 +133,20 @@ def plan_install(
     return plan
 
 
-def _previous_receipt(root: Path) -> dict[str, list[str]]:
+def _blocks(payload: Mapping[str, Any]) -> dict[str, bool]:
+    """The marker blocks a receipt registers: path -> whether install created that file (uninstall may delete it)."""
+    blocks: dict[str, bool] = {}
+    for item in payload.get("blocks") or []:
+        if not isinstance(item, dict) or not isinstance(item.get("path"), str) or not isinstance(item.get("created"), bool):
+            raise InstallError("ownership receipt is malformed: `blocks` must list {path, created} objects")
+        blocks[item["path"]] = item["created"]
+    return blocks
+
+
+def _previous_receipt(root: Path) -> dict[str, Any]:
     """What an earlier install registered, so a second host installed later does not drop the first one's files.
     A receipt of another schema is not read: install rewrites it, and its paths are not trusted."""
-    empty = {"paths": [], "dirs": []}
+    empty: dict[str, Any] = {"paths": [], "dirs": [], "blocks": {}}
     marker = root / RECEIPT
     if not marker.is_file():
         return empty
@@ -125,7 +156,11 @@ def _previous_receipt(root: Path) -> dict[str, list[str]]:
         return empty
     if payload.get("owner") != "simplicio-loop" or payload.get("schema") != OWNERSHIP_SCHEMA:
         return empty
-    return {"paths": list(payload.get("paths") or []), "dirs": list(payload.get("dirs") or [])}
+    try:
+        blocks = _blocks(payload)
+    except InstallError:
+        return empty
+    return {"paths": list(payload.get("paths") or []), "dirs": list(payload.get("dirs") or []), "blocks": blocks}
 
 
 def apply_plan(
@@ -136,15 +171,19 @@ def apply_plan(
 ) -> dict[str, Any]:
     """Copy the bundled skills and hooks into the plan's target. Idempotent: a file that is already identical is not
     rewritten. `changes` says what was created, what was updated, how many were unchanged and what was left alone
-    (files in the target that Loop does not own, and entry files that already exist).
+    (files in the target that Loop does not own).
 
-    The ownership receipt registers exactly the files Loop wrote or found identical, the entry files it created, and
-    the directories it created. uninstall removes only those.
+    The ownership receipt registers exactly the files Loop wrote or found identical, the directories it created, and
+    the marker blocks it put into entry files (AGENTS.md ...): a block is Loop's, the rest of that file is not. uninstall
+    removes only those.
     """
     root = Path(plan["target"])
     owned: list[str] = []
+    block_files: list[str] = []
     made: set[str] = set()
     changes: dict[str, Any] = {"created": [], "updated": [], "unchanged": 0, "left_alone": []}
+    previous = _previous_receipt(root)
+    blocks: dict[str, bool] = {}
     source = Path(bundle) if isinstance(bundle, str) else bundle if bundle is not None else _bundle_root()
     skills_src = source.joinpath("skills")
     hooks_src = source.joinpath("hooks")
@@ -153,16 +192,15 @@ def apply_plan(
     for action in plan.get("actions") or []:
         dest = root / action["destination"]
         kind = action["kind"]
-        src = skills_src if kind == "skills" else hooks_src if kind == "hooks" else None
-        if src is None:  # an entry file (AGENTS.md ...): written once, never overwritten
-            if dest.exists():
-                changes["left_alone"].append(dest.relative_to(root).as_posix())
-            else:
-                body = (f"# simplicio-loop {plan['version']} ({action['host']})\n"
-                        "Load `.claude/skills/simplicio-loop/SKILL.md`.\n")
-                _put(dest, body.encode("utf-8"), None, changes, root, dry_run, made)
-                owned.append(dest.relative_to(root).as_posix())
+        if kind == "entry":  # the marker block is merged into the entry file; the file's other text stays as it is
+            rel = dest.relative_to(root).as_posix()
+            existed = dest.is_file()
+            current = dest.read_text(encoding="utf-8") if existed else ""
+            _put(dest, entry.merge(current).encode("utf-8"), None, changes, root, dry_run, made)
+            blocks[rel] = previous["blocks"].get(rel, not existed)
+            block_files.append(rel)
             continue
+        src = skills_src if kind == "skills" else hooks_src
         top = set()
         for parts, node in _files(src):
             top.add(parts[0])
@@ -174,14 +212,16 @@ def apply_plan(
                                       if child.name not in top and child.name != "__pycache__"]
     if not (root / RECEIPT.parent).exists():  # the receipt's own directory is one more thing install creates
         made.add(RECEIPT.parent.as_posix())
-    previous = _previous_receipt(root)
+    all_blocks = {**previous["blocks"], **blocks}
     ownership = {
         "schema": OWNERSHIP_SCHEMA,
         "owner": "simplicio-loop",
         "version": plan["version"],
         "digest": plan["digest"],
-        "paths": sorted(set(owned) | set(previous["paths"])),
+        # an entry file is owned through its block, never as a whole: a receipt of an older install that listed it is corrected
+        "paths": sorted((set(owned) | set(previous["paths"])) - set(block_files)),
         "dirs": sorted(made | set(previous["dirs"])),
+        "blocks": [{"path": rel, "created": created} for rel, created in sorted(all_blocks.items())],
     }
     body = (json.dumps(ownership, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     _put(root / RECEIPT, body, None, changes, root, dry_run, made)
@@ -192,7 +232,7 @@ def apply_plan(
         "written": 0 if dry_run else pending,
         "up_to_date": pending == 0,
         "changes": changes,
-        "owned": sorted(set(owned)),
+        "owned": sorted(set(owned) | set(block_files)),
         "ownership": ownership,
         "digest": plan["digest"],
     }
@@ -234,9 +274,10 @@ def _read_receipt(root: Path) -> dict[str, Any]:
 
 
 def uninstall(target: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
-    """Remove the files the receipt registers, then the registered directories that are empty by then. A directory
-    that holds anything Loop did not register (a user's skill, rule or hook) is kept, and so is every directory that
-    install did not create. `dry_run` returns the same lists and touches nothing; then `removed` is what would go.
+    """Remove the files the receipt registers, strip the marker blocks it wrote into entry files (deleting a file only
+    when install created it and nothing else is left), then remove the registered directories that are empty by then.
+    A directory that holds anything Loop did not register (a user's skill, rule or hook) is kept, and so is every
+    directory that install did not create. `dry_run` returns the same lists and touches nothing.
     """
     root = Path(target).resolve()
     receipt = _read_receipt(root)
@@ -251,6 +292,21 @@ def uninstall(target: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
             gone.add(rel)
         elif path.exists():  # a directory where a file was registered: not Loop's to delete
             skipped.append(rel)
+    edits: dict[str, str] = {}
+    edited: list[str] = []
+    for rel, created in sorted(_blocks(receipt).items()):  # only the marker block goes; the rest of the file stays
+        path = _receipt_path(root, rel)
+        if not path.is_file():
+            continue
+        rest = entry.remove(path.read_text(encoding="utf-8"))
+        if rest is None:
+            continue
+        if created and not rest.strip():  # install created this file, and nothing but the block was ever in it
+            removed.append(rel)
+            gone.add(rel)
+        else:
+            edits[rel] = rest
+            edited.append(rel)
     removed_dirs: list[str] = []
     kept: list[str] = []
     for rel in sorted(set(_listed(receipt, "dirs")), key=lambda item: item.count("/"), reverse=True):
@@ -263,6 +319,8 @@ def uninstall(target: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
         else:
             kept.append(rel)
     if not dry_run:
+        for rel, text in edits.items():
+            _receipt_path(root, rel).write_text(text, encoding="utf-8", newline="\n")
         for rel in removed:
             _receipt_path(root, rel).unlink()
         for rel in removed_dirs:
@@ -271,6 +329,7 @@ def uninstall(target: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
         "schema": OWNERSHIP_SCHEMA,
         "status": "dry_run" if dry_run else "removed",
         "removed": removed,
+        "edited": edited,
         "removed_dirs": removed_dirs,
         "kept": kept,
         "skipped": skipped,

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """simplicio-loop — checkout installer.
 
-The hosts are listed in `simplicio_loop/_catalog/harnesses.json`. Of them, 6 wired adapters ship
-code and a host test, and the other 29 listed hosts are catalog entries with no adapter code; 28 of
+The hosts are listed in `simplicio_loop/_catalog/harnesses.json`. Of them, 26 wired adapters ship
+code and a host test, and the other 9 listed hosts are catalog entries with no adapter code; 8 of
 those have a generic installer target here, which writes the skills and the host's entry file
 (a listing is not proof that the host runs the loop; DeepSeek, the 29th, is a model provider with
 no target). `RUNTIMES` below holds the wired and the listed targets. The packaged command
@@ -45,6 +45,9 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SOURCE = os.path.dirname(HERE)
+# The marker block and its merge live in one place, shared with `simplicio-loop install` (planner.py).
+sys.path.insert(0, SOURCE)
+from simplicio_loop.install import entry as _entry  # noqa: E402
 # Explicit override keeps portable profiles and isolated installer tests honest;
 # normal installs still use the platform's real user home.
 HOME = (os.environ.get("SIMPLICIO_HOME") or os.environ.get("HOME")
@@ -59,41 +62,8 @@ SKILLS = ["simplicio-tasks", "simplicio-loop", "simplicio-orient",
 OPERATOR_PACKAGE = "simplicio-cli"
 OPERATOR_PACKAGES = ("simplicio-loop",)
 OPERATOR_BINS = ("simplicio-dev-cli", "simplicio-mapper")
-LEGACY_MARK_A, LEGACY_MARK_B = "<!-- simplicio-tasks:begin -->", "<!-- simplicio-tasks:end -->"
-MARK_A, MARK_B = "<!-- simplicio-loop:begin -->", "<!-- simplicio-loop:end -->"
+MARK_A, MARK_B = _entry.BEGIN, _entry.END
 
-
-def entry_block(runtime=None):
-    """Build the runtime entry-file block.
-
-    A Simplicio Runtime bind is optional: the loop records unavailable runtime integrations and
-    continues with its required mapper and dev-cli operators.
-    """
-    body = (
-        MARK_A + "\n"
-        "## simplicio-loop — Unified Core + Loop (multi-LLM floor)\n\n"
-        "Load and follow `.claude/skills/simplicio-loop/SKILL.md` and companions "
-        "(`simplicio-orient`, `simplicio-review`, `simplicio-compress`, `simplicio-learn`, "
-        "`simplicio-autoresearch`; `simplicio-tasks` = legacy alias) **IN FULL**.\n\n"
-        "**Operator floor (Claude / Codex / Grok / Cursor / VS Code / Antigravity / Kiro / Hermes):**\n"
-        "1. Arm STRICT env (`SIMPLICIO_LOOP_STRICT=1`, `FORBID_HAND_EDIT=1`, "
-        "`EXECUTION_PROFILE=standalone`). There is no Runtime/MCP backend in this stack.\n"
-        "2. `simplicio-loop preflight --strict --json` before work.\n"
-        "3. Core: survey with `simplicio-mapper`; mutate with "
-        "`simplicio-dev-cli edit --plan` — not host Write/Edit under STRICT.\n"
-        "4. Host integrations (Orca, boards, chat) **only if the client requested** them "
-        "(`docs/CLIENT_INTEGRATIONS.md`).\n"
-        "5. Evidence-gated close/PR; MEASURED|/UNVERIFIED|; no theater ACs.\n"
-        "6. Self-paced hosts re-read `.simplicio-loop/orchestrator/loop/scratchpad.md` every turn.\n\n"
-        "Rules: `packaging/host-rules/simplicio-loop-operator-flow.md` · "
-        "`docs/MULTI_LLM_CONTRACT.md` · clamp: `python3 hooks/orient_clamp.py -- <cmd>`.\n"
-    )
-    body += (
-        "\nInvoke: `/simplicio-loop <body of work>` · "
-        "Prism drain: `python3 scripts/arm_drain_prism.py --repo . --slots 4 --json`\n"
-        + MARK_B
-    )
-    return body
 
 # entry file + MCP client id per runtime; None entry = no instructions file needed
 RUNTIMES = {
@@ -426,30 +396,17 @@ def install_git_prepush_hook(target):
         log("! could not install git pre-push hook (fail-open, non-fatal): %s" % e)
 
 
-def ensure_entry(target, rel, runtime=None):
+def ensure_entry(target, rel):
     if not rel:
         return
-    block = entry_block(runtime)
     path = os.path.join(target, rel)
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     existing = ""
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:
             existing = f.read()
-    begin = end = None
-    if MARK_A in existing and MARK_B in existing:
-        begin, end = MARK_A, MARK_B
-    elif LEGACY_MARK_A in existing and LEGACY_MARK_B in existing:
-        begin, end = LEGACY_MARK_A, LEGACY_MARK_B
-    if begin and end:
-        # refresh the block in place, migrating legacy markers to the new public command block
-        pre = existing.split(begin)[0].rstrip()
-        post = existing.split(end, 1)[1]
-        new = (pre + "\n\n" if pre else "") + block + post
-    else:
-        new = (existing.rstrip() + "\n\n" if existing.strip() else "") + block + "\n"
     with open(path, "w", encoding="utf-8") as f:
-        f.write(new)
+        f.write(_entry.merge(existing))
     log("entry -> %s" % rel)
 
 
@@ -1119,7 +1076,7 @@ def main():
                     log("! grok skill mirror failed (%s): %s" % (extra, exc))
         copy_hooks(target, is_global)
         copy_scripts(target, is_global)
-        ensure_entry(target, cfg["entry"], runtime)
+        ensure_entry(target, cfg["entry"])
         if cfg["hooks"] == "claude":
             merge_claude_hooks(target, is_global)
     install_git_precommit_hook(target)
