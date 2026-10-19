@@ -46,8 +46,12 @@ class IncrementalDeltaTests(unittest.TestCase):
 
     def test_snapshot_ids_are_stable_for_unchanged_source(self):
         source = Path("simplicio_mapper/contracts/mapper-artifacts/v1/fixtures/python-minimal/source").resolve()
-        first = initial_snapshot(str(source))
-        second = initial_snapshot(str(source))
+        with tempfile.TemporaryDirectory() as temp:
+            # initial_snapshot writes its .simplicio-loop cache into the tree it maps: map a copy.
+            root = Path(temp) / "repo"
+            copytree(source, root)
+            first = initial_snapshot(str(root))
+            second = initial_snapshot(str(root))
         self.assertEqual(first["snapshot_id"], second["snapshot_id"])
         self.assertEqual([item["id"] for item in first["entities"]], [item["id"] for item in second["entities"]])
 

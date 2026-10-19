@@ -13,6 +13,8 @@ still catching an actual multi-x regression.
 
 from __future__ import annotations
 
+import shutil
+import tempfile
 import time
 import unittest
 from pathlib import Path
@@ -41,14 +43,20 @@ MEASURED_RUNS = 5
 class MapperParseBenchmarkTest(unittest.TestCase):
     def test_build_artifacts_stays_within_time_budget(self) -> None:
         self.assertTrue(FIXTURE_ROOT.is_dir(), f"missing fixture: {FIXTURE_ROOT}")
+        # build_artifacts keeps its .simplicio-loop cache inside the tree it maps, so it maps a copy:
+        # the committed fixture is an input and must never be written.
+        scratch = tempfile.TemporaryDirectory()
+        self.addCleanup(scratch.cleanup)
+        root = Path(scratch.name) / FIXTURE_ROOT.name
+        shutil.copytree(FIXTURE_ROOT, root)
 
         for _ in range(WARMUP_RUNS):
-            build_artifacts(str(FIXTURE_ROOT))
+            build_artifacts(str(root))
 
         durations = []
         for _ in range(MEASURED_RUNS):
             start = time.perf_counter()
-            artifacts = build_artifacts(str(FIXTURE_ROOT))
+            artifacts = build_artifacts(str(root))
             durations.append(time.perf_counter() - start)
 
         mean_seconds = sum(durations) / len(durations)

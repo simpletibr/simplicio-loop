@@ -43,7 +43,9 @@ Run: ``python3 scripts/prototype_impact_accuracy_benchmark.py``
 from __future__ import annotations
 
 import json
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -113,11 +115,16 @@ def run(fixture: Path = DEFAULT_FIXTURE) -> dict[str, Any]:
     impacted = set(ground_truth.get("impacted_files") or [])
     non_impacted = set(ground_truth.get("non_impacted_files") or [])
 
-    payload = build_prototype_context(
-        str(fixture),
-        type_=change.get("query_type", "bug"),
-        arg=change["query_arg"],
-    )
+    # build_prototype_context keeps its .simplicio-loop state inside the tree it maps, so the committed
+    # fixture is mapped through a scratch copy and never written.
+    with tempfile.TemporaryDirectory() as scratch:
+        workdir = Path(scratch) / fixture.name
+        shutil.copytree(fixture, workdir)
+        payload = build_prototype_context(
+            str(workdir),
+            type_=change.get("query_type", "bug"),
+            arg=change["query_arg"],
+        )
     predicted = _predicted_impact_set(payload, change["target_file"])
     scoring = _score(predicted, impacted, non_impacted)
 
