@@ -8,7 +8,17 @@ in an in-process coverage run.
 """
 import os
 
+import pytest
+
 import simplicio_loop.cli as cli_mod
+from simplicio_loop import setup_cli
+
+
+@pytest.fixture(autouse=True)
+def the_setup_that_install_ends_with_is_stubbed(monkeypatch):
+    """`install` ends with the setup (#1841). This module tests the file copy; the setup reads the real GitHub login and
+    writes ~/.simplicio-loop, so it must not run here (tests/setup_wizard covers it with fakes)."""
+    monkeypatch.setattr(setup_cli, "after_install", lambda **kw: 0)
 
 
 def test_copy_tree_copies_nested_files_and_returns_count(tmp_path):

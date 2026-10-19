@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from simplicio_loop import cli, cli_impl, host_rules, skill_sync
+from simplicio_loop import cli, cli_impl, host_rules, setup_cli, skill_sync
 from simplicio_loop.install import entry
 from simplicio_loop.install.planner import apply_plan, plan_install
 
@@ -38,6 +38,13 @@ def repo(tmp_path):
     target = tmp_path / "repo"
     target.mkdir()
     return target
+
+
+@pytest.fixture(autouse=True)
+def the_setup_that_install_ends_with_is_stubbed(monkeypatch):
+    """`install` ends with the setup (#1841). These tests cover the file install; tests/setup_wizard covers the setup,
+    and here it must not reach the real HOME or the network."""
+    monkeypatch.setattr(setup_cli, "after_install", lambda **kw: 0)
 
 
 def apply(repo, bundle, **kw):

@@ -190,15 +190,14 @@ def install(target: Path, globally: bool, host: str = "claude",
     else:
         head = "already up to date" if result["up_to_date"] else "installed"
     print("\n".join(_install_lines(result, host, head, resync, prune_project=prune_result)))
-    incomplete: list = []
+    code = 0  # the exit code of the last steps: 2 setup failed, 1 an evidence tool is not ok (docs/CLI_COMMANDS.md)
     if not (dry_run or check):
         print("")
         print("Use it in your agent runtime (Claude Code, Cursor, ...):")
         print("  /simplicio-loop finish all the open issues")
-        incomplete = setup_cli.after_install() or []
-    if incomplete:  # #1843: a required evidence tool is not ok, so the install is not complete
-        print("install is not complete: " + ", ".join(item["item"] for item in incomplete) + " (see the fix above)", flush=True)
-        return 1
+        code = setup_cli.after_install()
+    if code:
+        return code
     return 10 if check and pending else 0
 
 

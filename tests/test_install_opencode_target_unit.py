@@ -43,6 +43,7 @@ def _safe_env(tmp_home):
     env = dict(os.environ)
     env["PATH"] = "/usr/bin:/bin"
     env["HOME"] = str(tmp_home)
+    env.pop("SIMPLICIO_HOME", None)  # install_lib prefers SIMPLICIO_HOME to HOME: the throwaway HOME must win
     return env
 
 

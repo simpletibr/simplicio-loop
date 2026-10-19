@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from simplicio_loop import cli_impl
+from simplicio_loop import cli_impl, setup_cli
 from simplicio_loop.cli_impl import _install_lines, install
 from simplicio_loop.install import planner
 
@@ -183,6 +183,8 @@ def test_install_global_prune_project_copies_integration(tmp_path, monkeypatch, 
     fake_home = tmp_path / "home"
     fake_home.mkdir()
     monkeypatch.setattr(cli_impl.Path, "home", classmethod(lambda cls: fake_home))
+    monkeypatch.setenv("HOME", str(fake_home))  # the setup that install ends with reads HOME, not Path.home()
+    monkeypatch.setattr(setup_cli, "after_install", lambda **kw: 0)  # the setup is tested in tests/setup_wizard
 
     fake_bundle = tmp_path / "bundle"
     (fake_bundle / "skills" / "simplicio-loop").mkdir(parents=True)

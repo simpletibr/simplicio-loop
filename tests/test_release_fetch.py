@@ -310,7 +310,7 @@ def test_get_refuses_a_3xx_without_location_as_a_fetch_error_not_a_key_error(mon
     assert caught.value.reason_code == "unsafe_url" and "Location" in str(caught.value) and len(seen) == 1
 
 
-def test_a_302_without_location_from_a_real_local_server_is_a_fetch_error_and_after_install_stays_silent(monkeypatch):
+def test_a_302_without_location_from_a_real_local_server_is_a_fetch_error_and_after_install_does_not_raise(monkeypatch):
     """#1637 point 1 over a real socket: no MockTransport, so httpx itself reads the 302 off the wire."""
 
     class NoLocation(http.server.BaseHTTPRequestHandler):
@@ -329,14 +329,13 @@ def test_a_302_without_location_from_a_real_local_server_is_a_fetch_error_and_af
         # The local address is not a release host, so it is admitted for this test only; the redirect check still runs.
         monkeypatch.setattr(release_fetch, "allowed_url", lambda url: url.startswith("http://127.0.0.1:"))
         monkeypatch.setattr(release_fetch, "_transport", None)
-        monkeypatch.setattr(setup_cli, "read_summary", lambda: None)
+        monkeypatch.setattr(setup_cli, "read_summary", lambda directory=None: None)
+        monkeypatch.setattr(setup_cli, "run", lambda options, out=None: 0)  # the real setup would reach the network
         with pytest.raises(FetchError) as caught:
             release_fetch.default_get(f"http://127.0.0.1:{server.server_address[1]}/release")
         assert caught.value.reason_code == "unsafe_url"
         assert "no Location header" in str(caught.value)
-        out = io.StringIO()
-        setup_cli.after_install(interactive=False, out=out)  # must not raise
-        assert "Next: run" in out.getvalue()
+        assert setup_cli.after_install(out=io.StringIO()) == 0  # must not raise
     finally:
         server.shutdown()
         server.server_close()

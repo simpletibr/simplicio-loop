@@ -15,6 +15,7 @@ import os
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 import pytest
 
@@ -45,10 +46,11 @@ def _tree(root: Path) -> dict[str, bytes]:
 
 
 def _run(args: list[str], *, home: Path, cwd: Path) -> SimpleNamespace:
-    """`simplicio-loop install <args>` in this process, under a temporary HOME. In process, because the install's last
-    step (the evidence tools, #1843) is replaced by the suite's autouse stub in conftest.py; a subprocess would download
-    them. The environment and the working directory are restored afterwards."""
-    from simplicio_loop import cli
+    """`simplicio-loop install <args>` in this process, under a temporary HOME. In process, because the two steps that end
+    `install` (the evidence tools, #1843, and the setup, #1841) are replaced by the suite's stubs (conftest.py and here);
+    a subprocess would download the tools and reach the real setup. The environment and the working directory are
+    restored afterwards. The setup itself is tested in tests/setup_wizard."""
+    from simplicio_loop import cli, setup_cli
 
     saved_env, saved_cwd = dict(os.environ), os.getcwd()
     os.environ.update(HOME=str(home), USERPROFILE=str(home), SIMPLICIO_HOME=str(home),
@@ -56,7 +58,7 @@ def _run(args: list[str], *, home: Path, cwd: Path) -> SimpleNamespace:
     out, err = io.StringIO(), io.StringIO()
     try:
         os.chdir(cwd)
-        with redirect_stdout(out), redirect_stderr(err):
+        with redirect_stdout(out), redirect_stderr(err), mock.patch.object(setup_cli, "after_install", return_value=0):
             code = cli.main(["install", *args])
     finally:
         os.chdir(saved_cwd)

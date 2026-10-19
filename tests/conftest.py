@@ -48,6 +48,31 @@ def no_daemon_unless_the_test_asks(monkeypatch) -> None:
     monkeypatch.setenv("SIMPLICIO_LOOP_DAEMON", "0")
 
 
+_REAL_HOME = os.path.realpath(os.path.expanduser("~"))  # read before any test changes HOME
+
+
+@pytest.fixture(autouse=True)
+def the_real_setup_never_runs_in_a_test(monkeypatch) -> None:
+    """`install` ends with the setup (#1841), which reads the real GitHub login and writes ~/.simplicio-loop. A test that
+    reaches the real setup, or writes its summary under the real home, fails here: it passes fake seams
+    (tests/setup_wizard/fakes.py) and a HOME of its own (the `home` fixture)."""
+    from simplicio_loop import setup_cli
+
+    def refused():
+        pytest.fail("this test reached the real setup (setup_cli.real_seams): pass fake seams or stub the step")
+
+    real_folder = os.path.realpath(os.path.join(_REAL_HOME, ".simplicio-loop"))
+    write_summary = setup_cli._write_summary
+
+    def guarded_write(doc, directory):
+        if os.path.realpath(directory) == real_folder:
+            pytest.fail("this test would write setup.json under the real home: give it a HOME of its own (the home fixture)")
+        return write_summary(doc, directory)
+
+    monkeypatch.setattr(setup_cli, "real_seams", refused)
+    monkeypatch.setattr(setup_cli, "_write_summary", guarded_write)
+
+
 @pytest.fixture(autouse=True)
 def exec_auth_spawn_guard(request, monkeypatch):
     """exec_auth tests must only ever spawn fake binaries living in a temp dir (#1467).

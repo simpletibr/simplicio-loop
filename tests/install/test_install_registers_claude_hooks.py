@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from simplicio_loop import cli, cli_impl
+from simplicio_loop import cli, cli_impl, setup_cli
 
 REPO = Path(__file__).resolve().parents[2]
 INSTALL_LIB = REPO / "scripts" / "install_lib.py"
@@ -26,6 +26,8 @@ def isolated_home(tmp_path: Path, monkeypatch) -> Path:
     home = tmp_path / "home"
     home.mkdir()
     monkeypatch.setenv("HOME", str(home))
+    # `install` ends with the setup (#1841); these tests cover the hook wiring, and tests/setup_wizard covers the setup
+    monkeypatch.setattr(setup_cli, "after_install", lambda **kw: 0)
     return home
 
 

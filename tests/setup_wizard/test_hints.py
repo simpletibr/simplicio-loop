@@ -49,8 +49,10 @@ def test_the_setup_row_of_the_docs_has_whole_short_sentences():
 # --- 4. quoting and the fix of each cause -------------------------------------------------------------------------------
 
 
-def test_a_path_with_a_space_is_quoted_in_the_sudo_install_command(tmp_path):
+def test_a_path_with_a_space_is_quoted_in_the_sudo_install_command(tmp_path, monkeypatch):
     spaced = tmp_path / "ho me"
+    monkeypatch.setenv("HOME", str(spaced))  # the summary goes to the process HOME: keep it out of the real one
+    monkeypatch.delenv("SIMPLICIO_HOME", raising=False)
     claude = put_exe(spaced / ".local" / "bin")
     fakes = Fakes()
     fakes.hosts = [host("claude-code", installed=False), host("codex", login="no")]

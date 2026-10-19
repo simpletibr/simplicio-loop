@@ -581,14 +581,15 @@ def main(args: argparse.Namespace) -> int:
                        token_stdin=args.token_stdin, host=args.host))
 
 
-def after_install(*, interactive: Optional[bool] = None, out: Optional[TextIO] = None) -> list[dict]:
-    """The last part of `install` (#1843). The first run in a terminal is the whole setup; otherwise only the evidence
-    tools are checked and installed, which needs no prompt. Returns the required items that are not ok: an empty list
-    means the install is complete. It never prompts."""
+def after_install(*, out: Optional[TextIO] = None) -> int:
+    """The last steps of `install`, with or without a terminal, in this order (#1843, #1841): the evidence tools are
+    checked and installed, and a required one that is not ok makes the install incomplete; then the setup runs, and a
+    complete one (doctor's `setup` row is ok) is not repeated. Nothing waits for input: the setup child processes get
+    no stdin and GitHub prompts are disabled.
+
+    Returns 2 when the setup failed (the installed files stay; the error goes to stderr, then one `next:` line), 1 when an
+    evidence tool is not ok, else 0. A failed setup wins over an incomplete evidence step, and both are printed."""
     out = out or sys.stdout
-    if read_summary() is None and (_terminal() if interactive is None else interactive):
-        print("\nNext: setup (prerequisites, agent CLIs, GitHub, evidence tools).\n", file=out)
-        return _incomplete(execute(Options(), out=out)[1])
     checks, actions = evidence_for_install(os.environ)
     for action in actions:
         if action.result != "skipped":  # a skipped tool is named once, by its missing line below, with the fix
@@ -598,11 +599,25 @@ def after_install(*, interactive: Optional[bool] = None, out: Optional[TextIO] =
         print(f"  {item['item']}: {item['why']}. Fix: {item['fix']}", file=out)
     if checks and not missing:
         print("  evidence tools: ok (" + ", ".join(f"{c.name} {c.version}" for c in checks if c.version) + ")", file=out)
-    if read_summary() is None:
-        print(f"\nNext: run `{COMMAND}` (prerequisites, agent CLIs, GitHub login).", file=out)
-    return missing
+    if missing:
+        print("install is not complete: " + ", ".join(item["item"] for item in missing) + " (see the fix above)", file=out)
+    if _setup_at_the_end(out) == 2:
+        return 2
+    return 1 if missing else 0
 
 
-def _incomplete(report: Optional[Mapping[str, Any]]) -> list[dict]:
-    """The pending items of a setup report that concern the evidence tools."""
-    return [item for item in (report or {}).get("pending", []) if str(item.get("item", "")).startswith("evidence:")]
+def _setup_at_the_end(out: TextIO) -> int:
+    """The setup that ends `install` (#1841): 0 when it is complete or ran, 2 when it failed. A failure keeps the installed
+    files: its error goes to stderr, then one `next:` line."""
+    try:
+        if doctor_row()["status"] == "ok":
+            return 0
+        print("\nNext: setup (prerequisites, agent CLIs, GitHub).\n", file=out)
+        code = run(Options(), out=out)
+    except Exception as exc:  # noqa: BLE001 - the install is done: report the failure instead of crashing after it
+        print(f"setup failed ({type(exc).__name__}): {exc}", file=sys.stderr)
+        code = 2
+    if code != 2:  # 0, or PENDING: the report on `out` says what is still missing; the install itself succeeded
+        return 0
+    print(f"next: fix the error above, then run `{COMMAND}`; it is safe to run again", file=sys.stderr)
+    return 2

@@ -87,6 +87,8 @@ Then give your agent the goal in [Use it](#use-it).
 
 `simplicio-loop login` is not needed for this. It signs in through the Simplicio Runtime, and only the 24/7 watcher needs a login. Until you sign in, `doctor` shows the login as a warning; that is expected. Without the Runtime, `login` prints the public installer command for your OS and does not run it.
 
+`simplicio-loop install` ends by running `simplicio-loop setup` (prerequisites, agent CLIs, GitHub login), with or without a terminal. `simplicio-loop doctor` shows what is still pending.
+
 ## Use it
 
 **In Claude Code or VS Code:**

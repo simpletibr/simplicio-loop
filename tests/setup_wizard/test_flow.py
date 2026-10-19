@@ -475,15 +475,15 @@ def test_a_setup_json_that_is_a_fifo_does_not_hang_doctor_after_install_or_the_w
         "import io, json, sys\n"
         "from simplicio_loop import setup_cli\n"
         "setup_cli.evidence_for_install = lambda environ: ([], [])\n"  # a child process has no conftest stub: no npm here
-        "out = io.StringIO()\n"
-        "setup_cli.after_install(interactive=False, out=out)\n"
-        "print(json.dumps([setup_cli.doctor_row()['summary'], setup_cli.default_family({'HOME': sys.argv[1]}), 'Next: run' in out.getvalue()]))\n"
+        "setup_cli.run = lambda options, out=None: 0\n"  # the setup itself is tested elsewhere; the FIFO is the subject
+        "code = setup_cli.after_install(out=io.StringIO())\n"
+        "print(json.dumps([setup_cli.doctor_row()['summary'], setup_cli.default_family({'HOME': sys.argv[1]}), code]))\n"
     )
     root = str(Path(setup_cli.__file__).resolve().parents[1])
     done = subprocess.run([sys.executable, "-c", code, str(home)], capture_output=True, text=True, timeout=20,
                           env={**os.environ, "HOME": str(home), "PYTHONPATH": root})
     assert done.returncode == 0, done.stderr
-    assert json.loads(done.stdout) == ["setup has not run on this machine yet", None, True]
+    assert json.loads(done.stdout) == ["setup has not run on this machine yet", None, 0]
 
 
 def test_a_non_linux_platform_is_marked_unverified(home, monkeypatch):
@@ -493,30 +493,39 @@ def test_a_non_linux_platform_is_marked_unverified(home, monkeypatch):
     assert json.loads(summary_file(home).read_text())["platform"]["os_verified"] is False
 
 
-def test_after_install_runs_the_setup_in_a_terminal_and_only_hints_without_one(home, monkeypatch):
+def test_after_install_runs_the_setup_with_or_without_a_terminal(home, monkeypatch):
     calls = []
-    monkeypatch.setattr(setup_cli, "execute", lambda options, out=None: calls.append(options) or (0, {"pending": []}))
+    monkeypatch.setattr(setup_cli, "run", lambda options, out=None: calls.append(options) or 0)
     out = io.StringIO()
-    setup_cli.after_install(interactive=False, out=out)
-    assert calls == [] and "simplicio-loop setup" in out.getvalue()
-    setup_cli.after_install(interactive=True, out=io.StringIO())
-    assert calls == [setup_cli.Options()]
+    assert setup_cli.after_install(out=out) == 0
+    assert calls == [setup_cli.Options()] and "Next: setup" in out.getvalue()
 
 
-def test_after_install_never_raises_when_the_summary_folder_cannot_be_written(home, monkeypatch, capsys):
+def test_after_install_reports_a_setup_that_cannot_write_its_summary_with_one_next_line(home, monkeypatch, capsys):
     (home / ".simplicio-loop").write_text("a file where the folder should be", encoding="utf-8")
     monkeypatch.setattr(setup_cli, "real_seams", Fakes().seams)
-    setup_cli.after_install(interactive=True, out=io.StringIO())
-    assert "setup refused" in capsys.readouterr().err
+    assert setup_cli.after_install(out=io.StringIO()) == 2
+    err = capsys.readouterr().err
+    assert "setup refused" in err
+    assert len([line for line in err.splitlines() if line.startswith("next:")]) == 1, err
+
+
+def test_after_install_reports_an_unexpected_failure_instead_of_raising(home, monkeypatch, capsys):
+    def broken(options, out=None):
+        raise OSError("disk on fire")
+    monkeypatch.setattr(setup_cli, "run", broken)
+    assert setup_cli.after_install(out=io.StringIO()) == 2
+    err = capsys.readouterr().err
+    assert "setup failed" in err and "disk on fire" in err
+    assert len([line for line in err.splitlines() if line.startswith("next:")]) == 1, err
 
 
 def test_after_install_is_quiet_once_the_setup_has_run(home, monkeypatch):
     run(Fakes(), home)
     monkeypatch.setattr(setup_cli, "run", lambda *a, **k: pytest.fail("the setup must not start again"))
-    for interactive in (True, False):
-        out = io.StringIO()
-        setup_cli.after_install(interactive=interactive, out=out)
-        assert out.getvalue() == ""
+    out = io.StringIO()
+    assert setup_cli.after_install(out=out) == 0
+    assert out.getvalue() == ""
 
 
 def test_the_real_parser_flags_match_the_options():

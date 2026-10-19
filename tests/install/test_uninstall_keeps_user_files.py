@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from simplicio_loop import cli, cli_impl
+from simplicio_loop import cli, cli_impl, setup_cli
 from simplicio_loop.install.planner import (
     InstallError,
     apply_plan,
@@ -33,6 +33,12 @@ def write(path: Path, text: str = "user\n") -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
     return path
+
+
+@pytest.fixture(autouse=True)
+def the_setup_that_install_ends_with_is_stubbed(monkeypatch):
+    """`install` ends with the setup (#1841). These tests cover what install registers; tests/setup_wizard covers the setup."""
+    monkeypatch.setattr(setup_cli, "after_install", lambda **kw: 0)
 
 
 @pytest.fixture
