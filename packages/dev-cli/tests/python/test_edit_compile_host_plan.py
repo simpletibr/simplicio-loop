@@ -58,7 +58,15 @@ def test_compile_with_apply_is_one_process(tmp_path, capsys):
     repo = _repo(tmp_path)
     plan = repo / "plan.json"
     code = _edit(
-        "--root", str(repo), "--plan", str(repo / "ops.json"), "--compile", str(plan), "--apply", "--json", "--no-runtime"
+        "--root",
+        str(repo),
+        "--plan",
+        str(repo / "ops.json"),
+        "--compile",
+        str(plan),
+        "--apply",
+        "--json",
+        "--no-runtime",
     )
     result = json.loads(capsys.readouterr().out)
     assert code == 0 and result["applied"] is True, result

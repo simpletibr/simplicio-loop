@@ -1850,8 +1850,9 @@ def _preserve_range_terminal_newline(text: str, selected: str) -> str:
 def is_git_dir_name(part: str) -> bool:
     """True when one path component names a git directory on a filesystem git supports.
 
-    Case-insensitive volumes fold ``.GIT``; NTFS drops trailing dots and spaces and answers to the short name ``git~1``;
-    HFS+ ignores zero-width code points (the same cases git's own ``.git`` checks refuse).
+    Case-insensitive volumes fold ``.GIT``; NTFS drops trailing dots and spaces and answers
+    to the short name ``git~1``; HFS+ ignores zero-width code points (the same cases git's
+    own ``.git`` checks refuse).
     """
     name = "".join(ch for ch in part if unicodedata.category(ch) != "Cf").rstrip(". ").casefold()
     return name in {".git", "git~1"}
@@ -1875,8 +1876,8 @@ def _safe_path(root: Path, rel: str) -> Path:
         or ":" in rel
     ):
         raise MechanicalEditError("unsafe_path", f"unsafe relative path: {rel}", path=rel)
-    # .git is inside the root, so the checks below do not stop it: a hook or a core.* line planted there runs outside
-    # every sandbox with the credentials of whoever runs git next.
+    # .git is inside the root, so the checks below do not stop it: a hook or a core.* line
+    # planted there runs outside every sandbox with the credentials of whoever runs git next.
     if _inside_git_dir(portable_path.parts):
         raise MechanicalEditError("unsafe_path", f"path is inside .git: {rel}", path=rel)
     root_resolved = root.resolve()

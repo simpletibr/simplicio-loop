@@ -23,7 +23,9 @@ def test_remote_credentials_are_not_resolved(monkeypatch) -> None:
     assert providers.planner_cfg()["key"] is None
 
 
-@pytest.mark.parametrize("name", ["_shell_out_claude", "_shell_out_codex", "_cli_command", "_codex_supports_effort_flag"])
+@pytest.mark.parametrize(
+    "name", ["_shell_out_claude", "_shell_out_codex", "_cli_command", "_codex_supports_effort_flag"]
+)
 def test_dead_cli_shellout_helpers_are_removed(name) -> None:
     # generate() and planner_complete() raise before reaching them, so the helpers can never run.
     assert not hasattr(providers, name)

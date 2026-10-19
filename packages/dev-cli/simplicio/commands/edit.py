@@ -863,7 +863,8 @@ def run_edit(a: argparse.Namespace) -> int:
         )
         return _print_edit_result(result, a)
     if getattr(a, "compile", None):
-        # ``--compile OUT --apply`` is one process: freeze the plan, then fall through and apply the frozen plan.
+        # ``--compile OUT --apply`` is one process: freeze the plan, then fall through
+        # and apply the frozen plan.
         code = _run_compile(a, plan, announce=not a.apply)
         if code != 0 or not a.apply:
             return code
