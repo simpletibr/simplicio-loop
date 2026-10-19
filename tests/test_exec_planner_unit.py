@@ -363,7 +363,11 @@ class TestFallback:
 
     def test_timeout_falls_through(self, bindir):
         fake_cli(bindir, "claude", body="time.sleep(60)")
-        fake_cli(bindir, "codex")
+        # The healthy family runs under the same 0.5 s timeout as the hung one. A Python fake needs 0.4 to 0.8 s to start
+        # on a loaded host, so it timed out too; a shell script starts in milliseconds.
+        healthy = bindir / "codex"
+        healthy.write_text(f"#!/bin/sh\ncat > /dev/null\nprintf '%s\\n' '{json.dumps(PLAN)}'\n", encoding="utf-8")
+        healthy.chmod(healthy.stat().st_mode | stat.S_IEXEC)
         res = run(
             exec_planner.run_planner_with_fallback(
                 "planning", "x", timeout_sec=0.5, families=["claude", "codex"], grace_sec=1.0, repo_root=bindir
