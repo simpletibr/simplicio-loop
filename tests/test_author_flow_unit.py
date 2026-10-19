@@ -383,14 +383,16 @@ def test_a_missing_login_fails_closed_before_any_process(repo, fake, real_home):
 
 def test_the_login_copy_is_private_to_the_user(repo, fake, real_home):
     scenario, calls, runner = fake
-    scenario({"write": {"done.txt": "ok\n"}, "run": [["sh", "-c", "stat -c %a $HOME $HOME/.claude $HOME/.claude/.credentials.json > $HOME/modes"]]})
+    scenario({"write": {"done.txt": "ok\n"}})
     modes = []
 
     async def spy(argv, **kwargs):
         out = await runner(argv, **kwargs)
         home = Path(kwargs["env"]["HOME"])
         if argv[0] == "claude":
-            modes.extend((home / "modes").read_text().split())
+            # read in Python: `stat -c` is GNU-only and BSD stat (macOS) rejects it
+            paths = (home, home / ".claude", home / ".claude" / ".credentials.json")
+            modes.extend(oct(stat.S_IMODE(os.lstat(p).st_mode))[2:] for p in paths)
         return out
 
     go(repo, spy, verify="true")
