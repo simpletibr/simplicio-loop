@@ -141,7 +141,8 @@ async def run_case(
             return result
 
         start = time.monotonic()
-        work_dir = tempfile.mkdtemp(prefix=f"issue-{case['issue_number']}-")
+        # realpath: {repo} must name the dir the engine's getcwd() reports (macOS: /var -> /private/var).
+        work_dir = os.path.realpath(tempfile.mkdtemp(prefix=f"issue-{case['issue_number']}-"))
         try:
             source = repo_source.replace("{repo}", case["repo"])
             rc, _, err = await _run(
