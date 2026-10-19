@@ -390,6 +390,12 @@ def test_install_env_keeps_each_proxy_and_certificate_setting(key):
     assert sh.install_env({"PATH": "/usr/bin", "HOME": "/h", key: "value"})[key] == "value"
 
 
+@pytest.mark.parametrize("key", ["npm_config_cache", "NPM_CONFIG_CACHE"])
+def test_install_env_passes_the_npm_cache_folder_when_it_is_set(key):
+    # without it npm writes its cache to ~/.npm, whatever the caller chose for the install
+    assert sh.install_env({"PATH": "/usr/bin", "HOME": "/h", key: "/caches/npm"})[key] == "/caches/npm"
+
+
 @pytest.mark.parametrize("key", INSTALL_KEYS)
 def test_probe_env_never_carries_a_proxy_or_certificate_setting(key):
     assert key not in sh.probe_env({"PATH": "/usr/bin", "HOME": "/h", key: "value"})

@@ -365,7 +365,8 @@ EVIDENCE = ("evidence:node", "evidence:playwright", "evidence:chromium", "eviden
 def test_the_evidence_tools_warn_with_the_fix_when_nothing_is_installed(box):
     rows = {c["name"]: c for c in collect(box, evidence=None)["checks"] if c["name"] in EVIDENCE}
     assert set(rows) == set(EVIDENCE)
-    assert all(row["status"] == "warn" and row["fix"] for row in rows.values())
+    assert all(row["status"] == "warn" and row["fix"] for name, row in rows.items() if name != "evidence:hyperframes")
+    assert rows["evidence:hyperframes"]["status"] == "optional" and "--with-hyperframes" in rows["evidence:hyperframes"]["fix"]
     assert "Node.js" in rows["evidence:node"]["fix"] and "22" in rows["evidence:node"]["summary"]  # no node on this PATH
     assert "Node.js" in rows["evidence:chromium"]["fix"]  # the browser build cannot be read without node
     assert not (box.state / "evidence-tools").exists()  # doctor installs nothing

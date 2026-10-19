@@ -60,6 +60,7 @@ class Options:
     yes: bool = False
     token_stdin: bool = False
     host: Optional[str] = None
+    with_hyperframes: bool = False  # the optional explainer (~370 MB): installed only when asked for
 
 
 def _hidden(prompt: str) -> str:
@@ -99,10 +100,11 @@ def real_seams() -> Seams:
                  evidence=_real_evidence)
 
 
-def _real_evidence(environ: Mapping[str, str], *, state_dir: Path, dry_run: bool, validate: bool) -> tuple[list, list]:
+def _real_evidence(environ: Mapping[str, str], *, state_dir: Path, dry_run: bool, validate: bool,
+                   hyperframes: bool = False) -> tuple[list, list]:
     from . import evidence_tools
     return evidence_tools.step(state_dir, environ=environ, which=setup_hardening.safe_which(environ), run=evidence_tools.execute,
-                               dry_run=dry_run, validate=validate)
+                               dry_run=dry_run, validate=validate, hyperframes=hyperframes)
 
 
 def evidence_for_install(environ: Mapping[str, str]) -> tuple[list, list]:
@@ -450,7 +452,8 @@ def collect(options: Options, environ: Mapping[str, str], seams: Seams, director
     ignored = _ignored_hosts(statuses, environ)
     choice = host_detect.choose_default(statuses, requested=options.host, previous=(current or {}).get("default_host"))
     planning = options.check or options.dry_run
-    evidence, evidence_actions = seams.evidence(environ, state_dir=directory, dry_run=planning, validate=not planning)
+    evidence, evidence_actions = seams.evidence(environ, state_dir=directory, dry_run=planning, validate=not planning,
+                                                hyperframes=options.with_hyperframes)
     summary = {
         "schema": SCHEMA,
         "platform": _platform(),
@@ -568,6 +571,8 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--github-token-stdin", dest="token_stdin", action="store_true",
                         help="read the GitHub token from a pipe (never as an argument)")
     parser.add_argument("--host", default=None, help="make this installed agent CLI the default host (a host id, for example codex)")
+    parser.add_argument("--with-hyperframes", dest="with_hyperframes", action="store_true",
+                        help="also install the optional hyperframes explainer of video_evidence (about 370 MB of node_modules)")
 
 
 def configure(sub: Any) -> None:
@@ -578,7 +583,7 @@ def configure(sub: Any) -> None:
 
 def main(args: argparse.Namespace) -> int:
     return run(Options(check=args.check, dry_run=args.dry_run, json_out=args.json_out, yes=args.yes,
-                       token_stdin=args.token_stdin, host=args.host))
+                       token_stdin=args.token_stdin, host=args.host, with_hyperframes=args.with_hyperframes))
 
 
 def after_install(*, out: Optional[TextIO] = None) -> int:

@@ -17,7 +17,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-ALLOWED_ENV = ("PATH", "LANG", "LC_ALL", "TERM", "TZ")
+ALLOWED_ENV = ("PATH", "LANG", "LC_ALL", "TERM", "TZ", "HYPERFRAMES_FFMPEG_PATH", "HYPERFRAMES_BROWSER_PATH")  # tool locations, no secrets
 DEFAULT_PATH = "/usr/local/bin:/usr/bin:/bin"
 OPT_OUT = "SIMPLICIO_247_ALLOW_UNSANDBOXED"
 

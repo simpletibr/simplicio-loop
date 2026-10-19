@@ -886,7 +886,7 @@ options:
   --repo REPO
 === setup rc=0
 usage: simplicio-loop setup [-h] [--check] [--dry-run] [--json] [--yes] [--github-token-stdin]
-                            [--host HOST]
+                            [--host HOST] [--with-hyperframes]
 
 options:
   -h, --help            show this help message and exit
@@ -899,6 +899,8 @@ options:
   --github-token-stdin  read the GitHub token from a pipe (never as an argument)
   --host HOST           make this installed agent CLI the default host (a host id, for example
                         codex)
+  --with-hyperframes    also install the optional hyperframes explainer of video_evidence (about
+                        370 MB of node_modules)
 === squads rc=0
 usage: simplicio-loop squads [-h] {plan,gate,metrics,run} ...
 

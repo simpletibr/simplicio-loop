@@ -187,11 +187,32 @@ def test_chromium_is_ok_only_when_its_build_folder_is_complete(tmp_path):
 # --- installing ------------------------------------------------------------------------------------------------------
 
 
-def test_missing_tools_are_installed_in_the_loop_folder_then_proven(tmp_path):
+def test_setup_leaves_the_optional_explainer_alone_unless_it_is_asked_for(tmp_path):
     machine = FakeMachine(tmp_path)
     state = tmp_path / "state"
     checks, actions = ev.step(state, environ=environ_for(tmp_path), which=machine.which, run=machine.run,
                               dry_run=False, validate=True)
+    assert [(a.name, a.result) for a in actions] == [(ev.PLAYWRIGHT, "installed"), (ev.CHROMIUM, "installed"), (ev.CHECK, "validated")]
+    assert not ev.hyperframes_folder(state).exists()  # its ~370 MB of node_modules are not fetched by default
+    assert [Path(argv[0]).name for argv in machine.calls].count("npm") == 1  # only the required tools' npm project
+    hyperframes = by_name(checks, ev.HYPERFRAMES)
+    assert hyperframes.status == "missing" and hyperframes.required is False
+
+
+def test_the_explainer_is_installed_when_it_is_asked_for_and_only_then(tmp_path):
+    machine = FakeMachine(tmp_path)
+    state = tmp_path / "state"
+    checks, actions = ev.step(state, environ=environ_for(tmp_path), which=machine.which, run=machine.run,
+                              dry_run=False, validate=True, hyperframes=True)
+    assert (ev.HYPERFRAMES, "installed") in [(a.name, a.result) for a in actions]
+    assert by_name(checks, ev.HYPERFRAMES).status == "ok"
+
+
+def test_missing_tools_are_installed_in_the_loop_folder_then_proven(tmp_path):
+    machine = FakeMachine(tmp_path)
+    state = tmp_path / "state"
+    checks, actions = ev.step(state, environ=environ_for(tmp_path), which=machine.which, run=machine.run,
+                              dry_run=False, validate=True, hyperframes=True)
     assert [(a.name, a.result) for a in actions] == [(ev.PLAYWRIGHT, "installed"), (ev.CHROMIUM, "installed"),
                                                      (ev.HYPERFRAMES, "installed"), (ev.CHECK, "validated")]
     assert all(c.status == "ok" for c in checks), checks
@@ -238,7 +259,7 @@ def test_a_failed_browser_install_is_named_and_the_proof_is_not_run(tmp_path):
 def test_a_dry_run_installs_nothing_and_starts_no_browser(tmp_path):
     machine = FakeMachine(tmp_path)
     _, actions = ev.step(tmp_path / "state", environ=environ_for(tmp_path), which=machine.which, run=machine.run,
-                         dry_run=True, validate=True)
+                         dry_run=True, validate=True, hyperframes=True)
     assert [(a.name, a.result) for a in actions] == [(ev.PLAYWRIGHT, "would-install"), (ev.CHROMIUM, "would-install"),
                                                      (ev.HYPERFRAMES, "would-install")]
     assert not any(Path(argv[0]).name == "npm" for argv in machine.calls)
@@ -252,7 +273,7 @@ def test_the_proof_runs_after_an_install_even_without_validate_but_not_on_a_plai
     assert any(argv[1:2] == ["test"] for argv in machine.calls)  # something was installed in this run, so it is proven
     plain = FakeMachine(tmp_path)  # the same machine the next day: the folder and the browser are already there
     checks, actions = ev.step(state, environ=environ_for(tmp_path), which=plain.which, run=plain.run, dry_run=False, validate=False)
-    assert [a.name for a in actions] == [] and all(c.status == "ok" for c in checks)
+    assert [a.name for a in actions] == [] and all(c.status == "ok" for c in checks if c.required)
     assert not any(argv[1:2] == ["test"] for argv in plain.calls)
 
 
@@ -303,8 +324,9 @@ def test_probe_rows_are_ok_with_the_version_or_warn_with_the_fix_and_install_not
     state = tmp_path / "state"
     rows = ev.probe_rows(state, environ=environ_for(tmp_path), which=machine.which, run=machine.run)
     assert [(r["name"], r["status"]) for r in rows] == [(ev.NODE, "ok"), (ev.PLAYWRIGHT, "warn"), (ev.CHROMIUM, "warn"),
-                                                        (ev.HYPERFRAMES, "warn")]
-    assert all(r["fix"] for r in rows if r["status"] == "warn") and rows[0]["summary"].startswith("node 26.0.0")
+                                                        (ev.HYPERFRAMES, "optional")]  # absent explainer: optional, not a warning
+    assert all(r["fix"] for r in rows if r["status"] in ("warn", "optional")) and rows[0]["summary"].startswith("node 26.0.0")
+    assert "--with-hyperframes" in rows[3]["fix"]  # the explainer's fix names the opt-in
     assert not any(Path(argv[0]).name == "npm" or argv[1:2] == ["test"] for argv in machine.calls)
     machine.run(["npm"], 1, cwd=ev.folder(state))  # lays down the folder the install would make: the pin and the bin
     machine.run(["npm"], 1, cwd=ev.hyperframes_folder(state))
@@ -321,10 +343,11 @@ def test_probe_rows_are_ok_with_the_version_or_warn_with_the_fix_and_install_not
 SPEC = "const { test } = require('@playwright/test');\ntest('demo', async () => {});\n"
 
 
-def installed_state(tmp_path: Path, machine: FakeMachine) -> Path:
-    """`setup` has installed and proven the tools in a fresh state folder."""
+def installed_state(tmp_path: Path, machine: FakeMachine, hyperframes: bool = False) -> Path:
+    """`setup` has installed and proven the tools in a fresh state folder (the explainer too, when asked for)."""
     state = tmp_path / "state"
-    ev.step(state, environ=environ_for(tmp_path), which=machine.which, run=machine.run, dry_run=False, validate=True)
+    ev.step(state, environ=environ_for(tmp_path), which=machine.which, run=machine.run, dry_run=False, validate=True,
+            hyperframes=hyperframes)
     machine.calls.clear()
     machine.envs.clear()
     machine.specs.clear()
@@ -496,7 +519,7 @@ def test_a_failed_hyperframes_install_is_optional_and_leaves_the_required_tools_
     machine = FakeMachine(tmp_path, hyperframes_exit=1)
     state = tmp_path / "state"
     checks, actions = ev.step(state, environ=environ_for(tmp_path), which=machine.which, run=machine.run,
-                              dry_run=False, validate=True)
+                              dry_run=False, validate=True, hyperframes=True)
     assert [(a.name, a.result) for a in actions if a.result == "failed"] == [(ev.HYPERFRAMES, "failed")]
     hyperframes = by_name(checks, ev.HYPERFRAMES)
     assert hyperframes.status == "missing" and hyperframes.required is False
@@ -506,14 +529,14 @@ def test_a_failed_hyperframes_install_is_optional_and_leaves_the_required_tools_
 
 def test_the_explainer_is_blocked_with_the_fix_until_the_pinned_hyperframes_is_installed(tmp_path):
     machine = FakeMachine(tmp_path)
-    state = installed_state(tmp_path, machine)
+    state = installed_state(tmp_path, machine, hyperframes=True)
     assert ev.hyperframes_block(state) is None
     package = ev.hyperframes_folder(state) / "node_modules" / "hyperframes" / "package.json"
     package.write_text(json.dumps({"name": "hyperframes", "version": "0.0.1"}))
     blocked = ev.hyperframes_block(state)
-    assert blocked is not None and "0.0.1" in blocked and blocked.endswith("simplicio-loop setup")
+    assert blocked is not None and "0.0.1" in blocked and blocked.endswith("simplicio-loop setup --with-hyperframes")
     missing = ev.hyperframes_block(tmp_path / "elsewhere")
-    assert missing is not None and "hyperframes" in missing and missing.endswith("simplicio-loop setup")
+    assert missing is not None and "hyperframes" in missing and missing.endswith("simplicio-loop setup --with-hyperframes")
 
 
 def test_a_missing_hyperframes_does_not_block_a_playwright_run(tmp_path):

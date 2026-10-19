@@ -62,6 +62,8 @@ INSTALL_ENV_KEYS = (
     "UV_HTTP_TIMEOUT",
     "UV_PYTHON_INSTALL_MIRROR",
     "UV_PYTHON_INSTALL_DIR",
+    "npm_config_cache",  # where npm keeps its cache; without it npm uses ~/.npm
+    "NPM_CONFIG_CACHE",
 )
 
 # Exact hosts serving GitHub release assets (gh and uv publish on GitHub Releases).

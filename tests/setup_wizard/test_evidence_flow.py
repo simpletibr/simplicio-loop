@@ -58,6 +58,15 @@ def test_check_reports_a_missing_tool_as_pending_and_says_it_would_install(home)
     assert not summary_file(home).exists()  # a check writes nothing
 
 
+def test_setup_asks_the_evidence_step_for_the_explainer_only_with_with_hyperframes(home):
+    fakes = Fakes()
+    assert run(fakes, home)[0] == 0
+    assert [c for c in fakes.calls if c[0] == "evidence"][-1][1]["hyperframes"] is False
+    fakes.calls.clear()
+    assert run(fakes, home, with_hyperframes=True)[0] == 0
+    assert [c for c in fakes.calls if c[0] == "evidence"][-1][1]["hyperframes"] is True
+
+
 def test_setup_is_complete_when_every_evidence_tool_is_ok(home):
     fakes = Fakes()
     code, text = run(fakes, home)

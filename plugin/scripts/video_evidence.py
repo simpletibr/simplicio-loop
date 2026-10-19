@@ -103,6 +103,34 @@ def _run(argv, **kw):
         return None
 
 
+FFMPEG_CHECK_S = 15  # `ffmpeg -version` answers at once, and a binary whose libraries do not load fails at once too
+
+
+def _tail(text, limit=400):
+    """The end of a command's output on one line: what says why it failed."""
+    return " ".join((text or "").split())[-limit:]
+
+
+def _ffmpeg():
+    """The FFmpeg to run, as (path, None), or (None, what is wrong and its fix).
+
+    HYPERFRAMES_FFMPEG_PATH names it when set, else the one on PATH. `shutil.which` only finds a file: a Homebrew ffmpeg whose
+    libvpx is broken is found and does not run, so it is checked with `-version` before anything uses it."""
+    exe = os.environ.get("HYPERFRAMES_FFMPEG_PATH") or shutil.which("ffmpeg")
+    if exe is None:
+        return None, "FFmpeg not found: install it (`brew install ffmpeg`) or set HYPERFRAMES_FFMPEG_PATH to a working ffmpeg"
+    fix = "fix: `brew reinstall ffmpeg`, or set HYPERFRAMES_FFMPEG_PATH to a working ffmpeg"
+    try:
+        done = _run([exe, "-version"], timeout=FFMPEG_CHECK_S)
+    except subprocess.TimeoutExpired:
+        return None, f"FFmpeg at {exe} did not answer `-version` within {FFMPEG_CHECK_S} s; {fix}"
+    if done is None:
+        return None, f"FFmpeg at {exe} does not start; {fix}"
+    if done.returncode != 0:
+        return None, f"FFmpeg at {exe} does not run (`-version` exit {done.returncode}: {_tail(done.stderr or done.stdout)}); {fix}"
+    return exe, None
+
+
 def is_video_request(text):
     """True when the goal/work-item text asks for a demonstration video (terminal, not LLM)."""
     return bool(text) and bool(VIDEO_RE.search(text))
@@ -303,6 +331,13 @@ def cmd_lint(opts):
     sys.exit(0 if ok else 1)
 
 
+def _render_failure(done):
+    """Why `hyperframes render` did not give an MP4: its exit code and the tail of its stderr (its stdout when stderr is empty)."""
+    if done.returncode != 0:
+        return "hyperframes exited %d: %s" % (done.returncode, _tail(done.stderr or done.stdout) or "no output")
+    return "hyperframes exited 0 but wrote no MP4"
+
+
 def cmd_render(opts):
     name = opts.get("name", "simplicio-demo")
     out = opts.get("out", DEFAULT_OUT)
@@ -315,8 +350,9 @@ def cmd_render(opts):
     nm = _node_major()
     if nm is not None and nm < 22:
         _blocked(out, "Node %d detected — hyperframes requires Node 22+" % nm)
-    if shutil.which("ffmpeg") is None:
-        _blocked(out, "FFmpeg not found — hyperframes renders MP4 via FFmpeg; install it first")
+    _, problem = _ffmpeg()
+    if problem:
+        _blocked(out, "hyperframes renders MP4 via FFmpeg — " + problem)
     if not os.path.exists(comp):
         _blocked(out, "no composition at %s — run `scaffold` first" % comp)
 
@@ -332,6 +368,8 @@ def cmd_render(opts):
     ok = r.returncode == 0 and os.path.exists(mp4)
     verdict = "video_evidence: %s — demo MP4 (hyperframes) project=%s mp4=%s" % (
         "PASS" if ok else "FAIL", name, mp4 if ok else "(not produced)")
+    if not ok:
+        verdict += " — " + _render_failure(r)
     _append_ledger(out, verdict)
     print("done" if ok else "fail")
     log(verdict)
@@ -413,11 +451,15 @@ def cmd_record(opts):
     webms = sorted(glob.glob(os.path.join(rec_dir, "**", "*.webm"), recursive=True))
     ok = run.code == 0 and bool(webms)  # the session ran clean and Playwright left its recording
     produced = webms[0] if webms else "(not produced)"
-    if ok and shutil.which("ffmpeg"):
-        mp4 = os.path.join(out, "%s-%s.mp4" % (name, issue))
-        cv = _run(["ffmpeg", "-y", "-i", produced, mp4])
-        if cv is not None and cv.returncode == 0 and os.path.exists(mp4):
-            produced = mp4
+    if ok:
+        ffmpeg, problem = _ffmpeg()
+        if ffmpeg is not None:
+            mp4 = os.path.join(out, "%s-%s.mp4" % (name, issue))
+            cv = _run([ffmpeg, "-y", "-i", produced, mp4])
+            if cv is not None and cv.returncode == 0 and os.path.exists(mp4):
+                produced = mp4
+        else:
+            log(problem + " — the recording stays .webm")
     verdict = "video_evidence: %s — demo video (playwright) project=%s file=%s" % (
         "PASS" if ok else "FAIL", name, produced)
     if not ok:

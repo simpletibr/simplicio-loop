@@ -50,6 +50,7 @@ NODE, PLAYWRIGHT, CHROMIUM, HYPERFRAMES, CHECK = (
     "evidence:node", "evidence:playwright", "evidence:chromium", "evidence:hyperframes", "evidence:check")
 NODE_FIX = "install Node.js 22 or newer: https://nodejs.org, or `brew install node`"
 SETUP_FIX = "simplicio-loop setup"
+HYPERFRAMES_FIX = "simplicio-loop setup --with-hyperframes"  # the explainer is opt-in: only `setup` with this flag installs it
 MARKER = "INSTALLATION_COMPLETE"  # Playwright writes it last, when a browser build is complete
 PROBE_S, INSTALL_S, PROOF_S, RUN_S = 60.0, 900.0, 300.0, 600.0
 EXCERPT = 600  # characters of a run's output shown on one line: enough for Playwright's failure and its call log
@@ -213,11 +214,11 @@ def _hyperframes(state_dir: Path) -> Check:
     project = hyperframes_folder(state_dir)
     version = _installed_version(project, "hyperframes")
     if version is None:
-        return Check(HYPERFRAMES, "missing", False, None, None, HYPERFRAMES_VERSION, SETUP_FIX, "user")
+        return Check(HYPERFRAMES, "missing", False, None, None, HYPERFRAMES_VERSION, HYPERFRAMES_FIX, "user")
     if version != HYPERFRAMES_VERSION:
-        return Check(HYPERFRAMES, "outdated", False, str(project), version, HYPERFRAMES_VERSION, SETUP_FIX, "user")
+        return Check(HYPERFRAMES, "outdated", False, str(project), version, HYPERFRAMES_VERSION, HYPERFRAMES_FIX, "user")
     if not hyperframes_bin(state_dir).is_file():
-        return Check(HYPERFRAMES, "missing", False, None, version, HYPERFRAMES_VERSION, SETUP_FIX, "user")
+        return Check(HYPERFRAMES, "missing", False, None, version, HYPERFRAMES_VERSION, HYPERFRAMES_FIX, "user")
     return Check(HYPERFRAMES, "ok", False, str(hyperframes_bin(state_dir)), version, HYPERFRAMES_VERSION, "", "user")
 
 
@@ -268,15 +269,16 @@ def _install_browser(project: Path, env: Mapping[str, str], run: Run, dry_run: b
 
 
 def install_missing(state_dir: Path, checks: Sequence[Check], *, environ: Mapping[str, str], which: Which, run: Run,
-                    dry_run: bool) -> list[Action]:
-    """Install what the checks found missing, in order: the pinned package, its browser, then the optional explainer's own
-    project. Node.js is never installed."""
+                    dry_run: bool, hyperframes: bool = False) -> list[Action]:
+    """Install what the checks found missing, in order: the pinned package, its browser, then the explainer's own project
+    when `hyperframes` asks for it (it is opt-in: ~370 MB). Node.js is never installed."""
     by_name = {check.name: check for check in checks}
     node = by_name[NODE]
+    wanted = (PLAYWRIGHT, CHROMIUM, HYPERFRAMES) if hyperframes else (PLAYWRIGHT, CHROMIUM)
     if node.status != "ok":
         return [Action(NODE, "skipped", NODE_FIX)] + [
             Action(name, "skipped", f"needs Node.js {MIN_NODE} or newer")
-            for name in (PLAYWRIGHT, CHROMIUM, HYPERFRAMES) if by_name[name].status != "ok"]
+            for name in wanted if by_name[name].status != "ok"]
     project = folder(state_dir)
     env = _env(environ, node.path, install=True)
     actions: list[Action] = []
@@ -291,7 +293,7 @@ def install_missing(state_dir: Path, checks: Sequence[Check], *, environ: Mappin
             actions.append(_install_browser(project, env, run, dry_run))
         else:
             actions.append(Action(CHROMIUM, "skipped", f"{PLAYWRIGHT} is not ready, so its browser is not installed"))
-    if by_name[HYPERFRAMES].status != "ok":  # not tied to the required tools: its own failure is the only one it reports
+    if hyperframes and by_name[HYPERFRAMES].status != "ok":  # not tied to the required tools: its own failure is the only one it reports
         actions.append(_install_package(hyperframes_folder(state_dir), name=HYPERFRAMES, description=HYPERFRAMES_DESCRIPTION,
                                         dependencies={"hyperframes": HYPERFRAMES_VERSION}, npm=which("npm"), env=env,
                                         run=run, dry_run=dry_run))
@@ -375,13 +377,14 @@ def prove(state_dir: Path, *, environ: Mapping[str, str], run: Run, node_path: O
 
 
 def step(state_dir: Path, *, environ: Mapping[str, str], which: Which, run: Run, dry_run: bool,
-         validate: bool) -> tuple[list[Check], list[Action]]:
+         validate: bool, hyperframes: bool = False) -> tuple[list[Check], list[Action]]:
     """Probe, install what is missing, and prove the tools when `validate` is set or something was installed.
 
-    `dry_run` plans only: it installs nothing and starts no browser. A tool that is still not ok is a required check
-    that is not ok, so the caller reports it and does not call the install complete."""
+    `dry_run` plans only: it installs nothing and starts no browser. `hyperframes` also installs the optional explainer.
+    A tool that is still not ok is a required check that is not ok, so the caller reports it and does not call the install
+    complete."""
     checks = check_all(state_dir, environ=environ, which=which, run=run)
-    actions = install_missing(state_dir, checks, environ=environ, which=which, run=run, dry_run=dry_run)
+    actions = install_missing(state_dir, checks, environ=environ, which=which, run=run, dry_run=dry_run, hyperframes=hyperframes)
     installed = any(action.result == "installed" for action in actions)
     if dry_run or not (validate or installed):
         return checks, actions
@@ -417,6 +420,13 @@ def _summary(check: Check) -> str:
     return f"Chromium is not installed for @playwright/test {PLAYWRIGHT_VERSION}"
 
 
+def _row_status(check: Check) -> str:
+    """ok, or warn with the fix. An explainer that was never installed is `optional`: nothing asked for it, so it is no warning."""
+    if check.status == "ok":
+        return "ok"
+    return "optional" if check.name == HYPERFRAMES and check.status == "missing" else "warn"
+
+
 def probe_rows(state_dir: Path, *, environ: Mapping[str, str], which: Optional[Which] = None,
                run: Optional[Run] = None) -> list[dict]:
     """The `doctor` rows: ok with the version and the place, or warn with the exact fix. Nothing is installed or started."""
@@ -424,7 +434,7 @@ def probe_rows(state_dir: Path, *, environ: Mapping[str, str], which: Optional[W
     rows = []
     for check in checks:
         ok = check.status == "ok"
-        rows.append({"name": check.name, "status": "ok" if ok else "warn", "summary": _summary(check),
+        rows.append({"name": check.name, "status": _row_status(check), "summary": _summary(check),
                      "fix": None if ok else check.fix or None,
                      "detail": {"state": check.status, "version": check.version, "path": check.path}})
     return rows

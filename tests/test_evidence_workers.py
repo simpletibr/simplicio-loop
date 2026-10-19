@@ -290,3 +290,111 @@ def test_the_explainer_is_blocked_with_the_fix_when_its_hyperframes_is_not_insta
     out = tmp_path / "out"
     assert exit_code(lambda: video_evidence.cmd_lint({"name": "demo", "out": str(out)})) == 3
     assert "video_evidence: BLOCKED" in ledger(out) and "simplicio-loop setup" in ledger(out)
+
+
+# --- FFmpeg: a binary is used only when it answers `-version`; the .webm stays when it does not --------------------------
+
+BROKEN_LIBVPX = "dyld: Library not loaded: /opt/homebrew/opt/libvpx/lib/libvpx.9.dylib"
+
+
+def test_a_broken_ffmpeg_is_named_with_its_fix_and_the_webm_is_kept(tmp_path, toolchain, monkeypatch, capsys):
+    def session(request):
+        clip = Path(request["config"]["outputDir"]) / "login-demo" / "video.webm"
+        clip.parent.mkdir(parents=True, exist_ok=True)
+        clip.write_bytes(b"\x1aE\xdf\xa3" + b"0" * 64)
+
+    toolchain(ev.SpecRun(None, 0, "1 passed"), on_run=session)
+    calls = []
+
+    def fake_run(argv, **kwargs):
+        calls.append([str(part) for part in argv])
+        return completed(argv, 1, stderr=BROKEN_LIBVPX)  # the Homebrew ffmpeg that is on PATH but does not load
+
+    monkeypatch.setattr(video_evidence.shutil, "which", lambda name: "/opt/homebrew/bin/ffmpeg" if name == "ffmpeg" else None)
+    monkeypatch.setattr(video_evidence, "_run", fake_run)
+    out = tmp_path / "out"
+    assert exit_code(lambda: video_evidence.cmd_verify(video_options(out))) == 0
+    assert calls == [["/opt/homebrew/bin/ffmpeg", "-version"]]  # checked, and never used for the conversion
+    shown = capsys.readouterr().out
+    assert "brew reinstall ffmpeg" in shown and "HYPERFRAMES_FFMPEG_PATH" in shown and BROKEN_LIBVPX in shown
+    assert "video_evidence: PASS" in ledger(out) and ".webm" in ledger(out)
+
+
+def test_a_working_ffmpeg_converts_the_recording_to_mp4(tmp_path, toolchain, monkeypatch):
+    def session(request):
+        clip = Path(request["config"]["outputDir"]) / "login-demo" / "video.webm"
+        clip.parent.mkdir(parents=True, exist_ok=True)
+        clip.write_bytes(b"\x1aE\xdf\xa3" + b"0" * 64)
+
+    toolchain(ev.SpecRun(None, 0, "1 passed"), on_run=session)
+    calls = []
+
+    def fake_run(argv, **kwargs):
+        calls.append([str(part) for part in argv])
+        if "-version" not in argv:
+            Path(argv[-1]).write_bytes(b"mp4")
+        return completed(argv, 0)
+
+    monkeypatch.setattr(video_evidence.shutil, "which", lambda name: "/fake/ffmpeg" if name == "ffmpeg" else None)
+    monkeypatch.setattr(video_evidence, "_run", fake_run)
+    out = tmp_path / "out"
+    assert exit_code(lambda: video_evidence.cmd_verify(video_options(out))) == 0
+    assert any(call[1:3] == ["-y", "-i"] for call in calls) and ".mp4" in ledger(out)
+
+
+def test_render_is_blocked_with_the_fix_when_ffmpeg_does_not_run(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_HOME", str(tmp_path / "home"))
+    install_hyperframes(tmp_path / "home")
+    monkeypatch.setattr(video_evidence.shutil, "which", lambda name: "/opt/homebrew/bin/ffmpeg" if name == "ffmpeg" else None)
+
+    def fake_run(argv, **kwargs):
+        if Path(argv[0]).name == "node":
+            return completed(argv, 0, stdout="v26.0.0\n")
+        if "-version" in argv:
+            return completed(argv, 1, stderr=BROKEN_LIBVPX)
+        pytest.fail("the explainer must not render with a broken ffmpeg")
+
+    monkeypatch.setattr(video_evidence, "_run", fake_run)
+    out = tmp_path / "out"
+    (out / "demo").mkdir(parents=True)
+    (out / "demo" / "index.html").write_text("<!doctype html><html></html>", encoding="utf-8")
+    assert exit_code(lambda: video_evidence.cmd_render({"name": "demo", "out": str(out), "issue": "7"})) == 3
+    assert "brew reinstall ffmpeg" in ledger(out) and "HYPERFRAMES_FFMPEG_PATH" in ledger(out)
+
+
+def test_a_failed_render_says_why_with_the_tail_of_hyperframes_stderr(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_HOME", str(tmp_path / "home"))
+    install_hyperframes(tmp_path / "home")
+    monkeypatch.setattr(video_evidence.shutil, "which", lambda name: "/fake/ffmpeg" if name == "ffmpeg" else None)
+
+    def fake_run(argv, **kwargs):
+        if Path(argv[0]).name == "node":
+            return completed(argv, 0, stdout="v26.0.0\n")
+        if "-version" in argv:
+            return completed(argv, 0)
+        return completed(argv, 1, stderr="warning: slow frame\nError: no Chrome found at /Applications/Chrome.app\n")
+
+    monkeypatch.setattr(video_evidence, "_run", fake_run)
+    out = tmp_path / "out"
+    (out / "demo").mkdir(parents=True)
+    (out / "demo" / "index.html").write_text("<!doctype html><html></html>", encoding="utf-8")
+    assert exit_code(lambda: video_evidence.cmd_render({"name": "demo", "out": str(out), "issue": "7"})) == 1
+    assert "video_evidence: FAIL" in ledger(out) and "mp4=(not produced)" in ledger(out)
+    assert "Error: no Chrome found at /Applications/Chrome.app" in ledger(out)  # the reason, not only the outcome
+
+
+def test_the_ffmpeg_named_by_hyperframes_ffmpeg_path_is_the_one_that_is_checked(monkeypatch):
+    monkeypatch.setenv("HYPERFRAMES_FFMPEG_PATH", "/opt/ffmpeg-good/ffmpeg")
+    calls = []
+    monkeypatch.setattr(video_evidence, "_run", lambda argv, **kw: calls.append([str(p) for p in argv]) or completed(argv, 0))
+    monkeypatch.setattr(video_evidence.shutil, "which", lambda name: pytest.fail("the env path needs no PATH search"))
+    assert video_evidence._ffmpeg() == ("/opt/ffmpeg-good/ffmpeg", None)
+    assert calls == [["/opt/ffmpeg-good/ffmpeg", "-version"]]
+
+
+def test_no_ffmpeg_at_all_is_named_with_the_install_fix(monkeypatch):
+    monkeypatch.delenv("HYPERFRAMES_FFMPEG_PATH", raising=False)
+    monkeypatch.setattr(video_evidence.shutil, "which", lambda name: None)
+    monkeypatch.setattr(video_evidence, "_run", lambda argv, **kw: pytest.fail("nothing to run without ffmpeg"))
+    path, problem = video_evidence._ffmpeg()
+    assert path is None and "not found" in problem and "brew install ffmpeg" in problem

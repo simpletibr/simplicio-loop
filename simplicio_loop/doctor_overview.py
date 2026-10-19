@@ -31,7 +31,7 @@ from . import __version__, auth, distribution, evidence_tools, path_operators, s
 
 SCHEMA = "simplicio.doctor/v1"
 SECTIONS = ("login", "update", "distribution", "runtime", "operators", "disk", "map-store", "setup", "evidence")
-_RANK = {"ok": 0, "warn": 1, "fail": 2}
+_RANK = {"ok": 0, "optional": 0, "warn": 1, "fail": 2}  # optional: an opt-in tool that is absent, never the worst status
 GIB = 1 << 30
 MAP_STORE_WARN_BYTES = GIB  # `<git-common-dir>/simplicio` above this is a warning (#1671)
 

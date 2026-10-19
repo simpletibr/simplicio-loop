@@ -54,6 +54,13 @@ def test_scrubbed_env_passes_only_explicitly_needed_keys(tmp_path):
     assert "GH_TOKEN" not in env
 
 
+def test_scrubbed_env_keeps_the_hyperframes_tool_paths_so_a_sandboxed_explainer_finds_its_ffmpeg_and_browser(tmp_path):
+    env = sandbox.scrubbed_env({**ENV, "HYPERFRAMES_FFMPEG_PATH": "/opt/ff/ffmpeg", "HYPERFRAMES_BROWSER_PATH": "/opt/chrome/chrome"},
+                               home=tmp_path)
+    assert env["HYPERFRAMES_FFMPEG_PATH"] == "/opt/ff/ffmpeg" and env["HYPERFRAMES_BROWSER_PATH"] == "/opt/chrome/chrome"
+    assert "GH_TOKEN" not in env and "OPENAI_API_KEY" not in env  # the paths are kept, the credentials are not
+
+
 def test_scrubbed_env_supplies_a_default_path(tmp_path):
     env = sandbox.scrubbed_env({}, home=tmp_path)
     assert env["PATH"] == sandbox.DEFAULT_PATH
