@@ -7,13 +7,14 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 from collections import namedtuple
 from pathlib import Path
 
 import pytest
 
-from simplicio_loop import cli, distribution, doctor_overview as dov, self_update as su
+from simplicio_loop import auth, cli, distribution, doctor_overview as dov, self_update as su
 
 FAKE_ACCESS = "fake-access-token-CCCC"
 FAKE_REFRESH = "fake-refresh-token-DDDD"
@@ -131,10 +132,24 @@ def test_a_good_login_shared_with_the_runtime_is_ok(box):
     assert runtime["status"] == "ok" and "3.10.0" in runtime["summary"] and "share" in runtime["summary"]
 
 
-def test_a_missing_login_is_a_warning_with_the_fix(box):
+SH_INSTALL = "curl -fsSL https://raw.githubusercontent.com/simpletibr/simplicio/master/install.sh | sh"
+PS_INSTALL = "irm https://raw.githubusercontent.com/simpletibr/simplicio/master/install.ps1 | iex"
+
+
+@pytest.mark.parametrize(("platform", "installer"), [("darwin", SH_INSTALL), ("win32", PS_INSTALL)])
+def test_a_missing_login_without_the_runtime_fixes_with_the_installer_first(box, monkeypatch, platform, installer):
+    monkeypatch.setattr(sys, "platform", platform)
+    monkeypatch.setattr(auth, "runtime_binary", lambda environ=None: None)  # shutil.which cannot run as win32 here
+    login = check(collect(box, only="login"), "login")
+    assert login["status"] == "warn" and "not logged in" in login["summary"]
+    assert login["fix"] == f"{installer} ; simplicio-loop login"
+
+
+@posix
+def test_a_missing_login_with_the_runtime_installed_fixes_with_simplicio_loop_login(box):
+    fake_runtime(box)
     login = check(collect(box), "login")
     assert login["status"] == "warn" and login["fix"] == "simplicio-loop login"
-    assert "not logged in" in login["summary"]
 
 
 def test_an_expired_login_is_a_warning(box):

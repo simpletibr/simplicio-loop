@@ -71,9 +71,21 @@ Needs Python 3.11+, `git`, and an authenticated `gh` for GitHub issues.
 ```bash
 pip install simplicio-loop
 simplicio-loop install            # skills + hooks in this project (--global: user-wide, --host <name>: another host)
-simplicio-loop login              # sign in; shares the login with simplicio-runtime
 simplicio-loop doctor             # check the installed stack
+simplicio-loop prepare --example  # print a valid task file: copy it, edit it, pass it to --task
 ```
+
+`prepare --example` starts like this:
+
+```text
+System: calc
+Feature: add mul(a, b)
+Type: Feature
+```
+
+Then give your agent the goal in [Use it](#use-it).
+
+`simplicio-loop login` is not needed for this. It signs in through the Simplicio Runtime, and only the 24/7 watcher needs a login. Until you sign in, `doctor` shows the login as a warning; that is expected. Without the Runtime, `login` prints the public installer command for your OS and does not run it.
 
 ## Use it
 

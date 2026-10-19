@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import stat
+import sys
 import time
 from pathlib import Path
 
@@ -201,13 +202,15 @@ def test_a_login_that_group_can_read_is_not_verified(box, capfd):
     assert rc == 1 and doc["reason_code"] == "login_permissions" and "chmod 600" in doc["fix"]
 
 
-def test_without_the_runtime_standalone_login_is_unverified_and_says_how_to_install_it(box, capfd):
+SH_INSTALL = "curl -fsSL https://raw.githubusercontent.com/simpletibr/simplicio/master/install.sh | sh"
+PS_INSTALL = "irm https://raw.githubusercontent.com/simpletibr/simplicio/master/install.ps1 | iex"
+
+
+def test_without_the_runtime_standalone_login_is_unverified_and_starts_no_login(box, capfd):
     rc = auth_cli.login()
     out, err = output(capfd)
     assert rc == 1
     assert "UNVERIFIED" in out and "Runtime" in out
-    assert "curl -fsSL https://raw.githubusercontent.com/wesleysimplicio/simplicio/master/install.sh | sh" in out
-    assert "irm https://raw.githubusercontent.com/wesleysimplicio/simplicio/master/install.ps1 | iex" in out
     assert "simplicio-loop login" in out
     assert not box.login.exists() and not box.login.parent.exists()  # nothing was created
     capfd.readouterr()
@@ -215,6 +218,27 @@ def test_without_the_runtime_standalone_login_is_unverified_and_says_how_to_inst
     doc = json.loads(output(capfd)[0])
     assert rc == 1 and doc["status"] == "UNVERIFIED" and doc["reason_code"] == "standalone_login_unverified"
     assert doc["runtime"]["found"] is False and doc["install"]
+
+
+@pytest.mark.parametrize(("platform", "command", "other"), [
+    ("darwin", SH_INSTALL, PS_INSTALL),
+    ("linux", SH_INSTALL, PS_INSTALL),
+    ("win32", PS_INSTALL, SH_INSTALL),
+])
+def test_without_the_runtime_login_names_the_public_installer_for_this_os_only(box, capfd, monkeypatch, platform,
+                                                                              command, other):
+    monkeypatch.setattr(sys, "platform", platform)
+    monkeypatch.setattr(auth, "runtime_binary", lambda environ=None: None)  # no Runtime; shutil.which cannot run as win32 here
+    assert auth_cli.login() == 1
+    out, err = output(capfd)
+    assert command in out and other not in out
+    assert "24/7 watcher" in out
+    assert "simplicio-runtime" not in out + err and "wesleysimplicio" not in out + err
+
+
+def test_the_json_login_never_links_the_private_runtime_repo(box, capfd):
+    assert auth_cli.login(as_json=True) == 1
+    assert "simplicio-runtime" not in output(capfd)[0]
 
 
 def test_without_the_runtime_an_existing_login_is_still_reported(box, capfd):

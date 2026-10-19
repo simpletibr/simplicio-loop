@@ -7,16 +7,24 @@ loop where supported, and prints the optional native-bind line.
 ## 1. Get it
 
 ```bash
-git clone https://github.com/wesleysimplicio/simplicio-loop
+pip install simplicio-loop
+```
+
+For a checkout of this repository instead (the source), clone the public repository:
+
+```bash
+git clone https://github.com/simpletibr/simplicio-loop
 cd simplicio-loop
 ```
 
 ## 2. Install for your runtime
 
 ```bash
-# macOS / Linux
+# after the pip install
+simplicio-loop install --host <runtime> [--global] [--target DIR]
+# from a checkout, macOS / Linux
 bash scripts/install.sh <runtime> [--global] [--target DIR]
-# Windows / pwsh
+# from a checkout, Windows / pwsh
 pwsh scripts/install.ps1 <runtime> [-Global] [-Target DIR]
 ```
 
@@ -61,7 +69,7 @@ effects require an explicit flag), see [`docs/INSTALL_MUTATIONS.md`](docs/INSTAL
 ## 3.1. Login, update, install and doctor
 
 ```bash
-simplicio-loop login            # sign in; the login is shared with the Simplicio Runtime
+simplicio-loop login            # sign in through the Simplicio Runtime (only the 24/7 watcher needs it)
 simplicio-loop auth status      # who is logged in (it never prints a token)
 simplicio-loop logout --yes     # delete the login file (the Runtime reads it too)
 simplicio-loop update --dry-run # show what the update would do; change nothing
@@ -73,8 +81,10 @@ Every flag and every exit code is in [`docs/CLI_COMMANDS.md`](docs/CLI_COMMANDS.
 
 Simplicio Loop and the Simplicio Runtime use one login. Both programs read and write the file
 `~/.simplicio/login.json`. If both are installed, you sign in one time.
-`simplicio-loop login` runs the Runtime sign-in and then reads the file.
-Without the Runtime, a standalone sign-in is UNVERIFIED. The command then prints how to install the Runtime.
+`simplicio-loop login` runs the Runtime sign-in and then reads the file. Only the 24/7 watcher needs a login;
+turbo, squads and install work without one.
+Without the Runtime, the standalone sign-in is UNVERIFIED: `login` does not sign in. It prints the public installer
+command for your OS (`curl` on macOS and Linux, `irm` on Windows PowerShell) and does not run it.
 Before a token refresh, Loop takes a lock on `login.lock` next to the file and reads the file again.
 This prevents two programs from refreshing the same rotating token.
 Loop refuses a login file that group or others can read, a symlink, and a folder that group or others can write.

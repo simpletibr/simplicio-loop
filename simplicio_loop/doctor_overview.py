@@ -52,8 +52,10 @@ def _login(environ: Optional[dict], now: float) -> dict:
     if not doc["logged_in"]:
         status = "warn" if doc["reason_code"] in {"login_missing", "login_expired"} else "fail"
         detail = f": {doc['detail']}" if doc.get("detail") else ""
-        return _row("login", status, f"not logged in ({doc['reason_code']}); file {doc['path']}; {rt}{detail}",
-                    doc["fix"], doc)
+        fix = doc["fix"]
+        if not runtime["found"] and "simplicio-loop login" in (fix or ""):
+            fix = f"{auth.runtime_install_command()} ; {fix}"  # `login` runs the Runtime: without it, install that first
+        return _row("login", status, f"not logged in ({doc['reason_code']}); file {doc['path']}; {rt}{detail}", fix, doc)
     ent = doc.get("entitlement") or {}
     tier = f"entitlement {ent.get('tier')} ({ent.get('status')}, cached)" if ent else "entitlement not cached yet"
     expiry = "expired" if doc["access_expired"] else f"expires {_stamp(doc['access_expires_at'])}"

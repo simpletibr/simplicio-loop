@@ -31,6 +31,7 @@ import re
 import shutil
 import stat
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -408,6 +409,18 @@ def summary(login: Mapping[str, Any], now: Optional[float] = None) -> dict:
 
 
 # --- the Runtime ----------------------------------------------------------------------------------------------------
+
+
+# The public installer of the Simplicio Runtime, the program that signs in for `login`: one command per OS.
+RUNTIME_INSTALL = {
+    "macOS / Linux": "curl -fsSL https://raw.githubusercontent.com/simpletibr/simplicio/master/install.sh | sh",
+    "Windows (PowerShell)": "irm https://raw.githubusercontent.com/simpletibr/simplicio/master/install.ps1 | iex",
+}
+
+
+def runtime_install_command() -> str:
+    """The installer command for this OS: PowerShell on Windows, the shell script everywhere else."""
+    return RUNTIME_INSTALL["Windows (PowerShell)" if sys.platform == "win32" else "macOS / Linux"]
 
 
 def runtime_binary(environ: Optional[Mapping[str, str]] = None) -> Optional[Path]:

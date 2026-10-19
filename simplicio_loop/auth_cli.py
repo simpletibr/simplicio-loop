@@ -28,11 +28,6 @@ from urllib.parse import parse_qs, urlsplit
 
 from . import auth
 
-RUNTIME_INSTALL = {
-    "macOS / Linux": "curl -fsSL https://raw.githubusercontent.com/wesleysimplicio/simplicio/master/install.sh | sh",
-    "Windows (PowerShell)": "irm https://raw.githubusercontent.com/wesleysimplicio/simplicio/master/install.ps1 | iex",
-}
-RUNTIME_INSTALL_DOC = "https://github.com/simpletibr/simplicio-runtime/blob/main/INSTALL.md"
 STANDALONE_UNVERIFIED = (
     "Standalone login is UNVERIFIED: no authorize or device endpoint is documented in this repository, so "
     "simplicio-loop does not start a login of its own. Install the Simplicio Runtime (it signs in with Google), "
@@ -230,10 +225,11 @@ def login(*, as_json: bool = False, no_browser: bool = False, environ: Optional[
     if runtime is None:
         doc = auth.describe(env)
         doc.update(schema="simplicio.login/v1", status="UNVERIFIED", reason_code="standalone_login_unverified",
-                   detail=STANDALONE_UNVERIFIED, install=RUNTIME_INSTALL, install_doc=RUNTIME_INSTALL_DOC)
-        lines = ["login: Simplicio Runtime not found", STANDALONE_UNVERIFIED, ""]
-        lines += [f"  {name}: {command}" for name, command in RUNTIME_INSTALL.items()]
-        lines += [f"  (documented in {RUNTIME_INSTALL_DOC}; not run by this command)"]
+                   detail=STANDALONE_UNVERIFIED, install=auth.RUNTIME_INSTALL)
+        lines = ["login: Simplicio Runtime not found", STANDALONE_UNVERIFIED,
+                 "Install the Runtime with the public installer (this command does not run it):",
+                 f"  {auth.runtime_install_command()}",
+                 "Login is needed only for the 24/7 watcher; turbo, squads and install work without it."]
         if doc["logged_in"]:
             lines += ["", f"A usable login already exists in {doc['path']}. Run: simplicio-loop auth status"]
         _print(doc, as_json, lines)
