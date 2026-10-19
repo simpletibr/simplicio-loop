@@ -26,7 +26,8 @@ def process_is_alive(pid: int) -> bool:
     Windows: uses ``OpenProcess``/``GetExitCodeProcess`` via ``ctypes``.
     POSIX: ``os.kill(pid, 0)`` (signal 0 probes existence without sending a
     real signal); ``PermissionError`` still means the process exists (just
-    owned by someone else).
+    owned by someone else). A child of ours that exited but was not reaped is
+    a zombie and is not alive.
     """
     if pid <= 0:
         return False
@@ -77,7 +78,24 @@ def process_is_alive(pid: int) -> bool:
         return True
     except OSError:
         return False
-    return True
+    return not _is_unreaped_zombie_child(pid)
+
+
+def _is_unreaped_zombie_child(pid: int) -> bool:
+    """Return whether ``pid`` is our own child that has exited but is not reaped yet.
+
+    ``kill(pid, 0)`` still succeeds for such a zombie, and macOS has no procfs state
+    that tells it apart from a live process. ``waitid(WNOWAIT)`` reports the exit
+    without consuming the status, so the ``Popen`` that owns the child can still
+    collect the real return code. A pid that is not our child raises
+    ``ChildProcessError``, which counts as not a zombie child here.
+    """
+    if not hasattr(os, "waitid"):
+        return False
+    try:
+        return os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is not None
+    except OSError:
+        return False
 
 
 def process_start_token(pid: int) -> str | None:
@@ -138,6 +156,19 @@ def process_start_token(pid: int) -> str | None:
             return f"proc-start:{fields[19]}"
     except OSError:
         pass
+    return _ps_start_token(pid)
+
+
+# ``ps`` is a subprocess spawn on every call. A process's own start time is fixed while it
+# runs, so it is resolved once per process. Other pids are never cached: a pid can be reused
+# after its process exits, and the start token is what detects that reuse.
+_own_ps_start_tokens: dict[int, str] = {}
+
+
+def _ps_start_token(pid: int) -> str | None:
+    cacheable = pid == os.getpid()
+    if cacheable and pid in _own_ps_start_tokens:
+        return _own_ps_start_tokens[pid]
     try:
         result = subprocess.run(
             ["ps", "-o", "lstart=", "-p", str(pid)],
@@ -149,7 +180,12 @@ def process_start_token(pid: int) -> str | None:
     except (OSError, subprocess.SubprocessError):
         return None
     value = result.stdout.strip()
-    return f"ps-start:{value}" if result.returncode == 0 and value else None
+    if result.returncode != 0 or not value:
+        return None
+    token = f"ps-start:{value}"
+    if cacheable:
+        _own_ps_start_tokens[pid] = token
+    return token
 
 
 __all__ = ["process_is_alive", "process_start_token"]
