@@ -54,8 +54,8 @@ fi
 
 # One editable install: mapper + dev-cli are built into the root distribution.
 "$VENV_PY" -m pip install -e "$REPO[dev]"
-# Extra test tooling the mapper and dev-cli gates use (ruff and mypy come from the dev extra).
-"$VENV_PY" -m pip install "hypothesis>=6.100,<7" "pytest-cov>=6" "cryptography>=43,<51"
+# Extra test tooling the mapper and dev-cli gates use (ruff, mypy and hypothesis come from the dev extra).
+"$VENV_PY" -m pip install "pytest-cov>=6" "cryptography>=43,<51"
 
 echo
 echo "monorepo dev workspace ready: $VENV_DIR"
