@@ -20,15 +20,15 @@ For each squad, in wave order and then merge order:
    carries the task text (from `--issues`), the owned paths, the shared-file rules, and the contracts it must honor. The
    prompt forbids commits, pushes and PRs: the coordinator does those.
 3. **Ownership check, after every launch.** The changed files are `git diff --name-only <base>` plus untracked files,
-   minus the run's `.simplicio/` folder. A path the squad does not own, or any shared file (`plan.shared_files`, even inside
+   minus the run's `.simplicio-loop/squads-run/` folder. A path the squad does not own, or any shared file (`plan.shared_files`, even inside
    an owned glob), stops that squad at once. The report names the paths. Nothing from that squad is pushed or merged.
    Other squads continue.
-4. **Continuation.** A launch that returns `budget_exhausted` writes `.simplicio/handoff.md` in the worktree (the worker's
+4. **Continuation.** A launch that returns `budget_exhausted` writes `.simplicio-loop/squads-run/handoff.md` in the worktree (the worker's
    own progress note, the files touched, the owned paths). It then launches a continuation whose prompt includes that note.
    This repeats up to `--max-continuations` times (default 3, or `SIMPLICIO_SQUADS_MAX_CONTINUATIONS`). After that the squad
    is BLOCKED with `budget_exhausted after N continuation(s)`. The continuation count is recorded in the state.
 5. **Commit and test.** A squad that passed the ownership check is committed on its branch (only owned changes, never the
-   `.simplicio/` folder). Then the tests run in its worktree (`SIMPLICIO_SQUADS_TEST_CMD`, default `python3 -m pytest -q`).
+   `.simplicio-loop/squads-run/` folder). Then the tests run in its worktree (`SIMPLICIO_SQUADS_TEST_CMD`, default `python3 -m pytest -q`).
    It becomes `ready` when they pass. A failing squad is BLOCKED and never pushed.
 
 ## Merge
@@ -59,7 +59,7 @@ JSON document.
 
 ## State and resume
 
-Each run keeps `state.json` in its run folder (`<repo>/.simplicio/squads-run/<run>` by default, or `--run-dir`). It records
+Each run keeps `state.json` in its run folder (`<repo>/.simplicio-loop/squads-run/<run>` by default, or `--run-dir`). It records
 each squad's status (`pending`, `ready`, `blocked`, `merged`), its branch, its launches and continuations, its changed
 files, its offending paths, its head, its PR and its merge commit.
 
@@ -93,7 +93,7 @@ The default is `claude -p --model {model}`. The exit code maps to the status:
 | 75 (EX_TEMPFAIL) | `budget_exhausted` |
 | anything else, or the command is missing, or it times out (1 h) | `failed` |
 
-A worker writes its progress note to `.simplicio/progress.md` with `## Done` and `## Remaining` sections. The note is
+A worker writes its progress note to `.simplicio-loop/squads-run/progress.md` with `## Done` and `## Remaining` sections. The note is
 read after each launch.
 
 ## Environment
