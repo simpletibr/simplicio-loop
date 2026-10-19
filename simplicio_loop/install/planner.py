@@ -71,7 +71,7 @@ def _digest(value: Any) -> str:
 
 
 def _bundle_root():
-    return distribution.bundle_root()  # importlib.resources: the same call works from a wheel, a checkout and a binary
+    return distribution.bundle_root()  # importlib.resources: the same call works from a wheel and a checkout
 
 
 def _files(node, prefix: tuple = ()) -> Iterator[tuple]:

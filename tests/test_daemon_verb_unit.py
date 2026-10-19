@@ -1,6 +1,6 @@
-"""In a frozen build or on Windows, ``daemon status|stop|serve`` never becomes a loop task (issue #1633).
+"""On Windows, ``daemon status|stop|serve`` never becomes a loop task (issue #1633).
 
-The binary has no daemon client, so ``daemon.client.main`` hands the command line to ``cli.main``. That parser
+Windows has no daemon client, so ``daemon.client.main`` hands the command line to ``cli.main``. That parser
 does not know the verb ``daemon``, so it used to treat ``daemon status`` as the prose of a task and run a turbo
 survey in the current directory.
 """
@@ -11,10 +11,8 @@ import sys
 
 import pytest
 
-from simplicio_loop import cli, frozen
+from simplicio_loop import cli
 from simplicio_loop.daemon import client, control, protocol
-
-LOOP_SCRIPTS = {"simplicio-loop": "simplicio_loop.daemon.client:main"}
 
 
 @pytest.fixture
@@ -33,13 +31,13 @@ def turbo_calls(monkeypatch, tmp_path):
 
 
 @pytest.fixture
-def frozen_build(monkeypatch):
-    monkeypatch.setattr(sys, "frozen", True, raising=False)
+def windows(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "win32")
     assert not protocol.supported()
 
 
 @pytest.mark.parametrize("verb, code", [("status", 3), ("stop", 0), ("serve", protocol.EX_UNAVAILABLE)])
-def test_frozen_daemon_verb_prints_a_line_and_runs_no_task(frozen_build, turbo_calls, capsys, tmp_path, verb, code):
+def test_windows_daemon_verb_prints_a_line_and_runs_no_task(windows, turbo_calls, capsys, tmp_path, verb, code):
     assert client.main(["daemon", verb]) == code
     out, err = capsys.readouterr()
     line = (out + err).strip()
@@ -48,22 +46,8 @@ def test_frozen_daemon_verb_prints_a_line_and_runs_no_task(frozen_build, turbo_c
     assert os.listdir(tmp_path) == []  # no .simplicio-loop/ in the current directory
 
 
-def test_frozen_dispatch_of_the_loop_binary_runs_no_task(frozen_build, turbo_calls, capsys):
-    assert frozen.dispatch(["/opt/bin/simplicio-loop", "daemon", "status"], LOOP_SCRIPTS) == 3
-    assert "daemon is not used" in capsys.readouterr().out
-    assert turbo_calls == []
-
-
-def test_windows_gets_the_same_answer(monkeypatch, turbo_calls, capsys):
-    monkeypatch.setattr(sys, "platform", "win32")
-    assert not protocol.supported()
-    assert client.main(["daemon", "stop"]) == 0
-    assert "daemon is not used" in capsys.readouterr().out
-    assert turbo_calls == []
-
-
 @pytest.mark.parametrize("arguments", [["daemon"], ["daemon", "restart"], ["daemon", "--help"]])
-def test_an_unknown_daemon_verb_is_refused_with_the_valid_ones(frozen_build, turbo_calls, capsys, arguments):
+def test_an_unknown_daemon_verb_is_refused_with_the_valid_ones(windows, turbo_calls, capsys, arguments):
     assert client.main(arguments) == 2
     err = capsys.readouterr().err
     assert "serve" in err and "status" in err and "stop" in err, err
@@ -97,3 +81,11 @@ def test_prose_of_several_words_is_still_a_task(turbo_calls):
 def test_a_quoted_one_word_task_is_not_an_unknown_command(turbo_calls):
     assert cli.main(["fix the bug"]) == 0
     assert [call[0][1] for call in turbo_calls] == [["fix the bug"]]
+
+
+def test_windows_gets_the_same_answer(monkeypatch, turbo_calls, capsys):
+    monkeypatch.setattr(sys, "platform", "win32")
+    assert not protocol.supported()
+    assert client.main(["daemon", "stop"]) == 0
+    assert "daemon is not used" in capsys.readouterr().out
+    assert turbo_calls == []

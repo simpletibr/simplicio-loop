@@ -42,13 +42,13 @@ An unprivileged daemon cannot give a command more priority or higher limits than
 
 ## Opt-out and errors
 
-Set `SIMPLICIO_LOOP_DAEMON=0` to run the command in-process. Platforms without fork or AF_UNIX sockets (Windows) and frozen binaries run in-process automatically. Tests do not cover these platforms (UNVERIFIED).
+Set `SIMPLICIO_LOOP_DAEMON=0` to run the command in-process. Platforms without fork or AF_UNIX sockets (Windows) run in-process automatically. Tests do not cover these platforms (UNVERIFIED).
 
 There is no silent fallback. If the daemon cannot start or the socket is unsafe, the client prints the reason and exits with code 69. The message names the opt-out. A refused request has a code: `stale`, `busy`, `peer_uid`, `protocol`, `socket_mode`, `dir_mode` and others.
 
-## Frozen binary and Windows
+## Windows
 
-The frozen binary and Windows have no daemon, so `daemon serve`, `daemon status` and `daemon stop` never start a task. Each prints one line that says the daemon is not used on this platform. `daemon status` exits with code 3 (not running), `daemon stop` exits with code 0 (nothing to stop), and `daemon serve` exits with code 69 (it cannot serve). Any other word after `daemon` prints the valid commands and exits with code 2.
+Windows has no daemon, so `daemon serve`, `daemon status` and `daemon stop` never start a task. Each prints one line that says the daemon is not used on this platform. `daemon status` exits with code 3 (not running), `daemon stop` exits with code 0 (nothing to stop), and `daemon serve` exits with code 69 (it cannot serve). Any other word after `daemon` prints the valid commands and exits with code 2.
 
 ## Known limits
 

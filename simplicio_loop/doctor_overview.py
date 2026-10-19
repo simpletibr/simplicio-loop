@@ -22,7 +22,6 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -100,8 +99,7 @@ def _update(online: bool, installed: str, fetch: Callable[[], str], state_dir: P
 
 def _distribution(kind: str, installed: str, drift: Optional[dict] = None) -> dict:
     what = {distribution.PIP: f"pip: the installed wheel {installed}",
-            distribution.SOURCE: f"source: a git checkout or an editable install, version {installed}",
-            distribution.BINARY: f"binary: {sys.executable}, version {installed}"}[kind]
+            distribution.SOURCE: f"source: a git checkout or an editable install, version {installed}"}[kind]
     if drift and drift.get("behind"):
         # Issue #1812: a stale install that runs silently is the first-run trap; name both versions and the fix.
         tag = f", latest tag {drift['tag']}" if drift.get("tag") else ""
@@ -123,9 +121,9 @@ def _runtime(environ: Optional[dict]) -> dict:
                 None, {"found": True, "path": str(binary), "version": version, "shared_login": same})
 
 
-def _operators(kind: str, operators: Callable[..., list]) -> dict:
+def _operators(operators: Callable[..., list]) -> dict:
     try:
-        rows = operators(frozen_exe=sys.executable if kind == distribution.BINARY else None)
+        rows = operators()
     except (OSError, ValueError) as exc:
         return _row("operators", "warn", f"could not check the operators on PATH: {exc}")
     stale = [row for row in rows if row["status"] == "stale"]
@@ -224,13 +222,13 @@ def collect(*, online: bool = False, environ: Optional[dict] = None, now: Option
     installed = installed or __version__
     state_dir = state_dir or self_update.default_state_dir()
     wanted = [only] if only else list(SECTIONS)
-    kind = kind or (distribution.kind() if set(wanted) & {"update", "distribution", "operators"} else "")
+    kind = kind or (distribution.kind() if set(wanted) & {"update", "distribution"} else "")
     makers = {
         "login": lambda: _login(environ, stamp),
         "update": lambda: _update(online, installed, fetch or self_update.fetch_latest_tag, state_dir, kind),
         "distribution": lambda: _distribution(kind, installed, version_drift.check(installed, repo=repo, environ=environ)),
         "runtime": lambda: _runtime(environ),
-        "operators": lambda: _operators(kind, operators or path_operators.check),
+        "operators": lambda: _operators(operators or path_operators.check),
         "disk": lambda: _disk(_state_dirs(Path(repo), state_dir), usage or shutil.disk_usage),
         "map-store": lambda: _map_store(repo, map_store_limit, stamp),
         "setup": lambda: setup_cli.doctor_row(state_dir),

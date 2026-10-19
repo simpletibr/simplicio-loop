@@ -1,4 +1,12 @@
-from simplicio_loop import self_update as su
+import http.server
+import io
+import threading
+import urllib.error
+import urllib.request
+
+import pytest
+
+from simplicio_loop import distribution, self_update as su
 
 
 def test_parse_and_compare():
@@ -76,3 +84,180 @@ def test_up_to_date_with_legacy_distributions_repairs_them(capsys):
     assert calls[0][3:] == ["uninstall", "-y", "simplicio-cli", "simplicio-mapper"]
     assert "--force-reinstall" in calls[1] and "--no-deps" in calls[1]
     assert calls[1][-1].endswith("@v3.44.1")
+
+
+class Calls:
+    def __init__(self):
+        self.runs, self.records = [], []
+
+    def runner(self, cmd):
+        self.runs.append(list(cmd))
+        return 0
+
+    def record(self, info):
+        self.records.append(dict(info))
+
+
+# --- an authenticated request never follows a redirect to another host (review of #1584, item 3) ---------------------------
+
+
+def serve(handler):
+    server = http.server.HTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+def test_the_authorization_header_is_dropped_when_a_redirect_leaves_the_host():
+    seen = []
+
+    class Target(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            seen.append(self.headers.get("Authorization"))
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"ok")
+
+        def log_message(self, *args):
+            pass
+
+    target = serve(Target)
+    where = f"http://127.0.0.1:{target.server_port}/download"
+
+    class Redirect(Target):
+        def do_GET(self):
+            self.send_response(302)
+            self.send_header("Location", self.server.location)
+            self.end_headers()
+
+    other = serve(Redirect)
+    other.location = where
+    try:
+        request = urllib.request.Request(f"http://127.0.0.1:{other.server_port}/api",
+                                         headers={"Authorization": "Bearer FAKE_GH_TOKEN"})
+        assert su._OPENER.open(request, timeout=10).read() == b"ok"
+        assert seen == [None], "the token followed the redirect to another host"
+        # a redirect inside the same host keeps the header: it is still the same server
+
+        class Same(Target):
+            def do_GET(self):
+                seen.append(self.headers.get("Authorization"))
+                if self.path == "/api":
+                    self.send_response(302)
+                    self.send_header("Location", "/elsewhere")
+                    self.end_headers()
+                else:
+                    self.send_response(200)
+                    self.end_headers()
+
+        same = serve(Same)
+        seen.clear()
+        request = urllib.request.Request(f"http://127.0.0.1:{same.server_port}/api",
+                                         headers={"Authorization": "Bearer FAKE_GH_TOKEN"})
+        su._OPENER.open(request, timeout=10).read()
+        assert seen == ["Bearer FAKE_GH_TOKEN", "Bearer FAKE_GH_TOKEN"]
+        same.shutdown()
+    finally:
+        target.shutdown()
+        other.shutdown()
+
+
+def test_a_redirect_from_https_to_plain_http_is_refused():
+    handler = su._SameHostRedirect()
+    request = urllib.request.Request("https://api.github.com/repos/x/releases/latest",
+                                     headers={"Authorization": "Bearer FAKE_GH_TOKEN"})
+    with pytest.raises(urllib.error.HTTPError):
+        handler.redirect_request(request, io.BytesIO(b""), 302, "Found", {}, "http://example.invalid/asset")
+    # https to https on ANOTHER host is the normal GitHub download redirect: allowed, without the token
+    moved = handler.redirect_request(request, io.BytesIO(b""), 302, "Found", {}, "https://objects.example.invalid/asset")
+    assert moved is not None and moved.get_header("Authorization") is None
+
+
+def test_the_real_opener_refuses_plain_http_urls():
+    with pytest.raises(ValueError):
+        su._open("http://example.invalid/x")
+
+
+# --- the other distributions ---------------------------------------------------------------------------------------------
+
+
+def test_pip_check_exit_codes(capsys):
+    calls = Calls()
+    run = lambda fetch, **kw: su.run_update(check=True, installed="3.48.1", fetch=fetch, runner=calls.runner,
+                                            editable=False, legacy=[], record=calls.record, **kw)
+    assert run(lambda: "v3.48.1") == 0
+    assert run(lambda: "v3.49.0") == 10
+    assert [r["update_available"] for r in calls.records] == [False, True]
+    assert {r["kind"] for r in calls.records} == {"pip"}
+
+    def boom():
+        raise OSError("offline")
+
+    assert run(boom) == 2
+    assert calls.runs == []
+
+
+def test_pip_dry_run_prints_the_commands_and_runs_none(capsys):
+    calls = Calls()
+    rc = su.run_update(dry_run=True, installed="3.48.1", fetch=lambda: "v3.49.0", runner=calls.runner,
+                       editable=False, legacy=["simplicio-cli"], record=calls.record)
+    out = capsys.readouterr().out
+    assert rc == 0 and calls.runs == [] and calls.records == []
+    assert "would run" in out and "pip install --upgrade" in out and "@v3.49.0" in out and "uninstall" in out
+    assert "install --global" in out
+
+
+def test_source_checkout_is_refused_even_in_a_dry_run(capsys):
+    calls = Calls()
+    rc = su.run_update(dry_run=True, installed="3.48.1", fetch=lambda: "v3.49.0", runner=calls.runner, editable=True)
+    assert rc == 2 and "git pull" in capsys.readouterr().out and calls.runs == []
+
+
+def test_the_kind_comes_from_the_distribution_module(monkeypatch):
+    seen = []
+    monkeypatch.setattr(distribution, "kind", lambda **kw: seen.append(1) or distribution.SOURCE)
+    rc = su.run_update(installed="3.48.1", fetch=lambda: "v3.49.0", runner=Calls().runner, legacy=[])
+    assert seen and rc == 2  # a source checkout is not updated in place
+
+
+# --- the cache `doctor` reads offline ------------------------------------------------------------------------------------
+
+
+def test_the_last_check_round_trips_through_the_state_dir(tmp_path):
+    assert su.read_check(tmp_path) is None
+    su.write_check({"installed": "3.48.1", "latest": "3.49.0", "update_available": True, "kind": "pip"}, tmp_path)
+    got = su.read_check(tmp_path)
+    assert got["latest"] == "3.49.0" and got["update_available"] is True and got["checked_at"] > 0
+    assert [p.name for p in tmp_path.iterdir()] == ["update-check.json"]
+    (tmp_path / "update-check.json").write_text("{not json")
+    assert su.read_check(tmp_path) is None
+
+
+def test_writing_the_cache_never_fails_an_update(tmp_path):
+    blocker = tmp_path / "file"
+    blocker.write_text("x")
+    su.write_check({"latest": "1.0.0"}, blocker / "cannot-be-a-dir")  # no exception
+
+
+def test_the_state_dir_follows_simplicio_home(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_HOME", str(tmp_path))
+    assert su.default_state_dir() == tmp_path / ".simplicio-loop"
+
+
+def test_the_update_command_passes_its_flags_and_records_the_check(monkeypatch):
+    from simplicio_loop import cli
+
+    seen = {}
+    monkeypatch.setattr(su, "run_update", lambda **kw: seen.update(kw) or 10)
+    assert cli.main(["update", "--check", "--dry-run", "--force"]) == 10
+    assert seen["check"] and seen["dry_run"] and seen["force"] and seen["record"] is su.write_check
+
+
+# --- the token goes to the API only, never to a download ----------------------------------------------------------
+
+
+def test_the_github_token_is_sent_to_the_api_and_never_to_a_download(monkeypatch):
+    monkeypatch.setenv("GH_TOKEN", "fake-gh-token-123")
+    api = su._request(su.LATEST_URL)
+    download = su._request("https://github.com/simpletibr/simplicio-loop/releases/download/v1/x")
+    assert api.get_header("Authorization") == "Bearer fake-gh-token-123"
+    assert download.get_header("Authorization") is None

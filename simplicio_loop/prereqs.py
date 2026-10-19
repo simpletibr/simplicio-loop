@@ -221,7 +221,7 @@ def check_all(environ: Optional[Mapping[str, str]] = None, *, which: Optional[Wh
               trusted: Optional[Mapping[str, str]] = None, matches: Optional[Matches] = None) -> list[Check]:
     """Look at python, pip, venv, git, gh, bwrap (Linux), uv, and node (only when `node_for` names hosts that need it).
 
-    `interpreter` is the Python that runs this program (None in the standalone binary, which has none to offer).
+    `interpreter` is the Python that runs this program.
     Tools are looked up on PATH without its unsafe entries (relative, writable by others, `~/.local/bin`): nothing there is run.
     `trusted` maps a tool name to the exact file the setup installed and verified; that file is used even in `~/.local/bin`.
     `matches` lists every PATH match of a python name, so a Store alias listed first does not hide a working Python."""
@@ -232,7 +232,7 @@ def check_all(environ: Optional[Mapping[str, str]] = None, *, which: Optional[Wh
     matches = matches or (lambda name: [found] if (found := which(name)) else [])
     run, platform = run or _run, platform or sys.platform
     if interpreter is _UNSET:
-        interpreter = None if getattr(sys, "frozen", False) else sys.executable
+        interpreter = sys.executable
     manager = package_manager(which=which, platform=platform)
     python = _python(interpreter, which, run, platform, matches)  # type: ignore[arg-type]
     checks = [python]

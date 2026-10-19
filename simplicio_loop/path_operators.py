@@ -117,14 +117,10 @@ def _fix(path: str, interpreter: Optional[str]) -> str:
 
 
 def check(*, which: Optional[Callable[[str], Optional[str]]] = None, run: Optional[Run] = None,
-          bundled: Optional[dict] = None, frozen_exe: Optional[str] = None) -> list:
-    """One row per operator: name, path, status (absent|ok|stale), reason_code, found, bundled, fix.
-
-    `frozen_exe`: a PATH entry that resolves to this file is the multi-call binary itself and is ok.
-    """
+          bundled: Optional[dict] = None) -> list:
+    """One row per operator: name, path, status (absent|ok|stale), reason_code, found, bundled, fix."""
     which, run = which or shutil.which, run or _run
     bundled = bundled if bundled is not None else _bundled()
-    own = os.path.realpath(frozen_exe) if frozen_exe else None
     rows = []
     for name in OPERATORS:
         want = bundled["mapper"] if name == "simplicio-mapper" else bundled["dev_cli_version"]
@@ -133,9 +129,7 @@ def check(*, which: Optional[Callable[[str], Optional[str]]] = None, run: Option
                                "found": None, "bundled": want, "fix": None}
         if path is not None:
             interpreter = _interpreter(path, which)
-            if own and os.path.realpath(path) == own:
-                reason, found = None, {"path": path}
-            elif name == "simplicio-mapper":
+            if name == "simplicio-mapper":
                 reason, found = _mapper(path, interpreter, want, run)
             else:
                 reason, found = _dev_cli(path, want, run)

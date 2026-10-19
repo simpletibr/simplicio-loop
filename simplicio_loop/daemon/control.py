@@ -64,3 +64,25 @@ def main(arguments: Optional[Sequence[str]] = None) -> int:
         return protocol.EX_UNAVAILABLE
     print(USAGE, file=sys.stderr)
     return 2
+
+
+DAEMON_VERBS = ("serve", "status", "stop")
+DAEMON_NOT_USED = "simplicio-loop: the daemon is not used on this platform (Windows); commands run in this process"
+
+
+def daemon_command(arguments: Sequence[str]) -> int:
+    """``simplicio-loop daemon serve|status|stop`` when ``cli.main`` gets the verb (issue #1633).
+
+    Windows has no daemon client, so the verb reaches ``cli.main``, and the parser would take ``daemon status`` for
+    the prose of a task and survey the current directory. Where the platform has a daemon (``SIMPLICIO_LOOP_DAEMON=0``
+    also lands here) the verb goes to ``main``. Elsewhere one line says that no daemon runs: ``status`` exits 3 (not
+    running), ``stop`` 0 (nothing to stop) and ``serve`` 69 (it cannot serve). Any other verb is refused with the valid ones.
+    """
+    verb = arguments[0] if arguments else ""
+    if verb not in DAEMON_VERBS:
+        print(f"usage: simplicio-loop daemon {'|'.join(DAEMON_VERBS)}", file=sys.stderr)
+        return 2
+    if protocol.supported():
+        return main(list(arguments))
+    print(DAEMON_NOT_USED, file=sys.stderr if verb == "serve" else sys.stdout)
+    return {"status": 3, "stop": 0}.get(verb, protocol.EX_UNAVAILABLE)

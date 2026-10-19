@@ -1,5 +1,5 @@
 """`simplicio-loop install` is idempotent, says what it changed and what it left alone, has --check, and reads the
-bundled data through importlib.resources so it works from a frozen binary (#1575).
+bundled data through importlib.resources so it works from a wheel or an archive (#1575).
 """
 from __future__ import annotations
 
@@ -119,7 +119,7 @@ def test_dry_run_reports_the_same_changes_and_writes_nothing(repo, bundle):
 
 
 def test_the_bundle_can_be_a_traversable_that_is_not_a_filesystem_path(tmp_path, repo, bundle):
-    """A frozen binary can serve package data from an archive: nothing may need Path.rglob or shutil on the bundle."""
+    """A package can be served from an archive (a zipped wheel): nothing may need Path.rglob or shutil on the bundle."""
     archive = tmp_path / "bundle.zip"
     with zipfile.ZipFile(archive, "w") as handle:
         for path in bundle.rglob("*"):

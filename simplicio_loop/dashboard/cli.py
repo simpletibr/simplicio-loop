@@ -270,10 +270,10 @@ def _parent_pid(pid: int) -> int | None:
 def _server_pid(health: dict[str, Any] | None, spawned: int) -> int:
     '''The pid to record for the server that was just started as process ``spawned``.
 
-    A one-file binary starts a bootloader first, and the bootloader starts the server, so Popen.pid is the
-    bootloader. --stop and the reuse check compare the recorded pid with the pid that health reports, and
-    --stop sends it SIGTERM. So take the reported pid only when it is a real pid (not a bool, not 1) and, on
-    Linux, a child of the spawned process. Otherwise record the spawned pid.
+    A wrapper process can start the server, so Popen.pid can be the wrapper's pid. --stop and the reuse check
+    compare the recorded pid with the pid that health reports, and --stop sends it SIGTERM. So take the reported
+    pid only when it is a real pid (not a bool, not 1) and, on Linux, a child of the spawned process. Otherwise
+    record the spawned pid.
     '''
     reported = health.get('pid') if health is not None else None
     if type(reported) is not int or reported <= 1:

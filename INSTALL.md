@@ -92,10 +92,8 @@ Loop refuses a login file that group or others can read, a symlink, and a folder
 If another program creates `~/.simplicio` with mode 0775 (for example under `umask 002`), Loop refuses it and prints the exact command, for example `chmod 700 /home/you/.simplicio`.
 
 `simplicio-loop update` acts by how you installed Loop. A pip install receives the release wheel.
-A git checkout must use `git pull` and `bash scripts/dev_install.sh`.
-A binary downloads the release file for your system and `SHA256SUMS`, compares the SHA256 before it changes anything,
-and keeps the old file as `<name>.bak`. The release file is named
-`simplicio-loop-v<version>-<os>-<arch>` (`.exe` on Windows). `simplicio-loop doctor` shows how you installed Loop.
+A git checkout must use `git pull` and `bash scripts/dev_install.sh`. Loop is installed with pip; there is no standalone binary.
+`simplicio-loop doctor` shows how you installed Loop.
 
 ## 3.2. Setup (after install)
 

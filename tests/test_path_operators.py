@@ -372,46 +372,6 @@ class TestPathOperators:
         assert devcli_finding["status"] == "stale"
         assert devcli_finding["reason_code"] == "dev_cli_version_unreadable"
 
-    def test_frozen_exe_symlink_ok(self, tmp_path):
-        """frozen_exe symlinked on PATH: ok without calling run."""
-        exe_path = tmp_path / "exe"
-        exe_path.write_text("#!/bin/sh\necho 'frozen'")
-        exe_path.chmod(0o755)
-
-        link_dir = tmp_path / "bin"
-        link_dir.mkdir()
-        link_path = link_dir / "simplicio-mapper"
-        link_path.symlink_to(exe_path)
-
-        def fake_which(name):
-            return str(link_path) if name == "simplicio-mapper" else None
-
-        run_called = []
-
-        def fake_run(argv):
-            run_called.append(argv)
-            return (127, "")
-
-        bundled = {
-            "mapper": {
-                "version": "0.26.35",
-                "origin": "simplicio-loop/packages/mapper",
-                "source_commit": "abc123" + "0" * 34,
-            },
-            "dev_cli_version": "0.26.35",
-        }
-
-        findings = path_operators.check(
-            which=fake_which,
-            run=fake_run,
-            bundled=bundled,
-            frozen_exe=str(exe_path),
-        )
-        mapper_finding = next(f for f in findings if f["name"] == "simplicio-mapper")
-        assert mapper_finding["status"] == "ok"
-        # run should not have been called for mapper since frozen_exe matched
-        assert not any("simplicio-mapper" in str(a) for a in run_called)
-
     def test_env_python3_shebang(self, tmp_path):
         """Mapper with #!/usr/bin/env python3 shebang: uses which('python3') to find interpreter."""
         mapper_path = tmp_path / "simplicio-mapper"

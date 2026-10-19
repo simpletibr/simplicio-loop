@@ -233,7 +233,7 @@ def test_online_failure_is_a_warning_not_a_crash(box):
 # --- distribution ----------------------------------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("kind", [distribution.PIP, distribution.SOURCE, distribution.BINARY])
+@pytest.mark.parametrize("kind", [distribution.PIP, distribution.SOURCE])
 def test_the_distribution_kind_is_shown(box, kind):
     dist = check(collect(box, kind=kind), "distribution")
     assert dist["status"] == "ok" and kind in dist["summary"] and dist["detail"]["kind"] == kind
@@ -242,7 +242,7 @@ def test_the_distribution_kind_is_shown(box, kind):
 def test_the_real_distribution_kind_is_detected_by_default(box):
     doc = dov.collect(operators=ok_operators, usage=lambda p: Usage(1, 1, 90 * GIB), installed="3.48.1",
                       fetch=lambda: "v3.48.1", repo=box.tmp)
-    assert check(doc, "distribution")["detail"]["kind"] in {"pip", "source", "binary"}
+    assert check(doc, "distribution")["detail"]["kind"] in {"pip", "source"}
 
 
 # --- operators on PATH -------------------------------------------------------------------------------------------------
@@ -259,15 +259,6 @@ def test_a_stale_operator_on_path_is_a_warning_with_the_exact_fix(box):
 
 def test_matching_operators_are_ok(box):
     assert check(collect(box), "operators")["status"] == "ok"
-
-
-def test_the_frozen_binary_is_passed_to_the_operator_check(box):
-    seen = {}
-    collect(box, kind=distribution.BINARY, operators=lambda **kw: seen.update(kw) or ok_operators())
-    assert seen["frozen_exe"]
-    seen.clear()
-    collect(box, kind=distribution.PIP, operators=lambda **kw: seen.update(kw) or ok_operators())
-    assert seen["frozen_exe"] is None
 
 
 # --- disk ------------------------------------------------------------------------------------------------------------

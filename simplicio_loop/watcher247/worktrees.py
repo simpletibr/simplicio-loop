@@ -10,10 +10,10 @@ Now a repo has a BASE clone (config.WORK/<owner>/<repo>) that no item edits, and
   path its successor will use, so the successor finds the leftover by the exact path.
 
 Cleanup is exact. An item removes only its own path (`git worktree remove --force <path>`, then its leftover directory) and the
-`<git-common-dir>/worktrees/<name>` entry whose `gitdir` file names exactly `<path>/.git` (same idea as scripts/build_binary.py
-release_source, #1587). There is no `git worktree prune`: it forgets every worktree whose directory is missing at that moment,
-and those are not ours. The state an item keeps in `.simplicio-loop/` (escalation ladder, runs, reports) is copied to
-config.WORK/<owner>/<repo>.state/<issue> when the worktree goes and put back when the next one for that issue is made.
+`<git-common-dir>/worktrees/<name>` entry whose `gitdir` file names exactly `<path>/.git`. There is no `git worktree prune`:
+it forgets every worktree whose directory is missing at that moment, and those are not ours. The state an item keeps in
+`.simplicio-loop/` (escalation ladder, runs, reports) is copied to config.WORK/<owner>/<repo>.state/<issue> when the worktree goes and
+put back when the next one for that issue is made.
 
 Files: items of one batch that name the same target file (squad_flow.target_paths) run one after the other, in batch order; the
 others run at once. Merge stays serial through the merge train.

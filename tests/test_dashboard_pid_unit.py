@@ -1,8 +1,8 @@
-"""`dashboard --stop` must work when the server is a child of the one-file bootloader (issue #1576).
+"""`dashboard --stop` must work when the server is a child of the process that Popen started (issue #1576).
 
-A one-file build starts a bootloader first, and the bootloader starts the Python server. Popen.pid is the
-bootloader. /api/health answers with the pid of the server. --stop kills the recorded pid only when
-health reports the same pid, so the state file must hold the pid that health reports.
+A wrapper can start the Python server, so Popen.pid is the wrapper. /api/health answers with the pid of the
+server. --stop kills the recorded pid only when health reports the same pid, so the state file must hold the
+pid that health reports.
 """
 import os
 
@@ -10,12 +10,12 @@ import pytest
 
 from simplicio_loop.dashboard import cli, runs
 
-BOOTLOADER_PID = 111
+WRAPPER_PID = 111
 SERVER_PID = 222
 
 
-class _Bootloader:
-    pid = BOOTLOADER_PID
+class _Wrapper:
+    pid = WRAPPER_PID
     returncode = None
 
     def poll(self):
@@ -26,9 +26,9 @@ class _Bootloader:
 def _isolated(tmp_path, monkeypatch):
     monkeypatch.setenv('SIMPLICIO_DASHBOARD_STATE', str(tmp_path / 'state' / 'dashboard.json'))
     monkeypatch.setenv('HOME', str(tmp_path / 'home'))
-    monkeypatch.setattr(cli, '_spawn', lambda port, repos, log, **_kw: _Bootloader())  # cli passes allow_hosts=
+    monkeypatch.setattr(cli, '_spawn', lambda port, repos, log, **_kw: _Wrapper())  # cli passes allow_hosts=
     monkeypatch.setattr(cli, '_startup', lambda log: (4321, 'tok'))
-    monkeypatch.setattr(cli, '_parent_pid', lambda pid: BOOTLOADER_PID if pid == SERVER_PID else None)
+    monkeypatch.setattr(cli, '_parent_pid', lambda pid: WRAPPER_PID if pid == SERVER_PID else None)
 
 
 def test_the_state_file_holds_the_pid_that_health_reports(tmp_path, monkeypatch, capsys):
@@ -70,7 +70,7 @@ def test_without_a_health_answer_the_spawned_pid_is_kept(tmp_path, monkeypatch):
 
     cli.main(['--port', '0', '--no-browser', '--repo', str(tmp_path)])
 
-    assert runs.read_state_file()['pid'] == BOOTLOADER_PID
+    assert runs.read_state_file()['pid'] == WRAPPER_PID
 
 
 @pytest.mark.parametrize('platform', ['linux', 'darwin', 'win32'])
@@ -85,7 +85,7 @@ def test_a_pid_that_cannot_be_the_server_is_never_recorded(tmp_path, monkeypatch
 
     cli.main(['--port', '0', '--no-browser', '--repo', str(tmp_path)])
 
-    assert runs.read_state_file()['pid'] == BOOTLOADER_PID
+    assert runs.read_state_file()['pid'] == WRAPPER_PID
 
 
 def test_a_pid_that_is_not_a_child_of_the_spawned_process_is_not_recorded(tmp_path, monkeypatch):
@@ -95,12 +95,12 @@ def test_a_pid_that_is_not_a_child_of_the_spawned_process_is_not_recorded(tmp_pa
 
     cli.main(['--port', '0', '--no-browser', '--repo', str(tmp_path)])
 
-    assert runs.read_state_file()['pid'] == BOOTLOADER_PID
+    assert runs.read_state_file()['pid'] == WRAPPER_PID
 
 
 def test_a_child_of_the_spawned_process_is_recorded_on_linux(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, '_health', lambda port: {'pid': SERVER_PID})
-    monkeypatch.setattr(cli, '_parent_pid', lambda pid: BOOTLOADER_PID if pid == SERVER_PID else None)
+    monkeypatch.setattr(cli, '_parent_pid', lambda pid: WRAPPER_PID if pid == SERVER_PID else None)
     monkeypatch.setattr(cli.sys, 'platform', 'linux')
 
     cli.main(['--port', '0', '--no-browser', '--repo', str(tmp_path)])

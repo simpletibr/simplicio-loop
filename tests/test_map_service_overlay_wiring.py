@@ -150,11 +150,6 @@ def test_an_overlay_that_answers_ok_but_wrote_nothing_does_not_replace_the_index
     assert json.loads(result.stdout)["schema"] == "simplicio.mapper-index/v1"
 
 
-def test_a_frozen_build_keeps_the_plain_index_for_the_detached_path(monkeypatch):
-    monkeypatch.setattr(sys, "frozen", True, raising=False)
-    assert msm.index_argv("/bin/simplicio-mapper", "/repo") == ["/bin/simplicio-mapper", "index", "/repo", "--json"]
-
-
 @pytest.mark.parametrize("shadow", ["hashlib.py", "asyncio.py", "json.py", "subprocess.py"])
 def test_the_detached_helper_never_runs_code_from_the_mapped_repository(tmp_path, shadow):
     """`python -m` puts the cwd first on sys.path: a stdlib-named file in the repo root must not run."""

@@ -50,9 +50,8 @@ CURRENT: Current | None = None
 
 
 def supported() -> bool:
-    """AF_UNIX, fork and descriptor passing. Windows has none of them, and the frozen binary starts differently
-    (UNVERIFIED there): both run without a daemon."""
-    return (sys.platform != "win32" and not getattr(sys, "frozen", False) and hasattr(os, "fork")
+    """AF_UNIX, fork and descriptor passing. Windows has none of them, so it runs without a daemon."""
+    return (sys.platform != "win32" and hasattr(os, "fork")
             and hasattr(socket, "AF_UNIX") and hasattr(socket, "send_fds"))
 
 

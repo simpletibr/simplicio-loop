@@ -171,7 +171,7 @@ from .cli_commands.watch247 import (
     _WATCH247_QUIET, add_watch247,
 )
 
-BUNDLE = bundle_root()  # importlib.resources, not a source-tree path: the same call works from a frozen binary
+BUNDLE = bundle_root()  # importlib.resources, not a source-tree path: the same call works from a wheel and a checkout
 DASHBOARD = BUNDLE / "hooks" / "simplicio_dashboard.py"
 
 
@@ -206,20 +206,8 @@ class _Parser(argparse.ArgumentParser):
         self.exit(2, f"{self.prog}: error: invalid arguments; what you typed is not repeated. {self._quiet}\n")
 
 
-def _finish_pending_update() -> None:
-    """Windows binary: a verified file that `update` staged replaces the running one at the next start."""
-    from .self_update import apply_pending
-    try:
-        if apply_pending():
-            print("simplicio-loop: the staged update is in place. Run: simplicio-loop install --global", file=sys.stderr)
-    except OSError as exc:
-        print(f"simplicio-loop: could not apply the staged update: {exc}", file=sys.stderr)
-
-
 def main(argv=None) -> int:
     argv_list = list(argv) if argv is not None else list(sys.argv[1:])
-    if os.name == "nt" and getattr(sys, "frozen", False):
-        _finish_pending_update()
     if argv_list[:1] == ["hub-drain-plan"]:
         from .github_drain_intake_cli import main as drain_intake_main
         forwarded = argv_list[1:]
@@ -238,8 +226,8 @@ def main(argv=None) -> int:
         return author_main(argv_list[1:])
     if argv_list[:1] == ["run"]:
         return _redirect_run_to_wave(argv_list[1:])
-    if argv_list[:1] == ["daemon"]:  # never a task: the frozen binary and Windows reach this parser with it (#1633)
-        from .frozen import daemon_command
+    if argv_list[:1] == ["daemon"]:  # never a task: Windows reaches this parser with it (#1633)
+        from .daemon.control import daemon_command
         return daemon_command(argv_list[1:])
     parser = _Parser(
         prog="simplicio-loop",
