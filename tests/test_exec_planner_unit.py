@@ -363,17 +363,25 @@ class TestFallback:
 
     def test_timeout_falls_through(self, bindir):
         fake_cli(bindir, "claude", body="time.sleep(60)")
-        # The healthy family runs under the same 0.5 s timeout as the hung one. A Python fake needs 0.4 to 0.8 s to start
-        # on a loaded host, so it timed out too; a shell script starts in milliseconds.
+        # One shared budget for both families. The hung stub sleeps 60 s, so it always runs into the budget. The healthy
+        # stub must start and answer inside it, and a process can take over 0.5 s to start on a loaded host, so the budget
+        # is 3 s. The planner pipes codex its prompt on stdin; the stub drains it with the shell's own read, since the test
+        # PATH has no cat.
+        budget = 3.0
         healthy = bindir / "codex"
-        healthy.write_text(f"#!/bin/sh\ncat > /dev/null\nprintf '%s\\n' '{json.dumps(PLAN)}'\n", encoding="utf-8")
+        healthy.write_text(
+            f"#!/bin/sh\nwhile read -r _line; do :; done\nprintf '%s\\n' '{json.dumps(PLAN)}'\n", encoding="utf-8"
+        )
         healthy.chmod(healthy.stat().st_mode | stat.S_IEXEC)
         res = run(
             exec_planner.run_planner_with_fallback(
-                "planning", "x", timeout_sec=0.5, families=["claude", "codex"], grace_sec=1.0, repo_root=bindir
+                "planning", "x", timeout_sec=budget, families=["claude", "codex"], grace_sec=1.0, repo_root=bindir
             )
         )
-        assert res.family == "codex" and res.is_ok()
+        assert res.family == "codex", f"the planner stopped at {res.family}: {res.reason_code}: {res.error}"
+        assert res.reason_code == "ok", f"codex did not answer within {budget} s: {res.reason_code}: {res.error}"
+        # claude was really the first family run (not skipped as missing): its hang is what the fall-through proves.
+        assert (bindir / "order.log").read_text().split()[:1] == ["claude"]
 
     def test_bad_role_stops_immediately(self, bindir):
         fake_cli(bindir, "claude")
