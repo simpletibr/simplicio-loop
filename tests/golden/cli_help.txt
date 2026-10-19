@@ -178,8 +178,8 @@ options:
   --apply
 === dashboard rc=0
 usage: simplicio-loop dashboard [-h] [--run RUN_ID] [--repo PATH] [--port PORT]
-                                [--allow-host HOST] [--no-browser] [--stop] [--status]
-                                [--snapshot OUT] [--history] [--tui] [--tokens]
+                                [--allow-host HOST] [--no-browser] [--stop | --status |
+                                --snapshot OUT | --tui] [--history] [--tokens]
 
 options:
   -h, --help         show this help message and exit
@@ -191,9 +191,9 @@ options:
   --stop             stop the running dashboard
   --status           print the dashboard status as JSON (never the token)
   --snapshot OUT     write a static HTML snapshot of a run to OUT, without starting a server
+  --tui              stream a run in the terminal
   --history          with --snapshot: write the run history, trends and heatmap page instead of
                      one run
-  --tui              stream a run in the terminal
   --tokens           open the legacy token monitor on port 9090; goes only with --port, --no-
                      browser, --stop
 === decide rc=0

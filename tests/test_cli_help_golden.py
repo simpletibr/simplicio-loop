@@ -14,6 +14,7 @@ import contextlib
 import difflib
 import io
 import os
+import re
 from pathlib import Path
 
 GOLDEN = Path(__file__).resolve().parent / "golden" / "cli_help.txt"
@@ -82,6 +83,20 @@ def _render(monkeypatch) -> dict[str, str]:
     return blocks
 
 
+_PER_OPTION_METAVAR = re.compile(r"(--?[\w-]+) (\S+), (--?[\w-]+) \2(?=[\s,])")
+_USAGE = re.compile(r"^usage: .*?\n\n", re.MULTILINE | re.DOTALL)
+
+
+def _comparable(block: str) -> str:
+    """What the golden compares for one block. argparse changed two layouts between CPython releases: it wraps a
+    usage line at other words, and 3.11 and 3.12 repeat the metavar after every alias of an option. Both are folded
+    to the 3.13 layout the golden records. The usage is compared word for word, every other line byte for byte."""
+    previous = None
+    while previous != block:
+        previous, block = block, _PER_OPTION_METAVAR.sub(r"\1, \3 \2", block)
+    return _USAGE.sub(lambda m: " ".join(m.group(0).split()) + "\n\n", block, count=1)
+
+
 def _parse_golden(text: str) -> dict[str, str]:
     blocks: dict[str, str] = {}
     label = None
@@ -103,7 +118,8 @@ def test_every_command_help_matches_the_golden_snapshot(monkeypatch):
 
     missing = sorted(set(golden) - set(rendered))
     added = sorted(set(rendered) - set(golden))
-    changed = sorted(label for label in set(golden) & set(rendered) if golden[label] != rendered[label])
+    changed = sorted(label for label in set(golden) & set(rendered)
+                     if _comparable(golden[label]) != _comparable(rendered[label]))
     if not (missing or added or changed):
         return
     details = []
@@ -117,3 +133,54 @@ def test_every_command_help_matches_the_golden_snapshot(monkeypatch):
         + "\nIf the change is intentional, regenerate with UPDATE_CLI_HELP_GOLDEN=1."
     )
     raise AssertionError(pytest_message)
+
+
+def test_dashboard_mode_flags_are_declared_side_by_side():
+    # argparse 3.11-3.13 renders a mutually exclusive group only when its members are adjacent in declaration
+    # order. An option declared between two members turns the group into plain optionals, and the usage then
+    # hides the exclusion that argparse still enforces at parse time.
+    from simplicio_loop.dashboard import cli as dashboard_cli
+
+    parser = argparse.ArgumentParser(prog="simplicio-loop dashboard")
+    dashboard_cli.add_arguments(parser)
+    (group,) = parser._mutually_exclusive_groups
+    positions = sorted(parser._actions.index(action) for action in group._group_actions)
+    assert positions == list(range(positions[0], positions[0] + len(positions))), (
+        f"dashboard mode flags are split by another option at positions {positions}")
+
+
+def test_usage_comparison_ignores_wrapping_but_not_words():
+    wrapped = """=== dashboard rc=0
+usage: prog [-h] [--stop | --status |
+    --tui] [--tokens]
+
+help
+"""
+    flat = """=== dashboard rc=0
+usage: prog [-h] [--stop | --status | --tui] [--tokens]
+
+help
+"""
+    plain_group = """=== dashboard rc=0
+usage: prog [-h] [--stop] [--status] [--tui] [--tokens]
+
+help
+"""
+    assert _comparable(wrapped) == _comparable(flat)
+    assert _comparable(flat) != _comparable(plain_group)
+    assert _comparable(flat) != _comparable(flat.replace("--tokens", "--token"))
+    assert _comparable(flat) != _comparable(flat.replace("help", "Help"))
+
+
+def test_option_comparison_accepts_both_metavar_layouts_but_flags_a_renamed_alias():
+    once = """=== drain rc=0
+  --snapshot, --snapshot-file SNAPSHOT_PATH
+"""
+    per_option = """=== drain rc=0
+  --snapshot SNAPSHOT_PATH, --snapshot-file SNAPSHOT_PATH
+"""
+    renamed_alias = """=== drain rc=0
+  --snapshot, --snapshot-path SNAPSHOT_PATH
+"""
+    assert _comparable(per_option) == _comparable(once)
+    assert _comparable(renamed_alias) != _comparable(once)

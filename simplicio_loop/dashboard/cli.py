@@ -501,14 +501,15 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--allow-host', action='append', default=[], metavar='HOST',
                         help='additional host header to allow for remote access; repeatable')
     parser.add_argument('--no-browser', action='store_true', help='do not open the panel in a browser')
+    # Keep the members adjacent: argparse 3.11-3.13 prints a group split by another option as plain optionals.
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument('--stop', action='store_true', help='stop the running dashboard')
     modes.add_argument('--status', action='store_true', help='print the dashboard status as JSON (never the token)')
     modes.add_argument('--snapshot', metavar='OUT',
                         help='write a static HTML snapshot of a run to OUT, without starting a server')
+    modes.add_argument('--tui', action='store_true', help='stream a run in the terminal')
     parser.add_argument('--history', action='store_true',
                         help='with --snapshot: write the run history, trends and heatmap page instead of one run')
-    modes.add_argument('--tui', action='store_true', help='stream a run in the terminal')
     parser.add_argument('--tokens', action='store_true',
                         help='open the legacy token monitor on port 9090; goes only with --port, --no-browser, --stop')
 
