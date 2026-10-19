@@ -25,8 +25,28 @@ _VERSION_RE = re.compile(r'^version\s*=\s*"([^"]+)"\s*$', re.M)
 _OPT_OUT = frozenset(("off", "0", "none", "false"))  # SIMPLICIO_LOOP_SOURCE=off disables the comparison
 
 
+def _install_record() -> Any | None:
+    """The distribution record of simplicio-loop that pip wrote (its direct_url.json names the source), else the first.
+
+    ``importlib.metadata`` answers with the first match on sys.path, and the daemon puts its checkout first there
+    (daemon/client.py ``_CHILD_BOOT``). An editable install leaves ``simplicio_loop.egg-info`` in that checkout: a build
+    artifact with no direct_url.json, which would hide the record pip wrote, so the daemon would not find the checkout
+    that an in-process run finds (tests/test_daemon_e2e.py).
+    """
+    from importlib import metadata
+
+    found = list(metadata.distributions(name=PACKAGE))
+    for record in found:
+        if record.read_text("direct_url.json"):
+            return record
+    return found[0] if found else None
+
+
 def running_version() -> str:
-    """The version of the simplicio-loop that is executing (installed metadata, or the fallback literal)."""
+    """The version of the simplicio-loop that is executing: its install record's version, else the package's own."""
+    record = _install_record()
+    if record is not None and record.version:
+        return str(record.version)
     from . import __version__
 
     return str(__version__)
@@ -42,12 +62,8 @@ def _is_loop_checkout(path: Path) -> bool:
 
 def _installed_source_dir() -> Optional[Path]:
     """The directory pip installed simplicio-loop from (a local path install records it in direct_url.json)."""
-    from importlib import metadata
-
-    try:
-        raw = metadata.distribution(PACKAGE).read_text("direct_url.json")
-    except metadata.PackageNotFoundError:
-        return None
+    record = _install_record()
+    raw = record.read_text("direct_url.json") if record is not None else None
     if not raw:
         return None
     try:

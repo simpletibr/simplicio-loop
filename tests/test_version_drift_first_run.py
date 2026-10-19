@@ -136,3 +136,43 @@ def test_the_latest_tag_is_read_from_packed_refs_and_loose_refs(tmp_path):
         encoding="utf-8")
     (git_dir / "refs" / "tags" / "v3.53.0").write_text("4444444444444444444444444444444444444444\n", encoding="utf-8")
     assert version_drift.latest_tag(checkout) == "v3.53.0"
+
+
+def _egg_info_and_install_record(tmp_path: Path, checkout: Path, *, artifact: str, installed: str) -> Path:
+    """What `pip install -e` leaves: `simplicio_loop.egg-info` in the checkout (a build artifact, no direct_url.json)
+    and, in site-packages, the dist-info that records the checkout as the source. Returns the site-packages dir."""
+    egg_info = checkout / "simplicio_loop.egg-info"
+    egg_info.mkdir()
+    (egg_info / "PKG-INFO").write_text(f"Metadata-Version: 2.1\nName: simplicio-loop\nVersion: {artifact}\n",
+                                       encoding="utf-8")
+    site = tmp_path / "site-packages"
+    record = site / f"simplicio_loop-{installed}.dist-info"
+    record.mkdir(parents=True)
+    (record / "METADATA").write_text(f"Metadata-Version: 2.1\nName: simplicio-loop\nVersion: {installed}\n",
+                                     encoding="utf-8")
+    (record / "direct_url.json").write_text(json.dumps({"url": checkout.as_uri(), "dir_info": {"editable": True}}),
+                                            encoding="utf-8")
+    return site
+
+
+def test_the_daemon_order_on_sys_path_still_finds_the_install_record(tmp_path, monkeypatch):
+    """The daemon runs with its checkout first on sys.path (daemon/client.py `_CHILD_BOOT`). The egg-info that
+    `pip install -e` left in that checkout is then the first match, and it has no direct_url.json: the install
+    record still names the checkout, so the daemon finds it as an in-process run does (tests/test_daemon_e2e.py)."""
+    checkout = _checkout(tmp_path / "simplicio-loop", version="3.50.0", tag="v3.50.0")
+    site = _egg_info_and_install_record(tmp_path, checkout, artifact="3.50.0", installed="3.49.0")
+    monkeypatch.syspath_prepend(str(site))
+    monkeypatch.syspath_prepend(str(checkout))
+
+    assert version_drift._installed_source_dir() == checkout
+    report = version_drift.check("3.49.0", environ={})
+    assert report is not None and report["checkout"] == str(checkout.resolve()) and report["behind"] is True
+
+
+def test_the_running_version_is_the_install_record_not_the_build_artifact(tmp_path, monkeypatch):
+    checkout = _checkout(tmp_path / "simplicio-loop", version="3.50.0", tag="v3.50.0")
+    site = _egg_info_and_install_record(tmp_path, checkout, artifact="3.50.0", installed="3.49.0")
+    monkeypatch.syspath_prepend(str(site))
+    monkeypatch.syspath_prepend(str(checkout))
+
+    assert version_drift.running_version() == "3.49.0"
