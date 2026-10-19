@@ -48,13 +48,6 @@ owner = "dev-cli"
 reason = "migrate canonical project index to Runtime HBI v1"
 expires = "2026-09-30"
 [[exceptions]]
-path = ".simplicio-loop/map-inspection.json"
-category = "external-tool-artifact"
-target = "hbi"
-owner = "simplicio-mapper"
-reason = "migrate Mapper inspection cache to Runtime HBI v1"
-expires = "2026-09-30"
-[[exceptions]]
 path = ".simplicio-loop/symbol-index.json"
 category = "legacy-internal"
 target = "hbi"

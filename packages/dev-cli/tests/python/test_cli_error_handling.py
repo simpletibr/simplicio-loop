@@ -77,7 +77,7 @@ def test_verbose_flag_reraises_instead_of_swallowing(monkeypatch):
         cli.main(["--verbose", "status"])
 
 
-def test_ecosystem_check_failure_is_swallowed_and_does_not_block_dispatch(monkeypatch, capsys):
+def test_ecosystem_check_failure_is_swallowed_and_does_not_block_dispatch(monkeypatch, capsys, tmp_path):
     """The session-start freshness check is explicitly best-effort (see the
     inner try/except around `maybe_run_session_start` in `cli.main`): if it
     blows up we must still dispatch the real subcommand rather than fail the
@@ -92,7 +92,8 @@ def test_ecosystem_check_failure_is_swallowed_and_does_not_block_dispatch(monkey
         fake_maybe_run_session_start,
     )
 
-    code = cli.main(["status", "--json"])
+    # status inspects its root and writes the mapper receipt there: keep it inside tmp_path.
+    code = cli.main(["status", "--root", str(tmp_path), "--json"])
 
     captured = capsys.readouterr()
     assert code == 0
