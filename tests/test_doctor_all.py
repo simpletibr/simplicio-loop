@@ -82,8 +82,14 @@ def stale_operators(**kw):
     return rows
 
 
+def ok_evidence(state_dir, environ):
+    return [{"name": name, "status": "ok", "summary": name, "fix": None, "detail": {}}
+            for name in ("evidence:node", "evidence:playwright", "evidence:chromium")]
+
+
 def collect(box, **kw):
     kw.setdefault("operators", ok_operators)
+    kw.setdefault("evidence", ok_evidence)
     kw.setdefault("usage", lambda path: Usage(100 * GIB, 10 * GIB, 90 * GIB))
     kw.setdefault("installed", "3.48.1")
     kw.setdefault("kind", distribution.PIP)
@@ -277,7 +283,8 @@ def test_disk_looks_at_the_nearest_existing_folder_of_each_state_dir(box, tmp_pa
 def test_the_document_has_every_section_and_the_worst_status(box):
     doc = collect(box)
     assert doc["schema"] == "simplicio.doctor/v1"
-    assert [c["name"] for c in doc["checks"]] == ["login", "update", "distribution", "runtime", "operators", "disk", "map-store", "setup"]
+    assert [c["name"] for c in doc["checks"]] == ["login", "update", "distribution", "runtime", "operators", "disk", "map-store", "setup",
+                                                  "evidence:node", "evidence:playwright", "evidence:chromium"]
     assert doc["status"] == "warn"  # no login in the box
     put_login(box.login)
     assert collect(box)["status"] == "warn" and check(collect(box), "setup")["fix"] == "simplicio-loop setup"  # setup did not run
@@ -286,7 +293,7 @@ def test_the_document_has_every_section_and_the_worst_status(box):
 
 
 def test_run_prints_one_line_per_check_with_the_fix_and_returns_0_for_warnings(box, capsys):
-    rc = dov.run(operators=stale_operators, usage=lambda p: Usage(1, 1, 90 * GIB), installed="3.48.1",
+    rc = dov.run(operators=stale_operators, evidence=ok_evidence, usage=lambda p: Usage(1, 1, 90 * GIB), installed="3.48.1",
                  kind=distribution.PIP, fetch=lambda: "v3.48.1", repo=box.tmp)
     out = capsys.readouterr().out
     assert rc == 0
@@ -297,7 +304,7 @@ def test_run_prints_one_line_per_check_with_the_fix_and_returns_0_for_warnings(b
 
 def test_run_returns_1_when_a_check_fails(box, capsys):
     put_login(box.login, mode=0o644)
-    rc = dov.run(operators=ok_operators, usage=lambda p: Usage(1, 1, 90 * GIB), installed="3.48.1",
+    rc = dov.run(operators=ok_operators, evidence=ok_evidence, usage=lambda p: Usage(1, 1, 90 * GIB), installed="3.48.1",
                  kind=distribution.PIP, fetch=lambda: "v3.48.1", repo=box.tmp)
     assert rc == (1 if os.name != "nt" else 0)
     assert "fail" in capsys.readouterr().out or os.name == "nt"
@@ -306,7 +313,7 @@ def test_run_returns_1_when_a_check_fails(box, capsys):
 def test_run_json_is_one_document_without_secrets(box, capsys):
     put_login(box.login)
     put_setup(box)
-    rc = dov.run(as_json=True, operators=ok_operators, usage=lambda p: Usage(1, 1, 90 * GIB), installed="3.48.1",
+    rc = dov.run(as_json=True, operators=ok_operators, evidence=ok_evidence, usage=lambda p: Usage(1, 1, 90 * GIB), installed="3.48.1",
                  kind=distribution.PIP, fetch=lambda: "v3.48.1", repo=box.tmp)
     out = capsys.readouterr().out
     doc = json.loads(out)
@@ -327,7 +334,8 @@ def test_the_commands_are_wired(box, capsys, monkeypatch):
     assert cli.main(["doctor", "login", "--json"]) == 0
     assert [c["name"] for c in json.loads(capsys.readouterr().out)["checks"]] == ["login"]
     assert cli.main(["doctor", "all", "--json"]) == 0
-    every = ["login", "update", "distribution", "runtime", "operators", "disk", "map-store", "setup"]  # 8: map-store came with #1671
+    every = ["login", "update", "distribution", "runtime", "operators", "disk", "map-store", "setup",  # 8: map-store came with #1671
+             "evidence:node", "evidence:playwright", "evidence:chromium"]  # 1843: the evidence tools, one row each
     assert [c["name"] for c in json.loads(capsys.readouterr().out)["checks"]] == every
     assert cli.main(["doctor", "--json"]) == 0  # a bare `doctor` is the overview
     assert [c["name"] for c in json.loads(capsys.readouterr().out)["checks"]] == every
@@ -341,3 +349,41 @@ def test_the_old_doctor_forms_still_exist():
                          text=True, env=env, timeout=60).stdout
     for word in ("stack", "source", "mapper", "--storage", "all", "login", "--online"):
         assert word in out, word
+
+
+# --- the evidence tools (#1843): what the delivery evidence calls, probed without installing anything -----------------
+
+EVIDENCE = ("evidence:node", "evidence:playwright", "evidence:chromium")
+
+
+def test_the_evidence_tools_warn_with_the_fix_when_nothing_is_installed(box):
+    rows = {c["name"]: c for c in collect(box, evidence=None)["checks"] if c["name"] in EVIDENCE}
+    assert set(rows) == set(EVIDENCE)
+    assert all(row["status"] == "warn" and row["fix"] for row in rows.values())
+    assert "Node.js" in rows["evidence:node"]["fix"] and "22" in rows["evidence:node"]["summary"]  # no node on this PATH
+    assert "Node.js" in rows["evidence:chromium"]["fix"]  # the browser build cannot be read without node
+    assert not (box.state / "evidence-tools").exists()  # doctor installs nothing
+
+
+@posix
+def test_a_healthy_evidence_setup_is_ok_with_its_versions(box):
+    node = box.bin / "node"
+    node.write_text("#!/bin/sh\necho v26.0.0\n")
+    node.chmod(0o755)
+    project = box.state / "evidence-tools"
+    package = project / "node_modules" / "@playwright" / "test"
+    package.mkdir(parents=True)
+    (package / "package.json").write_text(json.dumps({"name": "@playwright/test", "version": "1.64.1"}))
+    cache = box.tmp / "ms-playwright"
+    (cache / "chromium-1248").mkdir(parents=True)
+    (cache / "chromium-1248" / "INSTALLATION_COMPLETE").write_text("")
+    playwright = project / "node_modules" / ".bin" / "playwright"
+    playwright.parent.mkdir(parents=True)
+    playwright.write_text("#!/bin/sh\nprintf '%s\\n' 'Chrome for Testing 156.0.8078.4 (playwright chromium v1248)' "
+                          f"'  Install location:    {cache}/chromium-1248'\n")
+    playwright.chmod(0o755)
+    rows = {c["name"]: c for c in collect(box, evidence=None)["checks"] if c["name"] in EVIDENCE}
+    assert [rows[name]["status"] for name in EVIDENCE] == ["ok", "ok", "ok"]
+    assert "26.0.0" in rows["evidence:node"]["summary"]
+    assert "1.64.1" in rows["evidence:playwright"]["summary"]
+    assert "156.0.8078.4" in rows["evidence:chromium"]["summary"] and all(row["fix"] is None for row in rows.values())

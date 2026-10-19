@@ -10,6 +10,8 @@ Eight checks, each `ok`, `warn` or `fail` with the command that fixes it:
 * disk           free space of the state folders against the floor `squad_capacity` uses
 * map-store      size of `<git-common-dir>/simplicio`, `baseline-build-*` older than 1 h, bytes `map gc` frees (#1671)
 * setup          `simplicio-loop setup` ran, and its summary shows no open item (tools, GitHub login, default agent CLI)
+* evidence       one row each for the delivery evidence tools (#1843): node 22+, the pinned Playwright test runner, its
+                 Chromium build; ok with the version, or warn with the fix. Probed only: nothing is installed or started
 
 Exit 0 unless a check is `fail` (a login file that exists but cannot be used safely). Nothing here prints a token.
 The older forms (`doctor stack|source|mapper|--storage`) are separate and unchanged.
@@ -17,6 +19,7 @@ The older forms (`doctor stack|source|mapper|--storage`) are separate and unchan
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -25,10 +28,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from . import __version__, auth, distribution, path_operators, self_update, setup_cli, squad_capacity, version_drift
+from . import __version__, auth, distribution, evidence_tools, path_operators, self_update, setup_cli, squad_capacity, version_drift
 
 SCHEMA = "simplicio.doctor/v1"
-SECTIONS = ("login", "update", "distribution", "runtime", "operators", "disk", "map-store", "setup")
+SECTIONS = ("login", "update", "distribution", "runtime", "operators", "disk", "map-store", "setup", "evidence")
 _RANK = {"ok": 0, "warn": 1, "fail": 2}
 GIB = 1 << 30
 MAP_STORE_WARN_BYTES = GIB  # `<git-common-dir>/simplicio` above this is a warning (#1671)
@@ -204,11 +207,17 @@ def _state_dirs(repo: Path, state_dir: Path) -> list:
     return dirs
 
 
+def _evidence(state_dir: Path, environ: Optional[dict], probe: Optional[Callable[..., list]]) -> list:
+    """One row per evidence tool (#1843): the probe reads them, nothing is installed."""
+    env = os.environ if environ is None else environ
+    return (probe or evidence_tools.probe_rows)(state_dir, environ=env)
+
+
 def collect(*, online: bool = False, environ: Optional[dict] = None, now: Optional[float] = None,
             fetch: Optional[Callable[[], str]] = None, operators: Optional[Callable[..., list]] = None,
             usage: Optional[Callable[[Any], Any]] = None, installed: Optional[str] = None, kind: Optional[str] = None,
             repo: Any = ".", state_dir: Optional[Path] = None, only: Optional[str] = None,
-            map_store_limit: int = MAP_STORE_WARN_BYTES) -> dict:
+            map_store_limit: int = MAP_STORE_WARN_BYTES, evidence: Optional[Callable[..., list]] = None) -> dict:
     stamp = time.time() if now is None else now
     installed = installed or __version__
     state_dir = state_dir or self_update.default_state_dir()
@@ -223,8 +232,12 @@ def collect(*, online: bool = False, environ: Optional[dict] = None, now: Option
         "disk": lambda: _disk(_state_dirs(Path(repo), state_dir), usage or shutil.disk_usage),
         "map-store": lambda: _map_store(repo, map_store_limit, stamp),
         "setup": lambda: setup_cli.doctor_row(state_dir),
+        "evidence": lambda: _evidence(state_dir, environ, evidence),  # a section with one row per tool
     }
-    checks = [makers[name]() for name in wanted]
+    checks: list = []
+    for name in wanted:
+        made = makers[name]()
+        checks.extend(made if isinstance(made, list) else [made])
     worst = max((check["status"] for check in checks), key=_RANK.__getitem__, default="ok")
     return {"schema": SCHEMA, "status": worst, "version": installed, "checks": checks}
 

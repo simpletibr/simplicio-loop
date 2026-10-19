@@ -128,7 +128,7 @@ def test_setup_with_the_real_steps_runs_nothing_from_unsafe_entries_and_prints_e
     seams = setup_cli.Seams(
         detect=host_detect.detect, check_all=prereqs.check_all, ensure=prereqs.ensure,
         resolve=lambda environ, **kw: github_cred.Resolution(None, ()), save_token=lambda *a: None, load_token=lambda d: None,
-        isatty=lambda: False, ask=lambda: "", read_stdin=lambda size: "")
+        isatty=lambda: False, ask=lambda: "", read_stdin=lambda size: "", evidence=setup_cli._real_evidence)  # check: probes only
     out = io.StringIO()
     setup_cli.run(setup_cli.Options(check=True), environ=machine.environ, seams=seams, out=out)
     text = out.getvalue()

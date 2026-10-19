@@ -34,6 +34,15 @@ def disable_operator_bootstrap_network_by_default(monkeypatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def no_evidence_install_unless_the_test_asks(monkeypatch) -> None:
+    """`install` ends by checking and installing the delivery evidence tools (#1843): a test never downloads them.
+    A test of that step patches `evidence_for_install` itself."""
+    from simplicio_loop import setup_cli
+
+    monkeypatch.setattr(setup_cli, "evidence_for_install", lambda environ: ([], []))
+
+
+@pytest.fixture(autouse=True)
 def no_daemon_unless_the_test_asks(monkeypatch) -> None:
     """A test that runs the console script must not leave a daemon behind; the daemon tests start their own."""
     monkeypatch.setenv("SIMPLICIO_LOOP_DAEMON", "0")

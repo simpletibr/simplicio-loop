@@ -7,7 +7,9 @@ One command, safe to run again (a second run says `unchanged`):
 3. GitHub: reuse GH_TOKEN, the logged-in `gh`, the git credential helper or a stored token; else ask (hidden input);
 4. install what is missing when that is safe (`prereqs.ensure`: user-folder installs with SHA256; system packages only
    with --yes and root or `sudo -n`);
-5. write `~/.simplicio-loop/setup.json` (mode 600, no token, no e-mail) that `doctor` and the watcher read.
+5. write `~/.simplicio-loop/setup.json` (mode 600, no token, no e-mail) that `doctor` and the watcher read;
+6. the evidence tools (#1843): Node.js 22+, the pinned Playwright test runner and its Chromium, proven by a real page,
+   screenshot and clip (`evidence_tools`). `install` runs the same step, so it is complete only while they are ok.
 
 Exit codes: 0 nothing pending, 10 something is pending (`--check` exits 10 when a run would change something),
 2 refused (bad input or unsafe file; nothing was changed). Without a terminal the command never waits for input.
@@ -86,13 +88,27 @@ class Seams:
     isatty: Callable[[], bool]
     ask: Callable[[], str]
     read_stdin: Callable[[int], str]
+    evidence: Callable[..., tuple[list, list]]  # (checks, actions) of the evidence tools (#1843)
 
 
 def real_seams() -> Seams:
     from . import github_cred, host_detect, prereqs
     return Seams(detect=host_detect.detect, check_all=prereqs.check_all, ensure=prereqs.ensure, resolve=github_cred.resolve,
                  save_token=github_cred.save_token, load_token=github_cred.load_token, isatty=_terminal,
-                 ask=lambda: _hidden("GitHub token (input is hidden, Enter to skip): "), read_stdin=lambda size: sys.stdin.read(size))
+                 ask=lambda: _hidden("GitHub token (input is hidden, Enter to skip): "), read_stdin=lambda size: sys.stdin.read(size),
+                 evidence=_real_evidence)
+
+
+def _real_evidence(environ: Mapping[str, str], *, state_dir: Path, dry_run: bool, validate: bool) -> tuple[list, list]:
+    from . import evidence_tools
+    return evidence_tools.step(state_dir, environ=environ, which=setup_hardening.safe_which(environ), run=evidence_tools.execute,
+                               dry_run=dry_run, validate=validate)
+
+
+def evidence_for_install(environ: Mapping[str, str]) -> tuple[list, list]:
+    """What `install` checks and installs of the evidence tools (#1843). It needs no prompt, so it runs without a terminal too."""
+    from .self_update import default_state_dir
+    return _real_evidence(environ, state_dir=default_state_dir(), dry_run=False, validate=False)
 
 
 # --- the summary file ---------------------------------------------------------------------------------------------
@@ -334,6 +350,10 @@ def _pending(checks: Sequence[Any], github: Mapping[str, Any], choice: host_dete
     return items
 
 
+def _evidence_pending(checks: Sequence[Any]) -> list[dict]:
+    return [{"item": c.name, "why": c.status, "fix": c.fix} for c in checks if c.required and c.status != "ok"]
+
+
 def _path_hint(checks: Sequence[Any], environ: Mapping[str, str], vouched: Mapping[str, str]) -> list:
     """gh or uv sits in ~/.local/bin but the setup cannot vouch for it: it is never run, so say what to do."""
     directory = _bin_dir(environ)
@@ -429,6 +449,8 @@ def collect(options: Options, environ: Mapping[str, str], seams: Seams, director
     github, cred = _github_step(options, environ, seams, directory, vouched)
     ignored = _ignored_hosts(statuses, environ)
     choice = host_detect.choose_default(statuses, requested=options.host, previous=(current or {}).get("default_host"))
+    planning = options.check or options.dry_run
+    evidence, evidence_actions = seams.evidence(environ, state_dir=directory, dry_run=planning, validate=not planning)
     summary = {
         "schema": SCHEMA,
         "platform": _platform(),
@@ -447,8 +469,9 @@ def collect(options: Options, environ: Mapping[str, str], seams: Seams, director
               "undetectable_hosts": list(host_detect.NO_EXECUTABLE), "ignored_hosts": ignored,
               "path_warnings": [{"entry": entry, "reason": reason} for entry, reason in
                                 setup_hardening.path_warnings(environ.get("PATH", os.defpath), _home(environ))],
-              "actions": [a.as_dict() for a in actions], "checks": [c.as_dict() for c in checks],
-              "pending": _pending(checks, github, choice, statuses, stale and options.check, ignored)}
+              "actions": [a.as_dict() for a in [*actions, *evidence_actions]], "checks": [c.as_dict() for c in checks],
+              "evidence": [c.as_dict() for c in evidence],
+              "pending": _pending(checks, github, choice, statuses, stale and options.check, ignored) + _evidence_pending(evidence)}
     return summary, report
 
 
@@ -463,6 +486,11 @@ def render(report: Mapping[str, Any], summary_state: str) -> str:
     for c in report["checks"]:
         shown = " ".join(x for x in (c["version"] or "", c["path"] or "") if x)
         lines.append(f"  {c['name']:<7} {c['status']:<9} {shown}".rstrip())
+    if report.get("evidence"):
+        lines += ["", "Evidence tools (the proof of a delivery: web_verify, video_evidence)"]
+        for c in report["evidence"]:
+            shown = " ".join(x for x in (c["version"] or "", c["path"] or "") if x)
+            lines.append(f"  {c['name']:<19} {c['status']:<9} {shown}".rstrip())
     if report["path_warnings"]:
         lines += ["", "PATH entries that are not searched (nothing in them is run)"]
         lines += [f"  {w['entry'] or '(empty)'}  ({w['reason']})" for w in report["path_warnings"]]
@@ -498,8 +526,9 @@ def render(report: Mapping[str, Any], summary_state: str) -> str:
 # --- the command --------------------------------------------------------------------------------------------------
 
 
-def run(options: Options, *, environ: Optional[Mapping[str, str]] = None, seams: Optional[Seams] = None,
-        out: Optional[TextIO] = None) -> int:
+def execute(options: Options, *, environ: Optional[Mapping[str, str]] = None, seams: Optional[Seams] = None,
+            out: Optional[TextIO] = None) -> tuple[int, Optional[dict]]:
+    """Run the setup and print its report. Returns (exit code, the report; None when the setup was refused)."""
     from . import github_cred
     from .self_update import default_state_dir
     environ = os.environ if environ is None else environ
@@ -512,16 +541,21 @@ def run(options: Options, *, environ: Optional[Mapping[str, str]] = None, seams:
         written = False if planning else _write_summary(summary, directory)
     except (Refused, github_cred.CredError) as exc:
         print(f"setup refused: {exc}", file=sys.stderr)
-        return 2
+        return 2, None
     except (EOFError, KeyboardInterrupt):
         print("setup cancelled; nothing was stored", file=sys.stderr)
-        return 2
+        return 2, None
     state = "not written" if planning else "updated" if written else "unchanged"
     if options.json_out:
         print(json.dumps({**report, "summary_file": state}, indent=2, sort_keys=True), file=out)
     else:
         print(render(report, state), file=out)
-    return PENDING if report["pending"] else 0
+    return (PENDING if report["pending"] else 0), report
+
+
+def run(options: Options, *, environ: Optional[Mapping[str, str]] = None, seams: Optional[Seams] = None,
+        out: Optional[TextIO] = None) -> int:
+    return execute(options, environ=environ, seams=seams, out=out)[0]
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
@@ -547,15 +581,28 @@ def main(args: argparse.Namespace) -> int:
                        token_stdin=args.token_stdin, host=args.host))
 
 
-def after_install(*, interactive: Optional[bool] = None, out: Optional[TextIO] = None) -> None:
-    """The last lines of `install`: start the setup in a terminal, else say how to run it. Never fails the install.
-
-    Once a summary exists the setup has run, so a later install or update stays quiet (`doctor` shows the state)."""
+def after_install(*, interactive: Optional[bool] = None, out: Optional[TextIO] = None) -> list[dict]:
+    """The last part of `install` (#1843). The first run in a terminal is the whole setup; otherwise only the evidence
+    tools are checked and installed, which needs no prompt. Returns the required items that are not ok: an empty list
+    means the install is complete. It never prompts."""
     out = out or sys.stdout
-    if read_summary() is not None:
-        return
-    if _terminal() if interactive is None else interactive:
-        print("\nNext: setup (prerequisites, agent CLIs, GitHub).\n", file=out)
-        run(Options(), out=out)
-    else:
+    if read_summary() is None and (_terminal() if interactive is None else interactive):
+        print("\nNext: setup (prerequisites, agent CLIs, GitHub, evidence tools).\n", file=out)
+        return _incomplete(execute(Options(), out=out)[1])
+    checks, actions = evidence_for_install(os.environ)
+    for action in actions:
+        if action.result != "skipped":  # a skipped tool is named once, by its missing line below, with the fix
+            print(f"  {action.name}: {action.result} {action.detail}".rstrip(), file=out)
+    missing = _evidence_pending(checks)
+    for item in missing:
+        print(f"  {item['item']}: {item['why']}. Fix: {item['fix']}", file=out)
+    if checks and not missing:
+        print("  evidence tools: ok (" + ", ".join(f"{c.name} {c.version}" for c in checks if c.version) + ")", file=out)
+    if read_summary() is None:
         print(f"\nNext: run `{COMMAND}` (prerequisites, agent CLIs, GitHub login).", file=out)
+    return missing
+
+
+def _incomplete(report: Optional[Mapping[str, Any]]) -> list[dict]:
+    """The pending items of a setup report that concern the evidence tools."""
+    return [item for item in (report or {}).get("pending", []) if str(item.get("item", "")).startswith("evidence:")]

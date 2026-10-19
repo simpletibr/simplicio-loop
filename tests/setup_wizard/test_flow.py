@@ -474,6 +474,7 @@ def test_a_setup_json_that_is_a_fifo_does_not_hang_doctor_after_install_or_the_w
     code = (
         "import io, json, sys\n"
         "from simplicio_loop import setup_cli\n"
+        "setup_cli.evidence_for_install = lambda environ: ([], [])\n"  # a child process has no conftest stub: no npm here
         "out = io.StringIO()\n"
         "setup_cli.after_install(interactive=False, out=out)\n"
         "print(json.dumps([setup_cli.doctor_row()['summary'], setup_cli.default_family({'HOME': sys.argv[1]}), 'Next: run' in out.getvalue()]))\n"
@@ -494,7 +495,7 @@ def test_a_non_linux_platform_is_marked_unverified(home, monkeypatch):
 
 def test_after_install_runs_the_setup_in_a_terminal_and_only_hints_without_one(home, monkeypatch):
     calls = []
-    monkeypatch.setattr(setup_cli, "run", lambda options, out=None: calls.append(options) or 0)
+    monkeypatch.setattr(setup_cli, "execute", lambda options, out=None: calls.append(options) or (0, {"pending": []}))
     out = io.StringIO()
     setup_cli.after_install(interactive=False, out=out)
     assert calls == [] and "simplicio-loop setup" in out.getvalue()

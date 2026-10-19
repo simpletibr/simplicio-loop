@@ -40,6 +40,9 @@ class Fakes:
         self.hosts = [host("claude-code"), host("codex", login="no"), host("gemini", installed=False)]
         self.checks = [check("python"), check("git"), check("gh")]
         self.actions = []
+        self.evidence_checks = [check("evidence:node"), check("evidence:playwright"), check("evidence:chromium"),
+                                check("evidence:check")]
+        self.evidence_actions = []
         self.resolution = github_cred.Resolution(credential(), (("gh", "ok"),))
         self.stored = None
         self.calls = []
@@ -73,6 +76,10 @@ class Fakes:
                 self.during_resolve()
             return self.resolution
 
+        def evidence(environ, **kw):
+            self.calls.append(("evidence", dict(kw)))
+            return list(self.evidence_checks), list(self.evidence_actions)
+
         def save_token(directory, token, login):
             self.calls.append(("save", login))
             self.stored = token
@@ -81,7 +88,7 @@ class Fakes:
         return setup_cli.Seams(
             detect=detect, check_all=check_all, ensure=ensure, resolve=resolve, save_token=save_token,
             load_token=lambda directory: self.stored, isatty=lambda: self.tty,
-            ask=lambda: self.ask_value, read_stdin=lambda size: self.stdin_text[:size])
+            ask=lambda: self.ask_value, read_stdin=lambda size: self.stdin_text[:size], evidence=evidence)
 
     def names(self):
         return [call[0] for call in self.calls]
