@@ -122,8 +122,11 @@ def _lock_info(path: Path) -> dict[str, Any]:
         try:
             os.kill(pid, 0)
             active = True
-        except (OSError, ProcessLookupError):
+        except ProcessLookupError:
             active = False
+        except OSError:
+            # EPERM: the pid exists under another user, so the lock is still held.
+            active = True
     return {
         "path": str(path),
         "present": True,

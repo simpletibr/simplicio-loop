@@ -601,8 +601,11 @@ class MigrationEngine:
             try:
                 os.kill(pid, 0)
                 stale = False
-            except (OSError, ValueError):
+            except (ProcessLookupError, ValueError):
                 stale = True
+            except OSError:
+                # EPERM: the pid exists under another user, so the lock is still held.
+                stale = False
             return {"path": str(self.lock_path), "owner": owner, "stale": stale}
         except (OSError, TypeError, ValueError, json.JSONDecodeError):
             return {"path": str(self.lock_path), "owner": None, "stale": True}

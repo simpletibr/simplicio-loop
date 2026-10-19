@@ -138,8 +138,11 @@ def _writer_status(path: Path) -> dict[str, object]:
         try:
             os.kill(pid, 0)
             active = True
-        except OSError:
+        except ProcessLookupError:
             active = False
+        except OSError:
+            # EPERM: the pid exists under another user, so the writer is still live.
+            active = True
         return {"active": active, "path": str(lock), "owner": owner, "stale": not active}
     except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
         return {"active": True, "path": str(lock), "owner": None, "stale": False, "error": str(error)}
