@@ -19,46 +19,76 @@ from __future__ import annotations
 import os
 import subprocess
 
+_PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+_STILL_ACTIVE = 259
 
-def process_is_alive(pid: int) -> bool:
-    """Return whether ``pid`` currently identifies a live OS process.
 
-    Windows: uses ``OpenProcess``/``GetExitCodeProcess`` via ``ctypes``.
-    POSIX: ``os.kill(pid, 0)`` (signal 0 probes existence without sending a
-    real signal); ``PermissionError`` still means the process exists (just
-    owned by someone else). A child of ours that exited but was not reaped is
-    a zombie and is not alive.
+def process_exists(pid: int) -> bool:
+    """Return whether the OS still has a process for ``pid``, zombies included.
+
+    This is the Windows-safe form of ``os.kill(pid, 0)``, the probe that liveness checks used to make directly. On
+    Windows that call is TerminateProcess (any signal other than the console events), so it must not be made there.
+    Windows: ``OpenProcess``/``GetExitCodeProcess`` via ``ctypes``. POSIX: signal 0 probes existence without sending
+    a real signal; ``PermissionError`` still means the process exists (just owned by someone else), and
+    ``ProcessLookupError`` means it is gone.
     """
     if pid <= 0:
         return False
     if pid == os.getpid():
         return True
     if os.name == "nt":
-        try:
-            import ctypes
-            from ctypes import wintypes
+        return _windows_process_exists(pid)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
 
-            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-            kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
-            kernel32.OpenProcess.restype = wintypes.HANDLE
-            kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
-            kernel32.GetExitCodeProcess.restype = wintypes.BOOL
-            kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
-            kernel32.CloseHandle.restype = wintypes.BOOL
-            process = kernel32.OpenProcess(0x1000, False, pid)
-            if not process:
-                # Access denied still means a process owns the PID.
-                return ctypes.get_last_error() == 5
-            try:
-                exit_code = wintypes.DWORD()
-                if not kernel32.GetExitCodeProcess(process, ctypes.byref(exit_code)):
-                    return True
-                return exit_code.value == 259  # STILL_ACTIVE
-            finally:
-                kernel32.CloseHandle(process)
-        except (AttributeError, OSError):
-            pass
-    elif os.path.exists(f"/proc/{pid}/stat"):
+
+def _windows_process_exists(pid: int) -> bool:
+    """The Windows answer to ``process_exists``. A probe that cannot run reports the process as present: never a
+    fallback to ``os.kill``, which on Windows would terminate the process it was asked about."""
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
+        process = kernel32.OpenProcess(_PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        if not process:
+            # Access denied still means a process owns the PID.
+            return ctypes.get_last_error() == 5
+        try:
+            exit_code = wintypes.DWORD()
+            if not kernel32.GetExitCodeProcess(process, ctypes.byref(exit_code)):
+                return True
+            return exit_code.value == _STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(process)
+    except (AttributeError, OSError):
+        return True
+
+
+def process_is_alive(pid: int) -> bool:
+    """Return whether ``pid`` currently identifies a live OS process.
+
+    A process that exists is alive unless it has exited: on Linux its procfs state is ``Z``, and an exited child of
+    ours that nobody has reaped is a zombie. Built on ``process_exists``; a Windows answer is final there.
+    """
+    if not process_exists(pid):
+        return False
+    if pid == os.getpid() or os.name == "nt":
+        return True
+    if os.path.exists(f"/proc/{pid}/stat"):
         # POSIX signal 0 also succeeds for a zombie that has not yet been
         # reaped by its parent.  A zombie has finished executing and must not
         # keep Mapper locks or background jobs classified as live.
@@ -70,14 +100,6 @@ def process_is_alive(pid: int) -> bool:
                 return False
         except (OSError, IndexError):
             pass
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    except OSError:
-        return False
     return not _is_unreaped_zombie_child(pid)
 
 
@@ -188,4 +210,4 @@ def _ps_start_token(pid: int) -> str | None:
     return token
 
 
-__all__ = ["process_is_alive", "process_start_token"]
+__all__ = ["process_exists", "process_is_alive", "process_start_token"]

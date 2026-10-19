@@ -593,19 +593,16 @@ class MigrationEngine:
             self.fault_hook(stage, spec)
 
     def _lock_snapshot(self) -> dict[str, Any]:
+        # lazy: the mapper package is a heavy import; it must not sit between reading a pid and probing it
+        from ..mapper.process_liveness import process_exists
+
         if not self.lock_path.exists():
             return {"path": str(self.lock_path), "owner": None, "stale": False}
         try:
             owner = json.loads(self.lock_path.read_text(encoding="utf-8"))
             pid = int(owner.get("pid", 0))
-            try:
-                os.kill(pid, 0)
-                stale = False
-            except (ProcessLookupError, ValueError):
-                stale = True
-            except OSError:
-                # EPERM: the pid exists under another user, so the lock is still held.
-                stale = False
+            # EPERM: the pid exists under another user, so the lock is still held.
+            stale = not process_exists(pid)
             return {"path": str(self.lock_path), "owner": owner, "stale": stale}
         except (OSError, TypeError, ValueError, json.JSONDecodeError):
             return {"path": str(self.lock_path), "owner": None, "stale": True}

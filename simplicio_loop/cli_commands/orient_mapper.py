@@ -216,6 +216,9 @@ def _mapper_index_running_info(lock_file: Path) -> dict[str, Any] | None:
     """
     if not lock_file.is_file():
         return None
+    # lazy: the mapper package is a heavy import; it must not sit between reading a pid and probing it
+    from simplicio_mapper.mapper.process_liveness import process_exists
+
     try:
         info = json.loads(lock_file.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -229,20 +232,16 @@ def _mapper_index_running_info(lock_file: Path) -> dict[str, Any] | None:
         return None
     try:
         # Reap the index if it is our own child and has finished: otherwise it stays a zombie, which
-        # ``os.kill(pid, 0)`` below reports as alive (the Popen that spawned it is long out of scope).
+        # the existence probe below reports as alive (the Popen that spawned it is long out of scope).
         impl().os.waitpid(pid, impl().os.WNOHANG)
     except OSError:
         pass  # not our child (another process started it)
-    try:
-        impl().os.kill(pid, 0)
-    except ProcessLookupError:
+    if not process_exists(pid):  # alive but not ours to signal (e.g. another uid) still counts as running
         try:
             lock_file.unlink()
         except OSError:
             pass
         return None
-    except OSError:
-        pass  # alive but not ours to signal-probe (e.g. different uid) -- treat as running
     started_at = info.get("started_at")
     if isinstance(started_at, (int, float)) and (time.time() - started_at) > _mapper_index_timeout_seconds():
         try:

@@ -23,6 +23,7 @@ import threading
 import time
 from typing import Any, Iterable, Mapping, Optional
 
+from .. import distribution
 from . import protocol, runner
 
 READ_TIMEOUT_S = 10.0
@@ -335,9 +336,7 @@ class Daemon:
 
     def status(self) -> dict[str, Any]:
         try:
-            from importlib.metadata import version
-
-            loop_version = version("simplicio-loop")
+            loop_version = distribution.installed_version() or "unknown"
         except Exception:  # noqa: BLE001 - a source checkout has no metadata
             loop_version = "unknown"
         return {

@@ -388,12 +388,11 @@ def _posix_descendants(root_pid: int):
         # ``root_pid`` names a process in the caller's namespace.  If it is
         # still addressable but its proc entry could not be mapped through
         # NSpid, accepting an empty tree would let an escaped child go unseen.
-        try:
-            os.kill(root_pid, 0)
-        except ProcessLookupError:
+        # lazy: the mapper package is a heavy import
+        from simplicio_mapper.mapper.process_liveness import process_exists
+
+        if not process_exists(root_pid):
             return set()
-        except (PermissionError, OSError):
-            return _DescendantDiscoveryError(set(), "root_identity_unavailable")
         return _DescendantDiscoveryError(set(), "root_identity_unavailable")
     found = set()
     incomplete = False
@@ -571,13 +570,10 @@ def _containment_unavailable_result(
 
 def _pid_is_running(pid: int) -> Optional[bool]:
     """Return liveness, or ``None`` when namespace identity is unavailable."""
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        pass
-    except OSError:
+    # lazy: the mapper package is a heavy import
+    from simplicio_mapper.mapper.process_liveness import process_exists
+
+    if not process_exists(pid):
         return False
     try:
         entries = os.listdir("/proc")
@@ -605,16 +601,10 @@ def _pid_is_running(pid: int) -> Optional[bool]:
             return True
         except (OSError, IndexError, ValueError):
             continue
-    # The process can exit between kill(0) and /proc iteration.  Only report
+    # The process can exit between the probe above and /proc iteration.  Only report
     # it dead after confirming that race; otherwise lack of NSpid metadata is
     # a containment failure, never evidence that a live process disappeared.
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return None
-    except OSError:
+    if not process_exists(pid):
         return False
     return None
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ctypes  # noqa: F401 - loaded before os.name is faked: a first import under "nt" runs Windows-only module code
+import errno
 import os
 import shutil
 import subprocess
@@ -67,6 +69,40 @@ class ProcessLivenessTest(unittest.TestCase):
             process_liveness._ps_start_token(sleeper.pid)
             process_liveness._ps_start_token(sleeper.pid)
         self.assertEqual(run.call_count - after_first_own, 2, "other pids must not be cached")
+
+
+class ProcessExistsTest(unittest.TestCase):
+    """``os.kill(pid, 0)`` is the POSIX probe, but on Windows any signal other than the console events is
+    TerminateProcess: the shared probes must never send signal 0 there, and must keep EPERM=alive, ESRCH=dead."""
+
+    def _kill_calls_on_windows(self, probe) -> list:
+        with mock.patch.object(os, "name", "nt"), mock.patch.object(os, "kill") as kill:
+            probe(4242)
+        return kill.call_args_list
+
+    def test_windows_probes_never_call_kill(self) -> None:
+        for name in ("process_exists", "process_is_alive"):
+            with self.subTest(probe=name):
+                self.assertEqual(self._kill_calls_on_windows(getattr(process_liveness, name)), [])
+
+    @unittest.skipUnless(os.name == "posix", "kill(pid, 0) is the POSIX probe")
+    def test_process_exists_is_kill_zero_on_posix(self) -> None:
+        cases = [
+            (None, True),  # delivered: the process exists
+            (PermissionError(errno.EPERM, "denied"), True),  # EPERM: exists under another user
+            (ProcessLookupError(errno.ESRCH, "gone"), False),  # ESRCH: no such process
+            (OSError(errno.EINVAL, "invalid"), False),
+        ]
+        for error, expected in cases:
+            with self.subTest(error=error), mock.patch.object(os, "kill", side_effect=error) as kill:
+                self.assertIs(process_liveness.process_exists(4242), expected)
+                kill.assert_called_once_with(4242, 0)
+
+    def test_process_exists_refuses_pids_that_name_no_process(self) -> None:
+        with mock.patch.object(os, "kill") as kill:
+            self.assertFalse(process_liveness.process_exists(0))
+            self.assertFalse(process_liveness.process_exists(-1))
+        kill.assert_not_called()
 
 
 if __name__ == "__main__":

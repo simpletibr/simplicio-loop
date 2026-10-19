@@ -110,6 +110,9 @@ def _sidecars(path: Path) -> dict[str, int]:
 
 
 def _lock_info(path: Path) -> dict[str, Any]:
+    # lazy: the mapper package is a heavy import; it must not sit between reading a pid and probing it
+    from ..mapper.process_liveness import process_exists
+
     if not path.exists():
         return {"path": str(path), "present": False, "active": False, "stale": False, "owner": None}
     try:
@@ -119,14 +122,8 @@ def _lock_info(path: Path) -> dict[str, Any]:
     pid = payload.get("pid")
     active = False
     if isinstance(pid, int) and pid > 0:
-        try:
-            os.kill(pid, 0)
-            active = True
-        except ProcessLookupError:
-            active = False
-        except OSError:
-            # EPERM: the pid exists under another user, so the lock is still held.
-            active = True
+        # EPERM: the pid exists under another user, so the lock is still held.
+        active = process_exists(pid)
     return {
         "path": str(path),
         "present": True,

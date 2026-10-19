@@ -129,20 +129,17 @@ def _inventory(path: Path) -> dict[str, object]:
 
 
 def _writer_status(path: Path) -> dict[str, object]:
+    # lazy: the mapper package is a heavy import; it must not sit between reading a pid and probing it
+    from ..mapper.process_liveness import process_exists
+
     lock = path.with_name(path.name + ".writer.lock")
     if not lock.exists():
         return {"active": False, "path": str(lock), "owner": None, "stale": False}
     try:
         owner = json.loads(lock.read_text(encoding="utf-8"))
         pid = int(owner.get("pid", 0))
-        try:
-            os.kill(pid, 0)
-            active = True
-        except ProcessLookupError:
-            active = False
-        except OSError:
-            # EPERM: the pid exists under another user, so the writer is still live.
-            active = True
+        # EPERM: the pid exists under another user, so the writer is still live.
+        active = process_exists(pid)
         return {"active": active, "path": str(lock), "owner": owner, "stale": not active}
     except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
         return {"active": True, "path": str(lock), "owner": None, "stale": False, "error": str(error)}

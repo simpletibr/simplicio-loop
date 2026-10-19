@@ -149,40 +149,10 @@ def _registry_write_lock(path: Path) -> Iterable[None]:
 
 
 def _pid_alive(pid: int) -> bool:
-    if os.name == "nt":  # pragma: no cover - Windows-specific
-        # ``os.kill(pid, 0)`` is not a supported Windows liveness primitive:
-        # depending on the runtime it can request a real signal or produce a
-        # permission-shaped false negative.  A query HANDLE pins the object
-        # while its exit code is read instead.
-        try:
-            import ctypes
-            from ctypes import wintypes
+    # lazy: the mapper package is a heavy import
+    from simplicio_mapper.mapper.process_liveness import process_exists
 
-            handle = _windows_open_process(pid, _PROCESS_QUERY_LIMITED_INFORMATION)
-            if not handle:
-                return False
-            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-            kernel32.GetExitCodeProcess.argtypes = (
-                wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD),
-            )
-            kernel32.GetExitCodeProcess.restype = wintypes.BOOL
-            exit_code = wintypes.DWORD()
-            try:
-                return bool(kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code))
-                            and exit_code.value == 259)  # STILL_ACTIVE
-            finally:
-                _windows_close_handle(handle)
-        except (AttributeError, OSError):
-            return False
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True  # exists, just not ours to signal
-    except OSError:
-        return False
-    return True
+    return process_exists(pid)
 
 
 def _linux_pidfd_open(pid: int) -> Optional[int]:

@@ -229,6 +229,9 @@ def leaks(root: str | os.PathLike[str], changed: list[str], secrets: set[bytes],
 
 
 def _owner_alive(home: Path) -> bool:
+    # lazy: the mapper package is a heavy import; it must not sit between reading a pid and probing it
+    from simplicio_mapper.mapper.process_liveness import process_exists
+
     try:
         pid = int((home / OWNER).read_text())
     except (OSError, ValueError):
@@ -238,13 +241,7 @@ def _owner_alive(home: Path) -> bool:
             return False
     if pid <= 0:  # kill(0, ...) would signal a whole process group
         return False
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
+    return process_exists(pid)
 
 
 def homes_dir(real_home: Path) -> Path:

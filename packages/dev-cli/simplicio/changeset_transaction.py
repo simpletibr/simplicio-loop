@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ctypes
 import hashlib
 import json
 import os
@@ -233,6 +232,9 @@ def _rollback_after_commit_failure(
 
 
 def _lock_owned_by_live_process(lock_path: Path) -> bool:
+    # lazy: the mapper package is a heavy import; it must not sit between reading a pid and probing it
+    from simplicio_mapper.mapper.process_liveness import process_exists
+
     try:
         value = lock_path.read_text(encoding="utf-8").strip()
         pid = int(value.removeprefix("pid="))
@@ -240,28 +242,8 @@ def _lock_owned_by_live_process(lock_path: Path) -> bool:
         return True
     if pid <= 0:
         return True
-    if os.name == "nt":
-        # `ctypes.windll` only exists on Windows; typeshed omits it from the
-        # platform-neutral `ctypes` stub mypy checks against here, so this
-        # branch (dead on the Linux/macOS mypy target) needs an explicit
-        # ignore rather than a config-wide relaxation.
-        windll = ctypes.windll  # type: ignore[attr-defined]
-        handle = windll.kernel32.OpenProcess(0x1000, False, pid)
-        if not handle:
-            return False
-        exit_code = ctypes.c_ulong()
-        windll.kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code))
-        windll.kernel32.CloseHandle(handle)
-        return exit_code.value == 259
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except OSError:
-        # EPERM: the pid exists under another user, so it still owns the lock.
-        # Only ESRCH proves the owner is gone.
-        pass
-    return True
+    # EPERM: the pid exists under another user, so it still owns the lock.
+    return process_exists(pid)
 
 
 _LOCK_POLL_SECONDS = 0.02

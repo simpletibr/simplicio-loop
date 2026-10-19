@@ -803,19 +803,15 @@ def test_transaction_recovery_lock_reclaim_failure_and_windows_probe(tmp_path, m
     with pytest.raises(ChangesetTransactionError, match="could not be reclaimed"):
         _acquire_recovery_lock(lock)
 
-    class _Kernel:
-        def OpenProcess(self, *_args):
-            return 0
+    # The owner check asks the shared, Windows-safe probe (simplicio_mapper.mapper.process_liveness), which never
+    # sends signal 0 (TerminateProcess on Windows) and answers for the pid the lock names.
+    from simplicio_mapper.mapper import process_liveness
 
-    monkeypatch.setattr(changeset_transaction.os, "name", "nt")
-    monkeypatch.setattr(
-        changeset_transaction.ctypes,
-        "windll",
-        type("W", (), {"kernel32": _Kernel()})(),
-        raising=False,
-    )
+    probed = []
+    monkeypatch.setattr(process_liveness, "process_exists", lambda pid: probed.append(pid) or False)
     lock.write_text("pid=123", encoding="utf-8")
     assert _lock_owned_by_live_process(lock) is False
+    assert probed == [123]
 
 
 def test_transaction_replay_rejects_corrupt_journal(tmp_path):

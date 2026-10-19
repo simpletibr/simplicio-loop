@@ -27,18 +27,36 @@ def is_frozen() -> bool:
     return bool(getattr(sys, "frozen", False))
 
 
-def _installed() -> Optional[metadata.Distribution]:
-    try:
-        return metadata.distribution("simplicio-loop")
-    except metadata.PackageNotFoundError:
-        return None
+DISTRIBUTION = "simplicio-loop"
+
+
+def install_record() -> Optional[metadata.Distribution]:
+    """The simplicio-loop distribution pip wrote, or None when none is installed.
+
+    `importlib.metadata` answers with the first match on sys.path, and the daemon puts its own checkout first there
+    (daemon/client.py `_CHILD_BOOT`). An editable install leaves `simplicio_loop.egg-info` in that checkout: a build
+    artifact with no direct_url.json, which would hide the record pip wrote (its version and its editable flag). So the
+    record whose direct_url.json exists wins; with none, the first match. Every reader of the installed version or of
+    the install kind goes through here, so the daemon and an in-process run give the same answer.
+    """
+    found = list(metadata.distributions(name=DISTRIBUTION))
+    for record in found:
+        if record.read_text("direct_url.json"):
+            return record
+    return found[0] if found else None
+
+
+def installed_version() -> Optional[str]:
+    """The version of the install record, or None when there is none."""
+    record = install_record()
+    return str(record.version) if record is not None and record.version else None
 
 
 def is_editable() -> bool:
     """Installed with `pip install -e` (pip records it in direct_url.json)."""
-    dist = _installed()
+    record = install_record()
     try:
-        raw = dist.read_text("direct_url.json") if dist else None
+        raw = record.read_text("direct_url.json") if record else None
         return bool(raw and json.loads(raw).get("dir_info", {}).get("editable"))
     except (ValueError, AttributeError, OSError):
         return False
@@ -57,7 +75,7 @@ def kind(*, frozen: Optional[bool] = None, editable: Optional[bool] = None, chec
         return SOURCE
     if in_checkout() if checkout is None else checkout:
         return SOURCE
-    return PIP if _installed() is not None else SOURCE
+    return PIP if install_record() is not None else SOURCE
 
 
 def platform_key(system: Optional[str] = None, machine: Optional[str] = None) -> tuple:

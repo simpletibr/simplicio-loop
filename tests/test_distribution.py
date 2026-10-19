@@ -19,13 +19,9 @@ class FakeDist:
 
 
 def installed(monkeypatch, direct_url=None, present=True):
-    def lookup(name):
-        assert name == "simplicio-loop"
-        if not present:
-            raise dist.metadata.PackageNotFoundError(name)
-        return FakeDist(direct_url)
-
-    monkeypatch.setattr(dist.metadata, "distribution", lookup)
+    """The install record the shared lookup answers with: pip's record (with this direct_url.json), or none."""
+    record = FakeDist(direct_url) if present else None
+    monkeypatch.setattr(dist, "install_record", lambda: record)
 
 
 def test_frozen_means_binary_whatever_else_is_true(monkeypatch):

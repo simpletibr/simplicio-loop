@@ -9,7 +9,6 @@ as canonical bytes and exposes only derived, immutable planner views.
 
 from __future__ import annotations
 
-import ctypes
 import hashlib
 import importlib
 import importlib.metadata
@@ -571,6 +570,9 @@ class ContextBindingCache:
         }
 
     def _remove_stale_writer_lock(self) -> bool:
+        # lazy: the mapper package is a heavy import; it must not sit between reading a pid and probing it
+        from simplicio_mapper.mapper.process_liveness import process_exists
+
         try:
             owner = self.lock_path.read_text(encoding="ascii").strip()
             pid = int(owner)
@@ -578,31 +580,8 @@ class ContextBindingCache:
             return False
         if pid <= 0 or pid == os.getpid():
             return False
-        if os.name == "nt":
-            win_dll = getattr(ctypes, "WinDLL", None)
-            get_last_error = getattr(ctypes, "get_last_error", None)
-            if win_dll is None or get_last_error is None:
-                return False
-            kernel32 = win_dll("kernel32", use_last_error=True)
-            handle = kernel32.OpenProcess(0x1000, False, pid)
-            if handle:
-                exit_code = ctypes.c_ulong()
-                running = kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code))
-                kernel32.CloseHandle(handle)
-                if not running or exit_code.value == 259:
-                    return False
-                return True
-            if get_last_error() != 87:
-                return False
-        else:
-            try:
-                os.kill(pid, 0)
-            except ProcessLookupError:
-                pass
-            except OSError:
-                return False
-            else:
-                return False
+        if process_exists(pid):
+            return False
         try:
             self.lock_path.unlink()
         except FileNotFoundError:
