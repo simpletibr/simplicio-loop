@@ -138,7 +138,7 @@ def test_main_run_dispatches_all_positional_and_flags(monkeypatch):
     assert captured == {"repo": "/r", "task_path": "t.md", "delivery": "verified", "max_iterations": 5}
 
 
-def test_run_wraps_conduct_run_and_prints_json(monkeypatch, capsys):
+def test_run_wraps_conduct_run_and_prints_json(monkeypatch, capsys, tmp_path):
     captured = {}
 
     def fake_conduct_run(repo, task_path, delivery, max_iterations, *,
@@ -151,7 +151,7 @@ def test_run_wraps_conduct_run_and_prints_json(monkeypatch, capsys):
 
     monkeypatch.setattr(cli, "conduct_run", fake_conduct_run)
     rc = cli.run(
-        "/r",
+        str(tmp_path),
         "t.md",
         "verified",
         3,
@@ -206,15 +206,15 @@ def test_cancel_calls_change_phase_with_cancelled(monkeypatch):
     assert captured["phase"] == "cancelled"
 
 
-def test_tick_dispatches_task_index(monkeypatch):
+def test_tick_dispatches_task_index(monkeypatch, tmp_path):
     captured = {}
     monkeypatch.setattr(cli, "execute_operator", lambda repo, run_id, task_index: captured.update(
         task_index=task_index) or {})
-    cli.tick("/r", "run-1", 3)
+    cli.tick(str(tmp_path), "run-1", 3)
     assert captured["task_index"] == 3
 
 
-def test_batch_parses_task_indices_and_serial_flag(monkeypatch):
+def test_batch_parses_task_indices_and_serial_flag(monkeypatch, tmp_path):
     captured = {}
 
     def fake_batch(repo, run_id, indices, max_workers=None, retry_budget=0, auto_fan_out=True):
@@ -223,22 +223,22 @@ def test_batch_parses_task_indices_and_serial_flag(monkeypatch):
         return {}
 
     monkeypatch.setattr(cli, "execute_operator_batch", fake_batch)
-    cli.batch("/r", "run-1", "1, 2,3", max_workers=2, retry_budget=1, serial=True)
+    cli.batch(str(tmp_path), "run-1", "1, 2,3", max_workers=2, retry_budget=1, serial=True)
     assert captured["indices"] == [1, 2, 3]
     assert captured["auto_fan_out"] is False
 
 
-def test_batch_empty_indices_means_none(monkeypatch):
+def test_batch_empty_indices_means_none(monkeypatch, tmp_path):
     captured = {}
     monkeypatch.setattr(cli, "execute_operator_batch", lambda repo, run_id, indices, **kw: captured.update(
         indices=indices) or {})
-    cli.batch("/r", "run-1", "", max_workers=0, retry_budget=3)
+    cli.batch(str(tmp_path), "run-1", "", max_workers=0, retry_budget=3)
     assert captured["indices"] is None
 
 
-def test_batch_invalid_task_indices_raises_value_error():
+def test_batch_invalid_task_indices_raises_value_error(tmp_path):
     with pytest.raises(ValueError):
-        cli.batch("/r", "run-1", "abc", max_workers=0, retry_budget=3)
+        cli.batch(str(tmp_path), "run-1", "abc", max_workers=0, retry_budget=3)
 
 
 def test_main_batch_dispatches_all_args(monkeypatch):
@@ -254,7 +254,7 @@ def test_main_batch_dispatches_all_args(monkeypatch):
     assert captured["batch_size"] == 30
 
 
-def test_batch_dispatches_reconciled_prism_waves(monkeypatch):
+def test_batch_dispatches_reconciled_prism_waves(monkeypatch, tmp_path):
     calls = []
 
     def fake_batch(repo, run_id, indices, **kwargs):
@@ -262,7 +262,7 @@ def test_batch_dispatches_reconciled_prism_waves(monkeypatch):
         return {"workers": [{"status": "succeeded", "task_index": index} for index in indices]}
 
     monkeypatch.setattr(cli, "execute_operator_batch", fake_batch)
-    rc = cli.batch("/r", "run-1", "1,2,3", max_workers=5, retry_budget=0, batch_size=2)
+    rc = cli.batch(str(tmp_path), "run-1", "1,2,3", max_workers=5, retry_budget=0, batch_size=2)
     assert rc == 2
     assert calls == [([1, 2, 3], 5)]
 

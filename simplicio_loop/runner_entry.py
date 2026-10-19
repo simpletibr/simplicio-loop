@@ -493,6 +493,9 @@ def _conduct_run(repo: str, task_path: str, delivery: str = "verified", max_iter
 def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
     """Run the independent watcher and advance a run without a manual tick."""
     status = _runner.read_status(repo, run_id)
+    if not status.get("run_dir"):
+        # No run exists yet: read_status reports phase "no_runs" with run_dir None.
+        return status
     run_dir = Path(status["run_dir"])
     repo_path = Path(status["manifest"]["repo"]).resolve()
     state = status["state"]

@@ -174,6 +174,15 @@ def test_verify_run_is_a_noop_on_terminal_phases(tmp_path, monkeypatch):
     assert result["state"]["phase"] == "cancelled"
 
 
+def test_verify_run_without_any_run_reports_no_runs(tmp_path):
+    # read_status reports run_dir None for a repo with no runs. verify_run must return that
+    # status instead of passing None to Path(), which raised TypeError.
+    result = runner_mod.verify_run(str(tmp_path), "run-1")
+
+    assert result["run_dir"] is None
+    assert result["state"]["phase"] == "no_runs"
+
+
 def test_verify_run_blocks_when_watcher_script_is_unavailable(tmp_path, monkeypatch):
     repo, run_id, run_dir = _arm_fixture(tmp_path, monkeypatch)
     # The watcher ships with the package; simulate a broken install.
