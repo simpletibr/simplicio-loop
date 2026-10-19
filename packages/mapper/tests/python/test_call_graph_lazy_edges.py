@@ -18,10 +18,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_call_graph_scaling import TS, _file  # noqa: E402
 
 from simplicio_mapper.mapper.graph import (  # noqa: E402
-    ARTIFACT_VERSION,
-    CALL_GRAPH_SCHEMA,
     _CALL_GRAPH_LANGUAGES,
     _PYTHON_KEYWORDS,
+    ARTIFACT_VERSION,
+    CALL_GRAPH_SCHEMA,
     _build_call_graph,
     _build_symbol_index,
     _call_expressions,

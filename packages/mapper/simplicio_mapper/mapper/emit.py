@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import os
-import secrets
 import re
+import secrets
 import shutil
 from collections.abc import Callable
 from typing import Any

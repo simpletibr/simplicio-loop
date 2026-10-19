@@ -72,7 +72,7 @@ class KeepLastTests(unittest.TestCase):
         )
 
     def test_keep_last_keeps_the_newest_n_and_candidates_the_rest(self) -> None:
-        names = ["d%d" % index for index in range(6)]
+        names = [f"d{index}" for index in range(6)]
         for index, name in enumerate(names):
             self._manifest(name, age_hours=2 + index)  # d0 newest ... d5 oldest
         report = self._scan(keep_last=3)
@@ -83,7 +83,7 @@ class KeepLastTests(unittest.TestCase):
 
     def test_a_digest_a_live_worktree_overlay_references_is_never_a_candidate(self) -> None:
         for index in range(5):
-            self._manifest("d%d" % index, age_hours=2 + index)
+            self._manifest(f"d{index}", age_hours=2 + index)
         report = self._scan(keep_last=1, referenced_digests=frozenset({"d4"}))
         candidates = {c.relative_path for c in report.candidates}
         self.assertNotIn("canonical/d4", candidates)
@@ -100,7 +100,7 @@ class KeepLastTests(unittest.TestCase):
         self.assertTrue(current.exists())
 
     def test_apply_removes_only_the_candidates(self) -> None:
-        dirs = [self._manifest("d%d" % index, age_hours=2 + index) for index in range(4)]
+        dirs = [self._manifest(f"d{index}", age_hours=2 + index) for index in range(4)]
         report = self._scan(keep_last=2, apply=True)
         self.assertEqual(len(report.removed), 2)
         self.assertTrue(dirs[0].exists() and dirs[1].exists())
@@ -108,8 +108,8 @@ class KeepLastTests(unittest.TestCase):
 
     def test_another_repositorys_base_in_a_shared_cache_dir_is_never_touched(self) -> None:
         """SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR may be shared: `--keep 0` must not eat a neighbour's base."""
-        ours = [self._manifest("o%d" % i, age_hours=5 + i) for i in range(3)]
-        theirs = [self._manifest("x%d" % i, age_hours=500 + i, repo_identity="other-repo") for i in range(3)]
+        ours = [self._manifest(f"o{i}", age_hours=5 + i) for i in range(3)]
+        theirs = [self._manifest(f"x{i}", age_hours=500 + i, repo_identity="other-repo") for i in range(3)]
         report = self._scan(keep_last=0, apply=True)
         self.assertEqual(len(report.removed), 3, [c.relative_path for c in report.removed])
         self.assertTrue(all(path.exists() for path in theirs))
@@ -119,15 +119,15 @@ class KeepLastTests(unittest.TestCase):
 
     def test_the_newest_n_are_counted_per_repository(self) -> None:
         for i in range(3):
-            self._manifest("o%d" % i, age_hours=50 + i)
+            self._manifest(f"o{i}", age_hours=50 + i)
         for i in range(3):
-            self._manifest("x%d" % i, age_hours=1 + i, repo_identity="other-repo")  # newer, but not ours
+            self._manifest(f"x{i}", age_hours=1 + i, repo_identity="other-repo")  # newer, but not ours
         report = self._scan(keep_last=1)
         self.assertEqual(sorted(c.relative_path for c in report.candidates), ["canonical/o1", "canonical/o2"])
 
     def test_without_keep_last_the_ttl_policy_is_unchanged(self) -> None:
         for index in range(5):
-            self._manifest("d%d" % index, age_hours=2 + index)
+            self._manifest(f"d{index}", age_hours=2 + index)
         report = self._scan()  # default 7-day TTL: nothing is old enough
         self.assertEqual(report.candidates, [])
 

@@ -8,10 +8,10 @@ import pytest
 
 from simplicio_mapper.store.neural import (
     absorb_runtime_neural,
+    bank,
     bootstrap_neural,
     neural_status,
 )
-from simplicio_mapper.store.neural import bank
 
 SEEDS_DIR = Path(bank.__file__).resolve().parent / "assets" / "seeds"
 MAX_SEED_PART_LINES = 9000

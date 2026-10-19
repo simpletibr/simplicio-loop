@@ -20,8 +20,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from simplicio_mapper.cli import main  # noqa: E402
 from test_central_overlay import _git, make_repo  # noqa: E402
+
+from simplicio_mapper.cli import main  # noqa: E402
 
 HEAVY = ("call-graph.json", "architecture-inventory.json", "retrieval-index.json", "artifact-manifest.json")
 

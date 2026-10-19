@@ -52,8 +52,8 @@ from .graph import (
     SEMANTIC_LANGUAGES,
     _build_symbol_index,
     _collect_architecture_signals,
-    resolve_csharp_razor_semantics,
     is_semantic_context,
+    resolve_csharp_razor_semantics,
     semantic_input_key,
     semantic_not_required,
 )

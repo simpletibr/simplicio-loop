@@ -14,6 +14,7 @@ from ._shared import (
     HELP_TEXT,
 )
 
+
 def _default_toon_enabled() -> bool:
     return os.environ.get("SIMPLICIO_TOON", "1").strip().lower() not in {"0", "false", "off", "no"}
 

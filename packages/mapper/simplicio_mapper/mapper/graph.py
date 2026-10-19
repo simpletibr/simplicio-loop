@@ -12,8 +12,8 @@ import json
 import keyword
 import os
 import posixpath
-import shutil
 import re
+import shutil
 import subprocess
 from bisect import bisect_right
 
@@ -22,10 +22,12 @@ from ..relations import normalize_relation_path, relation_coverage, relation_id
 from ..semantic_resolution import (
     COMMAND_ENV,
     TIMEOUT_ENV,
-    command_parts as semantic_command,
     RoslynSemanticAdapter,
     resolution_key,
     resolve_semantic_calls,
+)
+from ..semantic_resolution import (
+    command_parts as semantic_command,
 )
 from .parse import (
     _RE_CONFIG,

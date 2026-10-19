@@ -9,13 +9,14 @@ from __future__ import annotations
 import json
 import os
 import sys
-from types import SimpleNamespace
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import test_central_overlay_semantic_reuse as reuse  # noqa: E402
+
 from simplicio_mapper.mapper.graph import semantic_input_key  # noqa: E402
 
 FAILING = "import os, sys\nif os.environ.get('FAKE_SEM_FAIL'):\n    sys.exit(3)\n"

@@ -12,10 +12,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+import orjson  # noqa: E402
+
 from simplicio_mapper.mapper.central_overlay import apply_overlay  # noqa: E402
 from simplicio_mapper.mapper.parse import _git_status_map  # noqa: E402
-
-import orjson  # noqa: E402
 
 
 def _git(args: list[str], cwd: Path) -> str:

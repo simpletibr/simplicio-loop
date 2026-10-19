@@ -34,7 +34,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from simplicio_mapper.cli._canonical import _DEFAULT_CONFIG_FINGERPRINT as _CLI_DEFAULT_FINGERPRINT  # noqa: E402
+from simplicio_mapper.cli._canonical import (  # noqa: E402
+    _DEFAULT_CONFIG_FINGERPRINT as _CLI_DEFAULT_FINGERPRINT,
+)
 from simplicio_mapper.cli._canonical import run_canonical_cli  # noqa: E402
 from simplicio_mapper.mapper.canonical_builder import build_canonical_manifest  # noqa: E402
 from simplicio_mapper.mapper.canonical_storage import canonical_manifest_dir  # noqa: E402

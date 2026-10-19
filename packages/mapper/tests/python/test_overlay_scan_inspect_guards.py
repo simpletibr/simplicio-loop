@@ -15,9 +15,10 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from test_central_overlay import _git, make_repo  # noqa: E402
+
 from simplicio_mapper.cli import main  # noqa: E402
 from simplicio_mapper.mapper.central_overlay import OVERLAY_ARTIFACT_FILES  # noqa: E402
-from test_central_overlay import _git, make_repo  # noqa: E402
 
 HEAVY = ("call-graph.json", "architecture-inventory.json", "retrieval-index.json", "artifact-manifest.json")
 
@@ -47,15 +48,15 @@ class M10UnsafeBasedigests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.state = self.wt / ".simplicio-loop"
         self.overlay_file = self.state / "overlay.json"
-        
+
         # Verify overlay starts valid
         _, result = _run("inspect", str(self.wt), "--json")
         self.assertTrue(result["status"]["artifacts_present"], "setup: overlay must start valid")
-        
+
         # Save real base_digest for control
         self.valid_state = json.loads(self.overlay_file.read_text(encoding="utf-8"))
         self.real_digest = self.valid_state["base_digest"]
-        
+
         # Create directories that match unsafe paths
         # The lookup is <cache>/canonical/<digest>/: the decoys must sit under `canonical`, or the guard is never the only reason.
         canonical = self.cache_dir / "canonical"
@@ -65,17 +66,17 @@ class M10UnsafeBasedigests(unittest.TestCase):
     def _test_m10_guard_rejects(self, unsafe_value: str) -> None:
         """Test that M10 guard rejects unsafe base_digest via _deep_phase (inspect)."""
         state = json.loads(self.overlay_file.read_text(encoding="utf-8"))
-        
+
         # Change ONLY base_digest
         state["base_digest"] = unsafe_value
         self.overlay_file.write_text(json.dumps(state), encoding="utf-8")
-        
+
         # M10 guard (via _overlay_base_present used by _deep_phase) must make overlay invalid
         # Inspect uses _deep_phase which checks _artifacts_available -> _overlay_serves -> _overlay_base_present
         _, inspect_result = _run("inspect", str(self.wt), "--json")
         self.assertFalse(inspect_result["status"]["artifacts_present"],
                         f"M10: unsafe base_digest={unsafe_value!r} must be invalid (guard at line 446)")
-        
+
         # Control: restore real digest and verify overlay is valid again
         state["base_digest"] = self.real_digest
         self.overlay_file.write_text(json.dumps(state), encoding="utf-8")
