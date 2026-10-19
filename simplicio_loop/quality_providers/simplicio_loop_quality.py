@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -100,9 +101,11 @@ def run(
 ) -> dict:
     """Run ``scripts/check.py`` under existing physical admission and ownership."""
     del run_id, tasks, attempt, worktree, head, diff_hash, policy
+    # Execution uses the resolved repo (monitor, cwd, argv). The receipt names the same file under the path the caller
+    # gave: evidence is matched against the caller's own path, and the resolved form (macOS /var -> /private/var) must not leak.
     repo_path = Path(repo).resolve()
     check_script = repo_path / "scripts" / "check.py"
-    receipts = [str(check_script)]
+    receipts = [os.path.join(os.path.abspath(repo), "scripts", "check.py")]
     if not check_script.exists():
         return {
             "status": "BLOCKED",

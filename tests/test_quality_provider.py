@@ -394,3 +394,36 @@ def test_quality_result_to_matrix_and_supports():
                       findings=[{"a": 1}], receipts=["r"], detail="ok")
     m = r.to_matrix("run-1", ".", "head1", "diff1", 2)
     assert m["run_id"] == "run-1" and m["attempt"] == 2 and m["status"] == "PASS"
+
+
+# --------------------------------------------------------------------------
+# The built-in receipt names the check script under the repo path the caller gave, not its resolved form
+# --------------------------------------------------------------------------
+def test_builtin_receipt_names_the_check_script_under_the_repo_path_the_caller_gave(tmp_path, monkeypatch):
+    builtin = importlib.import_module("simplicio_loop.quality_providers.simplicio_loop_quality")
+
+    class Admitted:
+        def refresh(self, *, force=False):
+            return self
+
+        def due(self):
+            return False
+
+        def admission_status(self):
+            return {"admitted": True, "action": "admit", "reason_code": "PHYSICAL_CAPACITY_AVAILABLE"}
+
+        def status(self):
+            return {"admission": self.admission_status()}
+
+    real = tmp_path / "real"
+    (real / "scripts").mkdir(parents=True)
+    (real / "scripts" / "check.py").write_text("print('quality-ok')\n", encoding="utf-8")
+    link = tmp_path / "link"
+    link.symlink_to(real, target_is_directory=True)  # the caller spells the repo through a symlink (macOS: /var -> /private/var)
+    monkeypatch.setattr(builtin, "_build_monitor", lambda _repo: Admitted())
+
+    outcome = builtin.run(run_id="r", tasks=[], attempt=1, repo=str(link), worktree=str(link),
+                          head="h", diff_hash="d", policy="strict-default")
+
+    assert outcome["status"] == "PASS" and "quality-ok" in outcome["detail"]
+    assert outcome["receipts"] == [str(link / "scripts" / "check.py")]

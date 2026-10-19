@@ -42,15 +42,25 @@ def _failure(result: subprocess.CompletedProcess[str]) -> str:
     return "\n".join((result.stdout, result.stderr)).strip()[-4000:]
 
 
+def _copy_tracked_files(destination: Path) -> None:
+    """Copy the tracked files of the checkout (what a commit ships), not the ignored .venv or build output.
+
+    A copy of the whole tree (the 168 MB .venv included) spent the test's 120 s budget before pip started.
+    """
+    listed = subprocess.run(["git", "-C", str(REPO_ROOT), "ls-files", "-z"], capture_output=True, check=True)
+    for name in listed.stdout.decode("utf-8").split("\0"):
+        source_file = REPO_ROOT / name
+        if name and source_file.is_file():  # a tracked file deleted from the working tree is skipped
+            target = destination / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source_file, target)
+
+
 def test_quality_provider_imports_from_clean_installed_wheel(tmp_path: Path) -> None:
     """Build and import the provider without the checkout on the interpreter path."""
     deadline = time.monotonic() + TEST_TIMEOUT_SECONDS
     source = tmp_path / "source"
-    shutil.copytree(
-        REPO_ROOT,
-        source,
-        ignore=shutil.ignore_patterns(".git", "build", ".pytest_cache", "__pycache__", "*.pyc"),
-    )
+    _copy_tracked_files(source)
     dist = tmp_path / "dist"
     dist.mkdir()
     build = _run(
