@@ -634,15 +634,34 @@ def _clip_command(cmd: str, limit: int = LEAK_COMMAND_LIMIT) -> str:
     return cmd[:head] + marker + cmd[len(cmd) - (room - head):]
 
 
+def _command_line_of(pid: int) -> Optional[str]:
+    """The argv of ``pid`` on one line, or ``None`` when it cannot be read.
+
+    Linux reads procfs, which keeps the argv exact. macOS and the BSDs have no procfs, so ``ps`` reports the same argv.
+    """
+    if os.path.isdir("/proc"):
+        try:
+            with open("/proc/%d/cmdline" % pid, "rb") as handle:
+                return handle.read().replace(b"\0", b" ").decode("utf-8", "replace").strip()
+        except OSError:
+            return None
+    try:
+        listed = subprocess.run(
+            ["ps", "-ww", "-o", "command=", "-p", str(pid)],
+            capture_output=True, encoding="utf-8", errors="replace", timeout=5, check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return listed.stdout.strip() if listed.returncode == 0 else None
+
+
 def _describe_leaked(pids: Set[int]) -> str:
     """One ``descendant_leak pid=<pid> cmd=<argv>`` line per leaked process, its secrets masked (first, then clipped)."""
     from .dashboard.runs import redact_command
     lines = []
     for pid in sorted(pids):
-        try:
-            with open("/proc/%d/cmdline" % pid, "rb") as handle:
-                cmd = handle.read().replace(b"\0", b" ").decode("utf-8", "replace").strip()
-        except OSError:
+        cmd = _command_line_of(pid)
+        if cmd is None:
             cmd = "?"
         lines.append("descendant_leak pid=%d cmd=%s\n" % (pid, _clip_command(redact_command(cmd))))
     return "".join(lines)

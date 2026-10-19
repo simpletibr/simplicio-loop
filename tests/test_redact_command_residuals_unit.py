@@ -190,7 +190,7 @@ def test_the_cost_grows_linearly_with_the_command(name):
 
 
 # D5: the diagnostic of a leaked process masks argv, then clips.
-@pytest.mark.skipif(os.name == "nt", reason="POSIX /proc command-line contract")
+@pytest.mark.skipif(os.name == "nt", reason="POSIX command-line contract")
 class TestLeakDiagnostic:
     @staticmethod
     def _line(argv: list[str], marker: str) -> str:
@@ -199,9 +199,8 @@ class TestLeakDiagnostic:
         try:
             deadline = time.monotonic() + 10.0
             while time.monotonic() < deadline:
-                with open("/proc/%d/cmdline" % proc.pid, "rb") as handle:
-                    if marker.encode() in handle.read():  # exec has happened
-                        break
+                if marker in (quality_process._command_line_of(proc.pid) or ""):  # exec has happened
+                    break
                 time.sleep(0.02)
             return quality_process._describe_leaked({proc.pid})
         finally:
