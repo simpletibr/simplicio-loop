@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as dt
 import hashlib
 import os
 import shutil
@@ -9,6 +10,14 @@ from pathlib import Path
 import pytest
 
 from tools.policy_scan import load_policy, main, render, scan
+
+
+def test_checked_in_policy_has_no_expired_or_unused_exception() -> None:
+    """Scan the real policy so an expired, invalid or stale exception fails the suite."""
+    repository = Path(__file__).parents[2]
+    policy = load_policy(repository / "policy" / "no-internal-json.toml", dt.date.today().isoformat())
+
+    assert [item for item in scan(repository, policy) if item[2] == "unused-exception"] == []
 
 
 def _write_policy(root: Path, *, exceptions: str = "") -> Path:

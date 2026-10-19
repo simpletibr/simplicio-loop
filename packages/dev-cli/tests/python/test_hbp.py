@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import struct
 
 import pytest
@@ -29,7 +28,7 @@ def test_hbp_evidence_matches_runtime_layout_and_chain(tmp_path) -> None:
 def test_hbp_rejects_legacy_json_and_tampering(tmp_path) -> None:
     path = tmp_path / HBP_FILE_NAME
     path.write_text('{"seq":0}\n', encoding="utf-8")
-    with pytest.raises(HbpError, match="explicit migration"):
+    with pytest.raises(HbpError, match="not an HBP v1 ledger"):
         HbpEvidenceLedger(tmp_path).verify()
 
     path.unlink()
@@ -69,36 +68,6 @@ def test_hbp_rejects_unknown_header_contract(tmp_path, offset, value, message) -
         ledger.verify()
 
 
-def test_hbp_migrates_legacy_jsonl_atomically_and_idempotently(tmp_path) -> None:
-    legacy = tmp_path / "events.jsonl"
-    legacy.write_text(
-        json.dumps({"event": "task_complete", "payload": {"files": 2}}) + "\n",
-        encoding="utf-8",
-    )
-    ledger = HbpEvidenceLedger(tmp_path / "hbp", file_name="events.hbp")
-
-    assert ledger.migrate_jsonl(legacy) == 1
-    assert not legacy.exists()
-    assert (tmp_path / "events.jsonl.migrated").is_file()
-    assert ledger.verify()[0].payload.startswith("hbp-fields/v1")
-    assert "payload.files=2" in ledger.verify()[0].payload
-
-    # A retry after the post-replace/pre-rename window cannot duplicate rows.
-    assert ledger.migrate_jsonl(legacy) == 0
-    assert len(ledger.verify()) == 1
-
-
-def test_hbp_migration_validates_before_creating_target(tmp_path) -> None:
-    legacy = tmp_path / "events.jsonl"
-    legacy.write_text('{"ok": true}\nnot-json\n', encoding="utf-8")
-    ledger = HbpEvidenceLedger(tmp_path / "hbp", file_name="events.hbp")
-
-    with pytest.raises(ValueError, match="invalid legacy JSONL"):
-        ledger.migrate_jsonl(legacy)
-    assert not ledger.path.exists()
-    assert legacy.exists()
-
-
 def test_hbp_rejects_unsafe_file_names_and_scalar_violations(tmp_path) -> None:
     for file_name in ("", "nested/ledger.bin", "ledger.lock"):
         with pytest.raises(ValueError, match="plain file name"):
@@ -111,14 +80,12 @@ def test_hbp_rejects_unsafe_file_names_and_scalar_violations(tmp_path) -> None:
         ledger.record_fields("topic", {"value": {"nested": True}}, "agent:test")
 
 
-def test_hbp_rejects_existing_lock_and_handles_missing_migration_source(tmp_path) -> None:
+def test_hbp_rejects_existing_lock(tmp_path) -> None:
     ledger = HbpEvidenceLedger(tmp_path)
     ledger.directory.mkdir(parents=True, exist_ok=True)
     ledger.lock_path.write_text("held", encoding="ascii")
     with pytest.raises(HbpError, match="locked"):
         ledger.append("topic", "payload", "agent:test")
-    ledger.lock_path.unlink()
-    assert ledger.migrate_jsonl(tmp_path / "missing.jsonl") == 0
 
 
 def test_hbp_rejects_malformed_record_shapes() -> None:
@@ -134,8 +101,8 @@ def test_hbp_rejects_malformed_record_shapes() -> None:
         hbp._decode_record(b"x" * (hbp.MAX_RECORD_BYTES + 1))
 
 
-def test_hbp_rejects_marker_trailing_chain_and_hash_errors() -> None:
-    ledger = HbpEvidenceLedger(".")
+def test_hbp_rejects_marker_trailing_chain_and_hash_errors(tmp_path) -> None:
+    ledger = HbpEvidenceLedger(tmp_path)
     row = hbp.HbpRow(0, 1, "topic", "payload", "agent", "token", hbp.HBP_GENESIS, "hash")
     body = bytearray(hbp._encode_record(row)[4:])
     marker_offset = (
@@ -157,7 +124,7 @@ def test_hbp_rejects_marker_trailing_chain_and_hash_errors() -> None:
 def test_hbp_rejects_bad_file_header_and_sequence(tmp_path) -> None:
     path = tmp_path / HBP_FILE_NAME
     path.write_bytes(b"bad")
-    with pytest.raises(HbpError, match="explicit migration"):
+    with pytest.raises(HbpError, match="not an HBP v1 ledger"):
         HbpEvidenceLedger(tmp_path).verify()
 
     ledger = HbpEvidenceLedger(tmp_path)
@@ -165,16 +132,6 @@ def test_hbp_rejects_bad_file_header_and_sequence(tmp_path) -> None:
     path.write_bytes(HBP_MAGIC + struct.pack("<HH", hbp.HBP_VERSION, hbp.HBP_FLAGS) + hbp._encode_record(row))
     with pytest.raises(HbpError, match="sequence gap"):
         ledger.verify()
-
-
-def test_hbp_migration_completes_existing_target_and_timestamp_default(tmp_path) -> None:
-    legacy = tmp_path / "events.jsonl"
-    legacy.write_text(json.dumps({"event": "done"}) + "\n", encoding="utf-8")
-    ledger = HbpEvidenceLedger(tmp_path / "hbp", file_name="events.hbp")
-    ledger.record("edit", "evidence", "agent")
-    assert ledger.migrate_jsonl(legacy) == 1
-    assert not legacy.exists()
-    assert (tmp_path / "events.jsonl.migrated").exists()
 
 
 def test_hbp_empty_file_and_oversized_ledger_are_rejected(tmp_path, monkeypatch) -> None:

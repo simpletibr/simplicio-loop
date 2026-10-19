@@ -2,8 +2,8 @@
 """Executable local evidence runner for dev-cli issue #262.
 
 The runner deliberately produces Markdown and HBP only. It exercises the
-binary cache, legacy migration, CLI surfaces, source/archive boundary gate,
-and installed-package probe. External Runtime/Mapper release evidence is
+binary cache, CLI surfaces, source/archive boundary gate, and installed-package
+probe. External Runtime/Mapper release evidence is
 reported as ``UNVERIFIED`` with a reason when the corresponding installed
 artifact is unavailable; the process exits non-zero so release cannot pass on
 missing evidence.
@@ -25,7 +25,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from simplicio._cache import CacheEntry, CompletionCache, make_key  # noqa: E402
-from simplicio.hbp import HbpError, HbpEvidenceLedger  # noqa: E402
+from simplicio.hbp import HbpEvidenceLedger  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -67,37 +67,6 @@ def _cache_case(work: Path) -> Case:
         status, detail = "PASS", f"misses={cache.misses}; hits={cache.hits}; bytes={cache.stats()['bytes']}"
     return Case(
         "cache-cold-warm", status, (time.perf_counter() - started) * 1000, detail, "CompletionCache.get/put"
-    )
-
-
-def _migration_case(work: Path) -> Case:
-    started = time.perf_counter()
-    legacy = work / "legacy-events.jsonl"
-    legacy.write_text('{"event":"task_complete","payload":{"files":2}}\n', encoding="utf-8")
-    ledger = HbpEvidenceLedger(work / "hbp", file_name="events.hbp")
-    try:
-        migrated = ledger.migrate_jsonl(legacy)
-        rows = ledger.verify()
-        retry = ledger.migrate_jsonl(legacy)
-    except (OSError, HbpError, ValueError) as exc:
-        return Case(
-            "legacy-migration",
-            "FAIL",
-            (time.perf_counter() - started) * 1000,
-            str(exc),
-            "HbpEvidenceLedger.migrate_jsonl",
-        )
-    if migrated != 1 or retry != 0 or len(rows) != 1 or legacy.exists():
-        detail = f"migrated={migrated}; retry={retry}; rows={len(rows)}; legacy_present={legacy.exists()}"
-        status = "FAIL"
-    else:
-        detail, status = "atomic, idempotent, source archived", "PASS"
-    return Case(
-        "legacy-migration",
-        status,
-        (time.perf_counter() - started) * 1000,
-        detail,
-        "HbpEvidenceLedger.migrate_jsonl",
     )
 
 
@@ -188,7 +157,6 @@ def run(*, artifact_dir: Path | None = None, markdown: Path, hbp: Path) -> int:
         work = Path(temporary)
         cases = [
             _cache_case(work),
-            _migration_case(work),
             _cli_case("run-surface", ["run", "--help"]),
             _cli_case("edit-surface", ["edit", "--help"]),
             _cli_case("task-surface", ["task", "--help"]),

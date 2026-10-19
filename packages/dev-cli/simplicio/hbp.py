@@ -1,18 +1,15 @@
 """Runtime-compatible HBP v1 evidence ledger.
 
 The binary layout is owned by ``simplicio-runtime`` and intentionally mirrors
-``src/hbp/mod.rs``.  This module is an additive adapter: existing JSONL
-writers remain unchanged until an explicit migration and installed E2E prove
-that every consumer can read HBP.
+``src/hbp/mod.rs``.  This module is an additive adapter: it parses no JSON,
+and it writes only HBP ledgers.
 """
 
 from __future__ import annotations
 
 import hashlib
 import os
-import shutil
 import struct
-import tempfile
 import time
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
@@ -150,7 +147,7 @@ def _decode_file(raw: bytes) -> tuple[HbpRow, ...]:
     if len(raw) > MAX_LEDGER_BYTES:
         raise HbpError(f"HBP ledger exceeds {MAX_LEDGER_BYTES} bytes")
     if len(raw) < 8 or raw[:4] != HBP_MAGIC:
-        raise HbpError("legacy or unknown HBP ledger; explicit migration is required")
+        raise HbpError("legacy or unknown HBP ledger; not an HBP v1 ledger")
     version, flags = struct.unpack("<HH", raw[4:8])
     if version != HBP_VERSION or flags != HBP_FLAGS:
         raise HbpError("unsupported HBP version or flags")
@@ -293,47 +290,6 @@ class HbpEvidenceLedger:
             encoded.append(f"{key}={value}")
         payload = "hbp-fields/v1" + "".join(f":{len(field.encode('utf-8'))}:{field}" for field in encoded)
         return self.append(topic, payload, provenance, timestamp=timestamp)
-
-    def migrate_jsonl(
-        self,
-        source: str | Path,
-        *,
-        topic: str = "legacy-migration",
-        provenance: str = "simplicio-dev-cli/legacy-json-migration",
-    ) -> int:
-        """Atomically migrate a legacy JSONL file into one HBP ledger.
-
-        The JSON parser is isolated in :mod:`legacy_json_adapter`. The target
-        is fully built and verified before it replaces the destination; the
-        source is renamed only after the target is durable. If a process is
-        interrupted after replacement but before the rename, the next call
-        verifies the target and completes the source rename without replaying
-        rows.
-        """
-        from .legacy_json_adapter import read_jsonl
-
-        legacy = Path(source)
-        migrated = legacy.with_name(legacy.name + ".migrated")
-        if not legacy.is_file():
-            return 0
-        if self.path.exists():
-            rows = self.verify()
-            if not migrated.exists():
-                os.replace(legacy, migrated)
-            return len(rows)
-        fields_rows = read_jsonl(legacy)
-        self.directory.mkdir(parents=True, exist_ok=True)
-        temp_dir = Path(tempfile.mkdtemp(prefix=f".{self.path.name}.", dir=str(self.directory)))
-        try:
-            temp_ledger = HbpEvidenceLedger(temp_dir, file_name=self.path.name)
-            for fields in fields_rows:
-                temp_ledger.record_fields(topic, fields, provenance)
-            temp_ledger.verify()
-            os.replace(temp_ledger.path, self.path)
-        finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)
-        os.replace(legacy, migrated)
-        return len(fields_rows)
 
 
 __all__ = ["HBP_FILE_NAME", "HBP_GENESIS", "HbpError", "HbpEvidenceLedger", "HbpRow", "row_content_hash"]

@@ -5,10 +5,11 @@ policy = "internal-json-deny"
 internal_roots = [".simplicio-loop/orchestrator", ".simplicio-loop"]
 formats = [".json", ".jsonl", ".ndjson"]
 
+# Permanent classification of an append-only ledger: scripts/savings_harness.py snapshot
+# appends to it and scripts/billing_aggregator.py collect reads it. An entry has no expiry
+# and no migration target; scripts/check_json_boundaries.py rejects any other key.
 [[exceptions]]
 path = ".simplicio-loop/orchestrator/savings/snapshots.jsonl"
-category = "legacy-internal"
-target = "hbp"
+category = "runtime-ledger"
 owner = "loop"
-reason = "migrate append-only savings snapshots to Runtime HBP v1"
-expires = "2026-09-30"
+reason = "append-only savings snapshots written by scripts/savings_harness.py snapshot and read by scripts/billing_aggregator.py"

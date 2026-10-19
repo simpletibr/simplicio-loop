@@ -57,8 +57,57 @@ def test_disposable_runtime_probe_outputs_are_not_checked_in_state(policy_root: 
     assert check(policy_root) == []
 
 
+def test_dynamic_run_and_observability_folders_are_classified(policy_root: Path):
+    for relative in (
+        ".simplicio-loop/orchestrator/runs/run-20261019-7f3a/state.json",
+        ".simplicio-loop/orchestrator/runs/run-20261019-7f3a/events.jsonl",
+        ".simplicio-loop/orchestrator/runs/run-20261019-7f3a/receipts/build-apply.json",
+        ".simplicio-loop/loop-runs/run-42/state.json",
+        ".simplicio-loop/observability/dev-cli/events.jsonl",
+        ".simplicio-loop/events.jsonl",
+    ):
+        path = policy_root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}\n", encoding="utf-8")
+    assert check(policy_root) == []
+
+
+def test_directory_classification_does_not_cover_siblings_or_prefixes(policy_root: Path):
+    for relative in (
+        ".simplicio-loop/orchestrator/runs.json",
+        ".simplicio-loop/orchestrator/runs-archive/state.json",
+        ".simplicio-loop/events.json",
+    ):
+        path = policy_root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}", encoding="utf-8")
+    assert sorted(check(policy_root)) == [
+        "UNCLASSIFIED .simplicio-loop/events.json",
+        "UNCLASSIFIED .simplicio-loop/orchestrator/runs-archive/state.json",
+        "UNCLASSIFIED .simplicio-loop/orchestrator/runs.json",
+    ]
+
+
+@pytest.mark.parametrize("path", [".simplicio-loop/", "elsewhere/"])
+def test_directory_exception_must_lie_inside_an_internal_root(policy_root: Path, path: str):
+    (policy_root / "config" / "json-boundaries.toml").write_text(
+        "version=1\npolicy='internal-json-deny'\n"
+        "[scanner]\ninternal_roots=['.simplicio-loop']\nformats=['.json']\n"
+        f"[[exceptions]]\npath='{path}'\ncategory='runtime-ledger'\nowner='loop'\nreason='runtime output'\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="inside an internal root"):
+        load_policy(policy_root)
+
+
 @pytest.mark.parametrize(
-    "path", [".simplicio-loop/*.json", ".simplicio-loop/../state.json", "/.simplicio-loop/state.json"]
+    "path",
+    [
+        ".simplicio-loop/*.json",
+        ".simplicio-loop/*/",
+        ".simplicio-loop/../state.json",
+        "/.simplicio-loop/state.json",
+    ],
 )
 def test_exception_registry_rejects_non_exact_paths(policy_root: Path, path: str):
     registry = policy_root / "config" / "json-boundaries.toml"

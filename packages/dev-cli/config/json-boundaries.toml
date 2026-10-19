@@ -7,7 +7,9 @@ formats = [".json", ".jsonl", ".ndjson"]
 
 # Permanent classifications of per-package runtime output: packages/*/.simplicio-loop/ is
 # gitignored and written by running the CLIs in place. An entry has no expiry and no
-# migration target; scripts/check_json_boundaries.py rejects any other key.
+# migration target; scripts/check_json_boundaries.py rejects any other key. A path ending in
+# "/" classifies every file below that directory, so a folder per run or per component needs
+# one entry; every other path is one exact file.
 
 [[exceptions]]
 path = ".simplicio-loop/architecture-inventory.json"
@@ -56,3 +58,27 @@ path = ".simplicio-loop/runs.jsonl"
 category = "runtime-ledger"
 owner = "dev-cli"
 reason = "append-only run log written by dev-cli observability.log_run"
+
+[[exceptions]]
+path = ".simplicio-loop/events.jsonl"
+category = "runtime-ledger"
+owner = "dev-cli"
+reason = "append-only observability event stream written by simplicio.observability.emit_event when a root is given"
+
+[[exceptions]]
+path = ".simplicio-loop/orchestrator/runs/"
+category = "runtime-run"
+owner = "loop"
+reason = "one folder per turbo run (state.json, events.jsonl, receipts/), written by simplicio_loop.turbo_run"
+
+[[exceptions]]
+path = ".simplicio-loop/loop-runs/"
+category = "runtime-run"
+owner = "loop"
+reason = "one folder per dispatched loop run, written by simplicio_loop.runner_dispatch_batch"
+
+[[exceptions]]
+path = ".simplicio-loop/observability/"
+category = "runtime-ledger"
+owner = "loop"
+reason = "append-only events.jsonl per observability component, written by simplicio_loop.telemetry"

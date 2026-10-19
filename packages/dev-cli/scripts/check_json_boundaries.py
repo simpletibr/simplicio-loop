@@ -33,6 +33,7 @@ class Policy:
     roots: tuple[str, ...]
     formats: frozenset[str]
     exceptions: dict[str, dict[str, object]]
+    directories: tuple[str, ...]
 
 
 def _exact_relative_path(value: object, label: str) -> str:
@@ -42,6 +43,13 @@ def _exact_relative_path(value: object, label: str) -> str:
     if path.is_absolute() or ".." in path.parts or value != path.as_posix():
         raise ValueError(f"{label} must be a normalized repository-relative path")
     return value
+
+
+def _registry_path(value: object) -> tuple[str, bool]:
+    """Return one exact path, and whether it names a directory by a trailing slash."""
+    if isinstance(value, str) and value.endswith("/"):
+        return _exact_relative_path(value[:-1], "each exception"), True
+    return _exact_relative_path(value, "each exception"), False
 
 
 def load_policy(root: Path) -> Policy:
@@ -57,12 +65,13 @@ def load_policy(root: Path) -> Policy:
     if not roots or not formats or any(not item.startswith(".") for item in formats):
         raise ValueError("scanner roots and dot-prefixed formats are required")
     exceptions: dict[str, dict[str, object]] = {}
+    directories: list[str] = []
     for raw_entry in doc.get("exceptions", []):
         if not isinstance(raw_entry, dict):
             raise ValueError("each exception must be a TOML table")
         entry = dict(raw_entry)
-        path = _exact_relative_path(entry.get("path"), "each exception")
-        if path in exceptions:
+        path, is_directory = _registry_path(entry.get("path"))
+        if path in exceptions or path in directories:
             raise ValueError(f"duplicate exception: {path}")
         unsupported = sorted(set(entry) - _ENTRY_KEYS)
         if unsupported:
@@ -73,10 +82,16 @@ def load_policy(root: Path) -> Policy:
         missing = [key for key in _REQUIRED_KEYS if not entry.get(key)]
         if missing:
             raise ValueError(f"{path}: missing {', '.join(missing)}")
+        if is_directory:
+            # A directory classification must sit strictly below a root: naming a root would waive all of it.
+            if not any(path.startswith(f"{item}/") for item in roots):
+                raise ValueError(f"{path}/: directory exception must lie inside an internal root")
+            directories.append(path)
+            continue
         if not any(path == item or path.startswith(f"{item}/") for item in roots):
             raise ValueError(f"{path}: exception is outside configured internal roots")
         exceptions[path] = entry
-    return Policy(roots, formats, exceptions)
+    return Policy(roots, formats, exceptions, tuple(directories))
 
 
 def _owned_json(paths: Iterable[str], policy: Policy) -> Iterable[str]:
@@ -103,6 +118,12 @@ def _archive_paths(path: Path) -> list[str]:
     raise ValueError(f"unsupported artifact archive: {path}")
 
 
+def _classified(rel: str, policy: Policy) -> bool:
+    return rel in policy.exceptions or any(
+        rel.startswith(f"{directory}/") for directory in policy.directories
+    )
+
+
 def check(root: Path, artifacts: Iterable[Path] = ()) -> list[str]:
     policy = load_policy(root)
     findings: list[str] = []
@@ -116,7 +137,7 @@ def check(root: Path, artifacts: Iterable[Path] = ()) -> list[str]:
             rel = path.relative_to(root).as_posix()
             if any(rel == ephemeral or rel.startswith(f"{ephemeral}/") for ephemeral in _EPHEMERAL_ROOTS):
                 continue
-            if rel not in policy.exceptions:
+            if not _classified(rel, policy):
                 findings.append(f"UNCLASSIFIED {rel}")
     for artifact in artifacts:
         for rel in sorted(_owned_json(_archive_paths(artifact), policy)):

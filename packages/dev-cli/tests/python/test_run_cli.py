@@ -235,8 +235,9 @@ def test_run_scope_scratch_forwards_existing_project_root(monkeypatch, tmp_path)
     ]
 
 
-def test_run_scope_feature_outputs_orchestrator_result(monkeypatch, capsys):
+def test_run_scope_feature_outputs_orchestrator_result(monkeypatch, capsys, tmp_path):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.chdir(tmp_path)
 
     def fake_run_feature(**kwargs):
         assert kwargs["stack_slug"] == "py-fastapi"
@@ -380,8 +381,9 @@ def test_run_scope_feature_json_suppresses_pipeline_logs(
     assert payload["applied"] is True
 
 
-def test_run_scope_feature_rejects_negative_max_cost(monkeypatch, capsys):
+def test_run_scope_feature_rejects_negative_max_cost(monkeypatch, capsys, tmp_path):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.chdir(tmp_path)
 
     code = cli.main(
         [
@@ -403,8 +405,9 @@ def test_run_scope_feature_rejects_negative_max_cost(monkeypatch, capsys):
     assert captured.out == ""
 
 
-def test_run_scope_feature_rejects_non_decimal_max_cost(monkeypatch, capsys):
+def test_run_scope_feature_rejects_non_decimal_max_cost(monkeypatch, capsys, tmp_path):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.chdir(tmp_path)
 
     code = cli.main(
         [
