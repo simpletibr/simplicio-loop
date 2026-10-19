@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from simplicio_loop import exec_auth
+from tests._procs import gone_within
 
 pytestmark = pytest.mark.skipif(os.name == "nt", reason="the fake CLIs are POSIX shell scripts")
 
@@ -53,19 +54,6 @@ def hang_with_grandchild(bindir: Path, name: str, pidfile: Path, *, leader_exits
     sleep = shutil.which("sleep")
     tail = "exit 0" if leader_exits else f"{sleep} 30"
     write_cli(bindir, name, f'{sleep} 30 &\necho $! > "{pidfile}"\n{tail}')
-
-
-def gone_within(pid: int, budget: float = 5.0) -> bool:
-    """True once `pid` no longer runs (its group was killed and launchd or init has reaped it)."""
-    deadline = time.monotonic() + budget
-    while True:
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
-            return True
-        if time.monotonic() >= deadline:
-            return False
-        time.sleep(0.05)
 
 
 def test_hung_status_check_is_bounded_and_kills_its_process_group(fake_cli):
@@ -108,3 +96,23 @@ def test_count_check_kills_leftover_grandchild_once_its_leader_already_exited(fa
     assert elapsed < TIMEOUT + MARGIN, f"a count check with an exited leader returned after {elapsed:.2f}s"
     assert pidfile.exists(), "the fake CLI never started its grandchild"
     assert gone_within(int(pidfile.read_text())), "the grandchild outlived the check"
+
+
+def test_cancelled_check_kills_its_process_group(fake_cli):
+    # A caller that cancels check_all() (a task group's shutdown, a Ctrl-C) must not leave the CLI and its grandchild
+    # running: the cancellation kills the group, then propagates.
+    bindir, pidfile = fake_cli
+    hang_with_grandchild(bindir, "claude", pidfile)
+
+    async def cancel_once_the_grandchild_runs() -> None:
+        task = asyncio.ensure_future(exec_auth.check_all(["claude"]))
+        deadline = time.monotonic() + 10.0
+        while time.monotonic() < deadline and not (pidfile.exists() and pidfile.read_text().strip()):
+            await asyncio.sleep(0.02)
+        assert pidfile.exists(), "the fake CLI never started its grandchild"
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    asyncio.run(cancel_once_the_grandchild_runs())
+    assert gone_within(int(pidfile.read_text())), "the grandchild outlived the cancelled check"

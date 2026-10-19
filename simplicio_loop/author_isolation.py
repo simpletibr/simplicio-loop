@@ -229,8 +229,8 @@ def leaks(root: str | os.PathLike[str], changed: list[str], secrets: set[bytes],
 
 
 def _owner_alive(home: Path) -> bool:
-    # lazy: the mapper package is a heavy import; it must not sit between reading a pid and probing it
-    from simplicio_mapper.mapper.process_liveness import process_exists
+    # imported before the pid is read, so no import sits between reading a pid and probing it
+    from simplicio_mapper.process_liveness import process_exists
 
     try:
         pid = int((home / OWNER).read_text())

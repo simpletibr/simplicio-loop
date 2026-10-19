@@ -110,8 +110,8 @@ def _sidecars(path: Path) -> dict[str, int]:
 
 
 def _lock_info(path: Path) -> dict[str, Any]:
-    # lazy: the mapper package is a heavy import; it must not sit between reading a pid and probing it
-    from ..mapper.process_liveness import process_exists
+    # imported before the pid is read, so no import sits between reading a pid and probing it
+    from ..process_liveness import process_exists
 
     if not path.exists():
         return {"path": str(path), "present": False, "active": False, "stale": False, "owner": None}

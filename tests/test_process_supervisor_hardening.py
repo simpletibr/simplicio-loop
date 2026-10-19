@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -13,6 +14,7 @@ from simplicio_loop.process_supervisor import (
     PythonProcessAdapter,
 )
 from simplicio_loop import process_supervisor as supervisor_module
+from tests._procs import GRANDCHILD_LEADER, gone_within
 
 
 def test_windows_taskkill_nonzero_falls_back_to_direct_kill(monkeypatch) -> None:
@@ -80,6 +82,26 @@ def test_reap_after_kill_returns_collected_output() -> None:
             return b"out", b"err"
 
     assert asyncio.run(PythonProcessAdapter._reap_after_kill(Process())) == (b"out", b"err")
+
+
+@pytest.mark.skipif(os.name == "nt", reason="process groups are POSIX")
+def test_kill_tree_still_reaches_the_group_once_its_leader_was_reaped(tmp_path) -> None:
+    # The leader exits and is reaped while a grandchild it started keeps running in the leader's group, which the
+    # leader's pid still names. Looking the group up with getpgid() fails once the leader is reaped, so the kill must
+    # signal the group by that pid instead.
+    pidfile = tmp_path / "grandchild.pid"
+
+    async def scenario() -> None:
+        process = await asyncio.create_subprocess_exec(
+            sys.executable, "-c", GRANDCHILD_LEADER, str(pidfile),
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        await process.wait()
+        PythonProcessAdapter._kill_tree(process)
+
+    asyncio.run(scenario())
+    assert gone_within(int(pidfile.read_text())), "the grandchild outlived the kill of its reaped leader"
 
 
 def test_argv_with_shell_metacharacters_is_never_shell_interpreted() -> None:

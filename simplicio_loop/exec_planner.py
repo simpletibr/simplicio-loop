@@ -18,7 +18,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-from . import handoff_cli, input_ceiling, model_roles, plan_scope, structured_output
+from . import handoff_cli, input_ceiling, model_roles, plan_scope, proc_group, structured_output
 from .agent_handoff import HandoffError
 
 DEFAULT_FAMILIES = ["claude", "codex", "grok", "gemini"]
@@ -274,36 +274,21 @@ def build_argv(family, role, prompt, model, cwd, effort="", schema_file="", read
     return argv
 
 
-def _group_alive(pgid):
-    try:
-        os.killpg(pgid, 0)
-    except (ProcessLookupError, PermissionError):
-        return False
-    return True
-
-
 async def _kill_process_tree(proc, grace_sec=KILL_GRACE_SEC):
-    """SIGTERM the whole process group, then SIGKILL whatever survives the grace period."""
-    try:
-        pgid = os.getpgid(proc.pid)
-    except (ProcessLookupError, OSError):
-        pgid = proc.pid
-    try:
-        os.killpg(pgid, signal.SIGTERM)
-    except (ProcessLookupError, PermissionError):
-        pass
+    """SIGTERM the whole process group, then SIGKILL whatever survives the grace period.
+
+    The group is named by the leader's pid: _run_subprocess starts every child as its own session leader.
+    """
+    proc_group.kill_group(proc.pid, signal.SIGTERM)
     deadline = time.monotonic() + grace_sec
     while time.monotonic() < deadline:
         try:
             await asyncio.wait_for(proc.wait(), timeout=0.05)
         except asyncio.TimeoutError:
             pass
-        if proc.returncode is not None and not _group_alive(pgid):
+        if proc.returncode is not None and not proc_group.group_alive(proc.pid):
             return
-    try:
-        os.killpg(pgid, signal.SIGKILL)
-    except (ProcessLookupError, PermissionError):
-        pass
+    proc_group.kill_tree(proc)
     await proc.wait()
 
 
@@ -316,7 +301,7 @@ async def _run_subprocess(argv, stdin_text=None, timeout_sec=60.0, cwd=None, gra
         stderr=asyncio.subprocess.PIPE,
         cwd=cwd,
         env=env,
-        start_new_session=True,
+        **proc_group.session_kwargs(),
     )
     try:
         stdout_bytes, stderr_bytes = await asyncio.wait_for(

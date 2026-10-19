@@ -6,13 +6,12 @@ proc.run with a fake that answers by argv.
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import os
-import signal
 from dataclasses import dataclass
 from collections.abc import Mapping
 from pathlib import Path
 
+from .. import proc_group
 from . import sandbox
 
 
@@ -21,13 +20,6 @@ class Result:
     returncode: int
     stdout: str = ""
     stderr: str = ""
-
-
-def _kill_group(proc: asyncio.subprocess.Process) -> None:
-    with contextlib.suppress(ProcessLookupError, PermissionError):
-        os.killpg(proc.pid, signal.SIGKILL)
-    with contextlib.suppress(ProcessLookupError):
-        proc.kill()
 
 
 async def run(argv: list[str], timeout: float = 120, cwd: Path | None = None,
@@ -45,16 +37,16 @@ async def run(argv: list[str], timeout: float = 120, cwd: Path | None = None,
         stdin=asyncio.subprocess.PIPE if stdin is not None else None,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
-        start_new_session=True,
+        **proc_group.session_kwargs(),
     )
     try:
         out, err = await asyncio.wait_for(proc.communicate(None if stdin is None else stdin.encode()), timeout=timeout)
     except asyncio.TimeoutError as exc:
-        _kill_group(proc)
+        proc_group.kill_tree(proc)
         await proc.wait()
         raise TimeoutError(f"{argv[0]} timed out after {timeout}s") from exc
     except BaseException:
-        _kill_group(proc)
+        proc_group.kill_tree(proc)
         await proc.wait()
         raise
     return Result(

@@ -13,8 +13,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from simplicio_mapper.mapper import process_liveness
-from simplicio_mapper.mapper.process_liveness import process_is_alive
+from simplicio_mapper import process_liveness
+from simplicio_mapper.process_liveness import process_is_alive
 
 
 class ProcessLivenessTest(unittest.TestCase):
@@ -69,6 +69,13 @@ class ProcessLivenessTest(unittest.TestCase):
             process_liveness._ps_start_token(sleeper.pid)
             process_liveness._ps_start_token(sleeper.pid)
         self.assertEqual(run.call_count - after_first_own, 2, "other pids must not be cached")
+
+    def test_importing_the_probe_does_not_load_the_mapper_package(self) -> None:
+        # Every liveness check in the loop imports this probe; importing it through simplicio_mapper.mapper loads the
+        # whole mapper package first (about 0.6 s).
+        code = "import sys; import simplicio_mapper.process_liveness; print('simplicio_mapper.mapper' in sys.modules)"
+        out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout
+        self.assertEqual(out.strip(), "False")
 
 
 class ProcessExistsTest(unittest.TestCase):

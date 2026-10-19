@@ -129,8 +129,8 @@ def _inventory(path: Path) -> dict[str, object]:
 
 
 def _writer_status(path: Path) -> dict[str, object]:
-    # lazy: the mapper package is a heavy import; it must not sit between reading a pid and probing it
-    from ..mapper.process_liveness import process_exists
+    # imported before the pid is read, so no import sits between reading a pid and probing it
+    from ..process_liveness import process_exists
 
     lock = path.with_name(path.name + ".writer.lock")
     if not lock.exists():

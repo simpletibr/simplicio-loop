@@ -37,7 +37,7 @@ from simplicio_mapper import cli as cli_module  # noqa: E402
 from simplicio_mapper.cli import _background as cli_background  # noqa: E402
 from simplicio_mapper.cli import _status_engine as status_engine  # noqa: E402
 from simplicio_mapper.cli import main  # noqa: E402
-from simplicio_mapper.mapper.process_liveness import process_is_alive  # noqa: E402
+from simplicio_mapper.process_liveness import process_is_alive  # noqa: E402
 
 
 def _write(base: Path, rel: str, content: str) -> None:

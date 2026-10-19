@@ -232,8 +232,8 @@ def _rollback_after_commit_failure(
 
 
 def _lock_owned_by_live_process(lock_path: Path) -> bool:
-    # lazy: the mapper package is a heavy import; it must not sit between reading a pid and probing it
-    from simplicio_mapper.mapper.process_liveness import process_exists
+    # imported before the pid is read, so no import sits between reading a pid and probing it
+    from simplicio_mapper.process_liveness import process_exists
 
     try:
         value = lock_path.read_text(encoding="utf-8").strip()

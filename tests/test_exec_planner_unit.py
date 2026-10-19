@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import stat
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -70,11 +71,15 @@ def _alive(pid):
         os.kill(pid, 0)
     except ProcessLookupError:
         return False
-    try:
-        state = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
-    except OSError:
-        return False
-    return state != "Z"
+    if os.path.isdir("/proc"):
+        try:
+            state = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
+        except OSError:
+            return False
+        return state != "Z"
+    # No procfs (macOS): kill(pid, 0) also succeeds for a zombie, so ps reports the state instead (Z = zombie).
+    state = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True, check=False).stdout.strip()
+    return bool(state) and not state.startswith("Z")
 
 
 def pid_gone(pid, wait=3.0):
@@ -268,8 +273,8 @@ class TestRunPlanner:
         assert res.reason_code == "process_error" and res.error == "exit 3"
 
     def test_timeout(self, bindir):
-        fake_cli(bindir, "claude", body="time.sleep(60)")
-        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=0.5, grace_sec=1.0, repo_root=bindir))
+        fake_cli(bindir, "claude", body="time.sleep(60)")  # hung: the budget always ends the run, however slow the host
+        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=3.0, grace_sec=1.0, repo_root=bindir))
         assert res.reason_code == "timeout"
 
 
@@ -303,6 +308,8 @@ class TestRaw:
 
 
 class TestTreeKill:
+    # Budgets are generous on purpose: a loaded host can take seconds to start the fake CLI and the child it spawns, and
+    # the pidfile must exist when the run ends. The hung stubs sleep 60 s, so every run still ends at its budget.
     def test_timeout_kills_hung_child(self, bindir):
         pidfile = bindir / "child.pid"
         body = (
@@ -311,7 +318,7 @@ class TestTreeKill:
             "time.sleep(60)"
         ) % str(pidfile)
         fake_cli(bindir, "claude", body=body)
-        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=1.0, grace_sec=1.0, repo_root=bindir))
+        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=5.0, grace_sec=1.0, repo_root=bindir))
         assert res.reason_code == "timeout"
         child = int(pidfile.read_text())
         assert pid_gone(child), "child sleep survived the timeout"
@@ -329,11 +336,12 @@ class TestTreeKill:
         ) % str(pidfile)
         fake_cli(bindir, "claude", body=body)
         started = time.monotonic()
-        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=1.0, grace_sec=0.5, repo_root=bindir))
+        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=5.0, grace_sec=0.5, repo_root=bindir))
         elapsed = time.monotonic() - started
         assert res.reason_code == "timeout"
-        assert 1.0 + 0.5 <= elapsed < 1.0 + 0.5 + 1.0, "SIGTERM grace, then SIGKILL, within grace+1s after the timeout"
-        assert pid_gone(int(pidfile.read_text()), wait=0.5), "TERM-ignoring child survived SIGKILL"
+        # The upper bound is far below the 60 s sleep: it only has to show that SIGKILL ended the run, not the sleep.
+        assert 5.0 + 0.5 <= elapsed < 5.0 + 0.5 + 3.0, "SIGTERM grace, then SIGKILL, within grace+3s after the timeout"
+        assert pid_gone(int(pidfile.read_text())), "TERM-ignoring child survived SIGKILL"
 
 
 class TestFallback:

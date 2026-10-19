@@ -18,6 +18,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Callable, Dict, Optional, Sequence, Set
 
+from . import proc_group
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 
@@ -388,8 +390,7 @@ def _posix_descendants(root_pid: int):
         # ``root_pid`` names a process in the caller's namespace.  If it is
         # still addressable but its proc entry could not be mapped through
         # NSpid, accepting an empty tree would let an escaped child go unseen.
-        # lazy: the mapper package is a heavy import
-        from simplicio_mapper.mapper.process_liveness import process_exists
+        from simplicio_mapper.process_liveness import process_exists
 
         if not process_exists(root_pid):
             return set()
@@ -490,11 +491,8 @@ def _terminate_and_reap(
                 os.kill(pid, signal.SIGTERM)
             except (ProcessLookupError, PermissionError, OSError):
                 pass
-        try:
-            os.killpg(proc.pid, signal.SIGTERM)
-        except (ProcessLookupError, PermissionError, OSError):
-            if proc.poll() is None:
-                proc.terminate()
+        if not proc_group.kill_group(proc.pid, signal.SIGTERM) and proc.poll() is None:
+            proc.terminate()
         # The leader can have exited while a child still owns stdout/stderr.
         # Kill the group regardless of the leader's state so communicate() cannot
         # wait forever on that descendant.
@@ -507,11 +505,8 @@ def _terminate_and_reap(
                 os.kill(pid, signal.SIGTERM)
             except (ProcessLookupError, PermissionError, OSError):
                 pass
-        try:
-            os.killpg(proc.pid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError, OSError):
-            if proc.poll() is None:
-                proc.kill()
+        if not proc_group.kill_group(proc.pid) and proc.poll() is None:
+            proc.kill()
         refresh_known()
         for pid in known:
             try:
@@ -570,8 +565,7 @@ def _containment_unavailable_result(
 
 def _pid_is_running(pid: int) -> Optional[bool]:
     """Return liveness, or ``None`` when namespace identity is unavailable."""
-    # lazy: the mapper package is a heavy import
-    from simplicio_mapper.mapper.process_liveness import process_exists
+    from simplicio_mapper.process_liveness import process_exists
 
     if not process_exists(pid):
         return False
@@ -1095,7 +1089,7 @@ def run_bounded(
             kwargs.update({"stdout": subprocess.PIPE, "stderr": subprocess.PIPE})
         else:
             kwargs.update({"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL})
-        kwargs["start_new_session"] = True
+        kwargs.update(proc_group.session_kwargs())
         spawn_argv = list(argv)
         if os.name == "nt":
             windows_bootstrap_ready = os.path.join(isolated_home, "job-ready")

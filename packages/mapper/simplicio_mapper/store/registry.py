@@ -593,8 +593,8 @@ class MigrationEngine:
             self.fault_hook(stage, spec)
 
     def _lock_snapshot(self) -> dict[str, Any]:
-        # lazy: the mapper package is a heavy import; it must not sit between reading a pid and probing it
-        from ..mapper.process_liveness import process_exists
+        # imported before the pid is read, so no import sits between reading a pid and probing it
+        from ..process_liveness import process_exists
 
         if not self.lock_path.exists():
             return {"path": str(self.lock_path), "owner": None, "stale": False}

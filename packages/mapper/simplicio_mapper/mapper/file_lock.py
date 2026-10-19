@@ -5,7 +5,7 @@ This is the same mature lock implementation that used to live only inside
 ``_inspect_index_lock`` / ``_release_index_lock``): ``O_CREAT|O_EXCL``
 atomic create, a JSON record carrying ``schema``/``pid``/
 ``process_start_identity`` (PID-reuse protection via
-:mod:`simplicio_mapper.mapper.process_liveness`), ``owner_token``,
+:mod:`simplicio_mapper.process_liveness`), ``owner_token``,
 ``acquired_at``/``heartbeat_at``, a configurable TTL
 (``SIMPLICIO_MAPPER_LOCK_TTL_SECONDS``), and safe reclamation of a dead
 owner/reused-PID/expired-TTL/malformed lock -- never a live owner's lock.
@@ -23,8 +23,7 @@ behavior-preserving wrappers around :func:`acquire_lock_at` /
 :func:`inspect_lock_at` here, and
 :mod:`simplicio_mapper.mapper.canonical_builder` (issue #236 gap #1) imports
 these functions directly for the canonical-build lock. The extraction lives
-in ``simplicio_mapper.mapper`` rather than ``simplicio_mapper.cli`` for the
-same reason ``process_liveness.py`` does (see that module's docstring):
+in ``simplicio_mapper.mapper`` rather than ``simplicio_mapper.cli``:
 ``simplicio_mapper.mapper`` must never import from ``simplicio_mapper.cli``
 -- the dependency only runs the other way.
 
@@ -42,7 +41,7 @@ import secrets
 import time
 from dataclasses import dataclass, field
 
-from .process_liveness import process_is_alive, process_start_token
+from ..process_liveness import process_is_alive, process_start_token
 
 #: Current-format schema string written by :func:`acquire_lock_at`.
 LOCK_SCHEMA = "simplicio.mapper-index-lock/v1"

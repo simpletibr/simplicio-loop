@@ -9,9 +9,11 @@ an interrupted canonical-map promotion directory can be safely reclaimed, but
 ``simplicio_mapper.mapper`` must not import from ``simplicio_mapper.cli``
 (the dependency runs the other way: ``cli`` already imports from ``mapper``).
 
-This module is the shared home both call sites import from, so there is a
-single implementation instead of two copies drifting apart. No behavior
-change versus the previous inline versions in ``_index_engine.py``.
+This module is the shared home every liveness check imports from, so there is a
+single implementation instead of copies drifting apart. It sits at the top of the
+package, not in ``simplicio_mapper.mapper``, so importing it does not load the
+mapper package (about 0.6 s). No behavior change versus the previous inline
+versions in ``_index_engine.py``.
 """
 
 from __future__ import annotations

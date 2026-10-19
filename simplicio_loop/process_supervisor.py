@@ -4,11 +4,12 @@ import asyncio
 import hashlib
 import json
 import os
-import signal
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, Mapping, Optional, Tuple
+
+from . import proc_group
 
 
 PROCESS_SPEC_SCHEMA = "simplicio.process-spec/v1"
@@ -204,15 +205,12 @@ class PythonProcessAdapter:
                     return
             except (OSError, subprocess.SubprocessError):
                 pass
-        try:
-            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+            try:
+                process.kill()
+            except ProcessLookupError:
+                pass
             return
-        except (AttributeError, ProcessLookupError, PermissionError, OSError):
-            pass
-        try:
-            process.kill()
-        except ProcessLookupError:
-            pass
+        proc_group.kill_tree(process)
 
     @staticmethod
     async def _reap_after_kill(process: "asyncio.subprocess.Process") -> Tuple[bytes, bytes]:
@@ -253,7 +251,7 @@ class PythonProcessAdapter:
                 shell=False,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                start_new_session=os.name != "nt",
+                **proc_group.session_kwargs(),
             )
             if on_spawned is not None:
                 try:

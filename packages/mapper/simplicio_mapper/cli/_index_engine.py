@@ -60,8 +60,8 @@ from ..mapper.file_lock import (
 
 # Same re-export rationale as above: `_status_engine.py` imports
 # `_process_is_alive`/`_process_start_token` from this module.
-from ..mapper.process_liveness import process_is_alive as _process_is_alive
-from ..mapper.process_liveness import process_start_token as _process_start_token
+from ..process_liveness import process_is_alive as _process_is_alive
+from ..process_liveness import process_start_token as _process_start_token
 from ..retrieval_index import build_retrieval_index, write_retrieval_index
 from ..savings import estimate_tokens
 from ..toon import encode_toon_with_report

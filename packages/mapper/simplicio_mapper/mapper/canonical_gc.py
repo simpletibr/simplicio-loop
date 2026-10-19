@@ -13,7 +13,7 @@ Issue #268 (parent #263, epic #236). Scans the canonical-map storage root
 Never removes anything without a "provably dead" (or "provably stale, past
 grace + TTL") reason, reusing the SAME liveness primitives already
 battle-tested in ``simplicio_mapper.cli._index_engine``'s lock-reclaim logic
-(:mod:`simplicio_mapper.mapper.process_liveness`) rather than inventing a new
+(:mod:`simplicio_mapper.process_liveness`) rather than inventing a new
 mechanism.
 
 Honest heuristic disclosure (issue #268 explicitly asks for this instead of
@@ -63,9 +63,9 @@ from typing import Any
 
 import orjson
 
+from ..process_liveness import process_is_alive, process_start_token
 from .canonical_identity import ResolvedRepoIdentity, resolve_repo_identity_bundle
 from .canonical_storage import CANONICAL_CACHE_DIR_ENV_VAR, resolve_canonical_cache_root
-from .process_liveness import process_is_alive, process_start_token
 
 CANONICAL_GC_SCHEMA = "simplicio.canonical-gc/v1"
 CANONICAL_GC_SCHEMA_VERSION = 1

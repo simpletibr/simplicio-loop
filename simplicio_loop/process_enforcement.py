@@ -149,8 +149,7 @@ def _registry_write_lock(path: Path) -> Iterable[None]:
 
 
 def _pid_alive(pid: int) -> bool:
-    # lazy: the mapper package is a heavy import
-    from simplicio_mapper.mapper.process_liveness import process_exists
+    from simplicio_mapper.process_liveness import process_exists
 
     return process_exists(pid)
 

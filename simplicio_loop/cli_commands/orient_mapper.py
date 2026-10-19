@@ -216,8 +216,8 @@ def _mapper_index_running_info(lock_file: Path) -> dict[str, Any] | None:
     """
     if not lock_file.is_file():
         return None
-    # lazy: the mapper package is a heavy import; it must not sit between reading a pid and probing it
-    from simplicio_mapper.mapper.process_liveness import process_exists
+    # imported before the pid is read, so no import sits between reading a pid and probing it
+    from simplicio_mapper.process_liveness import process_exists
 
     try:
         info = json.loads(lock_file.read_text(encoding="utf-8"))

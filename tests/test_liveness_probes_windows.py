@@ -2,7 +2,7 @@
 
 On Windows ``os.kill`` with any signal other than the console events calls TerminateProcess, so ``os.kill(pid, 0)``
 kills the process it was meant to check. Each site below runs with ``os.name`` patched to ``nt``: it must route the
-question through ``simplicio_mapper.mapper.process_liveness.process_exists`` and must never send signal 0 itself.
+question through ``simplicio_mapper.process_liveness.process_exists`` and must never send signal 0 itself.
 
 The modules are imported up front: under the patched ``os.name`` a first import would run Windows-only module code
 (``ctypes``) and ``pathlib`` would refuse to build a path.
@@ -21,7 +21,7 @@ from simplicio.changeset_transaction import _lock_owned_by_live_process
 from simplicio.plan_compiler.mapper_context import ContextBindingCache
 from simplicio_loop import author_isolation, cli_impl, process_enforcement, quality_process  # noqa: F401 (cli_impl)
 from simplicio_loop.cli_commands import orient_mapper
-from simplicio_mapper.mapper import process_liveness  # the shared probe; no site may bypass it
+from simplicio_mapper import process_liveness  # the shared probe; no site may bypass it
 from simplicio_mapper.store import health, migration
 from simplicio_mapper.store.registry import MigrationEngine
 

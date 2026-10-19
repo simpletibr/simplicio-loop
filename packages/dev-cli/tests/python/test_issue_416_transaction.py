@@ -803,9 +803,9 @@ def test_transaction_recovery_lock_reclaim_failure_and_windows_probe(tmp_path, m
     with pytest.raises(ChangesetTransactionError, match="could not be reclaimed"):
         _acquire_recovery_lock(lock)
 
-    # The owner check asks the shared, Windows-safe probe (simplicio_mapper.mapper.process_liveness), which never
+    # The owner check asks the shared, Windows-safe probe (simplicio_mapper.process_liveness), which never
     # sends signal 0 (TerminateProcess on Windows) and answers for the pid the lock names.
-    from simplicio_mapper.mapper import process_liveness
+    from simplicio_mapper import process_liveness
 
     probed = []
     monkeypatch.setattr(process_liveness, "process_exists", lambda pid: probed.append(pid) or False)
