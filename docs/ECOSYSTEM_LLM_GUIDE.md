@@ -54,7 +54,7 @@ packages to install. Update later with `simplicio-loop update` (`--check` only r
 Or as a marketplace plugin:
 
 ```
-/plugin marketplace add wesleysimplicio/simplicio-loop
+/plugin marketplace add simpletibr/simplicio-loop
 /plugin install simplicio-loop@simplicio
 ```
 

@@ -7258,11 +7258,6 @@ without calling an LLM at all.
 
 ## 1. Install
 
-**macOS (Homebrew)**
-```sh
-brew install wesleysimplicio/tap/simplicio
-```
-
 **One-line install (Linux / macOS)**
 ```sh
 curl -fsSL https://raw.githubusercontent.com/simpletibr/simplicio/master/install.sh | sh

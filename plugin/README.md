@@ -16,7 +16,7 @@ plugin/
 ## Install
 
 ```
-/plugin marketplace add wesleysimplicio/simplicio-loop
+/plugin marketplace add simpletibr/simplicio-loop
 /plugin install simplicio-loop@simplicio
 ```
 
@@ -72,4 +72,4 @@ make zero network calls.
 Do not edit `skills/` or `hooks/` here directly — edit the source (`.claude/skills/`, `hooks/`) and run
 `python3 scripts/sync_plugin.py`. `scripts/claims_audit.py` fails if `plugin/` drifts from source.
 The full project (pip package, capture proxy, token-monitor dashboard, adapters, docs) lives at the
-repo root: <https://github.com/wesleysimplicio/simplicio-loop>.
+repo root: <https://github.com/simpletibr/simplicio-loop>.

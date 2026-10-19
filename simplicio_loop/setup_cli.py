@@ -491,9 +491,10 @@ def render(report: Mapping[str, Any], summary_state: str) -> str:
         lines.append(f"  {c['name']:<7} {c['status']:<9} {shown}".rstrip())
     if report.get("evidence"):
         lines += ["", "Evidence tools (the proof of a delivery: web_verify, video_evidence)"]
+        width = max(len(c["name"]) for c in report["evidence"])  # as wide as the longest name (`evidence:hyperframes`)
         for c in report["evidence"]:
             shown = " ".join(x for x in (c["version"] or "", c["path"] or "") if x)
-            lines.append(f"  {c['name']:<19} {c['status']:<9} {shown}".rstrip())
+            lines.append(f"  {c['name']:<{width}} {c['status']:<9} {shown}".rstrip())
     if report["path_warnings"]:
         lines += ["", "PATH entries that are not searched (nothing in them is run)"]
         lines += [f"  {w['entry'] or '(empty)'}  ({w['reason']})" for w in report["path_warnings"]]

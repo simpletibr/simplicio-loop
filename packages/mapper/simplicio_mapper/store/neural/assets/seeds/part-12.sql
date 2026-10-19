@@ -2341,7 +2341,7 @@ compete com o **plumbing que falta entre o LLM e o código real**.
 | Canal | Status | Prioridade | Publico | Esforco de Manutencao |
 |---|---|---|---|---|
 | **install.sh (curl pipe)** | Pronto | Critico | Todos | Baixo |
-| **GitHub - wesleysimplicio/simplicio** | Pronto | Critico | Devs globais | Medio |
+| **GitHub - simpletibr/simplicio** | Pronto | Critico | Devs globais | Medio |
 | **PyPI - simplicio-installer** | Pronto | Critico | Pythonistas | Baixo |
 | **Docker - simplicio:latest** | Pronto | Alto | DevOps/CI | Baixo |
 | **Homebrew - simplicio/tap** | Em progresso | Alto | macOS devs | Medio |
@@ -5694,10 +5694,10 @@ If you have not installed Simplicio yet, start with [INSTALL.md](../INSTALL.md).
 
 ```bash
 # macOS / Linux
-curl -fsSL https://raw.githubusercontent.com/wesleysimplicio/simplicio/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/simpletibr/simplicio/master/install.sh | sh
 
 # Windows (PowerShell)
-powershell -c "irm https://raw.githubusercontent.com/wesleysimplicio/simplicio/main/install.ps1 | iex"
+powershell -c "irm https://raw.githubusercontent.com/simpletibr/simplicio/master/install.ps1 | iex"
 ```
 
 Verify:
@@ -5828,10 +5828,10 @@ repositório. Se ainda não instalou o Simplicio, comece por
 
 ```bash
 # macOS / Linux
-curl -fsSL https://raw.githubusercontent.com/wesleysimplicio/simplicio/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/simpletibr/simplicio/master/install.sh | sh
 
 # Windows (PowerShell)
-powershell -c "irm https://raw.githubusercontent.com/wesleysimplicio/simplicio/main/install.ps1 | iex"
+powershell -c "irm https://raw.githubusercontent.com/simpletibr/simplicio/master/install.ps1 | iex"
 ```
 
 Verifique:
@@ -6517,12 +6517,12 @@ this doc explains each, the gotchas, and how to verify.
 |---|--------|------------------|------|
 | 1 | **PyPI** | `simplicio-installer` wrapper wheel (**no sdist**, no runtime source) | `PYPI_TOKEN` |
 | 2 | **Private repo** `wesleysimplicio/simplicio-runtime` | source tag + GH release (no binaries) | `gh` (this repo) |
-| 3 | **Public repo** `wesleysimplicio/simplicio` | compiled raw binaries + installers | `GH_TOKEN_PUBLIC` PAT |
+| 3 | **Public repo** `simpletibr/simplicio` | compiled raw binaries + installers | `GH_TOKEN_PUBLIC` PAT |
 | 4 | **Site (FTP)** `simpleti.com.br/simplicio` | installers + `dist/` binaries | `FTP_HOST/USER/PASS` |
 
 ## Golden rules
 
-- **Binaries live in the PUBLIC repo** `wesleysimplicio/simplicio`. The
+- **Binaries live in the PUBLIC repo** `simpletibr/simplicio`. The
   `-runtime` repo is **private/closed source** — never publish source there and
   never point an installer at it.
 - **Asset names are raw binaries** `simplicio-<os>-<arch>`:
@@ -6556,7 +6556,7 @@ It runs under git-bash on Windows too (uses `curl`, not `lftp`).
 
 ### 1. PyPI (installer wrapper only)
 The PyPI target publishes `simplicio-installer`, a small public wrapper that
-downloads the compiled binary from the public `wesleysimplicio/simplicio`
+downloads the compiled binary from the public `simpletibr/simplicio`
 release. It does **not** build or upload the private runtime source tree.
 
 ```bash
@@ -6595,7 +6595,7 @@ curl -fsSL https://simpleti.com.br/simplicio/install.sh | grep -c simplicio-runt
 # primary CDN binary is a real ELF
 curl -fsSL https://simpleti.com.br/simplicio/dist/simplicio-linux-x64 | file -                  # → ELF 64-bit … x86-64
 # public release has the asset
-gh release view vX.Y.Z --repo wesleysimplicio/simplicio --json assets --jq ''.assets[].name''
+gh release view vX.Y.Z --repo simpletibr/simplicio --json assets --jq ''.assets[].name''
 # end-to-end on a Linux box
 curl -fsSL https://simpleti.com.br/simplicio/install.sh | sh && simplicio version
 ```

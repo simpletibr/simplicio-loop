@@ -423,6 +423,16 @@ def _playwright(spec, config, out):
     return run
 
 
+def _conversion_failure(done):
+    """Why the .webm did not become an .mp4: FFmpeg's exit and the tail of its stderr. The recording stays .webm."""
+    if done is None:
+        return "mp4 conversion did not run (FFmpeg did not start); the recording stays .webm"
+    if done.returncode != 0:
+        return "mp4 conversion failed (ffmpeg exit %d: %s); the recording stays .webm" % (
+            done.returncode, _tail(done.stderr or done.stdout))
+    return "mp4 conversion wrote no file; the recording stays .webm"
+
+
 def cmd_record(opts):
     """Engine=playwright: drive --url with Playwright recording on -> a real session video.
 
@@ -451,6 +461,7 @@ def cmd_record(opts):
     webms = sorted(glob.glob(os.path.join(rec_dir, "**", "*.webm"), recursive=True))
     ok = run.code == 0 and bool(webms)  # the session ran clean and Playwright left its recording
     produced = webms[0] if webms else "(not produced)"
+    conversion = ""
     if ok:
         ffmpeg, problem = _ffmpeg()
         if ffmpeg is not None:
@@ -458,12 +469,16 @@ def cmd_record(opts):
             cv = _run([ffmpeg, "-y", "-i", produced, mp4])
             if cv is not None and cv.returncode == 0 and os.path.exists(mp4):
                 produced = mp4
+            else:
+                conversion = _conversion_failure(cv)
         else:
             log(problem + " — the recording stays .webm")
     verdict = "video_evidence: %s — demo video (playwright) project=%s file=%s" % (
         "PASS" if ok else "FAIL", name, produced)
     if not ok:
         verdict += " — " + (run.failure if run.code != 0 else "Playwright passed but recorded no video")
+    if conversion:
+        verdict += " — " + conversion
     _append_ledger(out, verdict)
     print("done" if ok else "fail")
     log(verdict)

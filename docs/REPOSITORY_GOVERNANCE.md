@@ -3,7 +3,7 @@
 Reproducible governance for repository **size**, **mirrors**, **documentation**, and
 **quantitative claims**, implemented without ever rewriting history unsafely. This
 document is the canonical "how to" that backs the acceptance criteria in
-[issue #294](https://github.com/wesleysimplicio/simplicio-loop/issues/294). The
+[issue #294](https://github.com/simpletibr/simplicio-loop/issues/294). The
 history-rewrite step (clone/worktree size target after migration) is explicitly
 **out of scope** for this work — #294's own Definition of Done requires a separate,
 written maintainer approval after the dry-run below.

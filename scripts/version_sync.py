@@ -35,7 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from dev_switches import find_dev_switches  # noqa: E402
 from release_manifest import SCHEMA as RELEASE_MANIFEST_SCHEMA  # noqa: E402
-from release_manifest import VERSION_RE, build_manifest  # noqa: E402
+from release_manifest import PROJECT_MANIFEST, VERSION_RE, build_manifest  # noqa: E402
 
 SCHEMA = "simplicio.version-sync/v1"
 
@@ -105,6 +105,28 @@ def _apply_json_version(path: Path, version: str) -> bool:
     )
     if count == 0:
         raise VersionSyncError(f'{path}: no "version": "..." field found to rewrite')
+    path.write_text(new_text, encoding="utf-8")
+    return True
+
+
+def _apply_project_manifest(path: Path, version: str) -> bool:
+    text = path.read_text(encoding="utf-8")
+    data = json.loads(text)
+    project = data.get("project") if isinstance(data, dict) else None
+    if not isinstance(project, dict) or "version" not in project:
+        raise VersionSyncError(f'{path}: no "project": {{"version": ...}} field to rewrite')
+    if project["version"] == version:
+        return False
+    # The file's top-level keys carry no version, so the first "version" after the "project" object is project.version.
+    new_text, count = re.subn(
+        r'("project"\s*:\s*\{.*?"version"\s*:\s*)"[^"]*"',
+        lambda m: f'{m.group(1)}"{version}"',
+        text,
+        count=1,
+        flags=re.DOTALL,
+    )
+    if count == 0 or json.loads(new_text)["project"]["version"] != version:
+        raise VersionSyncError(f"{path}: could not rewrite project.version")
     path.write_text(new_text, encoding="utf-8")
     return True
 
@@ -218,6 +240,9 @@ def apply_version(repo: Path, version: str) -> dict:
     cursor_plugin = repo / ".cursor-plugin" / "plugin.json"
     if cursor_plugin.exists() and _apply_json_version(cursor_plugin, version):
         changed.append(str(cursor_plugin.relative_to(repo)))
+    project_manifest = repo / PROJECT_MANIFEST
+    if project_manifest.exists() and _apply_project_manifest(project_manifest, version):
+        changed.append(PROJECT_MANIFEST)
     fallback = repo / "simplicio_loop" / "__init__.py"
     if fallback.exists() and _apply_source_fallback(fallback, version):
         changed.append(str(fallback.relative_to(repo)))

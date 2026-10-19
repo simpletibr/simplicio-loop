@@ -192,7 +192,7 @@ python scripts/perf_regression_gate.py --skip-runtime-scale  # fast path, skips 
 ## `simplicio-mapper release-manifest` / `scripts/check_schema_registry_sync.py` (issue #280)
 
 Phase-0 slice of the cross-repo "release train" epic
-(wesleysimplicio/simplicio-loop#558; see
+(simpletibr/simplicio-loop#558; see
 [`.specs/architecture/ADR-010-release-manifest-phase0.md`](../.specs/architecture/ADR-010-release-manifest-phase0.md)
 for the full scoping decision). Two pieces, both local/offline, no signing/
 SBOM/network calls:

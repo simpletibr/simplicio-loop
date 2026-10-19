@@ -14,7 +14,7 @@ bash scripts/install.sh cursor
 Or add the marketplace and install:
 
 ```
-# Cursor → Settings → Plugins → Add from Git: wesleysimplicio/simplicio-loop
+# Cursor → Settings → Plugins → Add from Git: simpletibr/simplicio-loop
 ```
 
 The root `.cursor-plugin/plugin.json` declares the skills (`./.claude/skills/`) and hooks

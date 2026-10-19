@@ -342,6 +342,34 @@ def test_a_working_ffmpeg_converts_the_recording_to_mp4(tmp_path, toolchain, mon
     assert any(call[1:3] == ["-y", "-i"] for call in calls) and ".mp4" in ledger(out)
 
 
+def test_a_failed_conversion_is_reported_with_the_ffmpeg_stderr_tail_and_the_webm_is_kept(tmp_path, toolchain, monkeypatch, capsys):
+    def session(request):
+        clip = Path(request["config"]["outputDir"]) / "login-demo" / "video.webm"
+        clip.parent.mkdir(parents=True, exist_ok=True)
+        clip.write_bytes(b"\x1aE\xdf\xa3" + b"0" * 64)
+
+    toolchain(ev.SpecRun(None, 0, "1 passed"), on_run=session)
+    calls = []
+    stderr = "[mov,mp4 @ 0x7f] moov atom not found\nvideo.webm: Invalid data found when processing input\n"
+
+    def fake_run(argv, **kwargs):
+        calls.append([str(part) for part in argv])
+        if "-version" in argv:
+            return completed(argv, 0)
+        return completed(argv, 1, stderr=stderr)  # FFmpeg starts, then fails on the recording
+
+    monkeypatch.setattr(video_evidence.shutil, "which", lambda name: "/fake/ffmpeg" if name == "ffmpeg" else None)
+    monkeypatch.setattr(video_evidence, "_run", fake_run)
+    out = tmp_path / "out"
+    assert exit_code(lambda: video_evidence.cmd_verify(video_options(out))) == 0  # the recording itself passed
+    assert any(call[1:3] == ["-y", "-i"] for call in calls)  # the conversion was attempted
+    assert not (out / "login-demo-7.mp4").exists()
+    assert "video_evidence: PASS" in ledger(out) and "video.webm" in ledger(out)
+    assert "mp4 conversion failed (ffmpeg exit 1" in ledger(out)
+    assert "Invalid data found when processing input" in ledger(out)  # the reason is kept, not only the outcome
+    assert "Invalid data found when processing input" in capsys.readouterr().out  # and printed for the operator
+
+
 def test_render_is_blocked_with_the_fix_when_ffmpeg_does_not_run(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_HOME", str(tmp_path / "home"))
     install_hyperframes(tmp_path / "home")

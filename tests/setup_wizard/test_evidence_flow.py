@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 from simplicio_loop import prereqs, setup_cli
 
@@ -71,3 +72,15 @@ def test_setup_is_complete_when_every_evidence_tool_is_ok(home):
     fakes = Fakes()
     code, text = run(fakes, home)
     assert code == 0 and "Pending" not in text
+
+
+def test_the_evidence_rows_share_one_status_column_even_with_the_longest_name(home):
+    fakes = Fakes()
+    fakes.evidence_checks = [check("evidence:node"), check("evidence:playwright"), check("evidence:chromium"),
+                             check("evidence:hyperframes"), check("evidence:check")]
+    code, text = run(fakes, home)
+    assert code == 0
+    rows = [line for line in text.splitlines() if line.startswith("  evidence:")]
+    assert len(rows) == 5, text
+    status_columns = {re.match(r"  \S+\s+(\S+)", row).start(1) for row in rows}
+    assert len(status_columns) == 1, rows  # evidence:hyperframes (20 chars) must not push its status a column right

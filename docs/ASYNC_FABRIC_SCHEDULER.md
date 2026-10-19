@@ -1,6 +1,6 @@
 # Async execution fabric
 
-Issue [#806](https://github.com/wesleysimplicio/simplicio-loop/issues/806)
+Issue [#806](https://github.com/simpletibr/simplicio-loop/issues/806)
 introduces `AsyncFabricScheduler`, the bounded scheduler for logical Loop slots.
 It is independent of an LLM/provider and does not start one implicitly.
 

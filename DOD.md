@@ -3,7 +3,7 @@
 > This is the **canonical source** referenced by every other repo in the ecosystem
 > (`simplicio-mapper`, `simplicio-dev-cli`, `simplicio-runtime`, `simplicio-agent`,
 > `simplicio-sprint`, `simplicio-loop-marketing`, `simplicio-local-any-llm-16gb`, and the rest —
-> see issue [#579](https://github.com/wesleysimplicio/simplicio-loop/issues/579)). Each of those
+> see issue [#579](https://github.com/simpletibr/simplicio-loop/issues/579)). Each of those
 > repos ADOPTS this framework, translated into their own stack's tooling; this file is where the
 > framework itself is DEFINED. Do not fork the layer definitions per repo — fork the *tool
 > mapping* (Hypothesis vs proptest vs fast-check vs libFuzzer) and link back here.

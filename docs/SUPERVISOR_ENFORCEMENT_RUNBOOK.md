@@ -1,17 +1,17 @@
 # Supervisor enforcement runbook + threat model (issue #516)
 
-Parent epic: [#498](https://github.com/wesleysimplicio/simplicio-loop/issues/498) — one
+Parent epic: [#498](https://github.com/simpletibr/simplicio-loop/issues/498) — one
 Process Supervisor for every process the Simplicio ecosystem starts. This doc covers
-[#516](https://github.com/wesleysimplicio/simplicio-loop/issues/516): detection of
+[#516](https://github.com/simpletibr/simplicio-loop/issues/516): detection of
 out-of-supervisor processes, the `status`/`top`/`queue`/`cancel`/`drain`/`reports` CLI
 surface, opt-in enforcement, and a circuit breaker with standalone fallback.
 
 **Scope note, up front:** this is the first real slice, not the full #498 DoD. It is
-built on the already-merged [#514](https://github.com/wesleysimplicio/simplicio-loop/issues/514)
+built on the already-merged [#514](https://github.com/simpletibr/simplicio-loop/issues/514)
 Python `ProcessSpec`/`ProcessLease`/`ProcessResult` contract
 (`simplicio_loop/process_supervisor.py`) and works standalone with the Python adapter —
 it does **not** assume the Rust/Tokio backend from
-[#515](https://github.com/wesleysimplicio/simplicio-loop/issues/515) exists. See
+[#515](https://github.com/simpletibr/simplicio-loop/issues/515) exists. See
 "Implemented now vs. deferred" below for an honest line between what this slice proves
 and what the epic still needs.
 

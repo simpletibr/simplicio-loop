@@ -200,3 +200,35 @@ def test_apply_cli_reports_the_dev_switch_reason_code(tmp_path, capsys):
     assert main(["apply", "--version", "9.9.9", "--repo", str(repo), "--json"]) == 1
     out = json.loads(capsys.readouterr().out)
     assert out["ok"] is False and out["reason_code"] == "dev_switch_present"
+
+
+# ---------------------------------------------------------------------------
+# simplicio-loop.project.json (the video data source) carries project.version: version_sync owns it
+# ---------------------------------------------------------------------------
+
+PROJECT_FILE = "simplicio-loop.project.json"
+PROJECT_MANIFEST = '{\n  "project": {\n    "name": "demo",\n    "version": "1.2.3",\n    "author": { "name": "caf\\u00e9" }\n  }\n}\n'
+
+
+def test_apply_rewrites_the_project_manifest_version_and_nothing_else(tmp_path):
+    repo = _make_repo(tmp_path)
+    (repo / PROJECT_FILE).write_text(PROJECT_MANIFEST, encoding="utf-8")
+    result = apply_version(repo, "9.9.9")
+    assert PROJECT_FILE in result["changed_files"]
+    assert (repo / PROJECT_FILE).read_text(encoding="utf-8") == PROJECT_MANIFEST.replace('"1.2.3"', '"9.9.9"')
+
+
+def test_check_blocks_when_the_project_manifest_disagrees(tmp_path):
+    repo = _make_repo(tmp_path)
+    (repo / PROJECT_FILE).write_text(PROJECT_MANIFEST.replace('"1.2.3"', '"0.0.1"'), encoding="utf-8")
+    result = check_version(repo)
+    assert result["ok"] is False
+    assert "project_manifest" in result["manifest"]["mismatches"]
+
+
+def test_the_real_project_manifest_carries_the_package_version():
+    from scripts.release_manifest import _pyproject_version
+
+    package = _pyproject_version(REPO_ROOT / "pyproject.toml")
+    project = json.loads((REPO_ROOT / PROJECT_FILE).read_text(encoding="utf-8"))["project"]
+    assert project["version"] == package

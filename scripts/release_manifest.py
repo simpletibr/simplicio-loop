@@ -10,6 +10,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 SCHEMA = "simplicio.release-manifest/v1"
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
+PROJECT_MANIFEST = "simplicio-loop.project.json"  # the video data source: its project.version follows pyproject.toml
 
 
 def _pyproject_version(path: Path) -> str:
@@ -29,6 +30,16 @@ def _json_version(path: Path) -> str:
     return value
 
 
+def _project_manifest_version(path: Path) -> str:
+    try:
+        value = (json.loads(path.read_text()).get("project") or {}).get("version")
+    except (OSError, ValueError, AttributeError) as exc:
+        raise ValueError(f"cannot read {path}: {exc}") from exc
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{path} has no project.version")
+    return value
+
+
 def _fallback_versions(path: Path) -> List[str]:
     return re.findall(r"__version__\s*=\s*[\"']([^\"']+)[\"']", path.read_text())
 
@@ -38,6 +49,8 @@ def build_manifest(repo: Path, *, tag: Optional[str] = None) -> Dict[str, Any]:
         "pyproject": (repo / "pyproject.toml", _pyproject_version),
         "cursor_plugin": (repo / ".cursor-plugin" / "plugin.json", _json_version),
     }
+    if (repo / PROJECT_MANIFEST).exists():  # optional: a checkout without the video data source has nothing to agree with
+        sources["project_manifest"] = (repo / PROJECT_MANIFEST, _project_manifest_version)
     rows: List[Dict[str, Any]] = []
     errors: List[str] = []
     for name, (path, reader) in sources.items():

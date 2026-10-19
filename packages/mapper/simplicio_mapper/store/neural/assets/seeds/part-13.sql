@@ -217,7 +217,7 @@ Simplicio is the runtime that makes AI coding deterministic — every edit is me
 
 | Platform | Handle | Primary content | Cadence |
 |---|---|---|---|
-| GitHub | github.com/wesleysimplicio/simplicio | releases, issues, README | on release |
+| GitHub | github.com/simpletibr/simplicio | releases, issues, README | on release |
 | Twitter/X | @simplicio_sh | quick demos, benchmarks, threads | 3×/week |
 | LinkedIn | linkedin.com/company/simplicio | case studies, product updates | 2×/week |
 | YouTube | youtube.com/@simplicio_sh | full demos, tutorials, benchmarks | 1×/week |
@@ -3945,13 +3945,13 @@ A terminal-based AI coding agent and runtime. Ships as a single compiled binary.
 ### macOS / Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/wesleysimplicio/simplicio/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/simpletibr/simplicio/master/install.sh | sh
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-powershell -c "irm https://raw.githubusercontent.com/wesleysimplicio/simplicio/main/install.ps1 | iex"
+powershell -c "irm https://raw.githubusercontent.com/simpletibr/simplicio/master/install.ps1 | iex"
 ```
 
 The Windows installer prefers the **portable ZIP** (`simplicio-windows-x64.zip`)
@@ -3980,12 +3980,6 @@ bun add -g simplicio
 
 The binary is downloaded on first run and cached in `~/.cache/simplicio/bin/`.
 
-### Homebrew (macOS / Linux)
-
-```bash
-brew install wesleysimplicio/tap/simplicio
-```
-
 ### Arch Linux (AUR)
 
 ```bash
@@ -3996,7 +3990,7 @@ yay -S simplicio-bin
 ### Manual Download
 
 Download the binary for your platform from the
-[releases](https://github.com/wesleysimplicio/simplicio/releases):
+[releases](https://github.com/simpletibr/simplicio/releases):
 
 | Platform | File |
 |----------|------|
@@ -4007,7 +4001,7 @@ Download the binary for your platform from the
 
 ```bash
 # Example: extract and install
-curl -sSfL https://github.com/wesleysimplicio/simplicio/releases/latest/download/simplicio-v0.7.0-macos-aarch64.tar.gz \
+curl -sSfL https://github.com/simpletibr/simplicio/releases/latest/download/simplicio-v0.7.0-macos-aarch64.tar.gz \
   | tar xz -C /tmp
 sudo mv /tmp/simplicio /usr/local/bin/
 ```
@@ -4794,7 +4788,7 @@ or the original machine.
 |---|---|---|---|
 | Runtime (Rust, closed-source) | `~/Projetos/ai/simplicio-runtime` | `github.com/wesleysimplicio/simplicio-runtime` | `main` |
 | Marketing site | `~/Projetos/ai/site_simpleti` | `github.com/wesleysimplicio/site_simpleti` | `master` |
-| Public install repo | `~/Projetos/ai/simplicio` | `github.com/wesleysimplicio/simplicio` | `master` |
+| Public install repo | `~/Projetos/ai/simplicio` | `github.com/simpletibr/simplicio` | `master` |
 
 ## Live site
 
@@ -4816,7 +4810,7 @@ or the original machine.
 
 - mac/linux: `curl -fsSL https://simpleti.com.br/simplicio/install.sh | sh`
 - Windows: `irm https://simpleti.com.br/simplicio/install.ps1 | iex`
-- GitHub: `curl -fsSL https://raw.githubusercontent.com/wesleysimplicio/simplicio/main/install.sh | sh`
+- GitHub: `curl -fsSL https://raw.githubusercontent.com/simpletibr/simplicio/master/install.sh | sh`
 - Binaries served from `simpleti.com.br/simplicio/dist/` (dir is gitignored in
   the site repo; upload via FTP). Checksums: `publish/SHA256SUMS` in the runtime repo.
 
@@ -6355,8 +6349,8 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 | 5 | runtime | [#2989](https://github.com/wesleysimplicio/simplicio-runtime/issues/2989) | Dogfooding do stack sobre o próprio runtime não existe como prática registrada |
 | 6 | mapper | [#174](packages/mapper/) (historical issue, pre-monorepo simplicio-mapper repo) | Sem token budget guard; delegação nativa mínima (só precedent); sem savings por verbo. Nota: `contract/impact/tests-for` não existem na CLI |
 | 7 | dev-cli | [#111](packages/dev-cli/) (historical issue, pre-monorepo simplicio-dev-cli repo) | Delegação madura mas invisível: sem métrica de % native path por verbo; sem token budget guard |
-| 8 | loop | [#127](https://github.com/wesleysimplicio/simplicio-loop/issues/127) | Zero file locking no journal/handoffs/ledger — corrupção possível multi-worker |
-| 9 | loop | [#128](https://github.com/wesleysimplicio/simplicio-loop/issues/128) | Journal não consome `simplicio.dev-cli-event/v1`; HBP só appenda em promise-honrada |
+| 8 | loop | [#127](https://github.com/simpletibr/simplicio-loop/issues/127) | Zero file locking no journal/handoffs/ledger — corrupção possível multi-worker |
+| 9 | loop | [#128](https://github.com/simpletibr/simplicio-loop/issues/128) | Journal não consome `simplicio.dev-cli-event/v1`; HBP só appenda em promise-honrada |
 
 ## Milestones
 
@@ -7152,23 +7146,14 @@ Re-running the installer fetches and installs the latest release in place:
 
 ```bash
 # macOS / Linux
-curl -fsSL https://raw.githubusercontent.com/wesleysimplicio/simplicio/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/simpletibr/simplicio/master/install.sh | sh
 
 # Windows (PowerShell)
-powershell -c "irm https://raw.githubusercontent.com/wesleysimplicio/simplicio/main/install.ps1 | iex"
+powershell -c "irm https://raw.githubusercontent.com/simpletibr/simplicio/master/install.ps1 | iex"
 ```
 
 The installer overwrites the binary at the canonical location
 (`~/.local/bin/simplicio`) so there is never a stale second copy.
-
----
-
-## Homebrew
-
-```bash
-brew update
-brew upgrade simplicio
-```
 
 ---
 
@@ -7306,23 +7291,14 @@ Rodar o instalador de novo busca e instala o último release no lugar:
 
 ```bash
 # macOS / Linux
-curl -fsSL https://raw.githubusercontent.com/wesleysimplicio/simplicio/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/simpletibr/simplicio/master/install.sh | sh
 
 # Windows (PowerShell)
-powershell -c "irm https://raw.githubusercontent.com/wesleysimplicio/simplicio/main/install.ps1 | iex"
+powershell -c "irm https://raw.githubusercontent.com/simpletibr/simplicio/master/install.ps1 | iex"
 ```
 
 O instalador sobrescreve o binário no local canônico (`~/.local/bin/simplicio`),
 então nunca há uma segunda cópia obsoleta.
-
----
-
-## Homebrew
-
-```bash
-brew update
-brew upgrade simplicio
-```
 
 ---
 

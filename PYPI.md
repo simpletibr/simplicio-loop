@@ -7,10 +7,10 @@ tests a change can reach. None of them provisions a model. The loop (a **super-p
 one consumer of them: it drains a queue of work end-to-end,
 `discover → implement → verify → merge → close → watch 24/7`, behind safety gates and evidence
 checks. Not a chatbot. A worker. No headline token-savings percentage is claimed: savings are
-reported only when measured (see [`bench/llm_ab`](https://github.com/wesleysimplicio/simplicio-loop/tree/main/bench/llm_ab),
+reported only when measured (see [`bench/llm_ab`](https://github.com/simpletibr/simplicio-loop/tree/main/bench/llm_ab),
 a small A/B on a single model).
 
-![simplicio-loop](https://raw.githubusercontent.com/wesleysimplicio/simplicio-loop/main/assets/simplicio-loop-hero-2026.png)
+![simplicio-loop](https://raw.githubusercontent.com/simpletibr/simplicio-loop/main/assets/simplicio-loop-hero-2026.png)
 
 ## Install
 
@@ -66,4 +66,4 @@ Requires Python 3.11+. Mapper and dev-cli ship inside this wheel, so there are n
 pure cross-platform Python.
 
 MIT — part of the [Simplicio](https://github.com/wesleysimplicio) ecosystem.
-Full docs: <https://github.com/wesleysimplicio/simplicio-loop>
+Full docs: <https://github.com/simpletibr/simplicio-loop>
