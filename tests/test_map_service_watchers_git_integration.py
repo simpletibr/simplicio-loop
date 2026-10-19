@@ -18,7 +18,7 @@ def _run(*args: str, cwd: str) -> None:
 
 
 def _init_repo(root: Path) -> None:
-    _run("init", "-q", cwd=str(root))
+    _run("init", "-q", "-b", "master", cwd=str(root))  # the test names its base branch; never the host default
     _run("config", "user.email", "test@example.com", cwd=str(root))
     _run("config", "user.name", "Test", cwd=str(root))
     (root / "app.py").write_text("VERSION = 1\n", encoding="utf-8")

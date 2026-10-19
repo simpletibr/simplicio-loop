@@ -41,7 +41,7 @@ def test_pipeline_collects_pr_and_verification_receipts(tmp_path, monkeypatch):
 
 def test_merge_authenticity_uses_real_git_ancestry(tmp_path):
     from simplicio_loop.tasks_stage_pipeline import _coordinator_merge_receipt, _git_merge_authentic, _receipt_digest
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    subprocess.run(["git", "init", "-q", "-b", "master", str(tmp_path)], check=True)
     subprocess.run(["git", "-C", str(tmp_path), "config", "user.email", "test@example.invalid"], check=True)
     subprocess.run(["git", "-C", str(tmp_path), "config", "user.name", "Test"], check=True)
     (tmp_path / "a").write_text("base", encoding="utf-8")

@@ -91,7 +91,7 @@ def test_canonical_git_base_flows_from_materializer_to_merge_receipt(tmp_path):
     import subprocess
     from simplicio_loop.tasks_materializer import _git_text
     from simplicio_loop.tasks_stage_pipeline import _coordinator_merge_receipt
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    subprocess.run(["git", "init", "-q", "-b", "master", str(tmp_path)], check=True)
     subprocess.run(["git", "-C", str(tmp_path), "config", "user.email", "test@example.invalid"], check=True)
     subprocess.run(["git", "-C", str(tmp_path), "config", "user.name", "Test"], check=True)
     (tmp_path / "base").write_text("base", encoding="utf-8")
