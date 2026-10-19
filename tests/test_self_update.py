@@ -1,5 +1,6 @@
 import http.server
 import io
+import sys
 import threading
 import urllib.error
 import urllib.request
@@ -7,6 +8,15 @@ import urllib.request
 import pytest
 
 from simplicio_loop import distribution, self_update as su
+
+SPEC = "simplicio-loop @ git+https://github.com/simpletibr/simplicio-loop@v3.44.0"
+
+
+@pytest.fixture(autouse=True)
+def plain_pip(monkeypatch):
+    """The pip path runs `python -m pip`; a uv-made venv (where these tests may run) would switch to `uv pip`. The uv tests
+    below choose that themselves."""
+    monkeypatch.setattr(su, "_uv_for", lambda python: None)
 
 
 def test_parse_and_compare():
@@ -261,3 +271,49 @@ def test_the_github_token_is_sent_to_the_api_and_never_to_a_download(monkeypatch
     download = su._request("https://github.com/simpletibr/simplicio-loop/releases/download/v1/x")
     assert api.get_header("Authorization") == "Bearer fake-gh-token-123"
     assert download.get_header("Authorization") is None
+
+
+def test_in_a_uv_made_venv_the_update_installs_with_uv_pip_into_that_python(monkeypatch):
+    # a `uv venv` or `uv tool install` has no pip: the package goes in with `uv pip --python`, and the rest is unchanged
+    monkeypatch.setattr(su, "_uv_for", lambda python: "/fake/bin/uv")
+    calls = []
+    rc = su.run_update(installed="3.43.16", fetch=lambda: "v3.44.0", runner=lambda cmd: calls.append(cmd) or 0,
+                       editable=False, legacy=[], externally_managed=False)
+    assert rc == 0
+    assert calls[0] == ["/fake/bin/uv", "pip", "install", "--python", sys.executable, "--upgrade", SPEC]
+    assert calls[1][-2:] == ["install", "--global"]
+
+
+def test_in_a_uv_made_venv_the_legacy_uninstall_and_the_repair_use_uv_pip_too(monkeypatch):
+    monkeypatch.setattr(su, "_uv_for", lambda python: "/fake/bin/uv")
+    calls = []
+    rc = su.run_update(installed="3.44.1", fetch=lambda: "v3.44.1", runner=lambda cmd: calls.append(cmd) or 0,
+                       editable=False, legacy=["simplicio-cli"], externally_managed=False)
+    assert rc == 0 and len(calls) == 2
+    assert calls[0] == ["/fake/bin/uv", "pip", "uninstall", "--python", sys.executable, "simplicio-cli"]  # uv has no -y
+    assert calls[1] == ["/fake/bin/uv", "pip", "install", "--python", sys.executable, "--reinstall", "--no-deps",
+                        "simplicio-loop @ git+https://github.com/simpletibr/simplicio-loop@v3.44.1"]
+
+
+def test_a_failed_install_step_after_the_package_update_is_reported_and_the_update_still_succeeds(capsys):
+    recorded, calls = [], []
+
+    def runner(cmd):
+        calls.append(cmd)
+        return 2 if cmd[-1] == "--global" else 0  # `install --global` does not finish; the package itself was updated
+
+    rc = su.run_update(installed="3.43.16", fetch=lambda: "v3.44.0", runner=runner, editable=False, legacy=[],
+                       externally_managed=False, record=recorded.append)
+    out = capsys.readouterr().out
+    assert rc == 0  # only a failed package update fails the update
+    assert recorded[-1]["installed"] == "3.44.0" and recorded[-1]["update_available"] is False  # `update --check` agrees now
+    assert "install --global" in out and "next:" in out
+
+
+def test_a_failed_package_update_fails_the_update_and_records_nothing(capsys):
+    recorded = []
+    rc = su.run_update(installed="3.43.16", fetch=lambda: "v3.44.0", runner=lambda cmd: 1 if "--upgrade" in cmd else 0,
+                       editable=False, legacy=[], externally_managed=False, record=recorded.append)
+    assert rc == 1
+    assert all(item["installed"] == "3.43.16" for item in recorded)  # the failed update never records the new version
+    assert "pip install failed" in capsys.readouterr().out

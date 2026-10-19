@@ -204,6 +204,37 @@ def write_check(info: dict, state_dir: Optional[Path] = None) -> None:
 # --- the command -------------------------------------------------------------------------------------------------------
 
 
+def _resync_report(code: int) -> None:
+    """The step after an update (`install --global`). The update itself is done by then, so a step that does not finish is
+    reported with the one command that finishes it; the exit code of `update` stays 0."""
+    if code != 0:
+        print(f"update: the update is installed, but `install --global` did not finish (exit {code}); fix the error above.")
+        print("next: run `simplicio-loop install --global` again; it is safe to run again")
+
+
+def _uv_for(python: str) -> Optional[str]:
+    """The uv that installs into `python` when that is a venv uv made (such a venv has no pip); None otherwise."""
+    from .prereqs import is_uv_venv
+    return shutil.which("uv") if is_uv_venv(python) else None
+
+
+def _pip_install(python: str, *options: str) -> list[str]:
+    """The argv that installs into `python`: `python -m pip install`, or `uv pip install --python` in a venv uv made.
+    uv names `--force-reinstall` `--reinstall`."""
+    uv = _uv_for(python)
+    if uv is None:
+        return [python, "-m", "pip", "install", *options]
+    return [uv, "pip", "install", "--python", python,
+            *("--reinstall" if option == "--force-reinstall" else option for option in options)]
+
+
+def _pip_uninstall(python: str, *packages: str) -> list[str]:
+    uv = _uv_for(python)
+    if uv is None:
+        return [python, "-m", "pip", "uninstall", "-y", *packages]
+    return [uv, "pip", "uninstall", "--python", python, *packages]  # uv does not ask, so it takes no -y
+
+
 def run_update(
     check: bool = False,
     force: bool = False,
@@ -254,11 +285,11 @@ def run_update(
         # `pip install -U` from 3.43.x leaves the standalone distributions on top of the
         # wheel's files; remove them and restore the wheel's copies of those files.
         print("update: removing standalone " + ", ".join(stale) + " (now bundled in simplicio-loop)")
-        rc = runner([sys.executable, "-m", "pip", "uninstall", "-y", *stale])
+        rc = runner(_pip_uninstall(sys.executable, *stale))
         if rc != 0:
             return rc
-        return runner([sys.executable, "-m", "pip", "install", "--force-reinstall", "--no-deps",
-                       f"simplicio-loop @ git+https://github.com/{REPO}@{tag}"])
+        return runner(_pip_install(sys.executable, "--force-reinstall", "--no-deps",
+                                   f"simplicio-loop @ git+https://github.com/{REPO}@{tag}"))
     print(f"simplicio-loop {installed} -> {label}")
     if check:
         return EXIT_UPDATE_AVAILABLE if available else 0
@@ -271,18 +302,18 @@ def run_update(
     stale = list(installed_legacy_distributions() if legacy is None else legacy)
     if stale:
         print("update: removing standalone " + ", ".join(stale) + " (now bundled in simplicio-loop)")
-        rc = runner([sys.executable, "-m", "pip", "uninstall", "-y", *stale])
+        rc = runner(_pip_uninstall(sys.executable, *stale))
         if rc != 0:
             print("update: could not remove the standalone distributions; nothing else was changed.")
             return rc
     spec = f"simplicio-loop @ git+https://github.com/{REPO}@{tag}"
-    rc = runner([sys.executable, "-m", "pip", "install", "--upgrade", spec])
+    rc = runner(_pip_install(sys.executable, "--upgrade", spec))
     if rc != 0:
         print("update: pip install failed; re-run `simplicio-loop update` once git access to the repo works.")
         return rc
-    rc = runner([sys.executable, "-m", "simplicio_loop.cli", "install", "--global"])
     if dry_run:
         print("update: dry run, nothing was changed.")
-    elif rc == 0:
+    else:  # the package is updated: recorded now, so `update --check` agrees even when the resync below does not finish
         record({**info, "installed": label, "update_available": False})
-    return rc
+    _resync_report(runner([sys.executable, "-m", "simplicio_loop.cli", "install", "--global"]))
+    return 0

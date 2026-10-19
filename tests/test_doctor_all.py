@@ -142,7 +142,8 @@ def test_a_missing_login_without_the_runtime_fixes_with_the_installer_first(box,
     monkeypatch.setattr(auth, "runtime_binary", lambda environ=None: None)  # shutil.which cannot run as win32 here
     login = check(collect(box, only="login"), "login")
     assert login["status"] == "warn" and "not logged in" in login["summary"]
-    assert login["fix"] == f"{installer} ; simplicio-loop login"
+    assert login["fix"] == (f"install the Simplicio Runtime first with: {installer}; then run: simplicio-loop login "
+                            "(only the 24/7 watcher needs a login)")
 
 
 @posix
@@ -402,3 +403,26 @@ def test_a_healthy_evidence_setup_is_ok_with_its_versions(box):
     assert "156.0.8078.4" in rows["evidence:chromium"]["summary"]
     assert evidence_tools.HYPERFRAMES_VERSION in rows["evidence:hyperframes"]["summary"]
     assert all(row["fix"] is None for row in rows.values())
+
+
+# --- the login row and the layout of the lines -------------------------------------------------------------------------
+
+
+def test_the_login_row_without_the_runtime_installs_it_first_and_never_says_a_bare_login_run(box):
+    row = {c["name"]: c for c in collect(box)["checks"]}["login"]
+    assert row["status"] == "warn" and "login_missing" in row["summary"]
+    assert "run: simplicio-loop login" not in row["summary"]  # the summary says what is missing, not how to sign in
+    assert row["fix"].startswith("install the Simplicio Runtime first with: " + auth.runtime_install_command())
+    assert row["fix"].endswith("then run: simplicio-loop login (only the 24/7 watcher needs a login)")
+
+
+def test_the_doctor_lines_line_up_under_the_longest_row_name():
+    doc = {"status": "optional", "checks": [
+        {"name": "setup", "status": "ok", "summary": "summary-one", "fix": None, "detail": {}},
+        {"name": "evidence:hyperframes", "status": "optional", "summary": "summary-two",
+         "fix": "simplicio-loop setup --with-hyperframes", "detail": {}}]}
+    lines = dov.render(doc).splitlines()
+    first = next(line for line in lines if "summary-one" in line)
+    second = next(line for line in lines if "summary-two" in line)
+    assert first.index("summary-one") == second.index("summary-two")  # the name field fits `evidence:hyperframes`
+    assert second.lstrip().startswith("optional") and "evidence:hyperframes summary-two" in second

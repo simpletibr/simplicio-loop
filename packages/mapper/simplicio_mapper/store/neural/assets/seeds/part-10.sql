@@ -7265,7 +7265,7 @@ brew install wesleysimplicio/tap/simplicio
 
 **One-line install (Linux / macOS)**
 ```sh
-curl -fsSL https://raw.githubusercontent.com/wesleysimplicio/simplicio/master/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/simpletibr/simplicio/master/install.sh | sh
 ```
 
 **Linux / Windows — direct binary**
@@ -7274,7 +7274,7 @@ Release assets are raw binaries in the public repo (no tarball):
 `simplicio-linux-x64` · `simplicio-darwin-arm64` · `simplicio-windows-x64`.
 ```sh
 # Linux x64
-curl -fsSL https://github.com/wesleysimplicio/simplicio/releases/latest/download/simplicio-linux-x64 -o simplicio
+curl -fsSL https://github.com/simpletibr/simplicio/releases/latest/download/simplicio-linux-x64 -o simplicio
 chmod +x simplicio && sudo mv simplicio /usr/local/bin/
 ```
 

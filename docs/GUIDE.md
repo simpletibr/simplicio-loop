@@ -1026,7 +1026,7 @@ pip install simplicio-loop
 simplicio-loop install            # current project
 simplicio-loop install --global   # user-wide
 simplicio-loop install --check    # write nothing; exit 0 = up to date, 10 = changes pending
-simplicio-loop login              # sign in; the login is shared with the Simplicio Runtime
+simplicio-loop login              # not needed for this: only the 24/7 watcher needs a login (it signs in through the Simplicio Runtime)
 ```
 
 That installs the skills + hooks only. If your runtime can bind native helpers, they are an

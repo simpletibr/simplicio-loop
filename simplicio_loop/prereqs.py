@@ -201,11 +201,22 @@ def _python(interpreter: Optional[str], which: Which, run: Run, platform: str, m
     return Check("python", "missing", True, None, None, PY_TARGET, fix, "user")
 
 
-def _module(name: str, python: Check, run: Run, manager: Optional[str], argv: Sequence[str]) -> Check:
+def is_uv_venv(python: str) -> bool:
+    """True when `python` belongs to a venv that uv made: its pyvenv.cfg names uv. Such a venv has no pip unless one is
+    installed into it, so the loop installs packages there with `uv pip --python` instead."""
+    cfg = Path(os.path.abspath(python)).parent.parent / "pyvenv.cfg"  # not resolved: a venv's bin/python links elsewhere
+    try:
+        lines = cfg.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return False
+    return any(line.partition("=")[0].strip() == "uv" for line in lines)
+
+
+def _module(name: str, python: Check, run: Run, manager: Optional[str], argv: Sequence[str], *, required: bool = True) -> Check:
     code, text = run([python.path, *argv], TIMEOUT_S)
     if code == 0:
-        return Check(name, "ok", True, python.path, _text(_numbers(text)) if name == "pip" else None, None, "", "")
-    return Check(name, "missing", True, None, None, None, _system_fix(manager, [name]), "")
+        return Check(name, "ok", required, python.path, _text(_numbers(text)) if name == "pip" else None, None, "", "")
+    return Check(name, "missing", required, None, None, None, _system_fix(manager, [name]), "")
 
 
 def _tool(name: str, which: Which, run: Run, *, required: bool = True, auto: str = "", fix: str = "") -> Check:
@@ -237,7 +248,8 @@ def check_all(environ: Optional[Mapping[str, str]] = None, *, which: Optional[Wh
     python = _python(interpreter, which, run, platform, matches)  # type: ignore[arg-type]
     checks = [python]
     if python.path:  # without a python there is nothing to ask about pip and venv
-        checks += [_module("pip", python, run, manager, ["-m", "pip", "--version"]),
+        # pip is needed only where the loop installs with it: a venv that uv made has none, and uv pip installs there
+        checks += [_module("pip", python, run, manager, ["-m", "pip", "--version"], required=not is_uv_venv(python.path)),
                    _module("venv", python, run, manager, ["-c", "import venv, ensurepip"])]
     checks += [_tool("git", which, run, auto="system", fix=_system_fix(manager, ["git"])),
                _tool("gh", which, run, auto="user", fix=GH_FIX)]

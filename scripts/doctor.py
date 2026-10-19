@@ -88,11 +88,15 @@ def _link_operator_bins():
 
 
 # ── checks ───────────────────────────────────────────────────────────────────
-def chk_python():
-    v = sys.version_info
-    ok = v >= (3, 8)
+MIN_PYTHON = (3, 11)  # requires-python in pyproject.toml
+
+
+def chk_python(version=None, executable=None):
+    """The interpreter that runs this check must be MIN_PYTHON or newer; the row names its path."""
+    v = tuple(version or sys.version_info[:3])
+    ok = v >= MIN_PYTHON
     return dict(name="python3", tier="REQUIRED", status=OK if ok else FAIL,
-                msg="%d.%d.%d" % (v.major, v.minor, v.micro), repair=None)
+                msg="%d.%d.%d at %s" % (v[0], v[1], v[2], executable or sys.executable), repair=None)
 
 
 def _operators_ok():

@@ -124,6 +124,35 @@ def test_pip_and_venv_missing_give_the_package_manager_command():
     assert not {"pip", "venv"} & set(check(World(python3=None), interpreter=None))  # no python: nothing to ask
 
 
+def test_a_venv_made_by_uv_has_no_pip_and_setup_does_not_ask_for_it(tmp_path):
+    # `uv venv` and `uv tool install` make venvs without pip (pyvenv.cfg names uv): setup is complete there, and an update
+    # installs with `uv pip --python` instead
+    venv = tmp_path / "venv"
+    (venv / "bin").mkdir(parents=True)
+    (venv / "pyvenv.cfg").write_text("home = /opt/homebrew/bin\nuv = 0.11.15\nversion_info = 3.12.1\n")
+    python = str(venv / "bin" / "python")
+    world = World()
+    world.exit[f"{python} --version"] = (0, "Python 3.12.1")
+    world.exit[f"{python} -m pip --version"] = (1, "No module named pip")
+    world.exit[f"{python} -c import venv, ensurepip"] = (0, "")
+    checks = check(world, interpreter=python)
+    assert (checks["python"].status, checks["python"].path) == ("ok", python)
+    assert checks["pip"].status == "missing" and checks["pip"].required is False
+    assert [c.name for c in checks.values() if c.required and c.status != "ok"] == []  # the setup is not pending on pip
+
+
+def test_a_venv_without_uv_still_needs_pip(tmp_path):
+    venv = tmp_path / "venv"
+    (venv / "bin").mkdir(parents=True)
+    (venv / "pyvenv.cfg").write_text("home = /opt/homebrew/bin\nversion_info = 3.12.1\n")  # made by `python -m venv`
+    python = str(venv / "bin" / "python")
+    world = World()
+    world.exit[f"{python} --version"] = (0, "Python 3.12.1")
+    world.exit[f"{python} -m pip --version"] = (1, "No module named pip")
+    world.exit[f"{python} -c import venv, ensurepip"] = (0, "")
+    assert check(world, interpreter=python)["pip"].required is True
+
+
 def test_missing_system_tools_name_the_exact_command_and_root_needs_no_sudo(monkeypatch):
     world = World(git=None, bwrap=None)
     checks = check(world)

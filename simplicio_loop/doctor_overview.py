@@ -51,10 +51,7 @@ def _login(environ: Optional[dict], now: float) -> dict:
     if not doc["logged_in"]:
         status = "warn" if doc["reason_code"] in {"login_missing", "login_expired"} else "fail"
         detail = f": {doc['detail']}" if doc.get("detail") else ""
-        fix = doc["fix"]
-        if not runtime["found"] and "simplicio-loop login" in (fix or ""):
-            fix = f"{auth.runtime_install_command()} ; {fix}"  # `login` runs the Runtime: without it, install that first
-        return _row("login", status, f"not logged in ({doc['reason_code']}); file {doc['path']}; {rt}{detail}", fix, doc)
+        return _row("login", status, f"not logged in ({doc['reason_code']}); file {doc['path']}; {rt}{detail}", doc["fix"], doc)
     ent = doc.get("entitlement") or {}
     tier = f"entitlement {ent.get('tier')} ({ent.get('status')}, cached)" if ent else "entitlement not cached yet"
     expiry = "expired" if doc["access_expired"] else f"expires {_stamp(doc['access_expires_at'])}"
@@ -242,14 +239,21 @@ def collect(*, online: bool = False, environ: Optional[dict] = None, now: Option
     return {"schema": SCHEMA, "status": worst, "version": installed, "checks": checks}
 
 
+def render(doc: dict) -> str:
+    """The overview as text: one line per check, the name column as wide as the longest name (`evidence:hyperframes`)."""
+    width = max([len("name")] + [len(check["name"]) for check in doc["checks"]])
+    lines = [f"simplicio-loop doctor: {doc['status']}"]
+    for check in doc["checks"]:
+        lines.append(f"  {check['status']:<8} {check['name']:<{width}} {check['summary']}")
+        if check["fix"]:
+            lines.append(f"        fix: {check['fix']}")
+    return "\n".join(lines)
+
+
 def run(*, as_json: bool = False, online: bool = False, only: Optional[str] = None, **kw: Any) -> int:
     doc = collect(online=online, only=only, **kw)
     if as_json:
         print(json.dumps(doc, ensure_ascii=False, sort_keys=True))
     else:
-        print(f"simplicio-loop doctor: {doc['status']}")
-        for check in doc["checks"]:
-            print(f"  {check['status']:<5} {check['name']:<13} {check['summary']}")
-            if check["fix"]:
-                print(f"        fix: {check['fix']}")
+        print(render(doc))
     return 1 if doc["status"] == "fail" else 0

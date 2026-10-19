@@ -66,10 +66,11 @@ Post = Callable[[dict], Mapping[str, Any]]
 class LoginError(Exception):
     """The login file cannot be used. `reason_code` is stable, the message says what to do and never holds a token."""
 
-    def __init__(self, reason_code: str, message: str = "", fix: Optional[str] = None) -> None:
+    def __init__(self, reason_code: str, message: str = "", fix: Optional[str] = None, then_login: bool = False) -> None:
         super().__init__(message or reason_code)
         self.reason_code = reason_code
-        self.fix = fix  # the exact command that repairs it, when there is one
+        self.fix = fix  # the exact step that repairs it, when there is one
+        self.then_login = then_login  # the sign-in comes after that step
 
 
 # --- where ----------------------------------------------------------------------------------------------------------
@@ -102,7 +103,7 @@ def lock_path(path: Path) -> Path:
 
 
 def _symlink_error(path: Path) -> LoginError:
-    return LoginError("login_symlink", f"{path} is a symlink; remove it and run: simplicio-loop login")
+    return LoginError("login_symlink", f"{path} is a symlink", f"remove {path}", then_login=True)
 
 
 def _foreign_owner(info: os.stat_result) -> bool:
@@ -140,7 +141,7 @@ def read_login(path: Optional[Path] = None) -> dict:
     try:
         fd = os.open(path, flags)
     except FileNotFoundError:
-        raise LoginError("login_missing", f"no login file at {path}; run: simplicio-loop login") from None
+        raise LoginError("login_missing", f"no login file at {path}") from None
     except OSError as exc:
         if exc.errno == errno.ELOOP:
             raise _symlink_error(path) from None
@@ -148,10 +149,9 @@ def read_login(path: Optional[Path] = None) -> dict:
     try:
         info = os.fstat(fd)
         if not stat.S_ISREG(info.st_mode):
-            raise LoginError("login_invalid", f"{path} is not a regular file; remove it and run: simplicio-loop login")
+            raise LoginError("login_invalid", f"{path} is not a regular file", f"remove {path}", then_login=True)
         if os.name != "nt" and _foreign_owner(info):
-            raise LoginError("login_permissions", f"{path} is owned by another user; remove it and run: simplicio-loop login",
-                             f"remove {path}, then run: simplicio-loop login")
+            raise LoginError("login_permissions", f"{path} is owned by another user", f"remove {path}", then_login=True)
         if os.name != "nt" and info.st_mode & 0o077:
             raise LoginError("login_permissions", f"{path} can be read by group or others "
                              f"(mode {info.st_mode & 0o777:03o}); run: chmod 600 {path}", f"chmod 600 {path}")
@@ -164,7 +164,7 @@ def read_login(path: Optional[Path] = None) -> dict:
         except (ValueError, OSError):  # UnicodeDecodeError is a ValueError
             data = None
     if not isinstance(data, dict):
-        raise LoginError("login_invalid", f"{path} is not a login file (JSON object expected); run: simplicio-loop login")
+        raise LoginError("login_invalid", f"{path} is not a login file (JSON object expected)")
     return data
 
 
@@ -444,8 +444,13 @@ def runtime_version(binary: Path, timeout: float = 10) -> Optional[str]:
     return found.group(1) if found else None
 
 
-_FIXES = {"login_missing": "simplicio-loop login", "login_invalid": "simplicio-loop login",
-          "login_symlink": "remove the symlink, then run: simplicio-loop login", "login_expired": "simplicio-loop login"}
+def _login_steps(runtime_found: bool) -> str:
+    """The step that signs in. `login` runs the Runtime, so a machine without it installs the Runtime first, with the public
+    installer of this OS (`login` only prints that command, it does not run it). Only the 24/7 watcher needs a login."""
+    if runtime_found:
+        return "simplicio-loop login"
+    return (f"install the Simplicio Runtime first with: {runtime_install_command()}; then run: simplicio-loop login "
+            "(only the 24/7 watcher needs a login)")
 
 
 def describe(environ: Optional[Mapping[str, str]] = None, now: Optional[float] = None) -> dict:
@@ -464,15 +469,15 @@ def describe(environ: Optional[Mapping[str, str]] = None, now: Optional[float] =
         "runtime": {"found": binary is not None, "path": str(binary) if binary else None,
                     "version": runtime_version(binary) if binary else None},
     }
+    steps = _login_steps(binary is not None)
     try:
         login = read_login(path)
     except LoginError as exc:
-        doc.update(reason_code=exc.reason_code, detail=str(exc),
-                   fix=exc.fix or _FIXES.get(exc.reason_code))
+        fix = f"{exc.fix}, then {steps}" if exc.then_login else (exc.fix or steps)
+        doc.update(reason_code=exc.reason_code, detail=str(exc), fix=fix)
         return doc
     facts = summary(login, now)
     usable = not facts["access_expired"] or (facts["has_refresh_token"] and not facts["refresh_expired"])
     doc.update(facts)
-    doc.update(logged_in=usable, reason_code="ok" if usable else "login_expired",
-               fix=None if usable else _FIXES["login_expired"])
+    doc.update(logged_in=usable, reason_code="ok" if usable else "login_expired", fix=None if usable else steps)
     return doc

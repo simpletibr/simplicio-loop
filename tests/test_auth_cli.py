@@ -346,10 +346,19 @@ def test_status_of_a_missing_login(box, capfd):
     rc = auth_cli.status(as_json=True)
     doc = json.loads(output(capfd)[0])
     assert rc == 1 and doc["logged_in"] is False and doc["reason_code"] == "login_missing"
-    assert doc["fix"] == "simplicio-loop login"
+    assert doc["runtime"]["found"] is False  # the box has no Runtime: `login` would run it, so the installer comes first
+    assert doc["fix"] == ("install the Simplicio Runtime first with: " + auth.runtime_install_command()
+                          + "; then run: simplicio-loop login (only the 24/7 watcher needs a login)")
     rc = auth_cli.status()
     out, _ = output(capfd)
-    assert rc == 1 and "not logged in" in out and "simplicio-loop login" in out
+    assert rc == 1 and "not logged in" in out and auth.runtime_install_command() in out and "simplicio-loop login" in out
+
+
+def test_status_of_a_missing_login_with_the_runtime_installed_names_only_the_login(box, capfd):
+    fake_runtime(box)
+    rc = auth_cli.status(as_json=True)
+    doc = json.loads(output(capfd)[0])
+    assert rc == 1 and doc["runtime"]["found"] is True and doc["fix"] == "simplicio-loop login"
 
 
 @posix
