@@ -3,12 +3,12 @@
 Input: the plan JSON (`squads.SquadPlan.to_dict()`), and optionally the issues file, whose titles and bodies are the task text.
 
 Per squad, in plan order (a squad whose state already says ready, blocked or merged is not run again):
-  1. a git worktree on a new branch `squads/<run>/<squad>`, from `--base`; the run folder is `<repo>/.simplicio/squads-run/<run>`;
+  1. a git worktree on a new branch `squads/<run>/<squad>`, from `--base`; the run folder is `<repo>/.simplicio-loop/squads-run/<run>`;
   2. ONE execution-role worker (model and effort from the plan) through the injected launcher. Its prompt carries the task
      text, the owned paths, the shared-file rules and the contracts it must honor;
   3. after every launch, the changed files (against the base, untracked ones included) must be owned by the squad and must
      not be shared files. A violation stops that squad, names the paths, and nothing from it is merged;
-  4. a launch that returns `budget_exhausted` writes a handoff note (`.simplicio/handoff.md` in the worktree) and launches a
+  4. a launch that returns `budget_exhausted` writes a handoff note (`.simplicio-loop/squads-run/handoff.md` in the worktree) and launches a
      continuation, at most `max_continuations` times, then the squad is BLOCKED;
   5. a squad whose ownership check passed is committed on its branch, and its tests run there (ready when they pass).
 
@@ -57,7 +57,9 @@ REMOTE = "origin"
 BUDGET_EXIT_CODE = 75  # the default launcher's typed budget_exhausted signal (EX_TEMPFAIL)
 WORKER_TIMEOUT_S = 3600
 TEST_TIMEOUT_S = 1800
-SCRATCH = ".simplicio"  # bookkeeping folder inside a worktree: never committed, never counted as a change
+# bookkeeping folder inside a worktree: never committed, never counted as a change. A subfolder of the loop state
+# folder, because .simplicio-loop/loop.toml is tracked and must stay a real change.
+SCRATCH = ".simplicio-loop/squads-run"
 HANDOFF_NAME = "handoff.md"
 PROGRESS_NAME = "progress.md"
 STATUS_DONE = "done"
@@ -218,8 +220,8 @@ def _worker_prompt(squad: _Squad, worktree: Path, tasks: Mapping[int, Mapping[st
         "",
         "## Rules",
         "- Do not commit, push, merge or open a pull request: the coordinator does that.",
-        "- Keep a progress note in .simplicio/%s with the sections \"## Done\" and \"## Remaining\"; update it before you stop."
-        % PROGRESS_NAME,
+        "- Keep a progress note in %s/%s with the sections \"## Done\" and \"## Remaining\"; update it before you stop."
+        % (SCRATCH, PROGRESS_NAME),
         "- If you run out of context or turn budget, stop: the coordinator writes a handoff note and continues you.",
     ]
     return "\n".join(lines) + "\n"
@@ -827,7 +829,7 @@ def configure_run(subparsers: argparse._SubParsersAction) -> None:
     run.add_argument("--repo", default=".", help="the git repository the squads branch from (default: current directory)")
     run.add_argument("--base", default=DEFAULT_BASE, help="the ref each squad branches from and merges into (default: main)")
     run.add_argument("--run-dir", default="", metavar="DIR",
-                     help="folder for the worktrees and state.json (default: <repo>/.simplicio/squads-run/<plan id>); "
+                     help="folder for the worktrees and state.json (default: <repo>/.simplicio-loop/squads-run/<plan id>); "
                           "a rerun of the same plan resumes from it")
     run.add_argument("--json", action="store_true", help="machine-readable output: one JSON document with the preview inside")
 
@@ -838,7 +840,7 @@ def dispatch(args: argparse.Namespace) -> int:
     try:
         plan = _load_json(args.plan)
         run_id = plan_id(plan) if isinstance(plan, Mapping) else "invalid"
-        run_dir = Path(args.run_dir) if args.run_dir else repo / ".simplicio" / "squads-run" / run_id
+        run_dir = Path(args.run_dir) if args.run_dir else repo / ".simplicio-loop" / "squads-run" / run_id
         tasks: Dict[int, Mapping[str, Any]] = {}
         if args.issues:
             for issue in squads._load_issues(args.issues):

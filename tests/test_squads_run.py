@@ -179,6 +179,20 @@ def test_a_change_to_a_shared_file_stops_the_squad_even_inside_its_glob(repo, tm
     assert result["squads"]["sq-api"]["offending"] == ["pyproject.toml"]
 
 
+def test_a_tracked_file_under_the_loop_state_folder_is_still_a_change(repo, tmp_path):
+    # .simplicio-loop/loop.toml is tracked: only the squads-run bookkeeping folder is exempt from the change set
+    (repo / ".simplicio-loop").mkdir()
+    (repo / ".simplicio-loop" / "loop.toml").write_text("enabled = true\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "loop config")
+    _git(repo, "push", "-q", "origin", "main")
+    launcher = _table(**{"sq-api": _writer(".simplicio-loop/loop.toml"), "sq-web": _writer("web/b.py")})
+    result = _run(_plan(ISSUES2), repo, tmp_path, _deps(launcher, FakeHosting(repo)), approvers=())
+
+    api = result["squads"]["sq-api"]
+    assert api["reason_kind"] == "ownership" and api["offending"] == [".simplicio-loop/loop.toml"]
+
+
 # ---------------------------------------------------------------------------------------------- (c) continuation
 
 
@@ -196,7 +210,7 @@ def test_budget_exhausted_gets_a_handoff_note_and_continuations_then_blocks(repo
     api = result["squads"]["sq-api"]
     assert api["status"] == "blocked" and api["reason_kind"] == "budget" and api["continuations"] == 3
     assert "sq-api" in result["next"]
-    note = (Path(api["worktree"]) / ".simplicio" / "handoff.md").read_text(encoding="utf-8")
+    note = (Path(api["worktree"]) / ".simplicio-loop" / "squads-run" / "handoff.md").read_text(encoding="utf-8")
     assert "## Files touched" in note and "- api/a.py" in note and "## Done and remaining" in note
     assert "## Handoff from the previous attempt" not in calls[0].prompt
     assert "## Handoff from the previous attempt" in calls[1].prompt
@@ -214,6 +228,9 @@ def test_budget_then_done_continues_once_and_the_squad_is_ready(repo, tmp_path):
     result = _run(_plan(ISSUES2), repo, tmp_path, _deps(launcher, FakeHosting(repo)), approvers=())
     api = result["squads"]["sq-api"]
     assert api["status"] == "ready" and api["continuations"] == 1 and api["launches"] == 2
+    committed = _git(repo, "ls-tree", "-r", "--name-only", api["branch"]).splitlines()
+    assert "api/a.py" in committed
+    assert not any(path.startswith(".simplicio-loop/") for path in committed)  # the handoff note is never committed
 
 
 # ---------------------------------------------------------------------------------------------- (d) merge order
@@ -358,6 +375,16 @@ def test_cli_dry_run_prints_json_and_a_blocked_plan_prints_next(repo, tmp_path, 
     err = capsys.readouterr().err
     assert code == 2
     assert any(line.startswith("next: ") for line in err.splitlines())
+
+
+def test_default_run_folder_is_under_the_loop_state_folder(repo, tmp_path, capsys):
+    plan = _plan(ISSUES2)
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(json.dumps(plan), encoding="utf-8")
+    code = cli_impl.main(["squads", "run", "--plan", str(plan_file), "--repo", str(repo), "--json"])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert out["preview"]["run_dir"] == str(repo.resolve() / ".simplicio-loop" / "squads-run" / sr.plan_id(plan))
 
 
 @pytest.mark.parametrize("mode", [merge_lockfree.MODE_BATCH, merge_lockfree.MODE_LOCKFREE])

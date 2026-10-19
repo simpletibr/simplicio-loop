@@ -993,9 +993,8 @@ options:
                         BLOCKED (default: 3, or SIMPLICIO_SQUADS_MAX_CONTINUATIONS)
   --repo REPO           the git repository the squads branch from (default: current directory)
   --base BASE           the ref each squad branches from and merges into (default: main)
-  --run-dir DIR         folder for the worktrees and state.json (default:
-                        <repo>/.simplicio/squads-run/<plan id>); a rerun of the same plan resumes
-                        from it
+  --run-dir DIR         folder for the worktrees and state.json (default: <repo>/.simplicio-
+                        loop/squads-run/<plan id>); a rerun of the same plan resumes from it
   --json                machine-readable output: one JSON document with the preview inside
 === stack rc=0
 usage: simplicio-loop stack [-h] {lock,verify} ...
