@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
@@ -673,6 +674,26 @@ def test_transaction_fault_pause_and_lock_pid_shapes(tmp_path, monkeypatch):
     assert _lock_owned_by_live_process(malformed) is True
     malformed.write_text("pid=0", encoding="utf-8")
     assert _lock_owned_by_live_process(malformed) is True
+
+
+def test_lock_owner_liveness_treats_eperm_as_alive_and_only_esrch_as_dead(tmp_path, monkeypatch):
+    from simplicio import changeset_transaction
+
+    lock = tmp_path / "owner.lock"
+    lock.write_text("pid=4242\n", encoding="utf-8")
+
+    def denied(_pid, _signal):
+        # EPERM: the pid exists under another user (what os.kill(1, 0) raises for non-root).
+        raise PermissionError(errno.EPERM, "Operation not permitted")
+
+    monkeypatch.setattr(changeset_transaction.os, "kill", denied)
+    assert _lock_owned_by_live_process(lock) is True
+
+    def missing(_pid, _signal):
+        raise ProcessLookupError(errno.ESRCH, "No such process")
+
+    monkeypatch.setattr(changeset_transaction.os, "kill", missing)
+    assert _lock_owned_by_live_process(lock) is False
 
 
 def test_transaction_recovery_lock_reclaims_dead_pid(tmp_path, monkeypatch):

@@ -255,8 +255,12 @@ def _lock_owned_by_live_process(lock_path: Path) -> bool:
         return exit_code.value == 259
     try:
         os.kill(pid, 0)
-    except OSError:
+    except ProcessLookupError:
         return False
+    except OSError:
+        # EPERM: the pid exists under another user, so it still owns the lock.
+        # Only ESRCH proves the owner is gone.
+        pass
     return True
 
 
