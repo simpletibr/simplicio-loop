@@ -38,6 +38,11 @@ def _entries() -> list[dict]:
     return json.loads(CATALOG.read_text(encoding="utf-8"))["harnesses"]
 
 
+def _hosts() -> list[dict]:
+    """The catalog entries that are install hosts. A model provider (DeepSeek) is an entry, not a host."""
+    return [e for e in _entries() if e["install"]["status"] != "provider"]
+
+
 def _adapter_dirs(entry: dict) -> list[Path]:
     return [ADAPTERS / name for name in [entry["id"], *entry["aliases"]] if (ADAPTERS / name).is_dir()]
 
@@ -86,6 +91,10 @@ def test_every_other_entry_is_listed_and_a_listed_installer_target_ships_no_adap
         if entry["id"] in measured:
             continue
         install = entry["install"]
+        if install["status"] == "provider":
+            # DeepSeek is the only model provider: no installer target and no adapter code, and not a host.
+            assert entry["id"] == "deepseek" and install["runtime"] is None, entry["id"]
+            continue
         assert install["status"] == "listed", entry["id"]
         if install["runtime"] is not None:
             assert install["runtime"] in install_lib.RUNTIMES, entry["id"]
@@ -94,7 +103,7 @@ def test_every_other_entry_is_listed_and_a_listed_installer_target_ships_no_adap
 @pytest.mark.parametrize("doc", COUNT_DOCS)
 def test_doc_states_the_measured_wired_and_listed_counts(doc: str) -> None:
     wired = len(_measured_wired())
-    listed = len(_entries()) - wired
+    listed = len(_hosts()) - wired
     text = _text(doc)
     assert set(WIRED_COUNT_RE.findall(text)) == {str(wired)}, f"{doc}: wired count must be {wired}"
     assert set(LISTED_COUNT_RE.findall(text)) == {str(listed)}, f"{doc}: listed count must be {listed}"
@@ -155,7 +164,7 @@ def _status_counts(text: str) -> dict[str, set[str]]:
 
 def _measured_counts() -> tuple[str, str]:
     wired = len(_measured_wired())
-    return str(wired), str(len(_entries()) - wired)
+    return str(wired), str(len(_hosts()) - wired)
 
 
 @pytest.mark.parametrize("doc", OWNED_DOCS)
@@ -192,7 +201,7 @@ def test_guide_wired_bullet_names_only_wired_hosts() -> None:
     bullets = re.findall(r"^- \*\*Wired[^\n]*(?:\n(?!- |\n|#)[^\n]*)*", guide, flags=re.MULTILINE)
     assert bullets, "docs/GUIDE.md must have a '- **Wired ...' bullet in the runtimes section"
     wired_ids = set(_measured_wired())
-    listed_names = [e["name"] for e in _entries() if e["id"] not in wired_ids]
+    listed_names = [e["name"] for e in _hosts() if e["id"] not in wired_ids]
     for bullet in bullets:
         leaked = [n for n in listed_names if re.search(rf"(?<![\w-]){re.escape(n)}(?![\w-])", bullet)]
         assert not leaked, f"docs/GUIDE.md calls listed host(s) wired: {leaked}"
@@ -201,7 +210,7 @@ def test_guide_wired_bullet_names_only_wired_hosts() -> None:
 def test_pypi_runtime_line_does_not_present_listed_hosts_as_working() -> None:
     pypi = _text("PYPI.md")
     wired_ids = set(_measured_wired())
-    listed_names = [e["name"] for e in _entries() if e["id"] not in wired_ids and len(e["name"]) > 4]
+    listed_names = [e["name"] for e in _hosts() if e["id"] not in wired_ids and len(e["name"]) > 4]
     line = next((ln for ln in pypi.splitlines() if "wired" in ln.lower()), "")
     assert line, "PYPI.md must say which hosts are wired"
     unlabeled = [ln for ln in pypi.splitlines()

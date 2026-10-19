@@ -190,9 +190,8 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## Runtimes
 
-- **26 wired adapters** ship code in `adapters/` and a host test: Claude Code, Codex, Cursor, Grok, Kiro, VS Code, and
-  20 `AGENTS.md` hosts on the `.claude/skills/` surface (see [adapters/MATRIX.md](adapters/MATRIX.md)).
-- **9 listed hosts** are catalog entries with a README and no adapter code; 8 of them also have a generic installer target that writes the skills and the host's entry file. A listing is not proof that the host runs the loop.
+- **34 wired adapters** ship code in `adapters/` and a host test, one for every install host: Claude Code, Codex, Cursor, Grok, Kiro, VS Code, the 20 `AGENTS.md` hosts on the `.claude/skills/` surface, and the eight wave-B hosts (GitHub Copilot, OpenCode, Simplicio Agent, Continue, Qwen Code, Gemini, Aider and OpenClaw) (see [adapters/MATRIX.md](adapters/MATRIX.md)).
+- **0 listed hosts** remain: every catalog host has adapter code. DeepSeek is a model provider, not a host.
 - The operators above are plain commands, so they work from any harness, wired or not. Per-host status: [adapters/MATRIX.md](adapters/MATRIX.md) and [simplicio_loop/_catalog/harnesses.json](simplicio_loop/_catalog/harnesses.json).
 
 ## Learn more

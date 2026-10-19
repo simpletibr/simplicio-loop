@@ -21,7 +21,7 @@ flowchart LR
   <a href="https://github.com/simpletibr/simplicio-loop/stargazers"><img src="https://img.shields.io/github/stars/simpletibr/simplicio-loop?style=social" alt="Stars"></a>
   <a href="#-the-7-skills--5-accelerators"><img src="https://img.shields.io/badge/skills-7-7C3AED" alt="7 skills"></a>
   <a href="#-source-adapters"><img src="https://img.shields.io/badge/source%20adapters-5-00E08A" alt="5 source adapters"></a>
-  <a href="#-runtimes-26-wired-adapters-and-9-listed-hosts"><img src="https://img.shields.io/badge/runtimes-26%20wired%20%2B%209%20listed-2563EB" alt="26 wired adapters and 9 listed hosts"></a>
+  <a href="#-runtimes-34-wired-adapters-and-0-listed-hosts"><img src="https://img.shields.io/badge/runtimes-34%20wired%20%2B%200%20listed-2563EB" alt="34 wired adapters and 0 listed hosts"></a>
   <a href="#-the-50-extension-points"><img src="https://img.shields.io/badge/extension%20points-50-00E08A" alt="50 extension points"></a>
   <a href="#measured-benchmark-issue-17"><img src="https://img.shields.io/badge/bench%20%2317-single%20run%2C%20estimated-2563EB" alt="Issue #17 bench: one run, estimated tokens, not a general savings figure"></a>
   <a href="#-token-economy"><img src="https://img.shields.io/badge/savings-mixed%20(see%20bench)-2563EB" alt="Savings — see measured bench + evidence-gated monitor"></a>
@@ -33,7 +33,7 @@ flowchart LR
   <a href="#-tldr">TL;DR</a> ·
   <a href="#-the-7-skills--5-accelerators">7 Skills</a> ·
   <a href="#-source-adapters">Source Adapters</a> ·
-  <a href="#-runtimes-26-wired-adapters-and-9-listed-hosts">Runtimes</a> ·
+  <a href="#-runtimes-34-wired-adapters-and-0-listed-hosts">Runtimes</a> ·
   <a href="#-the-loop">The Loop</a> ·
   <a href="#-token-economy">Token Economy</a> ·
   <a href="#measured-benchmark-issue-17">Bench #17</a> ·
@@ -446,7 +446,7 @@ and keeps watching **24/7** for new work — all behind safety gates and evidenc
 ```
 
 Three things make it different: it is a **super-plugin of focused skills**, it runs the **same
-protocol on 26 wired adapters and 9 listed hosts**, and it does all of this with **aggressive, honest token economy**.
+protocol on 34 wired adapters and 0 listed hosts**, and it does all of this with **aggressive, honest token economy**.
 
 The skill installs **standalone**: there is no Runtime/MCP backend, and no mandatory
 native component, to use `simplicio-loop`. The two bound operators (`simplicio-mapper`,
@@ -456,7 +456,7 @@ native component, to use `simplicio-loop`. The two bound operators (`simplicio-m
 flowchart TB
   INSTALL["Standalone install: no Runtime or MCP required"] --> SKILLS["7 skills and 5 accelerators"]
   SRC["5 source adapters"] --> SKILLS
-  SKILLS --> RT["26 wired adapters and 9 listed hosts"]
+  SKILLS --> RT["34 wired adapters and 0 listed hosts"]
   SKILLS --> OPS["Bound operators: mapper and dev-cli"]
   OPS --> PROOF{"Proof gates"}
   PROOF --> OUT["Evidence-gated completion"]
@@ -593,7 +593,7 @@ See each adapter's reference doc under `.claude/skills/simplicio-loop/references
 
 ---
 
-## 🌐 Runtimes: 26 wired adapters and 9 listed hosts
+## 🌐 Runtimes: 34 wired adapters and 0 listed hosts
 
 One universal skill core + one set of hooks drives every wired runtime. An adapter is thin: it tells a
 runtime *where to load the skills* and *how to arm the loop*. **The skill names no runtime; the
@@ -601,10 +601,10 @@ runtime detects the skill.** There is no Runtime/MCP backend in this stack — e
 same standalone loop against `simplicio-mapper` and `simplicio-dev-cli`.
 
 The hosts are listed once, in [`simplicio_loop/_catalog/harnesses.json`](../simplicio_loop/_catalog/harnesses.json),
-and each one is either `wired` or `listed`. The status is measured from the tree, not declared: **wired** means
+and each one is either `wired` or `listed`, or `provider` for DeepSeek, a model provider rather than a host. The status is measured from the tree, not declared: **wired** means
 `adapters/<host>/` ships code and `tests/host_<host>/` tests it; **listed** means a catalog entry and a README,
 with no adapter code (a listing is not proof that the host runs the loop). `bash scripts/install.sh <runtime>`
-installs a wired adapter, and gives every listed host except DeepSeek the generic installer target that writes the
+installs a wired adapter, and gives every listed host the generic installer target that writes the
 skills and the host's entry file; DeepSeek is a model provider rather than a host, so its adapter README lists manual steps.
 
 ### Tier 1 — Guaranteed (gated on every commit)
@@ -621,14 +621,13 @@ All self-paced unless the adapter says otherwise. Skill load is `AGENTS.md`, or 
 `.github/copilot-instructions.md`, `.kiro/steering/`, `GEMINI.md`, `QWEN.md`, `CONVENTIONS.md`,
 `.continue/rules/`.
 
-- **Wired, best-effort** (`scripts/install.sh <runtime>`): VS Code (Copilot), Grok, Kiro, and the 20 `AGENTS.md` hosts
-  (MiMo Code, Amp, OpenClaude, Antigravity, Pi, oh-my-pi, Devin, goose, Auggie, Autohand
-  Code, Charm (Crush), Cline, Codebuff, Command Code, Droid, Kilo Code, Kimi, Mistral Vibe, Rovo Dev, and Orca
-  *(client opt-in only)*). Code and a host test ship in the repository; the gate does not run them on every commit.
-- **Listed** (a catalog entry and a README, no adapter code; `scripts/install.sh <runtime>` works for all but
-  DeepSeek): OpenCode, Gemini CLI, Qwen Code, Aider, Simplicio Agent *(formerly Hermes)*, OpenClaw, GitHub Copilot,
-  Continue.
-- **Manual**: DeepSeek (a model provider — run it through a wired host).
+- **Wired, best-effort** (`scripts/install.sh <runtime>`): VS Code (Copilot), Grok, Kiro, GitHub Copilot, OpenCode,
+  Simplicio Agent *(formerly Hermes)*, Continue, Qwen Code, Gemini, Aider, OpenClaw, Antigravity, Kimi, MiMo Code, Amp,
+  OpenClaude, Pi, oh-my-pi, Devin, goose, Auggie, Autohand Code, Charm (Crush), Cline, Codebuff, Command Code, Droid,
+  Kilo Code, Mistral Vibe, Rovo Dev, and Orca *(client opt-in only)*. Code and a host test ship in the repository; the
+  gate does not run them on every commit.
+- **Listed**: none. Every catalog host has adapter code, so no host is listed without one.
+- **Provider, not a host**: DeepSeek (a model provider — run it through a wired host).
 
 The promise: **same protocol, same gates, same safety wherever the skill loads. Tier 1 is verified
 mechanically; the other wired adapters and the listed hosts are best-effort.** `orient_clamp.py` (token economy) works on every runtime with zero wiring. See

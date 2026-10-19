@@ -89,9 +89,10 @@ def load_harnesses():
 
 
 def count_runtimes():
-    """Canonical runtime count: one per harness catalog entry. An adapter directory named after an
-    alias (claude, qwen, orca, simplicio_agent) belongs to its entry, so it never double-counts."""
-    names = sorted(h["id"] for h in load_harnesses())
+    """Canonical host count: one per harness catalog entry that is a host (a model provider, DeepSeek, is an entry but
+    not a host). An adapter directory named after an alias (claude, qwen, orca, simplicio_agent) belongs to its entry,
+    so it never double-counts."""
+    names = sorted(h["id"] for h in load_harnesses() if h["install"]["status"] != "provider")
     return len(names), names
 
 

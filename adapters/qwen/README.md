@@ -1,6 +1,6 @@
 # Qwen Code adapter
 
-Qwen Code (Alibaba's CLI agent) reads `QWEN.md` as its memory file, and also reads an `AGENTS.md` the repository already has. Install status: **listed** (installer target, no adapter code).
+Qwen Code (Alibaba's CLI agent) reads `QWEN.md` as its memory file, and also reads an `AGENTS.md` the repository already has. Install status: **wired** (adapter code in `adapter.py`, a host test, and an installer target).
 
 ## Skill load
 

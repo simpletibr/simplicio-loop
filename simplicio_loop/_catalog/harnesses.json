@@ -73,7 +73,7 @@
       "name": "GitHub Copilot",
       "aliases": [],
       "install": {
-        "status": "listed",
+        "status": "wired",
         "runtime": "github-copilot",
         "surface": ".claude/skills/ + .github/copilot-instructions.md",
         "source": "https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/add-custom-instructions/add-repository-instructions"
@@ -88,7 +88,7 @@
       "name": "OpenCode",
       "aliases": [],
       "install": {
-        "status": "listed",
+        "status": "wired",
         "runtime": "opencode",
         "surface": ".claude/skills/ + AGENTS.md + .opencode/skills/",
         "source": "https://opencode.ai/docs/rules/"
@@ -195,7 +195,7 @@
         "simplicio_agent"
       ],
       "install": {
-        "status": "listed",
+        "status": "wired",
         "runtime": "simplicio_agent",
         "surface": ".claude/skills/",
         "source": "https://hermes-agent.nousresearch.com/docs/user-guide/features/context-files"
@@ -330,7 +330,7 @@
       "name": "Continue",
       "aliases": [],
       "install": {
-        "status": "listed",
+        "status": "wired",
         "runtime": "continue",
         "surface": ".claude/skills/ + .continue/rules/simplicio-loop.md",
         "source": "https://docs.continue.dev/customize/deep-dives/rules"
@@ -422,7 +422,7 @@
         "qwen"
       ],
       "install": {
-        "status": "listed",
+        "status": "wired",
         "runtime": "qwen",
         "surface": ".claude/skills/ + QWEN.md",
         "source": "https://qwenlm.github.io/qwen-code-docs/en/users/features/memory/"
@@ -452,7 +452,7 @@
       "name": "Gemini CLI",
       "aliases": [],
       "install": {
-        "status": "listed",
+        "status": "wired",
         "runtime": "gemini",
         "surface": ".claude/skills/ + GEMINI.md",
         "source": "https://geminicli.com/docs/cli/gemini-md/"
@@ -499,9 +499,9 @@
       "name": "Aider",
       "aliases": [],
       "install": {
-        "status": "listed",
+        "status": "wired",
         "runtime": "aider",
-        "surface": ".claude/skills/ + CONVENTIONS.md",
+        "surface": ".claude/skills/ + CONVENTIONS.md + .aider.conf.yml (read: list)",
         "source": "https://aider.chat/docs/usage/conventions.html"
       },
       "detect": null,
@@ -514,7 +514,7 @@
       "name": "DeepSeek",
       "aliases": [],
       "install": {
-        "status": "listed",
+        "status": "provider",
         "runtime": null,
         "surface": "none: a model provider, not a host; point any host at the DeepSeek API",
         "source": "https://api-docs.deepseek.com/guides/coding_agents/"
@@ -529,9 +529,9 @@
       "name": "OpenClaw",
       "aliases": [],
       "install": {
-        "status": "listed",
+        "status": "wired",
         "runtime": "openclaw",
-        "surface": ".claude/skills/",
+        "surface": ".agents/skills/ + .claude/skills/ (OpenClaw scans .agents/skills, not .claude/skills)",
         "source": "https://docs.openclaw.ai/tools/skills"
       },
       "detect": null,

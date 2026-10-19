@@ -10,13 +10,16 @@ to the LLM fallback — same gates, larger context.
 bash scripts/install.sh aider
 ```
 
-The installer writes `CONVENTIONS.md` (the orchestrator protocol, condensed via
-`simplicio-compress` so it costs less every turn) and configures `.aider.conf.yml` to always
-read it:
+The installer writes `CONVENTIONS.md` (the marker block that points at the loop skill) and creates
+`.aider.conf.yml` when there is none, so aider reads both files on every launch:
 
 ```yaml
-read: [CONVENTIONS.md]
+read:
+  - CONVENTIONS.md
+  - .claude/skills/simplicio-loop/SKILL.md
 ```
+
+An existing `.aider.conf.yml` is left alone: add those two entries under `read:` by hand.
 
 ## Loop drive — self-paced from the shell
 
@@ -56,7 +59,7 @@ Tell the agent `/simplicio-loop <task>`. It runs `simplicio-loop "<task>" --veri
 
 ## Progresso do run
 
-`CONVENTIONS.md` inlines SKILL.md verbatim, so the turn-header contract (§ Output) is part of
+`.aider.conf.yml` makes aider read `SKILL.md` on every launch, so the turn-header contract (§ Output) is part of
 what Aider reads every turn — the model echoes `render --turn-header` in its own reply. Universal
 fallback (N3): open `.simplicio-loop/orchestrator/loop/PROGRESS.md` in the editor.
 

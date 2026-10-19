@@ -61,7 +61,7 @@
     "lifecycle_motto": "discover → understand → decide → act → verify → correct → record → repeat",
     "three_differentiators": [
       "É um SUPER-PLUGIN de skills focadas (orquestrador + 5 satélites)",
-      "Roda o MESMO protocolo onde a skill carrega: 26 adaptadores wired e 9 hosts listed (catálogo, sem código de adapter)",
+      "Roda o MESMO protocolo onde a skill carrega: 34 adaptadores wired e 0 hosts listed (catálogo; todo host tem código de adapter); DeepSeek é provider, não host",
       "Faz tudo com economia de tokens agressiva e honesta (evidence-gated)"
     ],
     "example_run_trace": [
@@ -474,7 +474,7 @@
   "scripts": [
     { "file": "scripts/install.sh", "role": "Launcher bash p/ install_lib.py; detecta python3 e delega ao installer cross-platform." },
     { "file": "scripts/install.ps1", "role": "Wrapper PowerShell (Windows) p/ install_lib.py; mapeia -Global/-Target." },
-    { "file": "scripts/install_lib.py", "role": "Installer universal (uma lógica; escreve os 26 adaptadores wired e dá o alvo genérico a 8 dos 9 hosts listed). Copia 6 skills + hooks, wira o loop onde suportado, garante entry file, imprime linhas MCP-bind. Cria-ou-merge, idempotente." },
+    { "file": "scripts/install_lib.py", "role": "Installer universal (uma lógica; escreve os 34 adaptadores wired, um alvo por host). Copia 6 skills + hooks, wira o loop onde suportado, garante entry file, imprime linhas MCP-bind. Cria-ou-merge, idempotente." },
     { "file": "scripts/install_services.py", "role": "Installer cross-platform dos serviços de token-economy (capture proxy, monitor, tray). Backends: launchd/systemd/Startup. Verbs: install, uninstall, status." },
     { "file": "scripts/doctor.py", "role": "Verifica/repara o stack inteiro. Separa REQUIRED (python3, 2 operadores, 6 skills, loop hooks, capture proxy) de OPTIONAL (ONNX models, Rust core, tray dep). --repair, --json. Exit 0 se todos REQUIRED healthy." },
     { "file": "scripts/update.sh", "role": "git pull → reinstala skills/hooks/operadores → reinicia serviços. Stash/restore de edits locais." },
@@ -730,7 +730,7 @@
     "key_visuals_for_infographic": [
       "Hub central 'simplicio-tasks' com 5 satélites orbitando (orient, loop, review, compress, learn)",
       "Pipeline horizontal de 11 camadas (demand sources → 24/7 watcher) com a seta de re-feed voltando ao início",
-      "Tabela dos runtimes (26 wired, 9 listed) × 3 capacidades (skill load / loop drive / native bind) com semáforos ✅⚠️❌",
+      "Tabela dos runtimes (34 wired, 0 listed) × 3 capacidades (skill load / loop drive / native bind) com semáforos ✅⚠️❌",
       "Gauge de economia (só valores medidos, sem percentual de manchete) + catálogo de clamp",
       "Diagrama do evidence-gated loop: <promise> só sai com prova (teste/PR/re-query) + cap + STOP",
       "Stack de operadores: AI DECIDE → simplicio-mapper (survey) → simplicio-dev-cli (operate 6-layer) → evidence",
@@ -746,7 +746,7 @@
       { "scene": 7, "title": "Token economy", "beats": ["signatures-read: só as assinaturas, não o arquivo inteiro", "clamp + tee cache", "dashboard 127.0.0.1:9090 ao vivo", "só economia medida, sem percentual de manchete"], "duration_s": 12 },
       { "scene": 8, "title": "Evidence-gated loop", "beats": ["<promise> SÓ com prova", "stall detector troca estratégia", "nunca um falso 'done'"], "duration_s": 10 },
       { "scene": 9, "title": "Video evidence", "beats": ["'faça um vídeo demonstrativo da tela X'", "web_verify captura screenshots → hyperframes → MP4 determinístico anexado ao PR"], "duration_s": 10 },
-      { "scene": 10, "title": "Runtimes: 26 wired, 9 listed", "beats": ["Logos dos 26 adaptadores wired: Claude Code, Codex, Cursor, Grok, Kiro, VS Code e 20 AGENTS.md hosts", "mesma cor, só a velocidade difere"], "duration_s": 10 },
+      { "scene": 10, "title": "Runtimes: 34 wired, 0 listed", "beats": ["Logos dos 34 adaptadores wired: Claude Code, Codex, Cursor, Grok, Kiro, VS Code, GitHub Copilot, OpenCode, Simplicio Agent, Continue, Qwen Code, Gemini, Aider, OpenClaw e os 20 de AGENTS.md", "mesma cor, só a velocidade difere"], "duration_s": 10 },
       { "scene": 11, "title": "24/7", "beats": ["merge · close · idle · acorda com novo trabalho", "loop infinito girando"], "duration_s": 8 },
       { "scene": 12, "title": "CTA", "beats": ["pip install simplicio-loop", "bash scripts/install.sh claude", "Discord badge", "GitHub stars"], "duration_s": 8 }
     ],

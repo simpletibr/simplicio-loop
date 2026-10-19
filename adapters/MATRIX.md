@@ -29,12 +29,12 @@ is measured from the tree rather than declared:
 - **wired** — `adapters/<host>/` ships code (`adapter.py`, hooks) and `tests/host_<host>/` tests it.
   `scripts/install.sh <runtime>` (`scripts/install.ps1` on Windows) installs it, and
   `tests/test_harness_catalog.py` installs it into a throwaway target and checks that a second run changes
-  nothing. There are **26 wired adapters**: Claude Code, Codex and Cursor (Tier 1), and 23 Tier 2 hosts marked
-  `wired` below (Grok, Kiro, VS Code and the 20 hosts on the `AGENTS.md` surface).
-- **listed** — a catalog entry and a README under `adapters/`, no adapter code. 8 of the **9 listed hosts**
-  have an installer target: the generic installer writes the skills and the host's entry file (the same test
-  checks that, idempotently) and nothing launches the host. DeepSeek, the ninth, is a model provider with no
-  installer target; its adapter README lists the manual steps.
+  nothing. There are **34 wired adapters**: Claude Code, Codex and Cursor (Tier 1), and the 31 Tier 2 hosts marked
+  `wired` below (Grok, Kiro, VS Code, the 20 hosts on the `AGENTS.md` surface and the eight wave-B hosts).
+- **listed** — a catalog entry and a README under `adapters/`, no adapter code. **0 listed hosts** remain: every
+  catalog host has adapter code.
+- **provider** — DeepSeek is a model provider, not a host: no installer target and no adapter code. Its adapter
+  README lists the manual steps.
 
 `tests/test_adapter_scope_honesty.py` fails when a status, or a count printed in `AGENTS.md`, `llms.txt` or
 this file, stops matching the adapter directories that contain code.
@@ -69,8 +69,8 @@ These three are covered by:
 
 ### Tier 2 — Best-effort (ungated)
 
-The other 32 hosts are documented on a best-effort basis: 23 of them are wired (VS Code, Grok, Kiro and the
-20 hosts on the `AGENTS.md` surface), the other 9 are listed hosts. Contributions welcome, no gate, no parity promise per release:
+The other hosts are documented on a best-effort basis: each one is marked `wired` in the Install column, and no catalog
+host is listed without adapter code. Contributions welcome, no gate, no parity promise per release:
 
 | # | Runtime | Skill load | Loop drive | Hooks | Feedback | Install | Adapter |
 |---|---|---|---|---|---|---|---|
@@ -78,16 +78,16 @@ The other 32 hosts are documented on a best-effort basis: 23 of them are wired (
 | 5 | **Grok** | `~/.grok/skills` + `~/.grok/rules` + `AGENTS.md` | self-paced | — | N2 + N3 | wired | [grok](grok/README.md) |
 | 6 | **Antigravity** | rules / `AGENTS.md` | self-paced | ⚠️ | N2 (transcript) + N3 | wired | [antigravity](antigravity/README.md) |
 | 7 | **Kiro** | `.kiro/steering/` | self-paced (specs) | ⚠️ | N2 (transcript) + N3 | wired | [kiro](kiro/README.md) |
-| 8 | **OpenCode** | `AGENTS.md` + config | self-paced | ⚠️ | N2 (transcript) + N3 | listed | [opencode](opencode/README.md) |
-| 9 | **Gemini** (CLI / Code Assist) | `GEMINI.md` → `SKILL.md` | self-paced | ⚠️ | N2 (transcript) + N3 | listed | [gemini](gemini/README.md) |
+| 8 | **OpenCode** | `AGENTS.md` + `.opencode/skills/` | self-paced | ⚠️ | N2 (transcript) + N3 | wired | [opencode](opencode/README.md) |
+| 9 | **Gemini** (CLI / Code Assist) | `GEMINI.md` → `SKILL.md` | self-paced | ⚠️ | N2 (transcript) + N3 | wired | [gemini](gemini/README.md) |
 | 10 | **Kimi** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [kimi](kimi/README.md) |
-| 11 | **Qwen** (Code / CLI) | `QWEN.md` | self-paced | — | N2 (transcript) + N3 | listed | [qwen](qwen/README.md) |
-| 12 | **DeepSeek** | none: a model provider, run through any host | the host's | — | the host's | listed (manual) | [deepseek](deepseek/README.md) |
-| 13 | **Aider** | `CONVENTIONS.md` (read) | self-paced | ❌ | N2 (inlined transcript) + N3 | listed | [aider](aider/README.md) |
-| 14 | **Simplicio Agent** *(formerly Hermes)* | native skill recall | native loop | ✅ native | N1-equiv (native tick) + N3 | listed | [simplicio_agent](simplicio_agent/README.md) |
-| 15 | **OpenClaw** | plugin SDK / `skills/` | native scheduler | ✅ native | N1-equiv (native tick) + N3 | listed | [openclaw](openclaw/README.md) |
+| 11 | **Qwen** (Code / CLI) | `QWEN.md` | self-paced | — | N2 (transcript) + N3 | wired | [qwen](qwen/README.md) |
+| 12 | **DeepSeek** | none: a model provider, run through any host | the host's | — | the host's | provider (manual) | [deepseek](deepseek/README.md) |
+| 13 | **Aider** | `CONVENTIONS.md` (read through `.aider.conf.yml`) | self-paced | ❌ | N2 (inlined transcript) + N3 | wired | [aider](aider/README.md) |
+| 14 | **Simplicio Agent** *(formerly Hermes)* | native skill recall | native loop | ✅ native | N1-equiv (native tick) + N3 | wired | [simplicio_agent](simplicio_agent/README.md) |
+| 15 | **OpenClaw** | `.agents/skills/` (plugin SDK) | native scheduler | ✅ native | N1-equiv (native tick) + N3 | wired | [openclaw](openclaw/README.md) |
 | 16 | **Orca** *(client opt-in only — not default)* | via inner agent (`.claude/skills/` + `AGENTS.md`) | **no core Orca hook**; inner agent hook / self-paced if client installed Orca | — | N1/N2 (inner) + N3 | wired | [orca](orca/README.md) |
-| 17 | **GitHub Copilot** | `.github/copilot-instructions.md` | self-paced | — | N2 (transcript) + N3 | listed | [github-copilot](github-copilot/README.md) |
+| 17 | **GitHub Copilot** | `.github/copilot-instructions.md` | self-paced | — | N2 (transcript) + N3 | wired | [github-copilot](github-copilot/README.md) |
 | 18 | **MiMo Code** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [mimo-code](mimo-code/README.md) |
 | 19 | **Amp** | `AGENTS.md` (+ native `.claude/skills/`) | self-paced | — | N2 (transcript) + N3 | wired | [amp](amp/README.md) |
 | 20 | **OpenClaude** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [openclaude](openclaude/README.md) |
@@ -101,7 +101,7 @@ The other 32 hosts are documented on a best-effort basis: 23 of them are wired (
 | 28 | **Cline** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [cline](cline/README.md) |
 | 29 | **Codebuff** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [codebuff](codebuff/README.md) |
 | 30 | **Command Code** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [command-code](command-code/README.md) |
-| 31 | **Continue** | `.continue/rules/simplicio-loop.md` | self-paced | — | N2 (transcript) + N3 | listed | [continue](continue/README.md) |
+| 31 | **Continue** | `.continue/rules/simplicio-loop.md` | self-paced | — | N2 (transcript) + N3 | wired | [continue](continue/README.md) |
 | 32 | **Droid** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [droid](droid/README.md) |
 | 33 | **Kilo Code** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [kilocode](kilocode/README.md) |
 | 34 | **Mistral Vibe** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [mistral-vibe](mistral-vibe/README.md) |
@@ -172,7 +172,7 @@ where supported. There is no Runtime/MCP backend in this stack.
   optional independently of the skill-loading mechanism.
 
 The promise: **same protocol, same gates, same safety wherever the skill loads. The three Tier 1
-adapters are verified mechanically; the other 23 wired hosts and the 9 listed hosts are
+adapters are verified mechanically; the other wired hosts are
 best-effort with contributions welcome.**
 
 ## Verifying an adapter

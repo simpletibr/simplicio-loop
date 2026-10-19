@@ -155,8 +155,8 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## Runtimes
 
-- **26 `wired`** adapters hebben code in `adapters/` en een hosttest: Claude Code, Codex, Cursor, Grok, Kiro en VS Code.
-- **9 `listed`** hosts zijn catalogusvermeldingen met een README en zonder adaptercode; 8 daarvan hebben ook een generiek installatiedoel dat de skills en het invoerbestand van de host schrijft. Vermeld staan bewijst niet dat de host de loop draait.
+- **34 `wired`** adapters hebben code in `adapters/` en een hosttest: elke installatiehost uit de catalogus, waaronder Claude Code, Codex, Cursor, Grok, Kiro, VS Code, de 20 `AGENTS.md`-hosts en de acht van golf B.
+- **0 `listed`** hosts: elke catalogushost heeft adaptercode. DeepSeek is een modelprovider, geen host.
 - De operators hierboven zijn gewone commando's en werken dus vanuit elk harnas, `wired` of niet. Status per host: [adapters/MATRIX.md](../adapters/MATRIX.md) en [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## Meer weten

@@ -1,9 +1,10 @@
-"""The marker block Loop writes into a host's entry file (AGENTS.md, GEMINI.md, ...).
+"""The marker block Loop writes into a host's entry file (AGENTS.md, GEMINI.md, ...), and the files a host reads that
+need more than the block.
 
-Two installers write this block: the packaged `simplicio-loop install` (planner.py) and the checkout installer
-(scripts/install_lib.py). Both call `merge` and `remove` here, so they write the same bytes and never fight over the
-block. Loop owns only the block; the rest of a file that already existed stays the user's. Standard library only:
-the checkout installer imports this module too.
+Two installers write these: the packaged `simplicio-loop install` (planner.py) and the checkout installer
+(scripts/install_lib.py). Both call `body_for`, `merge` and `remove` here, so they write the same bytes and never fight
+over the block. Loop owns only the block; the rest of a file that already existed stays the user's. Standard library
+only: the checkout installer imports this module too.
 """
 from __future__ import annotations
 
@@ -11,6 +12,10 @@ BEGIN = "<!-- simplicio-loop:begin -->"
 END = "<!-- simplicio-loop:end -->"
 LEGACY_BEGIN = "<!-- simplicio-tasks:begin -->"
 LEGACY_END = "<!-- simplicio-tasks:end -->"
+# A rule file the host reads with YAML frontmatter first: Continue ignores a `.continue/rules/*.md` file without it.
+FRONTMATTER = {".continue/rules/simplicio-loop.md": "---\nname: simplicio-loop\nalwaysApply: true\n---\n"}
+# A config file the host reads instead of a markdown instructions file: aider loads only what this lists under `read:`.
+CONFIG = {".aider.conf.yml": "read:\n  - CONVENTIONS.md\n  - .claude/skills/simplicio-loop/SKILL.md\n"}
 
 
 def block() -> str:
@@ -53,6 +58,16 @@ def merge(existing: str) -> str:
     pre = existing.split(begin)[0].rstrip()
     post = existing.split(end, 1)[1]
     return (pre + "\n\n" if pre else "") + block() + post
+
+
+def body_for(rel: str, existing: str) -> str:
+    """The text of the entry file `rel` once Loop's block is in it. A file that does not exist yet starts with the
+    frontmatter its host reads first, and a file that lacks that frontmatter gets it in front."""
+    front = FRONTMATTER.get(rel, "")
+    text = merge(existing or front)
+    if front and not text.startswith("---"):
+        text = front + "\n" + text
+    return text
 
 
 def remove(existing: str) -> str | None:

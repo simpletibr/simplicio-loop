@@ -19,14 +19,14 @@ def assert_self_paced_agents_md_host(row, tmp_path: Path) -> None:
     (project / "AGENTS.md").write_text("# rules\n", encoding="utf-8")
     found = row.detect(project)
     assert found["detected"] is True
-    assert "file:AGENTS.md" in found["signals"]
+    assert "AGENTS.md" in found["signals"]
 
     for marker in row.markers:
         marked = tmp_path / ("marked" + marker.replace(".", "-"))
         (marked / marker).mkdir(parents=True)
         assert row.detect(marked)["detected"] is True, marker
 
-    caps = row.capabilities(project)
+    caps = row.capabilities()
     assert caps["schema"] == "simplicio.host-adapter/v1"
     assert caps["host"] == row.host
     assert caps["loop_drive"] == "self_paced"
@@ -40,7 +40,7 @@ def assert_self_paced_agents_md_host(row, tmp_path: Path) -> None:
     assert caps["source"] == row.source
     assert row.source.startswith("https://")
 
-    assert row.verify_shipped_hooks(project)["claimed_native"] == []
+    assert row.verify_shipped_hooks()["claimed_native"] == []
 
     assert row.decide({"stage": "SessionStart"})["decision"] == "continue"
     assert row.decide({"stage": "Stop"})["decision"] == "continue"

@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 """simplicio-loop — checkout installer.
 
-The hosts are listed in `simplicio_loop/_catalog/harnesses.json`. Of them, 26 wired adapters ship
-code and a host test, and the other 9 listed hosts are catalog entries with no adapter code; 8 of
-those have a generic installer target here, which writes the skills and the host's entry file
-(a listing is not proof that the host runs the loop; DeepSeek, the 29th, is a model provider with
-no target). `RUNTIMES` below holds the wired and the listed targets. The packaged command
-(`python -m simplicio_loop.install` / `simplicio-loop install --host ...`,
-simplicio_loop/install/planner.py) covers the original subset of them and never advertises a host
-this script does not install.
+The hosts are listed in `simplicio_loop/_catalog/harnesses.json`: 34 wired adapters ship code and a host test, and
+0 `listed` hosts remain (DeepSeek is a model provider, not a host, and has no target). `RUNTIMES` below holds every
+host's installer target. The packaged command (`python -m simplicio_loop.install` / `simplicio-loop install --host ...`,
+simplicio_loop/install/planner.py) covers the same hosts through its `HOSTS` and never advertises a host this script
+does not install.
 
 Copies the 7 skills + hooks into a target, wires the loop where the runtime supports it,
 ensures the runtime's entry/instructions file references the skill, and prints the MCP-bind
@@ -408,7 +405,7 @@ def ensure_entry(target, rel):
         with open(path, encoding="utf-8") as f:
             existing = f.read()
     with open(path, "w", encoding="utf-8") as f:
-        f.write(_entry.merge(existing))
+        f.write(_entry.body_for(rel, existing))
     log("entry -> %s" % rel)
 
 
@@ -427,6 +424,18 @@ def wire_claude_hooks(target, is_global):
     if wiring.added:
         _claude_hooks.write(path, wiring.data)
     log("hooks wired -> %s (%s)" % (path, ", ".join("%s %s" % (e.event, e.file) for e in wanted)))
+
+
+def ensure_aider_config(target):
+    """Aider loads a file only when `.aider.conf.yml` names it under `read:` (aider's docs). The file is created when it
+    is absent; an existing one belongs to the user, so it is left alone and the line to add is logged."""
+    path = os.path.join(target, ".aider.conf.yml")
+    if os.path.exists(path):
+        log("aider config kept -> .aider.conf.yml (add CONVENTIONS.md under `read:` to load the protocol)")
+        return
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(_entry.CONFIG[".aider.conf.yml"])
+    log("aider config -> .aider.conf.yml")
 
 
 def _is_externally_managed_error(stderr):
@@ -1024,6 +1033,8 @@ def main():
             % (receipt["transaction_id"], target))
     else:
         copy_skills(target)
+        if runtime == "openclaw":  # OpenClaw scans `.agents/skills` (its docs), not `.claude/skills`
+            copy_skills(target, skills_dst=os.path.join(target, ".agents", "skills"))
         if runtime == "vscode" and is_global:
             sync_global_vscode_copilot()
         if runtime == "grok" and is_global:
@@ -1039,6 +1050,8 @@ def main():
         copy_hooks(target, is_global)
         copy_scripts(target, is_global)
         ensure_entry(target, cfg["entry"])
+        if runtime == "aider" and not is_global:  # the project's config is what makes aider read the conventions
+            ensure_aider_config(target)
         if cfg["hooks"] == "claude":
             wire_claude_hooks(target, is_global)
     install_git_precommit_hook(target)

@@ -90,14 +90,24 @@ def test_every_entry_is_valid() -> None:
         assert all(NAME_RE.match(alias) for alias in entry["aliases"]), entry["id"]
         install = entry["install"]
         assert INSTALL_KEYS <= set(install), entry["id"]
-        assert install["status"] in {"wired", "listed"}, entry["id"]
+        assert install["status"] in {"wired", "listed", "provider"}, entry["id"]
         if install["status"] == "wired":
             assert isinstance(install["runtime"], str) and install["runtime"], entry["id"]
+        elif install["status"] == "provider":
+            assert install["runtime"] is None, entry["id"]
         else:
             assert install["runtime"] is None or (isinstance(install["runtime"], str) and install["runtime"]), entry["id"]
         assert install["surface"].strip(), entry["id"]
         assert install["source"].startswith("https://"), entry["id"]
         assert isinstance(entry["llm"], dict) and "status" in entry["llm"], entry["id"]
+
+
+def test_status_counts_are_thirty_four_wired_no_listed_and_one_provider() -> None:
+    """Every install host is wired: the 26 hosts of the earlier waves plus the eight wave-B hosts. DeepSeek is a provider,
+    so it is not one of the hosts."""
+    counts = {status: sum(1 for e in _entries() if e["install"]["status"] == status)
+              for status in ("wired", "listed", "provider")}
+    assert counts == {"wired": 34, "listed": 0, "provider": 1}
 
 
 def test_ids_and_aliases_never_collide() -> None:

@@ -1,6 +1,6 @@
 # Continue adapter
 
-Continue reads rules only from `.continue/rules/`; it does not read `AGENTS.md`. Install status: **listed** (installer target, no adapter code).
+Continue reads rules only from `.continue/rules/`; it does not read `AGENTS.md`. Install status: **wired** (adapter code in `adapter.py`, a host test, and an installer target).
 
 ## Skill load
 
@@ -9,7 +9,7 @@ bash scripts/install.sh continue     # macOS / Linux
 pwsh scripts/install.ps1 continue    # Windows
 ```
 
-The installer copies the 7 skills into `.claude/skills/` and writes the `simplicio-loop` marker block into `.continue/rules/simplicio-loop.md`, a rule with no `globs` and no `alwaysApply`, which Continue includes in every request (its documented default). The block tells the agent to load `.claude/skills/simplicio-loop/SKILL.md`. A second run changes nothing.
+The installer copies the 7 skills into `.claude/skills/` and writes the `simplicio-loop` marker block into `.continue/rules/simplicio-loop.md`, a rule with YAML frontmatter (`alwaysApply: true`), which Continue includes in every request (its docs expect frontmatter on rule files). The block tells the agent to load `.claude/skills/simplicio-loop/SKILL.md`. A second run changes nothing.
 
 Documentation for this surface: <https://docs.continue.dev/customize/deep-dives/rules>
 

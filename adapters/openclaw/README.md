@@ -10,7 +10,8 @@ unattended, reachable from WhatsApp/Slack/Discord/Telegram/etc.
 bash scripts/install.sh openclaw
 ```
 
-The installer places the 7 skills under OpenClaw's skills tree and registers a plugin that maps
+The installer copies the 7 skills into `.agents/skills/`, where OpenClaw scans them (`~/.agents/skills/` with
+`--global`). It does not register a plugin; the design below maps
 the OpenClaw SDK extension points (approval-*, channel-*, agent-*) onto the simplicio
 contract — notably `notify`/`human_gate` (async approvals over a chat channel) and `watcher`
 (the gateway's scheduler).

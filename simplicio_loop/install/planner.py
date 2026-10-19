@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import shutil
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterator, Mapping
 
@@ -19,7 +20,7 @@ from . import claude_hooks, entry
 SCHEMA = "simplicio.loop-install-plan/v1"
 OWNERSHIP_SCHEMA = "simplicio.loop-install-ownership/v2"
 RECEIPT = Path(".simplicio-loop") / "install-ownership.json"
-CATALOG = Path(__file__).resolve().parent.parent / "_catalog" / "harnesses.json"
+CATALOG = Path(__file__).resolve().parents[1] / "_catalog" / "harnesses.json"
 # Hosts whose surface is `.claude/skills/` + an AGENTS.md marker block (catalog surface ".claude/skills/ + AGENTS.md").
 # One row per host: the layout below and the host's adapter (adapters/<host>/) follow from this list.
 AGENTS_MD_HOSTS = (
@@ -30,17 +31,34 @@ AGENTS_MD_HOSTS = (
 # Client opt-in: installable by name (`--host orca-dev`), never part of `--host all`.
 OPT_IN_HOSTS = ("orca",)
 HOSTS = (
-    "claude", "cursor", "vscode", "kiro", "opencode", "gemini", "aider", "simplicio_agent", "openclaw",
+    "claude", "cursor", "vscode", "kiro",
+    "opencode", "gemini", "aider", "simplicio_agent", "openclaw", "github-copilot", "continue", "qwen",
     *(host for host in AGENTS_MD_HOSTS if host not in OPT_IN_HOSTS),
 )
 AGENTS_MD_LAYOUT = {".claude/skills": "skills", "AGENTS.md": "entry"}
+# One row per installer runtime: the project surface as `destination -> kind`. `skills` copies the bundled skills,
+# `hooks` copies the bundled hooks, `entry` merges the marker block into the host's instructions file (the rest of the
+# file stays), and `config` writes the file a host reads when it is absent (an existing one is the user's).
+# The wave-B rows are the surfaces the catalog names and the hosts' official docs confirm; the skill directory of
+# GitHub Copilot, Continue, Qwen Code, Gemini and Aider is not stated on the pages read, so it is the universal copy.
 HOST_LAYOUT = {
     "claude": {".claude/skills": "skills", "hooks": "hooks"},
     "cursor": {".claude/skills": "skills", "hooks": "hooks"},
     "vscode": {".claude/skills": "skills", ".github/copilot-instructions.md": "entry"},
     "kiro": {".claude/skills": "skills", ".kiro/steering/simplicio-loop.md": "entry"},
+    "github-copilot": {".claude/skills": "skills", ".github/copilot-instructions.md": "entry"},
+    "opencode": {".claude/skills": "skills", ".opencode/skills": "skills", "AGENTS.md": "entry"},
+    "simplicio_agent": {".claude/skills": "skills"},
+    "continue": {".claude/skills": "skills", ".continue/rules/simplicio-loop.md": "entry"},
+    "qwen": {".claude/skills": "skills", "QWEN.md": "entry"},
+    "gemini": {".claude/skills": "skills", "GEMINI.md": "entry"},
+    "aider": {".claude/skills": "skills", "CONVENTIONS.md": "entry", ".aider.conf.yml": "config"},
+    "openclaw": {".claude/skills": "skills", ".agents/skills": "skills"},
     **{host: dict(AGENTS_MD_LAYOUT) for host in AGENTS_MD_HOSTS},
 }
+# Under $HOME a global install writes the universal `.claude/skills` and `.claude/hooks`; a host that scans another
+# skill root writes that one too (OpenClaw scans `~/.agents/skills`, not `~/.claude/skills`).
+GLOBAL_SKILL_ROOTS = {"openclaw": ".agents/skills"}
 
 
 class InstallError(RuntimeError):
@@ -87,15 +105,38 @@ def _put(path: Path, data: bytes, source, changes: dict, root: Path, dry_run: bo
         shutil.copymode(source, path)
 
 
+@lru_cache(maxsize=1)
+def _catalog() -> tuple[dict[str, Any], ...]:
+    return tuple(json.loads(CATALOG.read_text(encoding="utf-8"))["harnesses"])
+
+
 def runtime_for(host: str) -> str:
-    """The installer runtime a host id names: a runtime id, or a catalog id or alias (`orca-dev`, `claude-code`)."""
+    """The installer runtime a host id names: a runtime id, or a catalog id or alias (`orca-dev`, `hermes`, `qwen-code`).
+    A model provider is not a host, so the planner refuses it, and a name that is neither is unknown."""
     installable = (*HOSTS, *OPT_IN_HOSTS)
     if host in installable:
         return host
-    for item in json.loads(CATALOG.read_text(encoding="utf-8"))["harnesses"]:
-        if host in [item["id"], *item["aliases"]] and item["install"]["runtime"] in installable:
-            return item["install"]["runtime"]
+    for item in _catalog():
+        if host in [item["id"], *item["aliases"]]:
+            install = item["install"]
+            if install["status"] == "provider":
+                raise InstallError(f"{host} is a model provider, not an install host: point a host at its API")
+            if install["runtime"] in installable:
+                return install["runtime"]
     raise InstallError(f"unknown host: {host}")
+
+
+def _layout(runtime: str, globally: bool) -> dict[str, str]:
+    """The surface one runtime installs. Under $HOME that is the universal `.claude/skills` and `.claude/hooks`, the
+    runtime's own skill root when it scans another (OpenClaw), and the host's entry file beside them. A config file is
+    project-scoped: the host reads it from the project it runs in."""
+    layout = dict(HOST_LAYOUT.get(runtime, {".claude/skills": "skills"}))
+    if not globally:
+        return layout
+    home = {".claude/skills": "skills", ".claude/hooks": "hooks"}
+    if runtime in GLOBAL_SKILL_ROOTS:
+        home[GLOBAL_SKILL_ROOTS[runtime]] = "skills"
+    return {**home, **{dest: kind for dest, kind in layout.items() if kind == "entry"}}
 
 
 def plan_install(
@@ -109,10 +150,7 @@ def plan_install(
     root = Path(target).resolve()
     actions = []
     for item in hosts:
-        layout = dict(HOST_LAYOUT.get(item, {".claude/skills": "skills"}))
-        if globally:  # the home directory: skills and hooks under ~/.claude, the host's entry file beside them
-            layout = {".claude/skills": "skills", ".claude/hooks": "hooks",
-                      **{dest: kind for dest, kind in layout.items() if kind == "entry"}}
+        layout = _layout(item, globally)
         for dest, kind in layout.items():
             actions.append({
                 "host": item,
@@ -232,6 +270,7 @@ def apply_plan(
     root = Path(plan["target"])
     owned: list[str] = []
     block_files: list[str] = []
+    released: set[str] = set()  # files an earlier install owned that the user has changed since: not Loop's any more
     made: set[str] = set()
     changes: dict[str, Any] = {"created": [], "updated": [], "unchanged": 0, "left_alone": []}
     previous = _previous_receipt(root)
@@ -249,13 +288,24 @@ def apply_plan(
         kind = action["kind"]
         if kind == "claude_settings":  # written below, with the rest of the Claude wiring, once every other check has passed
             continue
+        rel = dest.relative_to(root).as_posix()
         if kind == "entry":  # the marker block is merged into the entry file; the file's other text stays as it is
-            rel = dest.relative_to(root).as_posix()
             existed = dest.is_file()
             current = dest.read_text(encoding="utf-8") if existed else ""
-            _put(dest, entry.merge(current).encode("utf-8"), None, changes, root, dry_run, made)
-            blocks[rel] = previous["blocks"].get(rel, not existed)
+            _put(dest, entry.body_for(rel, current).encode("utf-8"), None, changes, root, dry_run, made)
+            blocks.setdefault(rel, previous["blocks"].get(rel, not existed))  # the first write of this run decides
             block_files.append(rel)
+            continue
+        if kind == "config":  # what the host reads: created when absent; an existing file is the user's, left alone
+            body = entry.CONFIG[rel].encode("utf-8")
+            if not dest.exists():
+                _put(dest, body, None, changes, root, dry_run, made)
+                owned.append(rel)
+            elif dest.read_bytes() == body and rel in previous["paths"]:
+                changes["unchanged"] += 1
+            else:
+                changes["left_alone"].append(rel)
+                released.add(rel)  # no longer Loop's: uninstall keeps it
             continue
         src = skills_src if kind == "skills" else hooks_src
         top = set()
@@ -283,7 +333,7 @@ def apply_plan(
         "version": plan["version"],
         "digest": plan["digest"],
         # an entry file is owned through its block, never as a whole: a receipt of an older install that listed it is corrected
-        "paths": sorted((set(owned) | set(previous["paths"])) - set(block_files)),
+        "paths": sorted((set(owned) | set(previous["paths"])) - set(block_files) - released),
         "dirs": sorted(made | set(previous["dirs"])),
         "blocks": [{"path": rel, "created": created} for rel, created in sorted(all_blocks.items())],
     }
@@ -351,7 +401,8 @@ def _entry_edits(root: Path, receipt: Mapping[str, Any]) -> tuple[dict[str, str]
         rest = entry.remove(path.read_text(encoding="utf-8"))
         if rest is None:
             continue
-        if created and not rest.strip():  # install created this file, and nothing but the block was ever in it
+        # install created this file, and nothing but the block (and the frontmatter install put in front of it) is in it
+        if created and rest.strip() in ("", entry.FRONTMATTER.get(rel, "").strip()):
             emptied.append(rel)
         else:
             edits[rel] = rest

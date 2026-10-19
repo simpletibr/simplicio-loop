@@ -1,6 +1,6 @@
 # DeepSeek adapter
 
-DeepSeek is a model provider, not an agent host: there is no DeepSeek executable to install into, so `scripts/install.sh` has no `deepseek` runtime. Install status: **listed**, manual steps only (no installer target, no adapter code).
+DeepSeek is a model provider, not an agent host: there is no DeepSeek executable to install into, so `scripts/install.sh` has no `deepseek` runtime. Status: **provider**, not a host: manual steps only (no installer target, no adapter code).
 
 ## Skill load
 

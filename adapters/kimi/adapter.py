@@ -1,10 +1,10 @@
 """Kimi adapter: `.claude/skills/` + `AGENTS.md`, self-paced.
 
-The row below is the host's whole adapter; the behaviour is shared in adapters/agents_md.py.
+The row below is the host's whole adapter; the behaviour is shared in simplicio_loop/install/surface.py.
 """
-from adapters.agents_md import AgentsMdHost
+from simplicio_loop.install.surface import HostSurface
 
-HOST = AgentsMdHost(
+HOST = HostSurface(
     host="kimi",
     name="Kimi",
     source="https://moonshotai.github.io/kimi-code/en/customization/agents.html",

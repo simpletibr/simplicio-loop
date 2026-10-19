@@ -155,8 +155,8 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## Runtimes
 
-- **26 `wired`** adaptadores tienen código en `adapters/` y un test de host: Claude Code, Codex, Cursor, Grok, Kiro y VS Code.
-- **9 `listed`** hosts son entradas del catálogo con README y sin código de adaptador; 8 de ellos también tienen un destino de instalación genérico que escribe las skills y el archivo de entrada del host. Estar listado no prueba que el host ejecute el loop.
+- **34 `wired`** adaptadores tienen código en `adapters/` y una prueba de host: cada host de instalación del catálogo, incluidos Claude Code, Codex, Cursor, Grok, Kiro, VS Code, los 20 `AGENTS.md` y los ocho de la ola B.
+- **0 `listed`** hosts: todo host del catálogo tiene código de adaptador. DeepSeek es un proveedor de modelos, no un host.
 - Los operadores de arriba son comandos simples, así que funcionan desde cualquier harness, `wired` o no. Estado por host: [adapters/MATRIX.md](../adapters/MATRIX.md) y [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## Más información

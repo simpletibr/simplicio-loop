@@ -155,8 +155,8 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## 运行时
 
-- **26 个 `wired`** 适配器在 `adapters/` 中包含代码并带有 host 测试：Claude Code、Codex、Cursor、Grok、Kiro 和 VS Code。
-- **9 个 `listed`** host 是带 README 但没有适配器代码的目录条目；其中 8 个还有通用安装目标，会写入 skills 和 host 的入口文件。列入目录并不证明该 host 能运行循环。
+- **34 `wired`** 个适配器在 `adapters/` 中包含代码和主机测试：目录中的每个安装主机都有，包括 Claude Code、Codex、Cursor、Grok、Kiro、VS Code、20 个 `AGENTS.md` 主机和 B 波次的 8 个主机。
+- **0 `listed`** 个主机：目录中的每个主机都有适配器代码。DeepSeek 是模型提供方，不是主机。
 - 上面的操作符是普通命令，因此无论是否为 `wired`，任何 harness 都能运行它们。各 host 状态见 [adapters/MATRIX.md](../adapters/MATRIX.md) 和 [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json)。
 
 ## 了解更多

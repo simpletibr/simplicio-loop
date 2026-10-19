@@ -9,10 +9,10 @@ own config (`opencode.json`). No stop-hook → self-paced loop.
 bash scripts/install.sh opencode
 ```
 
-The installer copies the 7 skills into OpenCode's default-scanned skill locations (a repo-local
-`.claude/skills/` the installer writes into `--target`, plus OpenCode's own global
-`~/.config/opencode/skills/`) and registers the MCP server in `opencode.json` when a `simplicio`
-binary is found on `PATH` (best-effort; the loop never requires it — see "Native bind" below).
+The installer copies the 7 skills into `.opencode/skills/` and `.claude/skills/` in the project (with `--global`,
+into `~/.config/opencode/skills/` and `~/.claude/skills/`), and writes the marker block into `AGENTS.md`. It
+registers the MCP server in `opencode.json` only with `--with-runtime-mcp` (best-effort; the loop never requires
+it — see "Native bind" below).
 
 ## Use
 

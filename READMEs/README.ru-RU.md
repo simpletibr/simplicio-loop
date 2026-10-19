@@ -155,8 +155,8 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## Рантаймы
 
-- **26 `wired`** адаптеров содержат код в `adapters/` и тест хоста: Claude Code, Codex, Cursor, Grok, Kiro и VS Code.
-- **9 `listed`** хостов — записи каталога с README и без кода адаптера; у 8 из них есть также общая цель установки, которая записывает skills и входной файл хоста. Наличие в списке не доказывает, что хост запускает цикл.
+- **34 `wired`** адаптера содержат код в `adapters/` и тест хоста: каждый установочный хост из каталога, включая Claude Code, Codex, Cursor, Grok, Kiro, VS Code, 20 `AGENTS.md` и восемь хостов волны B.
+- **0 `listed`** хостов: у каждого хоста каталога есть код адаптера. DeepSeek — поставщик моделей, а не хост.
 - Операторы выше — обычные команды, поэтому они работают из любого харнесса, `wired` или нет. Статус по хостам: [adapters/MATRIX.md](../adapters/MATRIX.md) и [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## Подробнее

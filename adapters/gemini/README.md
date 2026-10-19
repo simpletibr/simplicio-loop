@@ -9,8 +9,10 @@ skill; drive the loop self-paced; bind natively via MCP or the simplicio-runtime
 bash scripts/install.sh gemini
 ```
 
-This repo's `GEMINI.md` already loads `.claude/skills/simplicio-tasks/SKILL.md`; the installer
-adds the satellites and registers the MCP server in `.gemini/settings.json`.
+The installer copies the 7 skills into `.claude/skills/` and writes the `simplicio-loop` marker block into
+`GEMINI.md`. It does not register an MCP server; the native bind is optional (see below). Gemini CLI's docs say
+it was replaced by Antigravity CLI for free-tier and Google One accounts on June 18, 2026; this adapter covers the
+CLI for the accounts that still run it.
 
 ## Loop drive — self-paced
 

@@ -155,8 +155,8 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## بيئات التشغيل
 
-- **26 محوّلات `wired`** تحتوي على كود في `adapters/` واختبار للمضيف: Claude Code وCodex وCursor وGrok وKiro وVS Code.
-- **9 مضيفًا `listed`** هي مدخلات في الكتالوج لها README ولا تحتوي على كود محوّل؛ ولدى 8 منها أيضًا هدف تثبيت عام يكتب الـ skills وملف الإدخال الخاص بالمضيف. وجود المضيف في القائمة لا يثبت أنه يشغّل الحلقة.
+- **34 `wired`** محوّلًا (adapter) له كود في `adapters/` واختبار مضيف: كل مضيف تثبيت في الكتالوج، ومنها Claude Code وCodex وCursor وGrok وKiro وVS Code و20 مضيفًا على سطح `AGENTS.md` وثمانية مضيفين من الموجة B.
+- **0 `listed`** مضيف: لا يوجد في الكتالوج مضيف دون كود محوِّل. DeepSeek نموذج مزوِّد وليس مضيفًا.
 - المشغّلات أعلاه أوامر عادية، لذا تعمل من أي بيئة، سواء كانت `wired` أم لا. الحالة لكل مضيف: [adapters/MATRIX.md](../adapters/MATRIX.md) و[simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
 ## المزيد

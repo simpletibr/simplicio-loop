@@ -29,7 +29,7 @@
   "mutations": [
     {
       "consent_required": "no (default-mode effect)",
-      "effect": "copies the 7 skills into `<target>/.claude/skills/<skill>`",
+      "effect": "copies the 7 skills into `<target>/.claude/skills/<skill>`; for OpenClaw also into `<target>/.agents/skills/<skill>` (the root OpenClaw scans)",
       "function": "copy_skills()",
       "reversible": "yes (delete dir)",
       "scope": "project/user",
@@ -61,7 +61,7 @@
     },
     {
       "consent_required": "no",
-      "effect": "creates/updates the runtime's entry file (`AGENTS.md`, `GEMINI.md`, `QWEN.md`, `.github/copilot-instructions.md`, `.kiro/steering/simplicio-loop.md`, `.continue/rules/simplicio-loop.md`, `CONVENTIONS.md`) between `<!-- simplicio-loop:begin/end -->` markers",
+      "effect": "creates/updates the runtime's entry file (`AGENTS.md`, `GEMINI.md`, `QWEN.md`, `.github/copilot-instructions.md`, `.kiro/steering/simplicio-loop.md`, `.continue/rules/simplicio-loop.md` (opened with YAML frontmatter), `CONVENTIONS.md`) between `<!-- simplicio-loop:begin/end -->` markers",
       "function": "ensure_entry()",
       "reversible": "yes (marker-delimited block is removable without touching the rest of the file)",
       "scope": "project/user",
@@ -74,6 +74,14 @@
       "reversible": "yes (the ownership receipt lists each entry; uninstall removes exactly those, and deletes the file only when install created it)",
       "scope": "project/user",
       "source": "install_lib.py / planner.py"
+    },
+    {
+      "consent_required": "no (an existing `.aider.conf.yml` belongs to the user and is never overwritten)",
+      "effect": "creates `<target>/.aider.conf.yml` with `read:` entries for `CONVENTIONS.md` and the loop skill, only when the project has no such file",
+      "function": "ensure_aider_config()",
+      "reversible": "yes (delete the created file)",
+      "scope": "project only",
+      "source": "install_lib.py"
     },
     {
       "consent_required": "no — but a *foreign* existing hook is never overwritten (logged, not clobbered)",

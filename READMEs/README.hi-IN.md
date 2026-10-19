@@ -155,8 +155,8 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## रनटाइम
 
-- **26 `wired`** एडैप्टर `adapters/` में कोड और एक होस्ट टेस्ट रखते हैं: Claude Code, Codex, Cursor, Grok, Kiro और VS Code।
-- **9 `listed`** होस्ट वे कैटलॉग प्रविष्टियाँ हैं जिनका README है और एडैप्टर कोड नहीं है; इनमें से 8 के पास एक सामान्य इंस्टॉलेशन लक्ष्य भी है जो skills और होस्ट की एंट्री फ़ाइल लिखता है। सूची में होना यह साबित नहीं करता कि होस्ट लूप चलाता है।
+- **34 `wired`** एडैप्टर में `adapters/` में कोड और होस्ट टेस्ट है: कैटलॉग का हर इंस्टॉल होस्ट, जिनमें Claude Code, Codex, Cursor, Grok, Kiro, VS Code, 20 `AGENTS.md` होस्ट और लहर B के आठ होस्ट शामिल हैं।
+- **0 `listed`** होस्ट: कैटलॉग के हर होस्ट में एडैप्टर कोड है। DeepSeek एक मॉडल प्रदाता है, होस्ट नहीं।
 - ऊपर के ऑपरेटर सामान्य कमांड हैं, इसलिए वे किसी भी हार्नेस से चलते हैं, `wired` हो या न हो। हर होस्ट की स्थिति: [adapters/MATRIX.md](../adapters/MATRIX.md) और [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json)।
 
 ## और जानें

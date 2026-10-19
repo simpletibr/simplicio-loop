@@ -10,8 +10,8 @@ integration — most steps run deterministically at near-zero token cost.
 bash scripts/install.sh simplicio_agent
 ```
 
-The installer places the 7 skills where Simplicio Agent's skill-recall finds them and confirms
-the native bindings are active.
+The installer copies the 7 skills into `.claude/skills/`. Whether Simplicio Agent's skill recall reads that root is
+not verified here, and the installer does not check the native bindings.
 
 ## Loop drive — native loop
 

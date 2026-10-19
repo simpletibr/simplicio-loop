@@ -44,7 +44,8 @@ JSON_SCHEMA = "simplicio.install-mutations/v1"
 # (source, function, effect, scope, reversible, consent_required)
 MUTATIONS = [
     ("install_lib.py", "copy_skills()",
-     "copies the 7 skills into `<target>/.claude/skills/<skill>`",
+     "copies the 7 skills into `<target>/.claude/skills/<skill>`; for OpenClaw also into "
+     "`<target>/.agents/skills/<skill>` (the root OpenClaw scans)",
      "project/user", "yes (delete dir)", "no (default-mode effect)"),
     ("install_lib.py", "sync_global_vscode_copilot()",
      "for global VS Code installs, copies skills into `~/.copilot/skills`, writes the personal "
@@ -62,7 +63,7 @@ MUTATIONS = [
     ("install_lib.py", "ensure_entry()",
      "creates/updates the runtime's entry file (`AGENTS.md`, `GEMINI.md`, `QWEN.md`, "
      "`.github/copilot-instructions.md`, `.kiro/steering/simplicio-loop.md`, "
-     "`.continue/rules/simplicio-loop.md`, `CONVENTIONS.md`) "
+     "`.continue/rules/simplicio-loop.md` (opened with YAML frontmatter), `CONVENTIONS.md`) "
      "between `<!-- simplicio-loop:begin/end -->` markers",
      "project/user",
      "yes (marker-delimited block is removable without touching the rest of the file)", "no"),
@@ -74,6 +75,11 @@ MUTATIONS = [
      "yes (the ownership receipt lists each entry; uninstall removes exactly those, and deletes the file only when "
      "install created it)",
      "no"),
+    ("install_lib.py", "ensure_aider_config()",
+     "creates `<target>/.aider.conf.yml` with `read:` entries for `CONVENTIONS.md` and the loop skill, "
+     "only when the project has no such file",
+     "project only", "yes (delete the created file)",
+     "no (an existing `.aider.conf.yml` belongs to the user and is never overwritten)"),
     ("install_lib.py", "install_git_precommit_hook()",
      "writes `.git/hooks/pre-commit` (only if the target is a git repo and no foreign hook "
      "already lives there)",

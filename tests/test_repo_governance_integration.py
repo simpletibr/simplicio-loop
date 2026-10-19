@@ -157,8 +157,9 @@ def test_canonical_manifest_json_has_expected_keys():
     assert manifest["skill_count"] == 7
     with open(os.path.join(REPO, "simplicio_loop", "_catalog", "harnesses.json"), encoding="utf-8") as f:
         catalog = json.load(f)
-    assert manifest["runtime_count"] == len(manifest["runtime_names"]) == len(catalog["harnesses"])
-    assert manifest["runtime_names"] == sorted(h["id"] for h in catalog["harnesses"])
+    hosts = [h for h in catalog["harnesses"] if h["install"]["status"] != "provider"]
+    assert manifest["runtime_count"] == len(manifest["runtime_names"]) == len(hosts)
+    assert manifest["runtime_names"] == sorted(h["id"] for h in hosts)
 
 
 # ---- package_content_check.py (#294 AC11) ----

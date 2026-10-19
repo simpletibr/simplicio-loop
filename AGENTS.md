@@ -76,7 +76,7 @@ recorded evidence. Facts are `MEASURED|`
 only with receipts; otherwise `UNVERIFIED|`. Missing dependencies fail closed; never fabricate
 context, tests, savings or provider output.
 This repository ships a runtime-agnostic **super-plugin**: the Universal Looping AI
-Orchestrator plus five satellite skills, with 26 wired adapters and 9 listed hosts (see
+Orchestrator plus five satellite skills, with 34 wired adapters and 0 listed hosts (see
 Runtimes). Any agent runtime that reads `AGENTS.md` / skill folders can load it.
 
 ## What to load
@@ -108,14 +108,12 @@ auto-clamp). See [`hooks/README.md`](hooks/README.md).
 
 ## Runtimes
 
-Wired and listed are different claims. **26 wired adapters** ship code in `adapters/` and a test in
-`tests/host_<host>/`: Claude Code, Codex, Cursor, Grok, Kiro, VS Code, and the 20 hosts whose surface is
-`.claude/skills/` + `AGENTS.md` (`adapters/MATRIX.md`). The other **9 listed hosts** in
-[`simplicio_loop/_catalog/harnesses.json`](simplicio_loop/_catalog/harnesses.json) are catalog entries with a
-README and no adapter code: 8 of them have a generic installer target that writes the skills and the host's
-entry file (a listing is not proof the host runs the loop), and DeepSeek is a model provider with manual
-steps. Status per host: [`adapters/MATRIX.md`](adapters/MATRIX.md). Install a host that has an installer
-target with `scripts/install.sh <runtime>` (or `install.ps1`).
+Wired and listed are different claims. **34 wired adapters** ship code in `adapters/` and a test in
+`tests/host_<host>/`, one for every install host in [`simplicio_loop/_catalog/harnesses.json`](simplicio_loop/_catalog/harnesses.json):
+Claude Code, Codex, Cursor, Grok, Kiro, VS Code, the AGENTS.md-surface hosts, and the wave-B hosts (GitHub Copilot,
+OpenCode, Simplicio Agent (Hermes), Continue, Qwen Code, Gemini, Aider, OpenClaw). **0 listed hosts** remain: every
+catalog host has adapter code. DeepSeek is a model provider, not a host: its README has the manual steps. Status per
+host: [`adapters/MATRIX.md`](adapters/MATRIX.md). Install a host with `scripts/install.sh <runtime>` (or `install.ps1`).
 
 ## Activation
 
