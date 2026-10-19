@@ -2,7 +2,8 @@
 
 `check_all` only looks. `ensure` installs, and only in these ways:
 
-* python: `uv python install` into the user's folder; uv, if missing, comes from its official release;
+* python: winget on Windows when it runs (`Python.Python.3.11`), else `uv python install` into the user's folder; uv, if
+  missing, comes from its official release;
 * gh and uv: the release pinned in `setup_pins.json` goes to ~/.local/bin after its SHA256 matched the pin and the release
   checksums (`release_fetch`); a tool or platform without a pin is not downloaded;
 * git and bwrap (system packages): only with `yes`, and only as root or when `sudo -n` works. Otherwise the exact
@@ -31,6 +32,8 @@ from .release_fetch import FetchError, default_get, install_binary
 MIN_PYTHON = (3, 11)  # `requires-python` of pyproject.toml; a test keeps them equal
 MIN_NODE = 18
 PY_TARGET = f"{MIN_PYTHON[0]}.{MIN_PYTHON[1]}"
+WINGET_PYTHON = f"Python.Python.{PY_TARGET}"  # the winget id of that minor version
+WINGET_ARGS = ("install", "-e", "--id", WINGET_PYTHON, "--silent", "--accept-package-agreements", "--accept-source-agreements")
 NEEDS_ROOT = ("apt", "dnf", "pacman")  # brew and winget run as the user
 TIMEOUT_S = 10.0
 INSTALL_TIMEOUT_S = 900.0
@@ -39,11 +42,13 @@ GH_FIX = ("run `simplicio-loop setup` (it installs the GitHub CLI pinned in this
 
 Run = Callable[[Sequence[str], float], tuple[Optional[int], str]]
 Which = Callable[[str], Optional[str]]
+Matches = Callable[[str], list[str]]  # every PATH match of a program name, in PATH order
 _UNSET = object()
 _VERSION = re.compile(r"(\d+)\.(\d+)(?:\.(\d+))?")
 _PYTHON = re.compile(r"Python (\d+)\.(\d+)\.(\d+)")
 _TAG = re.compile(r"v?\d+\.\d+\.\d+")  # gh tags start with v, uv tags do not
 _SHA256 = re.compile(r"[0-9a-f]{64}")
+_STORE_ALIAS = re.compile(r"[\\/]Microsoft[\\/]WindowsApps[\\/]", re.IGNORECASE)  # the folder of the Microsoft Store aliases
 _PACKAGES = {
     "apt": {"git": "git", "bwrap": "bubblewrap", "pip": "python3-pip", "venv": "python3-venv"},
     "dnf": {"git": "git", "bwrap": "bubblewrap", "pip": "python3-pip"},
@@ -147,14 +152,35 @@ def _system_fix(manager: Optional[str], packages: Sequence[str]) -> str:
     return " ".join((["sudo"] if manager in NEEDS_ROOT and not _is_root() else []) + command)
 
 
-def _python(interpreter: Optional[str], which: Which, run: Run) -> Check:
+def is_store_alias(path: Optional[str]) -> bool:
+    """True for a program in the Microsoft Store alias folder: its python.exe prints an error and runs nothing, unless a Python
+    is installed behind it. The folder is recognised as Windows writes it, whatever the host, so the rule can be tested anywhere."""
+    return path is not None and _STORE_ALIAS.search(path) is not None
+
+
+def _winget(platform: str, which: Which, run: Run, dry_run: bool = False) -> Optional[str]:
+    """The winget that installs Python on Windows: found on PATH and answering `--version`. A dry run only looks for it."""
+    path = which("winget") if platform.startswith("win") else None
+    if path is None or dry_run:
+        return path
+    return path if run([path, "--version"], TIMEOUT_S)[0] == 0 else None
+
+
+def _python_fix(winget: Optional[str], aliases: Sequence[str]) -> str:
+    """The one command that installs Python here, after the Store alias that runs nothing when one is in the way."""
+    command = f"winget install -e --id {WINGET_PYTHON}" if winget else f"uv python install {PY_TARGET}"
+    return f"{aliases[0]} is the Microsoft Store alias and runs nothing; {command}" if aliases else command
+
+
+def _python(interpreter: Optional[str], which: Which, run: Run, platform: str, matches: Matches) -> Check:
     def probe(exe: str) -> Optional[tuple[int, ...]]:
         code, text = run([exe, "--version"], TIMEOUT_S)
         found = _PYTHON.search(text) if code == 0 else None
         return tuple(int(part) for part in found.groups()) if found else None
 
     best: Optional[tuple[tuple[int, ...], str]] = None
-    candidates = [exe for exe in dict.fromkeys([interpreter, which("python3"), which("python")]) if exe]
+    aliases: list[str] = []  # Store aliases that ran nothing: a working Python may still be listed after them
+    candidates = [exe for exe in dict.fromkeys([interpreter, *matches("python3"), *matches("python")]) if exe]
     for stage in range(2):
         for exe in candidates:
             version = probe(exe)
@@ -162,12 +188,14 @@ def _python(interpreter: Optional[str], which: Which, run: Run) -> Check:
                 return Check("python", "ok", True, exe, _text(version), None, "", "")
             if version and (best is None or version > best[0]):
                 best = (version, exe)
+            if version is None and is_store_alias(exe) and exe not in aliases:
+                aliases.append(exe)
         uv = which("uv")
         if stage == 1 or not uv:
             break
         code, text = run([uv, "python", "find", f">={PY_TARGET}"], 30.0)  # a Python uv installed is not on PATH
         candidates = [text.strip().splitlines()[-1]] if code == 0 and text.strip() else []
-    fix = f"uv python install {PY_TARGET}"
+    fix = _python_fix(_winget(platform, which, run), aliases)
     if best:
         return Check("python", "outdated", True, best[1], _text(best[0]), PY_TARGET, fix, "user")
     return Check("python", "missing", True, None, None, PY_TARGET, fix, "user")
@@ -190,19 +218,23 @@ def _tool(name: str, which: Which, run: Run, *, required: bool = True, auto: str
 
 def check_all(environ: Optional[Mapping[str, str]] = None, *, which: Optional[Which] = None, run: Optional[Run] = None,
               platform: Optional[str] = None, interpreter: object = _UNSET, node_for: Sequence[str] = (),
-              trusted: Optional[Mapping[str, str]] = None) -> list[Check]:
+              trusted: Optional[Mapping[str, str]] = None, matches: Optional[Matches] = None) -> list[Check]:
     """Look at python, pip, venv, git, gh, bwrap (Linux), uv, and node (only when `node_for` names hosts that need it).
 
     `interpreter` is the Python that runs this program (None in the standalone binary, which has none to offer).
     Tools are looked up on PATH without its unsafe entries (relative, writable by others, `~/.local/bin`): nothing there is run.
-    `trusted` maps a tool name to the exact file the setup installed and verified; that file is used even in `~/.local/bin`."""
+    `trusted` maps a tool name to the exact file the setup installed and verified; that file is used even in `~/.local/bin`.
+    `matches` lists every PATH match of a python name, so a Store alias listed first does not hide a working Python."""
     env = os.environ if environ is None else environ
-    which = which or setup_hardening.safe_which(env, trusted)
+    if which is None:
+        which = setup_hardening.safe_which(env, trusted)
+        matches = matches or setup_hardening.safe_matches(env)
+    matches = matches or (lambda name: [found] if (found := which(name)) else [])
     run, platform = run or _run, platform or sys.platform
     if interpreter is _UNSET:
         interpreter = None if getattr(sys, "frozen", False) else sys.executable
     manager = package_manager(which=which, platform=platform)
-    python = _python(interpreter, which, run)  # type: ignore[arg-type]
+    python = _python(interpreter, which, run, platform, matches)  # type: ignore[arg-type]
     checks = [python]
     if python.path:  # without a python there is nothing to ask about pip and venv
         checks += [_module("pip", python, run, manager, ["-m", "pip", "--version"]),
@@ -322,7 +354,15 @@ def _expect(path: str, sha256: str, inner: Run) -> Run:
     return run
 
 
-def _install_python(uv: Optional[Check], where: _Where, run: Run, dry_run: bool) -> list[Action]:
+def _install_python(uv: Optional[Check], where: _Where, run: Run, dry_run: bool, winget: Optional[str]) -> list[Action]:
+    if winget is not None:  # Windows with a winget that runs: its one command installs Python, so uv is not needed
+        shown = " ".join(["winget", *WINGET_ARGS])
+        if dry_run:
+            return [Action("python", "would-install", f"`{shown}` (then confirm with `python --version` in a new terminal)")]
+        code, _ = run([winget, *WINGET_ARGS], INSTALL_TIMEOUT_S)
+        if code != 0:
+            return [Action("python", "failed", f"`{shown}` did not finish (exit {code})")]
+        return [Action("python", "installed", f"`{shown}` (confirm with `python --version` in a new terminal)")]
     command = f"uv python install {PY_TARGET}"
     if dry_run:
         return [Action("python", "would-install", f"{command} (in your user folder; uv is installed first if missing)")]
@@ -382,7 +422,7 @@ def ensure(checks: Sequence[Check], *, yes: bool = False, dry_run: bool = False,
     actions: list[Action] = []
     for check in todo:
         if check.name == "python":
-            actions += _install_python(uv, where, run, dry_run)
+            actions += _install_python(uv, where, run, dry_run, _winget(platform, which, run, dry_run))
         elif check.name == "gh":
             actions.append(_install_release("gh", where, dry_run))
         elif check.name != "uv" and check.auto != "system":

@@ -176,6 +176,24 @@ def safe_which(environ: Mapping[str, str], trusted: Mapping[str, str] | None = N
     return which
 
 
+def safe_matches(environ: Mapping[str, str]) -> Callable[[str], list[str]]:
+    """Every match of a program name on the safe PATH of ``environ``, one per folder, in PATH order.
+
+    A Microsoft Store alias that runs nothing can come before a real Python on PATH: the caller tries each match, not the first.
+    """
+    path = safe_path(environ.get("PATH", os.defpath), _home_of(environ))
+
+    def matches(name: str) -> list[str]:
+        found: list[str] = []
+        for folder in filter(None, path.split(os.pathsep)):
+            hit = shutil.which(name, path=folder)
+            if hit and hit not in found:
+                found.append(hit)
+        return found
+
+    return matches
+
+
 def probe_env(environ: Mapping[str, str] | None = None) -> dict[str, str]:
     """``minimal_env`` whose PATH has no unsafe entry, so a probe never resolves a program through one."""
     source = os.environ if environ is None else environ

@@ -41,6 +41,7 @@ PENDING = 10
 MAX_TOKEN_INPUT = 1024
 MAX_SUMMARY_BYTES = 256 * 1024
 COMMAND = "simplicio-loop setup"
+CONFIRM_PYTHON = f"open a new terminal and run `{COMMAND}` to confirm python"  # winget edits the PATH of new terminals only
 INSTALLED_TOOLS = ("gh", "uv")  # what `prereqs.ensure` puts in ~/.local/bin; the only files PATH hygiene lets run from there
 QUIET = "The GitHub token is never an argument: pipe it to --github-token-stdin, or run `setup` in a terminal for a hidden prompt."
 
@@ -133,7 +134,10 @@ def doctor_row(directory: Optional[Path] = None) -> dict:
         problems.append("GitHub token lacks " + ", ".join(github["missing_scopes"]))
     if not host:
         problems.append("no default agent CLI")
-    ok = f"GitHub {github.get('login')} (via {github.get('source')}); default agent CLI {host}; setup of {summary.get('updated_at')}"
+    found = [f"python {p.get('version')} at {p.get('path')}" for p in summary.get("prereqs") or []
+             if p.get("name") == "python" and p.get("status") == "ok"]
+    ok = "; ".join(found + [f"GitHub {github.get('login')} (via {github.get('source')})", f"default agent CLI {host}",
+                            f"setup of {summary.get('updated_at')}"])
     return {"name": "setup", "status": "warn" if problems else "ok", "fix": COMMAND if problems else None,
             "summary": "; ".join(problems) if problems else ok, "detail": {"default_host": host, "github": github.get("status")}}
 
@@ -269,10 +273,13 @@ def _prereq_step(options: Options, environ: Mapping[str, str], seams: Seams, nod
     bin_dir = _bin_dir(environ)
     fresh = {a.name: a.sha256 for a in actions if a.result == "installed" and a.name in INSTALLED_TOOLS and a.sha256
              and _private_dir(bin_dir) and _digest(bin_dir / _exe(a.name)) == a.sha256}
-    if fresh:
+    python_installed = any(a.name == "python" and a.result == "installed" for a in actions)
+    if fresh or python_installed:  # the Python an install just put in place is looked for again, the same way
         vouched = {**vouched, **fresh}
         checks = seams.check_all(environ, node_for=node_for, trusted=_paths(environ, vouched),
                                  run=_pinned(environ, vouched, prereqs.run_command))
+        if python_installed:  # a winget install may still be invisible to this process: say what confirms it
+            checks = [replace(c, fix=CONFIRM_PYTHON) if c.name == "python" and c.status != "ok" else c for c in checks]
     return checks, actions, dict(vouched)
 
 
