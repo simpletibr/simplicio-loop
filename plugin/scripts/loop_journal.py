@@ -8,7 +8,7 @@ the loop an explicit, durable **attempt memory** and a **stall detector** so it 
 escalates instead of re-feeding the same goal into the same failure.
 
 It is deterministic and model-free — the fingerprint + stall math never call an LLM, so a resume is
-reproducible from the on-disk journal (same discipline as `savings_harness`/`billing_aggregator`).
+reproducible from the on-disk journal (same discipline as `savings_harness`).
 
 State: `.simplicio-loop/orchestrator/loop/journal.jsonl` — one append-only record per attempt:
     {"iteration", "action", "hypothesis", "gate": "pass|fail|blocked",

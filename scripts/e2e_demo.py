@@ -35,8 +35,7 @@ there, not fixed in this PR.
 Verbs:
   run       Execute the 4 hops for real against a target repo (default: this repo). Writes:
               .simplicio-loop/orchestrator/savings/snapshots.jsonl        (via savings_harness — so
-                                                              `billing_aggregator.py collect` and
-                                                              `savings_harness.py score` pick these
+                                                              `savings_harness.py score` picks these
                                                               hops up for free, no new aggregation
                                                               code)
               .simplicio-loop/orchestrator/savings/e2e-demo-events.jsonl  (one simplicio.savings-event/v1-shaped
@@ -143,9 +142,8 @@ def build_event(hop, baseline_text, treatment_text, proof_kind, methodology, not
 
 
 def _snapshot(store, item, label, baseline_text, treatment_text):
-    """Feed the SAME snapshot store savings_harness.py owns, so `savings_harness.py score` and
-    `billing_aggregator.py collect` (which reads .simplicio-loop/orchestrator/savings/snapshots.jsonl) pick this
-    hop up for free — no new aggregation code (issue #93: 'agregado pelo billing_aggregator.py')."""
+    """Feed the SAME snapshot store savings_harness.py owns, so `savings_harness.py score` picks this
+    hop up for free — no new aggregation code."""
     bf = tf = None
     try:
         with tempfile.NamedTemporaryFile("w", suffix=".baseline.txt", delete=False,

@@ -52,7 +52,6 @@
     "test_count": 24,
     "loop_journal_selftest": "9/9",
     "action_gate_selftest": "14/14 (README cita 15/15 em um ponto)",
-    "billing_aggregator_selftest": "11/11",
     "dashboard_port": 9090,
     "capture_proxy_port": 8788
   },
@@ -488,7 +487,6 @@
     { "file": "scripts/verify_adapters.py", "role": "Verifica o installer por runtime (alvo descartável): 6 skills copiadas, entry file com marker, hooks presentes, Claude settings wired. Exit 0/1." },
     { "file": "scripts/loop_journal.py", "role": "Run-journal + stall/progress detector (memória do loop). Determinístico, model-free. Verbs: record, fingerprint, stall, resume, status, since, selftest (9/9)." },
     { "file": "scripts/savings_harness.py", "role": "Harness de medição de savings (snapshot + scorer offline). Generator caro snapshota baseline/treatment; scorer barato re-lê com tokenizer fixo (sem chamada de modelo). Verbs: snapshot, score, selftest." },
-    { "file": "scripts/billing_aggregator.py", "role": "Engine de billing determinístico, model-free, privacy-preserving sobre o metering existente. Verbs: collect, meter, invoice, export, rates, selftest (11/11)." },
     { "file": "scripts/video_evidence.py", "role": "Produz MP4 demonstrativo determinístico via hyperframes. Evidence = path + verdict. Verbs: detect, scaffold, render, lint, verify." },
     { "file": "scripts/web_verify.py", "role": "Dirige Chromium headless p/ provar front-end (screenshot + trace). Backends: npx (Playwright) ou pytest (playwright-python). Verbs: detect, run, verify." },
     { "file": "scripts/agentsview_adapter.py", "role": "Conecta ao agentsview (SQLite local ou HTTP API) p/ descobrir sessões paradas e reportar custo observado. Verbs: list_ready, get_details, claim, update_status, attach_evidence, close, cost_summary, agent_breakdown." },
@@ -679,18 +677,8 @@
   },
 
   "pricing": {
-    "status": "proposal (draft) — nada é cobrado hoje; o core fica MIT e livre",
-    "model": "Open-core + usage-based hosted tier",
-    "free_forever": ["orchestrator loop + 6 skills + hooks", "token economy local (orient_clamp.py, capture engine, savings_ledger on disk, dashboard 127.0.0.1:9090)", "video_evidence local render (hyperframes local)", "self-hosting nos 6 adaptadores wired"],
-    "tiers": [
-      { "tier": "Community", "price": "Free, MIT", "who": "indivíduos, OSS", "gets": "Engine completo self-hosted, todas skills/hooks, dashboard local, video_evidence local" },
-      { "tier": "Pro (hosted)", "price": "~$29/dev/mo", "who": "small teams", "gets": "Watcher 24/7 gerenciado, dashboard hospedado com histórico+reports, operadores como serviço, priority model-routing" },
-      { "tier": "Team / Cloud", "price": "usage-based", "who": "orgs", "gets": "Multi-repo fleets, SSO, audit log, render video_evidence distribuído (Lambda), per-seat + per-run metering, SLA" },
-      { "tier": "Enterprise", "price": "custom", "who": "regulados", "gets": "Control plane self-hosted, on-prem operators, licença comercial/indenidade, support" }
-    ],
-    "billing_meters": ["Savings ledger (savings_harness.py / proxy_savings.json)", "Capture proxy (engine/simplicio_engine.py)", "Run outcomes (trajectory)"],
-    "aggregator": "scripts/billing_aggregator.py — collect/meter/invoice/export/rates/selftest (11/11). Determinístico, model-free, privacy (só counts saem), prepaid guard billing-only, auditável.",
-    "suggested_rates": { "managed_run": "$0.50–$2.00 por item delivered+merged", "tokens_passthrough": "cost + 15% por 1M upstream tokens", "video_render": "$0.10 por render-minute (Lambda)", "operator_time": "$0.02 por compute-minute" }
+    "canonical": "PRICING.md",
+    "status": "vigente: engine MIT gratuito; a assinatura Simplicio cobre o acesso ao Runtime/MCP e o watcher 24/7; hosted Pro, Team e Enterprise não são oferecidos. Preço e termos em PRICING.md."
   },
 
   "directory_structure": {
@@ -699,7 +687,7 @@
     "hooks": "hooks/ (8 hooks Python + hooks.json + hooks.claude.json + README.md)",
     "engine": "engine/ (25 módulos Python + README.md)",
     "rust": "rust/ (4 crates: simplicio-core, simplicio-py, simplicio-proxy, simplicio-parity)",
-    "scripts": "scripts/ (20 workers: install, doctor, check, claims_audit, loop_journal, video_evidence, web_verify, savings_harness, billing_aggregator, adapters, ...)",
+    "scripts": "scripts/ (19 workers: install, doctor, check, claims_audit, loop_journal, video_evidence, web_verify, savings_harness, adapters, ...)",
     "adapters": "adapters/ (MATRIX.md + 11 READMEs por runtime)",
     "app": "app/ (providers.json — 144 providers · simplicio_tray.py)",
     "bin": "bin/simplicio (entry da engine)",
@@ -776,7 +764,6 @@
     "README badge diz 'skills-11' (são 6 skills + 5 accelerators = 11 itens na tabela 'skills & accelerators'); o pacote tem 6 SKILL.md reais.",
     "Bloco 'Official capability record (v3.4.0)' cita versão antiga; canônico é 3.9.3.",
     "Extension points: 48 é o número reconciliado; alguns refs antigos / o cabeçalho da SKILL.md ainda mencionam 44 em trechos.",
-    "action_gate selftest: hooks/README.md diz 14/14; README.md cita 15/15 num ponto.",
-    "PRICING.md menciona '44 extension points' (pré-reconciliação)."
+    "action_gate selftest: hooks/README.md diz 14/14; README.md cita 15/15 num ponto."
   ]
 }

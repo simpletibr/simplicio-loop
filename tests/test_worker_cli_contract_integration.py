@@ -35,7 +35,6 @@ WORKERS_WITH_SELFTEST = [
 ]
 
 SATELLITE_WORKERS_WITH_SELFTEST = [
-    "billing_aggregator.py",
     "autoresearch.py",
     "fan_out.py",
     "schema_verify.py",
