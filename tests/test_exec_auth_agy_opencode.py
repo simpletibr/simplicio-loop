@@ -169,7 +169,9 @@ def test_opencode_hang_times_out_fails_closed_and_kills_child(env, monkeypatch):
 
     home, bindir = env
     pidfile = home / "pid"
-    monkeypatch.setattr(exec_auth, "_STATUS_TIMEOUT", 0.3)
+    # 2s: on macOS the first exec of a freshly written script takes ~0.2-0.9s, and the fake must have written its pid
+    # before the timeout kills it. The bound below still separates a timeout (~2s) from a wait for the 8s hang.
+    monkeypatch.setattr(exec_auth, "_STATUS_TIMEOUT", 2.0)
     sleep = shutil.which("sleep", path=os.defpath + ":/usr/bin:/bin")  # PATH is only the fake bin dir in this fixture
     assert sleep
     fake_cli(bindir, "opencode", f"echo $$ > {pidfile}; exec {sleep} 8")
