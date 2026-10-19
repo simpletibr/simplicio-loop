@@ -417,3 +417,30 @@ def test_repo_flag_is_repeatable_and_keeps_every_value():
     _cli().add_arguments(parser)
     args = parser.parse_args(['--repo', '/a', '--repo', '/b'])
     assert args.repo == ['/a', '/b']
+
+
+@pytest.mark.parametrize('lines, expected', [
+    (['p222', 'f4', 'n127.0.0.1:8765'], 222),
+    (['p333', 'f5', 'n*:8765'], 333),
+    (['p111', 'f3', 'n192.168.1.20:8765', 'p222', 'f4', 'n127.0.0.1:8765'], 222),
+    (['p111', 'f3', 'n192.168.1.20:8765'], None),
+    (['p111', 'f3', 'n[::1]:8765', 'p222', 'f4', 'n127.0.0.1:8765'], 222),
+    (['p111', 'f3', 'n[::1]:8765'], None),
+    ([], None),
+], ids=['loopback', 'wildcard', 'skips-lan-only', 'lan-only-no-clash', 'skips-ipv6-loopback', 'ipv6-loopback-no-clash', 'no-listener'])
+def test_holder_pid_on_macos_names_the_listener_a_loopback_bind_collides_with(monkeypatch, lines, expected):
+    cli = _cli()
+    monkeypatch.setattr(sys, 'platform', 'darwin')
+    out = ''.join(line + '\n' for line in lines)
+    monkeypatch.setattr(cli.subprocess, 'run', lambda argv, **kw: subprocess.CompletedProcess(argv, 0, out, ''))
+    assert cli._holder_pid(8765) == expected
+
+
+def test_holder_pid_on_macos_is_none_when_lsof_is_missing(monkeypatch):
+    cli = _cli()
+    monkeypatch.setattr(sys, 'platform', 'darwin')
+
+    def missing(argv, **kw):
+        raise FileNotFoundError(argv[0])
+    monkeypatch.setattr(cli.subprocess, 'run', missing)
+    assert cli._holder_pid(8765) is None

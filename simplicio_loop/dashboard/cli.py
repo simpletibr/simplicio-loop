@@ -151,8 +151,35 @@ def panel_hint(run_id: str | None = None) -> str | None:
         return None
 
 
+# A bind of 127.0.0.1:<port> collides only with a listener on 127.0.0.1 or on the wildcard (lsof prints it as *).
+_LSOF_CLASH_HOSTS = ('127.0.0.1', '*')
+
+
+def _pid_from_lsof(output: str) -> int | None:
+    '''The pid of the first LISTEN socket in ``lsof -Fpn`` output that a 127.0.0.1 bind collides with.'''
+    pid = None
+    for line in output.splitlines():
+        if line.startswith('p') and line[1:].isdigit():
+            pid = int(line[1:])
+        elif line.startswith('n') and pid is not None and line[1:].rsplit(':', 1)[0] in _LSOF_CLASH_HOSTS:
+            return pid
+    return None
+
+
+def _holder_pid_macos(port: int) -> int | None:
+    '''PID listening on ``port`` per lsof on macOS; None when lsof is missing or finds no such listener.'''
+    try:
+        out = subprocess.run(['lsof', '-nP', '-iTCP:%d' % port, '-sTCP:LISTEN', '-Fpn'],
+                             capture_output=True, text=True, errors='replace', timeout=10).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return _pid_from_lsof(out)
+
+
 def _holder_pid(port: int) -> int | None:
-    '''PID listening on loopback ``port``, read from /proc on Linux; None when it cannot be found.'''
+    '''PID listening on loopback ``port``: read from /proc on Linux, from lsof on macOS; None when not found.'''
+    if sys.platform == 'darwin':
+        return _holder_pid_macos(port)
     if not sys.platform.startswith('linux'):
         return None
     inodes = set()
