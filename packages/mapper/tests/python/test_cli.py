@@ -1065,6 +1065,53 @@ def load(api):
         self.assertEqual(payload["status"], "skipped")
         self.assertEqual(payload["skipped_reason"], "locked_timeout")
 
+    def test_index_lock_wait_ends_at_absolute_wait_until(self) -> None:
+        # A worker spawned by `scan --sync` is handed an absolute deadline, so the time it spends
+        # starting up counts against the scan's budget instead of extending the lock wait past it.
+        _write(self.dir, "package.json", json.dumps({"name": "deadline-host"}))
+        lock = self.dir / ".simplicio-loop" / "index.lock"
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
+
+        wait_until = f"{time.time() + 0.2:.3f}"
+        out = StringIO()
+        started = time.monotonic()
+        with redirect_stdout(out):
+            code = main(["index", str(self.dir), "--json", "--timeout", "10", "--wait-until", wait_until])
+        elapsed = time.monotonic() - started
+
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out.getvalue())["skipped_reason"], "locked_timeout")
+        self.assertLess(elapsed, 5.0, "the lock wait must end at wait_until, not at the relative --timeout")
+
+    def test_spawned_index_worker_is_handed_a_wait_deadline_from_its_spawn(self) -> None:
+        from simplicio_mapper.cli._background import _spawn_index_process
+
+        opts = {
+            "root": str(self.dir),
+            "out": ".simplicio-loop",
+            "stack": "",
+            "product_name": "",
+            "docs": False,
+            "incremental": False,
+            "verbose": False,
+            "timeout": 2,
+        }
+        before = time.time()
+        with (
+            mock.patch("simplicio_mapper.cli._background.subprocess.Popen") as popen,
+            mock.patch("simplicio_mapper.cli._background._process_start_token", return_value=None),
+        ):
+            popen.return_value.pid = 424242
+            _spawn_index_process(opts)
+        after = time.time()
+
+        argv = popen.call_args.args[0]
+        self.assertNotIn("--timeout", argv)
+        wait_until = float(argv[argv.index("--wait-until") + 1])
+        self.assertGreaterEqual(wait_until, before + 2)
+        self.assertLessEqual(wait_until, after + 2)
+
     def test_background_index_reports_pid_and_log(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "background-host"}))
         _write(self.dir, "src/index.js", "export function run() { return 1; }\n")

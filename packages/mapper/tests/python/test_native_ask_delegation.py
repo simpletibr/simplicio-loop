@@ -96,6 +96,23 @@ class NativeAskDelegationTest(unittest.TestCase):
         self.assertIn("saved", event["tokens"])
         self.assertIn("pct_saved", event["tokens"])
 
+    def test_impact_savings_event_lands_in_requested_state_dir_not_mapped_root(self) -> None:
+        # The ledger is mapper state: it belongs in the `--out` state dir (where the context cache
+        # already goes), so an `ask` on a read-only or committed tree must not create `.simplicio-loop/`
+        # inside the mapped root.
+        with tempfile.TemporaryDirectory() as state_parent:
+            state_dir = Path(state_parent) / "state"
+            with mock.patch("simplicio_mapper.query.shutil.which", side_effect=self._which_fake):
+                run_query(str(self.dir), out_dir=str(state_dir), verb="impact", arg="src/writer.py")
+            self.assertTrue(
+                (state_dir / "ledger" / "savings-events.jsonl").exists(),
+                "expected the savings ledger under the requested state dir",
+            )
+            self.assertFalse(
+                (self.dir / ".simplicio-loop").exists(),
+                "a native ask with an explicit state dir must not write into the mapped root",
+            )
+
     def test_impact_falls_back_to_local_when_binary_absent(self) -> None:
         with mock.patch("simplicio_mapper.query.shutil.which", return_value=None):
             payload = run_query(str(self.dir), verb="impact", arg="src/writer.py")

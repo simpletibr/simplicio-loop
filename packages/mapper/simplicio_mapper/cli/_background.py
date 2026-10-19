@@ -179,7 +179,10 @@ def _spawn_index_process(opts: dict) -> tuple[dict, subprocess.Popen]:
         args.append("--verbose")
     if opts.get("canonical_reuse"):
         args.append("--canonical-reuse")
-    args.extend(["--timeout", str(max(0, int(opts.get("timeout", 120))))])
+    # The worker's lock wait ends at an absolute deadline taken here, at spawn, so its interpreter start-up
+    # is spent from the caller's budget instead of being added on top of it.
+    wait_until = time.time() + max(0, int(opts.get("timeout", 120)))
+    args.extend(["--wait-until", f"{wait_until:.3f}"])
     env = os.environ.copy()
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     owner_token = str(opts.get("_map_job_owner_token") or "")
@@ -245,6 +248,19 @@ def _run_background(opts: dict) -> int:
     return 0
 
 
+def _lock_wait_deadline(opts: dict) -> float:
+    """Monotonic deadline for waiting on a live lock owner.
+
+    A worker spawned by ``scan`` carries an absolute ``wait_until`` taken at spawn, so the time it spends
+    starting up is already inside the caller's budget. A direct caller keeps the relative ``--timeout``,
+    counted from when it starts waiting.
+    """
+    wait_until = opts.get("wait_until")
+    if wait_until is not None:
+        return time.monotonic() + max(0.0, float(wait_until) - time.time())
+    return time.monotonic() + max(0, int(opts.get("timeout", 120)))
+
+
 def _run_index(opts: dict) -> int:
     root = os.path.abspath(opts["root"])
     out = opts["out"]
@@ -254,7 +270,7 @@ def _run_index(opts: dict) -> int:
         # Index callers share one per-worktree lock.  Waiting here lets a
         # foreground caller join the active refresh instead of reporting a
         # misleading successful skip while the owner is still building.
-        deadline = time.monotonic() + max(0, int(opts.get("timeout", 120)))
+        deadline = _lock_wait_deadline(opts)
         while time.monotonic() < deadline:
             lock_status = _inspect_index_lock(root, out)
             if lock_status.get("reason_code") != "lock_live_owner":

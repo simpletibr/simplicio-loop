@@ -37,7 +37,7 @@ class EstimateTokensTest(unittest.TestCase):
 class RecordSavingsEventTest(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
-        self.root = self._tmp.name
+        self.state_dir = str(Path(self._tmp.name) / ".simplicio-loop")
         self._env_backup = dict(os.environ)
         os.environ.pop("SIMPLICIO_DISABLE_RUN_LOG", None)
 
@@ -47,11 +47,11 @@ class RecordSavingsEventTest(unittest.TestCase):
         os.environ.update(self._env_backup)
 
     def _ledger_path(self) -> Path:
-        return Path(self.root) / ".simplicio-loop" / "ledger" / "savings-events.jsonl"
+        return Path(self.state_dir) / "ledger" / "savings-events.jsonl"
 
     def test_writes_one_jsonl_record_with_expected_shape(self) -> None:
         path = record_savings_event(
-            self.root,
+            self.state_dir,
             source="native-delegation:impact",
             baseline_tokens=1000,
             actual_tokens=100,
@@ -72,19 +72,19 @@ class RecordSavingsEventTest(unittest.TestCase):
         self.assertEqual(event["tokens"]["pct_saved"], 90.0)
 
     def test_appends_multiple_events(self) -> None:
-        record_savings_event(self.root, source="a", baseline_tokens=10, actual_tokens=5)
-        record_savings_event(self.root, source="b", baseline_tokens=20, actual_tokens=5)
+        record_savings_event(self.state_dir, source="a", baseline_tokens=10, actual_tokens=5)
+        record_savings_event(self.state_dir, source="b", baseline_tokens=20, actual_tokens=5)
         lines = self._ledger_path().read_text(encoding="utf-8").strip().splitlines()
         self.assertEqual(len(lines), 2)
 
     def test_zero_baseline_reports_zero_pct_saved_without_dividing_by_zero(self) -> None:
-        record_savings_event(self.root, source="edge", baseline_tokens=0, actual_tokens=0)
+        record_savings_event(self.state_dir, source="edge", baseline_tokens=0, actual_tokens=0)
         event = json.loads(self._ledger_path().read_text(encoding="utf-8").strip())
         self.assertEqual(event["tokens"]["pct_saved"], 0.0)
 
     def test_disable_env_var_skips_write(self) -> None:
         os.environ["SIMPLICIO_DISABLE_RUN_LOG"] = "1"
-        result = record_savings_event(self.root, source="x", baseline_tokens=1, actual_tokens=1)
+        result = record_savings_event(self.state_dir, source="x", baseline_tokens=1, actual_tokens=1)
         self.assertIsNone(result)
         self.assertFalse(self._ledger_path().exists())
 

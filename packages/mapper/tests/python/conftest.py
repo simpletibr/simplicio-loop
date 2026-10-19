@@ -26,16 +26,31 @@ from __future__ import annotations
 import os
 import signal
 import sys
+import tempfile
 import time
 from pathlib import Path
 
 import pytest
+from hypothesis import settings as hypothesis_settings
+from hypothesis.configuration import set_hypothesis_home_dir
+from hypothesis.database import DirectoryBasedExampleDatabase
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from simplicio_mapper.savings import warm_estimator  # noqa: E402
+
+# Hypothesis keeps its example database and its constant/unicode caches under ``.hypothesis`` in the
+# working directory, which for this suite is the mapper source tree. Point its home at one cache
+# directory outside the tree. The directory outlives a run, so a shrunk failing example still replays.
+HYPOTHESIS_CACHE_DIR = Path(tempfile.gettempdir()) / "simplicio-mapper-hypothesis"
+set_hypothesis_home_dir(HYPOTHESIS_CACHE_DIR)
+hypothesis_settings.register_profile(
+    "simplicio-mapper",
+    database=DirectoryBasedExampleDatabase(HYPOTHESIS_CACHE_DIR / "examples"),
+)
+hypothesis_settings.load_profile("simplicio-mapper")
 
 
 def pytest_configure(config) -> None:  # noqa: ANN001 - pytest hook signature

@@ -501,13 +501,16 @@ def _cheap_repo_baseline_tokens(abs_cwd: str, *, test_files_only: bool) -> int:
     return max(1, total_bytes // 4)
 
 
-def _record_ask_native_savings(cwd: str, verb: str, baseline_tokens: int, payload: dict, note: str) -> None:
-    """Best-effort savings-ledger receipt for a native `ask` hit. Never
-    raises -- a ledger write failure must never break the query path."""
+def _record_ask_native_savings(
+    state_dir: str, verb: str, baseline_tokens: int, payload: dict, note: str
+) -> None:
+    """Best-effort savings-ledger receipt for a native `ask` hit, written to
+    the query's state dir (`--out`). Never raises -- a ledger write failure
+    must never break the query path."""
     try:
         actual_tokens = estimate_tokens(json.dumps(payload, sort_keys=True))
         record_savings_event(
-            cwd,
+            state_dir,
             source=f"native-delegation:{verb}",
             baseline_tokens=baseline_tokens,
             actual_tokens=actual_tokens,
@@ -649,7 +652,7 @@ def run_query(
             # see `_cheap_repo_baseline_tokens`.
             baseline = _cheap_repo_baseline_tokens(abs_cwd, test_files_only=False)
             _record_ask_native_savings(
-                abs_cwd,
+                abs_out,
                 "impact",
                 baseline,
                 payload,
@@ -722,7 +725,7 @@ def run_query(
             # artifact-lazy here too).
             baseline = _cheap_repo_baseline_tokens(abs_cwd, test_files_only=True)
             _record_ask_native_savings(
-                abs_cwd,
+                abs_out,
                 "tests-for",
                 baseline,
                 payload,

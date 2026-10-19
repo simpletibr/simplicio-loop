@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import sys
 from collections.abc import Sequence
@@ -44,6 +45,7 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "sync": False,
         "await": False,
         "timeout": 120,
+        "wait_until": None,
         "command": "scan",
         "against": "",
         "target": "",
@@ -333,6 +335,18 @@ def _parse_args(argv: Sequence[str]) -> dict:
                 opts["timeout"] = max(0, int(argv[i]))
             except (ValueError, IndexError):
                 print(f"Invalid --timeout value: {argv[i] if i < len(argv) else ''}", file=sys.stderr)
+                sys.exit(2)
+        elif arg == "--wait-until":
+            # Internal: the absolute epoch (seconds) by which a worker spawned by `scan --sync` must stop
+            # waiting on a live lock owner. Set by the parent at spawn; never a user-facing knob.
+            i += 1
+            try:
+                wait_until = float(argv[i])
+                if not math.isfinite(wait_until):
+                    raise ValueError(argv[i])
+                opts["wait_until"] = wait_until
+            except (ValueError, IndexError):
+                print(f"Invalid --wait-until value: {argv[i] if i < len(argv) else ''}", file=sys.stderr)
                 sys.exit(2)
         elif arg == "--silent":
             opts["silent"] = True

@@ -108,7 +108,7 @@ def _append_jsonl(path: Path, record: dict[str, Any]) -> None:
 
 
 def record_savings_event(
-    root: str,
+    state_dir: str,
     *,
     source: str,
     baseline_tokens: int,
@@ -118,7 +118,12 @@ def record_savings_event(
     extra: dict[str, Any] | None = None,
 ) -> Path | None:
     """Append one ``simplicio.savings-event/v1`` record to
-    ``<root>/.simplicio-loop/ledger/savings-events.jsonl``.
+    ``<state_dir>/ledger/savings-events.jsonl``.
+
+    ``state_dir`` is the mapper's output/state directory (``--out``, default
+    ``<root>/.simplicio-loop``), never the mapped tree: the ledger is mapper
+    state like the context cache, so a query on a read-only or committed tree
+    writes only where its state already goes.
 
     Returns the path written to, or ``None`` if the ledger is disabled
     (``SIMPLICIO_DISABLE_RUN_LOG``) or the write failed (fails open --
@@ -146,7 +151,7 @@ def record_savings_event(
         payload["note"] = note
     if extra:
         payload["extra"] = extra
-    out = Path(root) / ".simplicio-loop" / "ledger" / "savings-events.jsonl"
+    out = Path(state_dir) / "ledger" / "savings-events.jsonl"
     try:
         _append_jsonl(out, payload)
     except OSError:

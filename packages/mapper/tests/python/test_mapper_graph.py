@@ -409,40 +409,56 @@ def _synthetic_files_forcing_fallback(count: int) -> tuple[list[ProjectFile], di
     return files, contents
 
 
+def _best_cpu_seconds(run, repeats: int) -> float:
+    """Smallest process-CPU time over ``repeats`` runs of ``run``.
+
+    Host load stretches wall-clock time and inflates single samples of a few milliseconds, but the
+    minimum CPU time of repeated identical work is stable: the cheapest run is the one nothing preempted.
+    """
+    samples = []
+    for _ in range(repeats):
+        started = time.process_time()
+        run()
+        samples.append(time.process_time() - started)
+    return min(samples)
+
+
 class CandidateImportTargetsQuadraticRegressionTest(unittest.TestCase):
-    """Heuristic timing proxy (NOT a hard perf assertion -- wall-clock
-    numbers vary by machine/CI load) meant to catch a *future*
-    reintroduction of the ``O(n^2)`` fallback scan this test file's sibling
-    classes above prove is behaviorally unchanged. Doubling the number of
-    files should scale roughly linearly (the indexed fallback); a
-    regression back to a full ``known_paths`` scan per import would scale
-    roughly quadratically instead, which this test's generous ratio
-    threshold is sized to catch without being flaky on a slow CI box.
+    """Timing proxy that catches a *future* reintroduction of the ``O(n^2)``
+    fallback scan this test file's sibling classes above prove is
+    behaviorally unchanged. Doubling the number of files should scale roughly
+    linearly (the indexed fallback); a regression back to a full
+    ``known_paths`` scan per import scales roughly quadratically instead.
+    The measurement is best-of-N process CPU time, which host load moves far
+    less than wall-clock time; the ceiling sits between the linear (~4x) and
+    quadratic (~16x) expectations.
     """
 
     def test_doubling_files_does_not_scale_quadratically(self) -> None:
-        small_files, small_contents = _synthetic_files_forcing_fallback(120)
-        large_files, large_contents = _synthetic_files_forcing_fallback(480)  # 4x, not just 2x
+        small_files, small_contents = _synthetic_files_forcing_fallback(200)
+        large_files, large_contents = _synthetic_files_forcing_fallback(800)  # 4x, not just 2x
 
         generated_at = _now_iso()
         small_symbol_index = _build_symbol_index(".", small_files, generated_at, small_contents)
         large_symbol_index = _build_symbol_index(".", large_files, generated_at, large_contents)
 
-        # Warm-up call to avoid measuring first-call interpreter/import overhead.
+        # Warm-up calls to avoid measuring first-call interpreter/import overhead.
         _build_call_graph(".", small_files, small_symbol_index, generated_at, small_contents)
-
-        start = time.perf_counter()
-        _build_call_graph(".", small_files, small_symbol_index, generated_at, small_contents)
-        small_elapsed = time.perf_counter() - start
-
-        start = time.perf_counter()
         _build_call_graph(".", large_files, large_symbol_index, generated_at, large_contents)
-        large_elapsed = time.perf_counter() - start
+
+        small_elapsed = _best_cpu_seconds(
+            lambda: _build_call_graph(".", small_files, small_symbol_index, generated_at, small_contents),
+            repeats=9,
+        )
+        large_elapsed = _best_cpu_seconds(
+            lambda: _build_call_graph(".", large_files, large_symbol_index, generated_at, large_contents),
+            repeats=9,
+        )
 
         # 4x the files: linear scaling expects ~4x the time; quadratic
-        # scaling (the bug this guards against) would expect ~16x. Allow a
-        # generous 9x ceiling so ordinary noise/overhead never flakes this,
-        # while still failing hard if the fallback goes quadratic again.
+        # scaling (the bug this guards against) would expect ~16x. The 9x
+        # ceiling sits between the two; best-of-9 CPU time keeps linear runs
+        # near 4-5x under load while a full scan measures ~16x or more.
         ratio = large_elapsed / small_elapsed if small_elapsed > 0 else float("inf")
         self.assertLess(
             ratio,

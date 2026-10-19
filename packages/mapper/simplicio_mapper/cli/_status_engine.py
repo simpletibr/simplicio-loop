@@ -1468,6 +1468,8 @@ def _run_scan(opts: dict) -> int:
         "resuming": resuming,
     }
     if synchronous:
+        # The worker may wait on a live lock owner until one second before this scan's budget ends, counted
+        # from its spawn (`_spawn_index_process` anchors that deadline); the second is left for its exit.
         spawn_opts["timeout"] = max(0, int(opts["timeout"]) - 1)
         deep["timeout_seconds"] = max(0, int(opts["timeout"]))
         try:
