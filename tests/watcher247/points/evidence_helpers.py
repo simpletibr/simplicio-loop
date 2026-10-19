@@ -30,12 +30,15 @@ def write(root: Path, files: dict[str, str]) -> None:
 def fake_worker(path: Path, *, exit_code: int, produces: str | None) -> Path:
     """A script with the CLI shape of the real workers: records argv/env in --out, exits `exit_code`.
 
-    `produces` is the file name written into --out on exit 0 (None writes nothing). It also exports FE_RE,
-    as scripts/web_verify.py does, because the point imports the pattern from the script.
+    `produces` is the file name (a relative path under --out) written on exit 0 (None writes nothing). It also exports the
+    matchers the points import from the real scripts: FE_RE (scripts/web_verify.py) and is_video_request
+    (scripts/video_evidence.py: an explicit explainer request, here the words "explainer video").
     """
     path.write_text(textwrap.dedent(f"""\
         import json, os, re, sys
         FE_RE = re.compile(r"\\.(tsx|jsx|vue|svelte|css|scss|html)$", re.I)
+        def is_video_request(text):
+            return "explainer video" in (text or "")
         if __name__ == "__main__":
             argv = sys.argv[1:]
             out = argv[argv.index("--out") + 1]
@@ -45,6 +48,7 @@ def fake_worker(path: Path, *, exit_code: int, produces: str | None) -> Path:
             produces = {produces!r}
             if {exit_code} == 0 and produces:
                 name = produces.replace("ISSUE", argv[argv.index("--issue") + 1])
+                os.makedirs(os.path.dirname(os.path.join(out, name)), exist_ok=True)
                 with open(os.path.join(out, name), "wb") as f:
                     f.write(b"x")
             print("fake worker", argv)

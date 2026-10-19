@@ -21,8 +21,10 @@ Verbs:
   detect    Cheap intent gate (no toolchain). Decide whether a goal/work-item is an explicit
             video-creation request (e.g. `/simplicio-tasks make an explainer video of screen X`) —
             those route to the hyperframes engine. Exit 0 + "video-task" / "skip"; --exit-code → 10.
-  record    engine=playwright: drive --url with Playwright recording on → a real session video.
-            BLOCK if Node/npx or Playwright is absent, or no video was produced.
+  record    engine=playwright: drive --url with Playwright recording on → a real session video. The session
+            runs on the installed Playwright of the loop's evidence tools (simplicio_loop/evidence_tools.py,
+            `simplicio-loop setup`), never `npx`. BLOCKED when that tool is not ready (naming the fix); FAIL with
+            Playwright's own output when the session fails or records nothing.
   scaffold  engine=hyperframes: turn captured screenshots (--frames DIR / --shots a.png,b.png) into
             a hyperframes composition.
   render    engine=hyperframes: `npx hyperframes render` the composition to MP4.
@@ -44,12 +46,12 @@ Usage:
         --frames .simplicio-loop/orchestrator/tee/web --title "Login screen" [--seconds 2.0] [--issue 12]
 """
 import glob
+import json
 import os
 import re
 import shutil
 import subprocess
 import sys
-import tempfile
 
 try:  # Windows consoles default to cp1252 and choke on non-ASCII — force UTF-8.
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -344,25 +346,41 @@ def _upload(out, pr, mp4, engine="hyperframes"):
 
 # Playwright NATIVE video — records the REAL browser session to a video file. The other engine
 # (hyperframes) assembles web_verify screenshots into a deterministic slideshow; this one is a live
-# capture of the screen actually driving. `test.use({video})` makes Playwright write a .webm per page.
+# capture of the screen actually driving. The run's config turns `use.video` on: Playwright writes a .webm per page.
+# Its values are JSON literals, so no URL or text can break the JavaScript.
 PLAYWRIGHT_VIDEO_SPEC = r"""
 const {{ test }} = require('@playwright/test');
-test.use({{ video: {{ mode: 'on', size: {{ width: {width}, height: {height} }} }} }});
 test('video_evidence', async ({{ page }}) => {{
-  await page.goto({url!r}, {{ waitUntil: 'load', timeout: 30000 }});
+  await page.goto({url}, {{ waitUntil: 'load', timeout: 30000 }});
   {expect_line}
   await page.waitForTimeout({hold_ms});
 }});
 """
 
 
+def _playwright(spec, config, out):
+    """Run the spec on the installed Playwright (evidence_tools): the SpecRun, or BLOCKED with the missing piece and its fix."""
+    try:
+        from simplicio_loop import evidence_tools
+        from simplicio_loop.self_update import default_state_dir
+    except ImportError as exc:
+        _blocked(out, "simplicio_loop is not importable (%s): run this worker with the loop's own python" % exc)
+    run = evidence_tools.run_spec(default_state_dir(), spec=spec, config=config, environ=os.environ)
+    if run.blocked is not None:
+        _blocked(out, run.blocked)
+    if run.code is None:
+        _blocked(out, "Playwright did not start or ran out of time")
+    return run
+
+
 def cmd_record(opts):
     """Engine=playwright: drive --url with Playwright recording on -> a real session video.
 
-    BLOCK (never fake-pass) when Node/npx or Playwright is absent, or no video was produced. Output
-    is .webm (Playwright-native); converted to .mp4 when FFmpeg is present. Evidence = path, never bytes.
+    BLOCK (never fake-pass) when the installed Playwright is not ready, naming the fix. FAIL when the session fails or
+    records nothing, with Playwright's own output. Output is .webm (Playwright-native); converted to .mp4 when FFmpeg is
+    present. Evidence = path, never bytes.
     """
-    out = opts.get("out", DEFAULT_OUT)
+    out = os.path.abspath(opts.get("out", DEFAULT_OUT))  # the spec writes this path: it must not depend on a cwd
     name = opts.get("name", "simplicio-demo")
     issue = str(opts.get("issue", "x"))
     url = opts.get("url")
@@ -370,43 +388,28 @@ def cmd_record(opts):
     _emit_progress("begin", detail="video_evidence: %s (%s)" % (url or "no-url", name))
     if not url:
         _blocked(out, "the playwright engine needs --url (the screen to record) — or use --engine hyperframes")
-    if shutil.which("npx") is None:
-        _blocked(out, "Node.js/npx not found — the playwright video engine needs Node 22+ "
-                      "(or use --engine hyperframes)")
     width = int(opts.get("width", 1280))
     height = int(opts.get("height", 720))
     hold_ms = int(float(opts.get("seconds", 4.0)) * 1000)
     expect = opts.get("expect", "")
-    expect_line = ("await page.getByText(%r, {exact: false}).first().waitFor({timeout: 15000});"
-                   % expect) if expect else ""
+    expect_line = ("await page.getByText(%s, {exact: false}).first().waitFor({timeout: 15000});"
+                   % json.dumps(expect)) if expect else ""
     rec_dir = os.path.join(out, "%s-%s-pw" % (name, issue))
-    spec = PLAYWRIGHT_VIDEO_SPEC.format(url=url, width=width, height=height,
-                                        hold_ms=hold_ms, expect_line=expect_line)
-    spec_path = os.path.join(tempfile.gettempdir(), "video_evidence_pw.spec.js")
-    with open(spec_path, "w", encoding="utf-8") as f:
-        f.write(spec)
-    cmd = ["npx", "--yes", "playwright", "test", spec_path, "--output", rec_dir, "--reporter", "line"]
-    log("recording (playwright): %s" % " ".join(cmd))
-    r = _run(cmd, cwd=REPO)
-    if r is None:
-        _blocked(out, "npx not found — install Node.js 22+ for the playwright engine")
-    stderr = (r.stderr or "").lower()
-    if r.returncode != 0 and "playwright" in stderr and (
-            "not found" in stderr or "no module" in stderr or "install" in stderr):
-        _blocked(out, "Playwright not installed — run `npx playwright install --with-deps chromium`")
+    spec = PLAYWRIGHT_VIDEO_SPEC.format(url=json.dumps(url), hold_ms=hold_ms, expect_line=expect_line)
+    video = {"mode": "on", "size": {"width": width, "height": height}}  # Playwright writes one .webm per page
+    run = _playwright(spec, {"outputDir": rec_dir, "use": {"video": video}}, out)
     webms = sorted(glob.glob(os.path.join(rec_dir, "**", "*.webm"), recursive=True))
-    if not webms:
-        _blocked(out, "Playwright produced no video — the run failed before recording "
-                      "(is %s reachable?)" % url)
-    produced = webms[0]
-    mp4 = os.path.join(out, "%s-%s.mp4" % (name, issue))
-    if shutil.which("ffmpeg"):
+    ok = run.code == 0 and bool(webms)  # the session ran clean and Playwright left its recording
+    produced = webms[0] if webms else "(not produced)"
+    if ok and shutil.which("ffmpeg"):
+        mp4 = os.path.join(out, "%s-%s.mp4" % (name, issue))
         cv = _run(["ffmpeg", "-y", "-i", produced, mp4])
         if cv is not None and cv.returncode == 0 and os.path.exists(mp4):
             produced = mp4
-    ok = r.returncode == 0  # session ran clean (expect matched, no test failure)
     verdict = "video_evidence: %s — demo video (playwright) project=%s file=%s" % (
         "PASS" if ok else "FAIL", name, produced)
+    if not ok:
+        verdict += " — " + (run.failure if run.code != 0 else "Playwright passed but recorded no video")
     _append_ledger(out, verdict)
     print("done" if ok else "fail")
     log(verdict)

@@ -35,11 +35,13 @@ Per acceptance check: `browser_navigate(url)` → act (`browser_click` / `browse
 `browser_console_messages` + `browser_network_requests` for an error scan. Trace auto-written by
 `--save-trace`.
 
-**Fallback A — `npx playwright` (no MCP):**
+**Fallback A — the installed Playwright (no MCP, the default of `web_verify`):**
 ```bash
-npx playwright install --with-deps chromium
-PWTEST_OUTPUT_DIR=.simplicio-loop/orchestrator/tee/web npx playwright test --trace on --output .simplicio-loop/orchestrator/tee/web
+simplicio-loop setup     # installs and proves the pinned @playwright/test 1.64.1 + its Chromium (Node.js 22+ first)
 ```
+The tools live in `<state dir>/evidence-tools` (`simplicio_loop/evidence_tools.py`). Each run writes its spec and config
+into a folder under `evidence-tools/runs/` and runs that folder's own `playwright test`: nothing is fetched at run time,
+never `npx`. A tool that is not ready is BLOCKED with the fix; a failed check is FAIL with Playwright's own error.
 
 **Fallback B — playwright-python / pytest (Python repos, e.g. the Simplicio Agent repo, formerly hermes-agent):**
 ```bash
@@ -80,11 +82,11 @@ with screenshot+trace paths and 0 console errors, else FAIL." `web_verify` is th
 
 ## Runnable worker (`scripts/web_verify.py`)
 The prose above is the contract; `scripts/web_verify.py` is the runnable form. Two backends via
-`--runner`: `npx` (default, Fallback A) and `pytest` (Fallback B, playwright-python);
+`--runner`: `playwright` (default, Fallback A) and `pytest` (Fallback B, playwright-python);
 playwright-mcp stays the richer path when a worker has the MCP server:
 ```bash
 python3 scripts/web_verify.py detect --base origin/main [--exit-code]   # cheap FE-diff gate
-python3 scripts/web_verify.py run    --url URL --expect "Sign in" --issue 10 [--runner npx|pytest] [--upload --pr N]
+python3 scripts/web_verify.py run    --url URL --expect "Sign in" --issue 10 [--runner playwright|pytest] [--upload --pr N]
 python3 scripts/web_verify.py verify --url URL --expect TEXT --base origin/main --issue 10
 ```
 `verify` = detect + (run only if the diff is front-end, else a SKIP ledger note). It writes the
@@ -95,6 +97,6 @@ front-end PRs and uploads `.simplicio-loop/orchestrator/tee/web` via `actions/up
 `--upload --pr <N>` to `gh release upload` the artifacts and `gh pr comment` the links.
 
 ## Scope (v1 — don't over-engineer)
-Build: FE-diff detector · `web_verify` worker (playwright-mcp preferred, npx/pytest fallback) ·
+Build: FE-diff detector · `web_verify` worker (playwright-mcp preferred, installed-Playwright/pytest fallback) ·
 ledger row schema · the review rubric line. Skip: vision/coordinate caps, video, visual-diff
 baselines, multi-browser matrix. Single headless Chromium + screenshot + trace is sufficient proof.

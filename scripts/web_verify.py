@@ -14,8 +14,10 @@ Three verbs:
   run      Drive headless Chromium to a URL, assert --expect text is present, write a
            screenshot + trace + console scan under the evidence dir, append a ledger row, and
            print the one-line MACHINE-tier verdict. Two runnable backends via --runner:
-             npx     (default) `npx playwright test` — Fallback A in web-evidence.md
+             playwright (default) the spec runs on the installed Playwright of the loop's evidence
+                                  tools (`simplicio-loop setup`, simplicio_loop/evidence_tools.py), never `npx`
              pytest  `pytest` + playwright-python — Fallback B (Python repos)
+           A missing tool is BLOCKED with its fix; a failed check is FAIL with Playwright's own output.
            playwright-mcp is the richer path when a worker has the MCP server registered.
   verify   detect, then run only if the diff is front-end; otherwise record a SKIP ledger note.
            This is the gate the quality loop (Step 4b) calls.
@@ -29,9 +31,10 @@ CI artifact upload (the second half of issue #10):
 Usage:
     python3 scripts/web_verify.py detect [--base origin/main] [--exit-code]
     python3 scripts/web_verify.py run --url http://localhost:3000/login \\
-        --expect "Sign in" [--runner npx|pytest] [--out DIR] [--issue 10] [--upload --pr N]
+        --expect "Sign in" [--runner playwright|pytest] [--out DIR] [--issue 10] [--upload --pr N]
     python3 scripts/web_verify.py verify --url URL --expect TEXT [--base REF] [--issue N]
 """
+import json
 import os
 import re
 import shutil
@@ -109,16 +112,17 @@ def cmd_detect(opts):
         print("skip: no front-end files changed vs %s" % base)
 
 
-# self-contained @playwright/test spec — no project config needed (Fallback A, npx)
-NPX_SPEC = r"""
+# the spec of the default runner: one page, the expected text, a screenshot and the console errors. It runs on the installed
+# Playwright (evidence_tools) and its values are JSON literals, so no URL, path or text can break the JavaScript.
+PLAYWRIGHT_SPEC = r"""
 const {{ test, expect }} = require('@playwright/test');
 test('web_verify', async ({{ page }}) => {{
   const errors = [];
   page.on('console', m => {{ if (m.type() === 'error') errors.push(m.text()); }});
-  await page.goto({url!r}, {{ waitUntil: 'load', timeout: 30000 }});
+  await page.goto({url}, {{ waitUntil: 'load', timeout: 30000 }});
   {expect_line}
-  await page.screenshot({{ path: {shot!r}, fullPage: true }});
-  require('fs').writeFileSync({errlog!r}, JSON.stringify(errors, null, 2));
+  await page.screenshot({{ path: {shot}, fullPage: true }});
+  require('fs').writeFileSync({errlog}, JSON.stringify(errors, null, 2));
   expect(errors, 'console errors: ' + JSON.stringify(errors)).toHaveLength(0);
 }});
 """
@@ -168,8 +172,8 @@ def cmd_run(opts):
     _emit_progress("begin", detail="web_verify: %s" % url)
     expect = opts.get("expect", "")
     issue = str(opts.get("issue", "x"))
-    out = opts.get("out", DEFAULT_OUT)
-    runner = opts.get("runner", "npx")
+    out = os.path.abspath(opts.get("out", DEFAULT_OUT))  # the spec writes these paths: they must not depend on a cwd
+    runner = opts.get("runner", "playwright")
     os.makedirs(out, exist_ok=True)
     shot = os.path.join(out, "%s-web.png" % issue)
     trace_dir = os.path.join(out, "trace-%s" % issue)
@@ -177,38 +181,13 @@ def cmd_run(opts):
     errlog = os.path.join(out, "%s-console.json" % issue)
 
     if runner == "pytest":
-        expect_line = ("page.get_by_text(%r).first.wait_for(timeout=15000)" % expect) if expect else "pass"
-        spec = PY_SPEC.format(url=url, expect_line=expect_line, shot=shot,
-                              trace_zip=trace_zip, errlog=errlog)
-        spec_path = os.path.join(tempfile.gettempdir(), "test_web_verify.py")
-        with open(spec_path, "w", encoding="utf-8") as f:
-            f.write(spec)
-        cmd = ["pytest", spec_path, "-q"]
-        trace_ref = trace_zip
-    else:  # npx (default)
-        expect_line = ("await expect(page.getByText(%r, {exact: false}).first())"
-                       ".toBeVisible({timeout: 15000});" % expect) if expect else ""
-        spec = NPX_SPEC.format(url=url, expect_line=expect_line, shot=shot, errlog=errlog)
-        spec_path = os.path.join(tempfile.gettempdir(), "web_verify_spec.spec.js")
-        with open(spec_path, "w", encoding="utf-8") as f:
-            f.write(spec)
-        cmd = ["npx", "--yes", "playwright", "test", spec_path,
-               "--trace", "on", "--output", trace_dir, "--reporter", "line"]
-        trace_ref = trace_dir
-
-    log("running (%s): %s" % (runner, " ".join(cmd)))
-    r = _run(cmd, cwd=REPO)
-    if r is None:
-        _blocked(out, "%s not found on PATH — install the toolchain "
-                      "(npx: Node.js; pytest: `pip install pytest-playwright && playwright install`)"
-                      % cmd[0])
-    stderr = (r.stderr or "").lower()
-    if r.returncode != 0 and ("playwright" in stderr and ("not found" in stderr or "no module" in stderr)):
-        _blocked(out, "Playwright not installed — run "
-                      "`npx playwright install --with-deps chromium` (or `playwright install`)")
-    ok = r.returncode == 0
+        ok, trace_ref, failure = _run_pytest(url, expect, shot, trace_zip, errlog, out)
+    else:
+        ok, trace_ref, failure = _run_playwright(url, expect, shot, errlog, trace_dir, out)
     verdict = "web_verify: %s — %s (expect=%r, runner=%s) shot=%s trace=%s" % (
         "PASS" if ok else "FAIL", url, expect, runner, shot, trace_ref)
+    if failure:
+        verdict += " — " + failure
     _append_ledger(out, verdict)
     print("done" if ok else "fail")
     log(verdict)
@@ -217,6 +196,50 @@ def cmd_run(opts):
     if opts.get("upload") and opts.get("pr"):
         _upload(out, str(opts["pr"]), shot, trace_ref)
     sys.exit(0 if ok else 1)
+
+
+def _run_playwright(url, expect, shot, errlog, trace_dir, out):
+    """The default runner: the spec on the installed Playwright (evidence_tools), with a trace. Returns (ok, trace ref, failure)."""
+    expect_line = ("await expect(page.getByText(%s, {exact: false}).first())"
+                   ".toBeVisible({timeout: 15000});" % json.dumps(expect)) if expect else ""
+    spec = PLAYWRIGHT_SPEC.format(url=json.dumps(url), expect_line=expect_line, shot=json.dumps(shot),
+                                  errlog=json.dumps(errlog))
+    run = _playwright(spec, {"outputDir": trace_dir, "use": {"trace": "on"}}, out)
+    return run.code == 0, trace_dir, "" if run.code == 0 else run.failure
+
+
+def _playwright(spec, config, out):
+    """Run the spec on the installed Playwright: the SpecRun, or BLOCKED with the missing piece and its fix."""
+    try:
+        from simplicio_loop import evidence_tools
+        from simplicio_loop.self_update import default_state_dir
+    except ImportError as exc:
+        _blocked(out, "simplicio_loop is not importable (%s): run this worker with the loop's own python" % exc)
+    run = evidence_tools.run_spec(default_state_dir(), spec=spec, config=config, environ=os.environ)
+    if run.blocked is not None:
+        _blocked(out, run.blocked)
+    if run.code is None:
+        _blocked(out, "Playwright did not start or ran out of time")
+    return run
+
+
+def _run_pytest(url, expect, shot, trace_zip, errlog, out):
+    """The Fallback B runner (playwright-python under pytest). Returns (ok, trace ref, failure), the failure is not shown."""
+    expect_line = ("page.get_by_text(%r).first.wait_for(timeout=15000)" % expect) if expect else "pass"
+    spec = PY_SPEC.format(url=url, expect_line=expect_line, shot=shot, trace_zip=trace_zip, errlog=errlog)
+    spec_path = os.path.join(tempfile.gettempdir(), "test_web_verify.py")
+    with open(spec_path, "w", encoding="utf-8") as f:
+        f.write(spec)
+    cmd = ["pytest", spec_path, "-q"]
+    log("running (pytest): %s" % " ".join(cmd))
+    r = _run(cmd, cwd=REPO)
+    if r is None:
+        _blocked(out, "pytest not found on PATH — install the toolchain "
+                      "(`pip install pytest-playwright && playwright install`)")
+    stderr = (r.stderr or "").lower()
+    if r.returncode != 0 and ("playwright" in stderr and ("not found" in stderr or "no module" in stderr)):
+        _blocked(out, "Playwright not installed — run `playwright install` (pytest runner)")
+    return r.returncode == 0, trace_zip, ""
 
 
 def _upload(out, pr, shot, trace_ref):

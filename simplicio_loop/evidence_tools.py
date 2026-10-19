@@ -13,6 +13,11 @@ the Python environment: no Python package is on this path. Node.js itself is onl
 `step` probes, installs what is missing and, when asked (or after an install), proves the tools with a real run: a local
 page is opened, a screenshot is taken and a short clip is recorded. `probe_rows` gives `doctor` the same facts without
 installing anything or starting a browser.
+
+`run_spec` is how the evidence workers (web_verify, video_evidence) run their own specs on these tools. The spec, its
+config and its files go to a fresh folder under `<state dir>/evidence-tools/runs/`, which the run removes when it is over,
+and the project's own `playwright test --config` runs them. Nothing is fetched at that point: a tool that is missing or
+not ok blocks the run, and the block names the fix (`simplicio-loop setup`).
 """
 from __future__ import annotations
 
@@ -23,6 +28,7 @@ import shutil
 import subprocess
 import tempfile
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -32,33 +38,58 @@ from .prereqs import Action, Check
 MIN_NODE = 22  # references/video-evidence.md: "Node.js 22+"
 PLAYWRIGHT_VERSION = "1.64.1"  # the exact @playwright/test the evidence runs on; its Chromium build is the one it drives
 FOLDER = "evidence-tools"
+RUNS = "runs"  # <tools folder>/runs/<run>/: one run's spec, config and files, removed when the run is over
+SPEC_FILE, CONFIG_FILE = "evidence.spec.js", "playwright.config.js"
+TEST_TIMEOUT_MS = 120_000  # a page load (30 s) and its waits, with room; Playwright's own default test timeout is 30 s
 NODE, PLAYWRIGHT, CHROMIUM, CHECK = "evidence:node", "evidence:playwright", "evidence:chromium", "evidence:check"
 NODE_FIX = "install Node.js 22 or newer: https://nodejs.org, or `brew install node`"
 SETUP_FIX = "simplicio-loop setup"
 MARKER = "INSTALLATION_COMPLETE"  # Playwright writes it last, when a browser build is complete
-PROBE_S, INSTALL_S, PROOF_S = 60.0, 900.0, 300.0
+PROBE_S, INSTALL_S, PROOF_S, RUN_S = 60.0, 900.0, 300.0, 600.0
+EXCERPT = 600  # characters of a run's output shown on one line: enough for Playwright's failure and its call log
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 _NODE_VERSION = re.compile(r"\s*v?(\d+)\.(\d+)(?:\.(\d+))?")
 _HEADER = re.compile(r"^\s*(?P<label>[^()\n]+?)\s*\(playwright chromium v(?P<build>\d+)\)\s*$", re.MULTILINE)
 _LOCATION = re.compile(r"Install location:\s*(?P<path>\S.*?)\s*$", re.MULTILINE)
 PAGE = ('<!doctype html>\n<html><head><meta charset="utf-8"><title>simplicio evidence check</title></head>\n'
         "<body><h1>simplicio evidence check</h1></body></html>\n")
-SPEC = """const { test, expect } = require('@playwright/test');
+# the proof's spec: `{shot}` is the screenshot's absolute path (JSON); the braces of the JS are doubled for str.format
+SPEC = """const {{ test, expect }} = require('@playwright/test');
 const path = require('path');
-const { pathToFileURL } = require('url');
+const {{ pathToFileURL }} = require('url');
 
-test.use({ video: { mode: 'on', size: { width: 640, height: 360 } } });
-
-test('evidence check', async ({ page }) => {
-  await page.goto(pathToFileURL(path.join(__dirname, 'page.html')).href, { waitUntil: 'load', timeout: 30000 });
-  await expect(page.getByText('simplicio evidence check')).toBeVisible({ timeout: 15000 });
-  await page.screenshot({ path: path.join(__dirname, 'shot.png'), fullPage: true });
+test('evidence check', async ({{ page }}) => {{
+  await page.goto(pathToFileURL(path.join(__dirname, 'page.html')).href, {{ waitUntil: 'load', timeout: 30000 }});
+  await expect(page.getByText('simplicio evidence check')).toBeVisible({{ timeout: 15000 }});
+  await page.screenshot({{ path: {shot}, fullPage: true }});
   await page.waitForTimeout(500);
-});
+}});
 """
 
 Run = Callable[..., tuple[Optional[int], str]]
 Which = Callable[[str], Optional[str]]
+
+
+@dataclass(frozen=True)
+class SpecRun:
+    """What one spec run came to. `blocked` names what is missing (the fix included) and nothing ran; otherwise `code` is
+    Playwright's exit code (None: it did not start or ran out of time) and `output` the end of what it printed."""
+
+    blocked: Optional[str]
+    code: Optional[int]
+    output: str
+
+    @property
+    def failure(self) -> str:
+        return excerpt(self.output)
+
+
+def excerpt(output: str) -> str:
+    """A run's failure on one line: from the first `Error:` line (what Playwright says went wrong), else the output's end."""
+    at = output.find("Error:")
+    if at >= 0:
+        return " ".join(output[at:].split())[:EXCERPT]
+    return " ".join(output.split())[-EXCERPT:]
 
 
 def execute(argv: Sequence[object], timeout: float, cwd: Optional[Path] = None,
@@ -93,10 +124,6 @@ def _env(environ: Mapping[str, str], node: Optional[str], *, install: bool) -> d
 
 def _state(code: Optional[int]) -> str:
     return "did not start or ran out of time" if code is None else f"exit {code}"
-
-
-def _tail(text: str) -> str:
-    return " ".join(text.split())[-300:]
 
 
 def browser_location(text: str) -> Optional[tuple[str, str, str]]:
@@ -191,7 +218,7 @@ def _install_package(project: Path, npm: Optional[str], env: Mapping[str, str], 
         return Action(PLAYWRIGHT, "failed", f"cannot write {project}: {exc.strerror or exc}")
     code, text = run([npm, "install", "--no-audit", "--no-fund", "--loglevel=error"], INSTALL_S, cwd=project, env=env)
     if code != 0:
-        return Action(PLAYWRIGHT, "failed", f"`npm install` in {project} did not finish ({_state(code)}): {_tail(text)}")
+        return Action(PLAYWRIGHT, "failed", f"`npm install` in {project} did not finish ({_state(code)}): {excerpt(text)}")
     return Action(PLAYWRIGHT, "installed", f"@playwright/test {PLAYWRIGHT_VERSION} in {project}")
 
 
@@ -200,7 +227,7 @@ def _install_browser(project: Path, env: Mapping[str, str], run: Run, dry_run: b
         return Action(CHROMIUM, "would-install", f"the Chromium build of @playwright/test {PLAYWRIGHT_VERSION}")
     code, text = run([_bin(project), "install", "chromium"], INSTALL_S, cwd=project, env=env)
     if code != 0:
-        return Action(CHROMIUM, "failed", f"`playwright install chromium` did not finish ({_state(code)}): {_tail(text)}")
+        return Action(CHROMIUM, "failed", f"`playwright install chromium` did not finish ({_state(code)}): {excerpt(text)}")
     return Action(CHROMIUM, "installed", f"the Chromium build of @playwright/test {PLAYWRIGHT_VERSION}")
 
 
@@ -227,34 +254,78 @@ def install_missing(state_dir: Path, checks: Sequence[Check], *, environ: Mappin
     return actions
 
 
-# --- proving ---------------------------------------------------------------------------------------------------------
+# --- running specs and proving ----------------------------------------------------------------------------------------
+
+
+def _run_in_folder(project: Path, *, spec: str, config: Mapping[str, object], files: Mapping[str, str],
+                   environ: Mapping[str, str], node_path: Optional[str], run: Run, timeout: float) -> tuple[Optional[int], str]:
+    """Write one run into a fresh folder under the project's runs/, run the project's own `playwright test` on its config,
+    and remove the folder. The spec, its files and its config sit beside each other, so `@playwright/test` resolves from the
+    project's node_modules, and the config names the run's folder as the test directory: nothing is searched outside it."""
+    runs = project / RUNS
+    runs.mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix="run-", dir=runs))
+    try:
+        (work / SPEC_FILE).write_text(spec, encoding="utf-8")
+        for name, text in files.items():
+            (work / name).write_text(text, encoding="utf-8")
+        settings = {"testDir": str(work), "reporter": "line", "workers": 1, "timeout": TEST_TIMEOUT_MS, **config}
+        config_path = work / CONFIG_FILE
+        config_path.write_text("module.exports = %s;\n" % json.dumps(settings, indent=2), encoding="utf-8")
+        return run([_bin(project), "test", "--config", config_path], timeout, cwd=project,
+                   env=_env(environ, node_path, install=False))
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def _blocker(checks: Sequence[Check]) -> Optional[str]:
+    """The first tool that is not ok, as one sentence with the fix `setup` acts on; None when every tool is ready."""
+    bad = next((check for check in checks if check.status != "ok"), None)
+    if bad is None:
+        return None
+    return f"{_summary(bad)}: {bad.fix}" if bad.fix else _summary(bad)
+
+
+def run_spec(state_dir: Path, *, spec: str, config: Mapping[str, object], environ: Mapping[str, str],
+             files: Optional[Mapping[str, str]] = None, which: Optional[Which] = None, run: Optional[Run] = None,
+             timeout: float = RUN_S) -> SpecRun:
+    """Run one Playwright spec on the installed tools: the probe first, then the run. Never `npx`, never a fetched version.
+
+    `config` holds the Playwright options the spec needs (`outputDir`, `use`...) and `files` what it reads beside it. A tool
+    that is missing or not ok blocks the run before anything is written; a run folder that cannot be written blocks it too."""
+    run = run or execute
+    checks = check_all(state_dir, environ=environ, which=which or setup_hardening.safe_which(environ), run=run)
+    blocked = _blocker(checks)
+    if blocked is not None:
+        return SpecRun(blocked, None, "")
+    try:
+        code, output = _run_in_folder(folder(state_dir), spec=spec, config=config, files=files or {}, environ=environ,
+                                      node_path=checks[0].path, run=run, timeout=timeout)
+    except OSError as exc:
+        return SpecRun(f"cannot write the run folder under {folder(state_dir) / RUNS}: {exc.strerror or exc}", None, "")
+    return SpecRun(None, code, output)
 
 
 def prove(state_dir: Path, *, environ: Mapping[str, str], run: Run, node_path: Optional[str]) -> Action:
     """A real run: a local page is opened, a screenshot is taken and a short clip is recorded. Nothing of it is kept."""
     project = folder(state_dir)
-    work: Optional[Path] = None
     try:
-        work = Path(tempfile.mkdtemp(prefix="check-", dir=project))  # inside the project: its @playwright/test resolves
-        (work / "page.html").write_text(PAGE, encoding="utf-8")
-        spec = work / "evidence_check.spec.js"
-        spec.write_text(SPEC, encoding="utf-8")
-        out = work / "out"
-        code, text = run([_bin(project), "test", spec, "--output", out, "--reporter", "line", "--workers", "1"], PROOF_S,
-                         cwd=project, env=_env(environ, node_path, install=False))
-        shot, clips = work / "shot.png", sorted(out.rglob("*.webm"))
-        if code != 0:
-            return Action(CHECK, "failed", f"the browser check did not pass ({_state(code)}): {_tail(text)}")
-        if not (shot.is_file() and shot.read_bytes()[:8] == PNG_SIGNATURE):
-            return Action(CHECK, "failed", "the browser check passed but no screenshot was taken")
-        if not clips or clips[0].stat().st_size == 0:
-            return Action(CHECK, "failed", "the browser check passed but no clip was recorded")
-        return Action(CHECK, "validated", f"screenshot {shot.stat().st_size} bytes, clip {clips[0].stat().st_size} bytes")
+        with tempfile.TemporaryDirectory(prefix="check-", dir=project) as scratch:  # inside the project: its @playwright/test resolves
+            shot, out = Path(scratch) / "shot.png", Path(scratch) / "out"
+            code, text = _run_in_folder(
+                project, spec=SPEC.format(shot=json.dumps(str(shot))), files={"page.html": PAGE},
+                config={"outputDir": str(out), "use": {"video": {"mode": "on", "size": {"width": 640, "height": 360}}}},
+                environ=environ, node_path=node_path, run=run, timeout=PROOF_S)
+            clips = sorted(out.rglob("*.webm"))
+            if code != 0:
+                return Action(CHECK, "failed", f"the browser check did not pass ({_state(code)}): {excerpt(text)}")
+            if not (shot.is_file() and shot.read_bytes()[:8] == PNG_SIGNATURE):
+                return Action(CHECK, "failed", "the browser check passed but no screenshot was taken")
+            if not clips or clips[0].stat().st_size == 0:
+                return Action(CHECK, "failed", "the browser check passed but no clip was recorded")
+            return Action(CHECK, "validated", f"screenshot {shot.stat().st_size} bytes, clip {clips[0].stat().st_size} bytes")
     except OSError as exc:
         return Action(CHECK, "failed", f"could not run the browser check: {exc.strerror or exc}")
-    finally:
-        if work is not None:
-            shutil.rmtree(work, ignore_errors=True)
 
 
 # --- the steps -------------------------------------------------------------------------------------------------------

@@ -7,6 +7,7 @@ state of the machine is reachable in a temp folder.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -29,14 +30,27 @@ Chrome Headless Shell 156.0.8078.4 (playwright chromium-headless-shell v1248)
 """
 
 
-class FakeMachine:
-    """Answers like the real commands: `node --version`, `npm install`, `playwright install`, `playwright test`."""
+def read_config(path: Path) -> dict:
+    """The settings a run's config file carries: `module.exports = {...};` where the object is JSON."""
+    text = path.read_text(encoding="utf-8")
+    assert text.startswith("module.exports = ") and text.rstrip().endswith(";"), text
+    return json.loads(text[len("module.exports = "):].rstrip()[:-1])
 
-    def __init__(self, tmp: Path, *, node="v26.0.0", npm_exit=0, browser_exit=0, test_exit=0, proof="full"):
+
+class FakeMachine:
+    """Answers like the real commands: `node --version`, `npm install`, `playwright install`, `playwright test --config`.
+
+    Every `playwright test` run is recorded in `specs` with the spec text, the config and the argv, read while its run folder
+    still exists (the runner removes that folder when the run is over)."""
+
+    def __init__(self, tmp: Path, *, node="v26.0.0", npm_exit=0, browser_exit=0, test_exit=0, test_text=None,
+                 test_hangs=False, proof="full"):
         self.cache = tmp / "ms-playwright"
-        self.node, self.npm_exit, self.browser_exit, self.test_exit, self.proof = node, npm_exit, browser_exit, test_exit, proof
+        self.node, self.npm_exit, self.browser_exit = node, npm_exit, browser_exit
+        self.test_exit, self.test_text, self.test_hangs, self.proof = test_exit, test_text, test_hangs, proof
         self.calls: list[list[str]] = []
         self.envs: list[dict] = []
+        self.specs: list[dict] = []
 
     def which(self, name: str):
         if name == "node" and self.node is None:
@@ -70,16 +84,22 @@ class FakeMachine:
                 (build / "INSTALLATION_COMPLETE").write_text("")
                 return 0, "chromium-1248 installed"
             if argv[1] == "test":
+                config_path = Path(argv[argv.index("--config") + 1])
+                config = read_config(config_path)
+                spec = (config_path.parent / ev.SPEC_FILE).read_text(encoding="utf-8")
+                self.specs.append({"argv": argv, "cwd": str(cwd), "config": config, "spec": spec})
+                if self.test_hangs:
+                    return None, ""
                 if self.test_exit:
-                    return self.test_exit, "Error: Executable doesn't exist at chromium-1248"
-                spec = Path(argv[2])
-                if self.proof in ("full", "no-clip"):
-                    (spec.parent / "shot.png").write_bytes(PNG)
+                    return self.test_exit, self.test_text or "Error: Executable doesn't exist at chromium-1248"
+                shot = re.search(r'path: ("[^"]+\.png")', spec)
+                if shot and self.proof in ("full", "no-clip"):
+                    Path(json.loads(shot.group(1))).write_bytes(PNG)
                 if self.proof == "full":
-                    out = Path(argv[argv.index("--output") + 1]) / "evidence-check-chromium" / "video.webm"
+                    out = Path(config["outputDir"]) / "evidence-check-chromium" / "video.webm"
                     out.parent.mkdir(parents=True, exist_ok=True)
                     out.write_bytes(b"\x1aE\xdf\xa3" + b"0" * 64)
-                return 0, "1 passed"
+                return 0, self.test_text or "1 passed"
         return None, ""
 
 
@@ -232,7 +252,8 @@ def test_the_proof_passes_only_with_a_png_screenshot_and_a_webm_clip(tmp_path):
     proof = next(a for a in actions if a.name == ev.CHECK)
     assert proof.result == "validated" and "screenshot" in proof.detail and "clip" in proof.detail
     run_argv = next(argv for argv in machine.calls if argv[1:2] == ["test"])
-    assert run_argv[3] == "--output" and run_argv[5:] == ["--reporter", "line", "--workers", "1"]  # a headless run, one worker
+    assert run_argv[1:3] == ["test", "--config"] and len(run_argv) == 4  # the folder's own runner, driven by its config
+    assert machine.specs[0]["config"]["reporter"] == "line" and machine.specs[0]["config"]["workers"] == 1  # headless, one worker
 
 
 @pytest.mark.parametrize("proof,words", [("no-clip", "clip"), ("none", "screenshot")])
@@ -276,3 +297,132 @@ def test_probe_rows_are_ok_with_the_version_or_warn_with_the_fix_and_install_not
     rows = ev.probe_rows(state, environ=environ_for(tmp_path), which=machine.which, run=machine.run)
     assert [r["status"] for r in rows] == ["ok", "ok", "ok"]
     assert PIN in rows[1]["summary"] and "156.0.8078.4" in rows[2]["summary"] and rows[2]["fix"] is None
+
+
+# --- running a spec on the installed toolchain (the evidence workers call run_spec) ----------------------------------
+
+SPEC = "const { test } = require('@playwright/test');\ntest('demo', async () => {});\n"
+
+
+def installed_state(tmp_path: Path, machine: FakeMachine) -> Path:
+    """`setup` has installed and proven the tools in a fresh state folder."""
+    state = tmp_path / "state"
+    ev.step(state, environ=environ_for(tmp_path), which=machine.which, run=machine.run, dry_run=False, validate=True)
+    machine.calls.clear()
+    machine.specs.clear()
+    return state
+
+
+def spec_run(tmp_path: Path, machine: FakeMachine, state: Path, **overrides) -> ev.SpecRun:
+    options = {"spec": SPEC, "config": {"outputDir": str(tmp_path / "out")}, "environ": environ_for(tmp_path),
+               "which": machine.which, "run": machine.run}
+    return ev.run_spec(state, **{**options, **overrides})
+
+
+def test_a_spec_runs_with_the_playwright_installed_in_the_tools_folder_and_never_npx(tmp_path):
+    machine = FakeMachine(tmp_path)
+    state = installed_state(tmp_path, machine)
+    result = spec_run(tmp_path, machine, state)
+    assert (result.blocked, result.code) == (None, 0), result
+    [run] = machine.specs
+    assert run["argv"][0] == str(ev.folder(state) / "node_modules" / ".bin" / "playwright")  # the pinned local runner
+    assert run["argv"][1:3] == ["test", "--config"] and run["cwd"] == str(ev.folder(state))
+    assert not any(Path(argv[0]).name == "npx" for argv in machine.calls)  # no `npx --yes` fetch of an arbitrary version
+
+
+def test_the_spec_and_its_config_sit_in_a_fresh_run_folder_under_the_tools_folder(tmp_path):
+    machine = FakeMachine(tmp_path)
+    state = installed_state(tmp_path, machine)
+    spec_run(tmp_path, machine, state)
+    [run] = machine.specs
+    config_path = Path(run["argv"][run["argv"].index("--config") + 1])
+    assert config_path.name == ev.CONFIG_FILE and config_path.parent.parent == ev.folder(state) / ev.RUNS
+    assert run["spec"] == SPEC  # the spec is written as given, beside its config
+    assert run["config"]["testDir"] == str(config_path.parent)  # the spec is found in its own folder, not by the cwd
+    assert not config_path.parent.exists()  # and the folder is gone when the run is over
+
+
+def test_the_config_carries_the_callers_options_with_the_runner_defaults(tmp_path):
+    machine = FakeMachine(tmp_path)
+    state = installed_state(tmp_path, machine)
+    out = str(tmp_path / "out")
+    use = {"video": {"mode": "on", "size": {"width": 640, "height": 360}}}
+    spec_run(tmp_path, machine, state, config={"outputDir": out, "use": use})
+    settings = machine.specs[0]["config"]
+    assert settings["outputDir"] == out and settings["use"] == use
+    assert settings["reporter"] == "line" and settings["workers"] == 1
+    assert settings["timeout"] == ev.TEST_TIMEOUT_MS >= 120_000  # goto (30 s) and the waits must not hit Playwright's 30 s default
+
+
+def test_the_run_folder_is_removed_even_when_the_run_fails(tmp_path):
+    machine = FakeMachine(tmp_path)
+    state = installed_state(tmp_path, machine)
+    machine.test_exit = 1
+    assert spec_run(tmp_path, machine, state).code == 1
+    assert list((ev.folder(state) / ev.RUNS).iterdir()) == []
+
+
+def test_a_failed_run_hands_back_the_real_failure_printed_by_playwright(tmp_path):
+    machine = FakeMachine(tmp_path)
+    state = installed_state(tmp_path, machine)
+    machine.test_exit, machine.test_text = 1, "Error: No tests found.\nMake sure that arguments are regular expressions"
+    result = spec_run(tmp_path, machine, state)
+    assert (result.blocked, result.code) == (None, 1)
+    assert "Error: No tests found." in result.failure and "reachable" not in result.failure
+
+
+def test_a_run_that_does_not_start_or_runs_out_of_time_has_no_exit_code(tmp_path):
+    machine = FakeMachine(tmp_path)
+    state = installed_state(tmp_path, machine)
+    machine.test_hangs = True
+    result = spec_run(tmp_path, machine, state)
+    assert result.blocked is None and result.code is None
+
+
+def test_a_run_is_blocked_without_writing_anything_when_node_is_missing(tmp_path):
+    machine = FakeMachine(tmp_path)
+    state = installed_state(tmp_path, machine)
+    machine.node = None
+    result = spec_run(tmp_path, machine, state)
+    assert result.code is None and "Node.js" in result.blocked
+    assert machine.specs == [] and not any(argv[1:2] == ["test"] for argv in machine.calls)
+
+
+def test_a_run_is_blocked_naming_the_playwright_that_is_not_installed(tmp_path):
+    machine = FakeMachine(tmp_path)
+    result = spec_run(tmp_path, machine, tmp_path / "state")
+    assert result.code is None and result.blocked.startswith("@playwright/test is not installed")
+    assert result.blocked.endswith("simplicio-loop setup")
+    assert not any(argv[1:2] == ["test"] for argv in machine.calls)
+
+
+def test_a_run_is_blocked_naming_the_browser_when_only_the_browser_is_missing(tmp_path):
+    machine = FakeMachine(tmp_path)
+    state = tmp_path / "state"
+    machine.run(["npm"], 1, cwd=ev.folder(state))  # the pinned package is in place, its browser is not
+    result = spec_run(tmp_path, machine, state)
+    assert result.code is None and result.blocked.startswith("Chromium is not installed")
+    assert not any(argv[1:2] == ["test"] for argv in machine.calls)
+
+
+def test_a_run_folder_that_cannot_be_written_is_blocked_with_the_os_error(tmp_path):
+    machine = FakeMachine(tmp_path)
+    state = installed_state(tmp_path, machine)
+    (ev.folder(state) / ev.RUNS).rmdir()
+    (ev.folder(state) / ev.RUNS).write_text("not a folder")  # a read-only state folder fails the same way
+    result = spec_run(tmp_path, machine, state)
+    assert result.code is None and result.blocked.startswith("cannot write")
+    assert str(ev.folder(state)) in result.blocked
+    assert not any(argv[1:2] == ["test"] for argv in machine.calls)
+
+
+def test_the_excerpt_of_a_run_starts_at_the_error_playwright_prints_and_is_one_line():
+    # Playwright's line reporter ends a failure with its trace hint: the error line itself is what the ledger must show
+    output = "progress\n" + "x" * 2000 + "\nError: page.goto: net::ERR_CONNECTION_REFUSED at http://x/\nCall log:\n  - navigating"
+    failure = ev.excerpt(output)
+    assert failure.startswith("Error: page.goto: net::ERR_CONNECTION_REFUSED") and "\n" not in failure and len(failure) <= 600
+
+
+def test_without_an_error_line_the_excerpt_is_the_end_of_the_output():
+    excerpt = ev.excerpt("npm ERR! something\n" + "x" * 2000 + "\nthe end\n")
+    assert excerpt.endswith("the end") and "\n" not in excerpt and len(excerpt) <= 600

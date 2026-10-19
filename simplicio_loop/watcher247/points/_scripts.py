@@ -20,6 +20,17 @@ def script_path(name: str) -> Path | None:
     return path if path.is_file() else None
 
 
+def load_script(name: str):
+    """The module of scripts/<name>, imported from the checkout so the point uses the worker's own matchers; None when absent."""
+    path = script_path(name)
+    if path is None:
+        return None
+    spec = importlib.util.spec_from_file_location(f"_scripts_{path.stem}", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 async def sandboxed(argv: list[str], *, clone: Path, state_dir: Path, timeout: float) -> proc.Result:
     """Run argv in the clone under the sandbox with the scrubbed env.
 
@@ -43,12 +54,9 @@ async def changed_files(ctx: PointContext) -> tuple[list[str], str | None]:
 
 def frontend_files(files: list[str]) -> list[str]:
     """The files FE_RE of scripts/web_verify.py matches (imported, not copied)."""
-    path = script_path("web_verify.py")
-    if path is None:
+    module = load_script("web_verify.py")
+    if module is None:
         return []
-    spec = importlib.util.spec_from_file_location("_scripts_web_verify", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
     pattern: re.Pattern = module.FE_RE
     return [f for f in files if pattern.search(f)]
 

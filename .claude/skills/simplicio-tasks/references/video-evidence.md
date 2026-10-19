@@ -44,8 +44,10 @@ The normal evidence path. `video_evidence verify` (no `--engine`) records the li
    `.webm` is kept — both are real recordings), appends the ledger row, and prints the verdict.
 3. `--upload --pr N` attaches the file to the PR as a link (never bytes).
 
-Requirements (preflighted; BLOCK if absent): **Node.js 22+** + **Playwright** (`npx playwright
-install --with-deps chromium`). FFmpeg is optional (it only transcodes `.webm` → `.mp4`).
+Requirements (preflighted; BLOCK if absent): **Node.js 22+** and the evidence tools that `simplicio-loop setup` installs
+(the pinned `@playwright/test` and its Chromium, `simplicio_loop/evidence_tools.py`); the session runs on them, never `npx`.
+FFmpeg is optional (it only transcodes `.webm` → `.mp4`). The 247 watcher's video point follows the same rule: Playwright
+on the app URL (`SIMPLICIO_247_WEB_VERIFY_URL`) for a front-end change; hyperframes only for an explicit explainer request.
 
 ## The custom-explainer flow — hyperframes slideshow
 Only when the work-item or skill argument explicitly asks for a demo/explainer video. hyperframes
