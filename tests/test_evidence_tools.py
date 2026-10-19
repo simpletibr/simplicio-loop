@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -43,10 +44,11 @@ class FakeMachine:
     Every `playwright test` run is recorded in `specs` with the spec text, the config and the argv, read while its run folder
     still exists (the runner removes that folder when the run is over)."""
 
-    def __init__(self, tmp: Path, *, node="v26.0.0", npm_exit=0, browser_exit=0, test_exit=0, test_text=None,
+    def __init__(self, tmp: Path, *, node="v26.0.0", npm_exit=0, hyperframes_exit=0, browser_exit=0, test_exit=0, test_text=None,
                  test_hangs=False, proof="full"):
         self.cache = tmp / "ms-playwright"
         self.node, self.npm_exit, self.browser_exit = node, npm_exit, browser_exit
+        self.hyperframes_exit = hyperframes_exit
         self.test_exit, self.test_text, self.test_hangs, self.proof = test_exit, test_text, test_hangs, proof
         self.calls: list[list[str]] = []
         self.envs: list[dict] = []
@@ -65,6 +67,15 @@ class FakeMachine:
         if head == "node":
             return (0, f"{self.node}\n") if self.node else (None, "")
         if head == "npm":
+            if Path(cwd).name == ev.HYPERFRAMES_FOLDER:  # the explainer's own project, pinned and installed on its own
+                if self.hyperframes_exit:
+                    return self.hyperframes_exit, "npm ERR! network request failed"
+                pkg = Path(cwd) / "node_modules" / "hyperframes"
+                pkg.mkdir(parents=True, exist_ok=True)
+                (pkg / "package.json").write_text(json.dumps({"name": "hyperframes", "version": ev.HYPERFRAMES_VERSION}))
+                (Path(cwd) / "node_modules" / ".bin").mkdir(parents=True, exist_ok=True)
+                (Path(cwd) / "node_modules" / ".bin" / "hyperframes").write_text("#!/bin/sh\n")
+                return 0, "added 1 package"
             if self.npm_exit:
                 return self.npm_exit, "npm ERR! network request failed"
             pkg = Path(cwd) / "node_modules" / "@playwright" / "test"
@@ -181,10 +192,12 @@ def test_missing_tools_are_installed_in_the_loop_folder_then_proven(tmp_path):
     state = tmp_path / "state"
     checks, actions = ev.step(state, environ=environ_for(tmp_path), which=machine.which, run=machine.run,
                               dry_run=False, validate=True)
-    assert [(a.name, a.result) for a in actions] == [(ev.PLAYWRIGHT, "installed"), (ev.CHROMIUM, "installed"), (ev.CHECK, "validated")]
+    assert [(a.name, a.result) for a in actions] == [(ev.PLAYWRIGHT, "installed"), (ev.CHROMIUM, "installed"),
+                                                     (ev.HYPERFRAMES, "installed"), (ev.CHECK, "validated")]
     assert all(c.status == "ok" for c in checks), checks
     package = json.loads((ev.folder(state) / "package.json").read_text())
     assert package["dependencies"] == {"@playwright/test": PIN}  # the exact pin, not a range
+    assert json.loads((ev.hyperframes_folder(state) / "package.json").read_text())["dependencies"] == {"hyperframes": ev.HYPERFRAMES_VERSION}
     npm = next(call for call in machine.calls if Path(call[0]).name == "npm")
     assert npm[1] == "install" and "--prefix" not in npm  # run inside the loop folder
     assert [Path(c[0]).name for c in machine.calls].count("playwright") == 3  # browser install, dry-run probe, validation run
@@ -226,7 +239,8 @@ def test_a_dry_run_installs_nothing_and_starts_no_browser(tmp_path):
     machine = FakeMachine(tmp_path)
     _, actions = ev.step(tmp_path / "state", environ=environ_for(tmp_path), which=machine.which, run=machine.run,
                          dry_run=True, validate=True)
-    assert [(a.name, a.result) for a in actions] == [(ev.PLAYWRIGHT, "would-install"), (ev.CHROMIUM, "would-install")]
+    assert [(a.name, a.result) for a in actions] == [(ev.PLAYWRIGHT, "would-install"), (ev.CHROMIUM, "would-install"),
+                                                     (ev.HYPERFRAMES, "would-install")]
     assert not any(Path(argv[0]).name == "npm" for argv in machine.calls)
     assert not any(argv[1:2] == ["test"] for argv in machine.calls)
 
@@ -288,15 +302,18 @@ def test_probe_rows_are_ok_with_the_version_or_warn_with_the_fix_and_install_not
     machine = FakeMachine(tmp_path)
     state = tmp_path / "state"
     rows = ev.probe_rows(state, environ=environ_for(tmp_path), which=machine.which, run=machine.run)
-    assert [(r["name"], r["status"]) for r in rows] == [(ev.NODE, "ok"), (ev.PLAYWRIGHT, "warn"), (ev.CHROMIUM, "warn")]
+    assert [(r["name"], r["status"]) for r in rows] == [(ev.NODE, "ok"), (ev.PLAYWRIGHT, "warn"), (ev.CHROMIUM, "warn"),
+                                                        (ev.HYPERFRAMES, "warn")]
     assert all(r["fix"] for r in rows if r["status"] == "warn") and rows[0]["summary"].startswith("node 26.0.0")
     assert not any(Path(argv[0]).name == "npm" or argv[1:2] == ["test"] for argv in machine.calls)
     machine.run(["npm"], 1, cwd=ev.folder(state))  # lays down the folder the install would make: the pin and the bin
+    machine.run(["npm"], 1, cwd=ev.hyperframes_folder(state))
     (machine.cache / "chromium-1248").mkdir(parents=True)
     (machine.cache / "chromium-1248" / "INSTALLATION_COMPLETE").write_text("")
     rows = ev.probe_rows(state, environ=environ_for(tmp_path), which=machine.which, run=machine.run)
-    assert [r["status"] for r in rows] == ["ok", "ok", "ok"]
+    assert [r["status"] for r in rows] == ["ok", "ok", "ok", "ok"]
     assert PIN in rows[1]["summary"] and "156.0.8078.4" in rows[2]["summary"] and rows[2]["fix"] is None
+    assert ev.HYPERFRAMES_VERSION in rows[3]["summary"]
 
 
 # --- running a spec on the installed toolchain (the evidence workers call run_spec) ----------------------------------
@@ -309,6 +326,7 @@ def installed_state(tmp_path: Path, machine: FakeMachine) -> Path:
     state = tmp_path / "state"
     ev.step(state, environ=environ_for(tmp_path), which=machine.which, run=machine.run, dry_run=False, validate=True)
     machine.calls.clear()
+    machine.envs.clear()
     machine.specs.clear()
     return state
 
@@ -326,20 +344,57 @@ def test_a_spec_runs_with_the_playwright_installed_in_the_tools_folder_and_never
     assert (result.blocked, result.code) == (None, 0), result
     [run] = machine.specs
     assert run["argv"][0] == str(ev.folder(state) / "node_modules" / ".bin" / "playwright")  # the pinned local runner
-    assert run["argv"][1:3] == ["test", "--config"] and run["cwd"] == str(ev.folder(state))
+    assert run["argv"][1:3] == ["test", "--config"]
+    assert run["cwd"] == str(Path(run["argv"][run["argv"].index("--config") + 1]).parent)  # the run's own folder, not the tools folder
     assert not any(Path(argv[0]).name == "npx" for argv in machine.calls)  # no `npx --yes` fetch of an arbitrary version
 
 
-def test_the_spec_and_its_config_sit_in_a_fresh_run_folder_under_the_tools_folder(tmp_path):
+def test_the_spec_and_its_config_sit_in_a_fresh_run_folder_in_the_temp_dir_and_not_in_the_tools_folder(tmp_path, monkeypatch):
     machine = FakeMachine(tmp_path)
     state = installed_state(tmp_path, machine)
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    monkeypatch.setattr(tempfile, "tempdir", str(scratch))  # where the run folder is made
     spec_run(tmp_path, machine, state)
     [run] = machine.specs
     config_path = Path(run["argv"][run["argv"].index("--config") + 1])
-    assert config_path.name == ev.CONFIG_FILE and config_path.parent.parent == ev.folder(state) / ev.RUNS
+    assert config_path.name == ev.CONFIG_FILE and config_path.parent.parent == scratch
     assert run["spec"] == SPEC  # the spec is written as given, beside its config
     assert run["config"]["testDir"] == str(config_path.parent)  # the spec is found in its own folder, not by the cwd
     assert not config_path.parent.exists()  # and the folder is gone when the run is over
+
+
+def set_writable(root: Path, writable: bool) -> None:
+    """Every file and folder of the tree: owner-writable again, or read-only for everyone (what a read-only state folder is)."""
+    for path in [root, *root.rglob("*")]:
+        if not path.is_symlink():
+            mode = path.stat().st_mode
+            path.chmod(mode | 0o200 if writable else mode & ~0o222)
+
+
+def test_a_run_works_with_a_read_only_tools_folder_and_adds_nothing_to_it(tmp_path, monkeypatch):
+    machine = FakeMachine(tmp_path)
+    state = installed_state(tmp_path, machine)
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    monkeypatch.setattr(tempfile, "tempdir", str(scratch))
+    before = sorted(str(p) for p in ev.folder(state).rglob("*"))
+    set_writable(state, False)  # the 24/7 sandbox binds the state folder read-only
+    try:
+        result = spec_run(tmp_path, machine, state)
+    finally:
+        set_writable(state, True)
+    assert (result.blocked, result.code) == (None, 0), result
+    assert sorted(str(p) for p in ev.folder(state).rglob("*")) == before
+    assert list(scratch.iterdir()) == []  # the run folder is removed when the run is over
+
+
+def test_the_spec_finds_the_pinned_playwright_through_node_path_in_the_tools_folder(tmp_path):
+    machine = FakeMachine(tmp_path)
+    state = installed_state(tmp_path, machine)
+    spec_run(tmp_path, machine, state)  # the run folder is outside the tools folder, so @playwright/test is found on NODE_PATH
+    index = [argv[1:2] for argv in machine.calls].index(["test"])
+    assert machine.envs[index]["NODE_PATH"] == str(ev.folder(state) / "node_modules")
 
 
 def test_the_config_carries_the_callers_options_with_the_runner_defaults(tmp_path):
@@ -359,7 +414,8 @@ def test_the_run_folder_is_removed_even_when_the_run_fails(tmp_path):
     state = installed_state(tmp_path, machine)
     machine.test_exit = 1
     assert spec_run(tmp_path, machine, state).code == 1
-    assert list((ev.folder(state) / ev.RUNS).iterdir()) == []
+    [run] = machine.specs
+    assert not Path(run["argv"][run["argv"].index("--config") + 1]).parent.exists()
 
 
 def test_a_failed_run_hands_back_the_real_failure_printed_by_playwright(tmp_path):
@@ -405,14 +461,15 @@ def test_a_run_is_blocked_naming_the_browser_when_only_the_browser_is_missing(tm
     assert not any(argv[1:2] == ["test"] for argv in machine.calls)
 
 
-def test_a_run_folder_that_cannot_be_written_is_blocked_with_the_os_error(tmp_path):
+def test_a_run_folder_that_cannot_be_written_is_blocked_with_the_os_error(tmp_path, monkeypatch):
     machine = FakeMachine(tmp_path)
     state = installed_state(tmp_path, machine)
-    (ev.folder(state) / ev.RUNS).rmdir()
-    (ev.folder(state) / ev.RUNS).write_text("not a folder")  # a read-only state folder fails the same way
+    blocker = tmp_path / "not-a-folder"
+    blocker.write_text("a file, not a folder")
+    monkeypatch.setattr(tempfile, "tempdir", str(blocker))  # no run folder can be made inside a file
     result = spec_run(tmp_path, machine, state)
-    assert result.code is None and result.blocked.startswith("cannot write")
-    assert str(ev.folder(state)) in result.blocked
+    assert result.code is None and result.blocked.startswith("cannot write the run folder")
+    assert str(blocker) in result.blocked
     assert not any(argv[1:2] == ["test"] for argv in machine.calls)
 
 
@@ -426,3 +483,42 @@ def test_the_excerpt_of_a_run_starts_at_the_error_playwright_prints_and_is_one_l
 def test_without_an_error_line_the_excerpt_is_the_end_of_the_output():
     excerpt = ev.excerpt("npm ERR! something\n" + "x" * 2000 + "\nthe end\n")
     assert excerpt.endswith("the end") and "\n" not in excerpt and len(excerpt) <= 600
+
+
+# --- hyperframes, the explainer: one exact version in its own folder, optional, never fetched by `npx` -------------------
+
+
+def test_the_hyperframes_pin_is_one_exact_version():
+    assert re.fullmatch(r"\d+\.\d+\.\d+", ev.HYPERFRAMES_VERSION)
+
+
+def test_a_failed_hyperframes_install_is_optional_and_leaves_the_required_tools_and_their_proof_ok(tmp_path):
+    machine = FakeMachine(tmp_path, hyperframes_exit=1)
+    state = tmp_path / "state"
+    checks, actions = ev.step(state, environ=environ_for(tmp_path), which=machine.which, run=machine.run,
+                              dry_run=False, validate=True)
+    assert [(a.name, a.result) for a in actions if a.result == "failed"] == [(ev.HYPERFRAMES, "failed")]
+    hyperframes = by_name(checks, ev.HYPERFRAMES)
+    assert hyperframes.status == "missing" and hyperframes.required is False
+    assert by_name(checks, ev.CHECK).status == "ok"  # the required proof still runs and passes
+    assert ev.hyperframes_block(state) is not None
+
+
+def test_the_explainer_is_blocked_with_the_fix_until_the_pinned_hyperframes_is_installed(tmp_path):
+    machine = FakeMachine(tmp_path)
+    state = installed_state(tmp_path, machine)
+    assert ev.hyperframes_block(state) is None
+    package = ev.hyperframes_folder(state) / "node_modules" / "hyperframes" / "package.json"
+    package.write_text(json.dumps({"name": "hyperframes", "version": "0.0.1"}))
+    blocked = ev.hyperframes_block(state)
+    assert blocked is not None and "0.0.1" in blocked and blocked.endswith("simplicio-loop setup")
+    missing = ev.hyperframes_block(tmp_path / "elsewhere")
+    assert missing is not None and "hyperframes" in missing and missing.endswith("simplicio-loop setup")
+
+
+def test_a_missing_hyperframes_does_not_block_a_playwright_run(tmp_path):
+    machine = FakeMachine(tmp_path, hyperframes_exit=1)
+    state = tmp_path / "state"
+    ev.step(state, environ=environ_for(tmp_path), which=machine.which, run=machine.run, dry_run=False, validate=True)
+    result = spec_run(tmp_path, machine, state)
+    assert (result.blocked, result.code) == (None, 0), result

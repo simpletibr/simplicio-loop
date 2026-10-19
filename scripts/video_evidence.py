@@ -27,8 +27,8 @@ Verbs:
             Playwright's own output when the session fails or records nothing.
   scaffold  engine=hyperframes: turn captured screenshots (--frames DIR / --shots a.png,b.png) into
             a hyperframes composition.
-  render    engine=hyperframes: `npx hyperframes render` the composition to MP4.
-  lint      engine=hyperframes: `npx hyperframes lint` — validate the composition before rendering.
+  render    engine=hyperframes: `hyperframes render` (the pinned explainer of the evidence tools) the composition to MP4.
+  lint      engine=hyperframes: `hyperframes lint` — validate the composition before rendering.
   verify    The gate Step 4b / the loop's evidence gate calls. DEFAULT → `record` (playwright);
             `--engine hyperframes` → scaffold (if needed) + render. Appends a ledger row, prints the
             MACHINE-tier verdict (`done|fail|skip|blocked`).
@@ -207,13 +207,15 @@ def cmd_scaffold(opts):
             "to capture per-step shots into .simplicio-loop/orchestrator/tee/web/.")
         sys.exit(2)
 
-    # `npx hyperframes init` scaffolds the project skeleton; best-effort (we still write our own
-    # index.html + assets below, so the worker is useful even if init is unavailable).
+    hf = _hyperframes(out)  # BLOCKED, with the fix, when the pinned explainer is not installed
+    # `hyperframes init` scaffolds the project skeleton; best-effort (we still write our own
+    # index.html + assets below, so the worker is useful even if init is unavailable). The pinned init refuses a
+    # non-interactive run without an example, and checks AI skills on GitHub unless HYPERFRAMES_SKIP_SKILLS is set.
     if not os.path.isdir(proj):
-        r = _run(["npx", "--yes", "hyperframes", "init", name, "--non-interactive",
-                  "--skip-skills", "--skip-transcribe"], cwd=out)
+        r = _run([hf, "init", name, "--non-interactive", "--example", "blank", "--skip-transcribe"], cwd=out,
+                 env={**os.environ, "HYPERFRAMES_SKIP_SKILLS": "1"})
         if r is None:
-            log("! npx not found — install Node.js 22+ to use hyperframes")
+            log("! hyperframes did not start — the composition is written without the project skeleton")
     assets = os.path.join(proj, "assets")
     os.makedirs(assets, exist_ok=True)
 
@@ -273,13 +275,28 @@ def _blocked(out, msg):
     sys.exit(3)
 
 
+def _hyperframes(out):
+    """The pinned hyperframes binary of the evidence tools (simplicio_loop/evidence_tools.py): its path, or BLOCKED with the fix.
+    Never `npx`: that fetches whatever version is current, and a sandboxed run has no writable npm cache."""
+    try:
+        from simplicio_loop import evidence_tools
+        from simplicio_loop.self_update import default_state_dir
+    except ImportError as exc:
+        _blocked(out, "simplicio_loop is not importable (%s): run this worker with the loop's own python" % exc)
+    state = default_state_dir()
+    blocked = evidence_tools.hyperframes_block(state)
+    if blocked is not None:
+        _blocked(out, blocked)
+    return str(evidence_tools.hyperframes_bin(state))
+
+
 def cmd_lint(opts):
     name = opts.get("name", "simplicio-demo")
     out = opts.get("out", DEFAULT_OUT)
     proj = _proj_dir(name, out)
-    r = _run(["npx", "--yes", "hyperframes", "lint"], cwd=proj)
+    r = _run([_hyperframes(out), "lint"], cwd=proj)
     if r is None:
-        _blocked(out, "npx not found — install Node.js 22+ for hyperframes")
+        _blocked(out, "hyperframes did not start")
     ok = r.returncode == 0
     print("done" if ok else "fail")
     log((r.stdout or r.stderr or "").strip()[:400])
@@ -294,9 +311,7 @@ def cmd_render(opts):
     comp = os.path.join(proj, "index.html")
 
     # Preflight the toolchain — BLOCK (never fake-pass) when it is missing.
-    if _exe("npx") == "npx" and shutil.which("npx") is None:
-        _blocked(out, "Node.js/npx not found — hyperframes needs Node 22+ "
-                      "(https://github.com/heygen-com/hyperframes)")
+    hf = _hyperframes(out)
     nm = _node_major()
     if nm is not None and nm < 22:
         _blocked(out, "Node %d detected — hyperframes requires Node 22+" % nm)
@@ -309,14 +324,11 @@ def cmd_render(opts):
     fps = str(opts.get("fps", 30))
     quality = str(opts.get("quality", "standard"))
     # hyperframes render takes the PROJECT DIR positionally and renders its index.html.
-    cmd = ["npx", "--yes", "hyperframes", "render", proj, "-o", mp4, "-f", fps, "-q", quality]
+    cmd = [hf, "render", proj, "-o", mp4, "-f", fps, "-q", quality]
     log("rendering: %s" % " ".join(cmd))
     r = _run(cmd, cwd=proj)
     if r is None:
-        _blocked(out, "npx not found — install Node.js 22+ for hyperframes")
-    stderr = (r.stderr or "").lower()
-    if r.returncode != 0 and ("hyperframes" in stderr and ("not found" in stderr or "404" in stderr)):
-        _blocked(out, "hyperframes package not resolvable — check network/registry access")
+        _blocked(out, "hyperframes did not start")
     ok = r.returncode == 0 and os.path.exists(mp4)
     verdict = "video_evidence: %s — demo MP4 (hyperframes) project=%s mp4=%s" % (
         "PASS" if ok else "FAIL", name, mp4 if ok else "(not produced)")

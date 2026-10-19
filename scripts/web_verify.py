@@ -16,7 +16,7 @@ Three verbs:
            print the one-line MACHINE-tier verdict. Two runnable backends via --runner:
              playwright (default) the spec runs on the installed Playwright of the loop's evidence
                                   tools (`simplicio-loop setup`, simplicio_loop/evidence_tools.py), never `npx`
-             pytest  `pytest` + playwright-python — Fallback B (Python repos)
+             pytest  this Python's `pytest` (`python -m pytest`) + playwright-python — Fallback B (Python repos)
            A missing tool is BLOCKED with its fix; a failed check is FAIL with Playwright's own output.
            playwright-mcp is the richer path when a worker has the MCP server registered.
   verify   detect, then run only if the diff is front-end; otherwise record a SKIP ledger note.
@@ -224,22 +224,32 @@ def _playwright(spec, config, out):
 
 
 def _run_pytest(url, expect, shot, trace_zip, errlog, out):
-    """The Fallback B runner (playwright-python under pytest). Returns (ok, trace ref, failure), the failure is not shown."""
+    """The Fallback B runner (playwright-python under pytest). The spec runs in a fresh folder of the system temp dir, removed
+    when the run is over, under this Python's own pytest (`python -m pytest`, not whatever `pytest` the PATH finds). Returns
+    (ok, trace ref, failure): the failure is the end of pytest's output, on one line."""
     expect_line = ("page.get_by_text(%r).first.wait_for(timeout=15000)" % expect) if expect else "pass"
     spec = PY_SPEC.format(url=url, expect_line=expect_line, shot=shot, trace_zip=trace_zip, errlog=errlog)
-    spec_path = os.path.join(tempfile.gettempdir(), "test_web_verify.py")
-    with open(spec_path, "w", encoding="utf-8") as f:
-        f.write(spec)
-    cmd = ["pytest", spec_path, "-q"]
-    log("running (pytest): %s" % " ".join(cmd))
-    r = _run(cmd, cwd=REPO)
+    run_dir = tempfile.mkdtemp(prefix="web-verify-pytest-")
+    try:
+        spec_path = os.path.join(run_dir, "test_web_verify.py")
+        with open(spec_path, "w", encoding="utf-8") as f:
+            f.write(spec)
+        cmd = [sys.executable, "-m", "pytest", spec_path, "-q", "-p", "no:cacheprovider"]
+        log("running (pytest): %s" % " ".join(cmd))
+        r = _run(cmd, cwd=run_dir)
+    finally:
+        shutil.rmtree(run_dir, ignore_errors=True)
     if r is None:
-        _blocked(out, "pytest not found on PATH — install the toolchain "
-                      "(`pip install pytest-playwright && playwright install`)")
-    stderr = (r.stderr or "").lower()
-    if r.returncode != 0 and ("playwright" in stderr and ("not found" in stderr or "no module" in stderr)):
-        _blocked(out, "Playwright not installed — run `playwright install` (pytest runner)")
-    return r.returncode == 0, trace_zip, ""
+        _blocked(out, "pytest did not start (%s)" % sys.executable)
+    output = (r.stdout or "") + (r.stderr or "")
+    if r.returncode != 0 and "no module named pytest" in output.lower():
+        _blocked(out, "pytest is not installed for this Python (%s): `pip install pytest pytest-playwright`" % sys.executable)
+    if r.returncode != 0 and "no module named 'playwright'" in output.lower():
+        _blocked(out, "Playwright for Python is not installed for this Python (%s): "
+                      "`pip install pytest-playwright && playwright install`" % sys.executable)
+    if r.returncode == 0:
+        return True, trace_zip, ""
+    return False, trace_zip, " ".join(output.split())[-600:]
 
 
 def _upload(out, pr, shot, trace_ref):

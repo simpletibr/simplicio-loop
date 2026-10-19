@@ -350,7 +350,7 @@ def test_the_commands_are_wired(box, capsys, monkeypatch):
     assert [c["name"] for c in json.loads(capsys.readouterr().out)["checks"]] == ["login"]
     assert cli.main(["doctor", "all", "--json"]) == 0
     every = ["login", "update", "distribution", "runtime", "operators", "disk", "map-store", "setup",  # 8: map-store came with #1671
-             "evidence:node", "evidence:playwright", "evidence:chromium"]  # 1843: the evidence tools, one row each
+             "evidence:node", "evidence:playwright", "evidence:chromium", "evidence:hyperframes"]  # 1843: the evidence tools, one row each
     assert [c["name"] for c in json.loads(capsys.readouterr().out)["checks"]] == every
     assert cli.main(["doctor", "--json"]) == 0  # a bare `doctor` is the overview
     assert [c["name"] for c in json.loads(capsys.readouterr().out)["checks"]] == every
@@ -368,7 +368,7 @@ def test_the_old_doctor_forms_still_exist():
 
 # --- the evidence tools (#1843): what the delivery evidence calls, probed without installing anything -----------------
 
-EVIDENCE = ("evidence:node", "evidence:playwright", "evidence:chromium")
+EVIDENCE = ("evidence:node", "evidence:playwright", "evidence:chromium", "evidence:hyperframes")  # hyperframes: optional, one row
 
 
 def test_the_evidence_tools_warn_with_the_fix_when_nothing_is_installed(box):
@@ -397,8 +397,16 @@ def test_a_healthy_evidence_setup_is_ok_with_its_versions(box):
     playwright.write_text("#!/bin/sh\nprintf '%s\\n' 'Chrome for Testing 156.0.8078.4 (playwright chromium v1248)' "
                           f"'  Install location:    {cache}/chromium-1248'\n")
     playwright.chmod(0o755)
+    from simplicio_loop import evidence_tools  # the pinned explainer, laid down the way its install does
+    explainer = evidence_tools.hyperframes_folder(box.state) / "node_modules" / "hyperframes"
+    explainer.mkdir(parents=True)
+    (explainer / "package.json").write_text(json.dumps({"name": "hyperframes", "version": evidence_tools.HYPERFRAMES_VERSION}))
+    evidence_tools.hyperframes_bin(box.state).parent.mkdir(parents=True)
+    evidence_tools.hyperframes_bin(box.state).write_text("#!/bin/sh\n")
     rows = {c["name"]: c for c in collect(box, evidence=None)["checks"] if c["name"] in EVIDENCE}
-    assert [rows[name]["status"] for name in EVIDENCE] == ["ok", "ok", "ok"]
+    assert [rows[name]["status"] for name in EVIDENCE] == ["ok", "ok", "ok", "ok"]
     assert "26.0.0" in rows["evidence:node"]["summary"]
     assert "1.64.1" in rows["evidence:playwright"]["summary"]
-    assert "156.0.8078.4" in rows["evidence:chromium"]["summary"] and all(row["fix"] is None for row in rows.values())
+    assert "156.0.8078.4" in rows["evidence:chromium"]["summary"]
+    assert evidence_tools.HYPERFRAMES_VERSION in rows["evidence:hyperframes"]["summary"]
+    assert all(row["fix"] is None for row in rows.values())

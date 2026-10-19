@@ -3,21 +3,23 @@
 The evidence (screenshots and clips of a delivery) runs on Playwright. The code calls exactly these tools on that path:
 Node.js 22 or newer, the Playwright test runner (`@playwright/test`, which ships the `playwright` command), and the
 Chromium build that runner drives (`playwright install chromium` also fetches the ffmpeg build it records video with).
-FFmpeg and the hyperframes explainer are optional and not checked here. browser-use and cua are not called anywhere in
-this repository, so they are not required.
+FFmpeg is optional and not checked here. The hyperframes explainer is pinned and installed the same way, but optional: a
+missing one blocks only the explainer. browser-use and cua are not called anywhere in this repository, so they are not required.
 
 The tools live in one folder of the loop, `<state dir>/evidence-tools`: a `package.json` that pins `@playwright/test`,
-its `node_modules`, and the browser cache Playwright keeps (`PLAYWRIGHT_BROWSERS_PATH` or its default). Nothing goes into
-the Python environment: no Python package is on this path. Node.js itself is only checked, never installed.
+its `node_modules`, and the browser cache Playwright keeps (`PLAYWRIGHT_BROWSERS_PATH` or its default). The explainer is its
+own npm project in `evidence-tools/hyperframes`, so its install never stops the required tools. Nothing goes into the Python
+environment: no Python package is on this path. Node.js itself is only checked, never installed.
 
 `step` probes, installs what is missing and, when asked (or after an install), proves the tools with a real run: a local
 page is opened, a screenshot is taken and a short clip is recorded. `probe_rows` gives `doctor` the same facts without
 installing anything or starting a browser.
 
 `run_spec` is how the evidence workers (web_verify, video_evidence) run their own specs on these tools. The spec, its
-config and its files go to a fresh folder under `<state dir>/evidence-tools/runs/`, which the run removes when it is over,
-and the project's own `playwright test --config` runs them. Nothing is fetched at that point: a tool that is missing or
-not ok blocks the run, and the block names the fix (`simplicio-loop setup`).
+config and its files go to a fresh folder in the system temp dir, which the run removes when it is over. The tools folder is
+only read: the project's own `playwright test --config` runs the spec, and `NODE_PATH` lets the spec find `@playwright/test`
+there. So a run works while the state folder is read-only (the 24/7 sandbox binds it so). Nothing is fetched at that point:
+a tool that is missing or not ok blocks the run, and the block names the fix (`simplicio-loop setup`).
 """
 from __future__ import annotations
 
@@ -38,10 +40,14 @@ from .prereqs import Action, Check
 MIN_NODE = 22  # references/video-evidence.md: "Node.js 22+"
 PLAYWRIGHT_VERSION = "1.64.1"  # the exact @playwright/test the evidence runs on; its Chromium build is the one it drives
 FOLDER = "evidence-tools"
-RUNS = "runs"  # <tools folder>/runs/<run>/: one run's spec, config and files, removed when the run is over
+HYPERFRAMES_VERSION = "0.7.111"  # the exact explainer: the composition scripts/video_evidence.py writes is the 0.7.x schema
+HYPERFRAMES_FOLDER = "hyperframes"  # its own npm project inside the tools folder, so its install never stops a required tool
+PLAYWRIGHT_DESCRIPTION = "Playwright test runner of the delivery evidence (web_verify, video_evidence). Managed by simplicio-loop setup."
+HYPERFRAMES_DESCRIPTION = "The hyperframes explainer of video_evidence (optional). Managed by simplicio-loop setup."
 SPEC_FILE, CONFIG_FILE = "evidence.spec.js", "playwright.config.js"
 TEST_TIMEOUT_MS = 120_000  # a page load (30 s) and its waits, with room; Playwright's own default test timeout is 30 s
-NODE, PLAYWRIGHT, CHROMIUM, CHECK = "evidence:node", "evidence:playwright", "evidence:chromium", "evidence:check"
+NODE, PLAYWRIGHT, CHROMIUM, HYPERFRAMES, CHECK = (
+    "evidence:node", "evidence:playwright", "evidence:chromium", "evidence:hyperframes", "evidence:check")
 NODE_FIX = "install Node.js 22 or newer: https://nodejs.org, or `brew install node`"
 SETUP_FIX = "simplicio-loop setup"
 MARKER = "INSTALLATION_COMPLETE"  # Playwright writes it last, when a browser build is complete
@@ -108,17 +114,29 @@ def folder(state_dir: Path) -> Path:
     return Path(state_dir) / FOLDER
 
 
+def hyperframes_folder(state_dir: Path) -> Path:
+    return folder(state_dir) / HYPERFRAMES_FOLDER
+
+
+def hyperframes_bin(state_dir: Path) -> Path:
+    """The pinned hyperframes binary: the explainer runs this one, never `npx`."""
+    return hyperframes_folder(state_dir) / "node_modules" / ".bin" / ("hyperframes.cmd" if os.name == "nt" else "hyperframes")
+
+
 def _bin(project: Path) -> Path:
     return project / "node_modules" / ".bin" / ("playwright.cmd" if os.name == "nt" else "playwright")
 
 
-def _env(environ: Mapping[str, str], node: Optional[str], *, install: bool) -> dict[str, str]:
-    """The children's environment: the keys every setup step passes, the checked node first on PATH, the browser cache setting."""
+def _env(environ: Mapping[str, str], node: Optional[str], *, install: bool, node_modules: Optional[Path] = None) -> dict[str, str]:
+    """The children's environment: the keys every setup step passes, the checked node first on PATH, the browser cache setting,
+    and `node_modules` on NODE_PATH when a run's spec sits outside the tools folder."""
     env = dict(setup_hardening.install_env(environ) if install else setup_hardening.probe_env(environ))
     if node:
         env["PATH"] = os.pathsep.join(part for part in (os.path.dirname(node), env.get("PATH", "")) if part)
     if environ.get("PLAYWRIGHT_BROWSERS_PATH"):
         env["PLAYWRIGHT_BROWSERS_PATH"] = environ["PLAYWRIGHT_BROWSERS_PATH"]
+    if node_modules is not None:
+        env["NODE_PATH"] = str(node_modules)
     return env
 
 
@@ -153,9 +171,10 @@ def _node(which: Which, run: Run) -> tuple[Check, Optional[str]]:
     return Check(NODE, "ok", True, path, version, str(MIN_NODE), "", ""), path
 
 
-def _pinned_version(project: Path) -> Optional[str]:
+def _installed_version(project: Path, name: str) -> Optional[str]:
+    """The version of the package `name` in the project's node_modules, None when it is not installed there."""
     try:
-        manifest = json.loads((project / "node_modules" / "@playwright" / "test" / "package.json").read_text(encoding="utf-8"))
+        manifest = json.loads((project / "node_modules" / name / "package.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
     version = manifest.get("version") if isinstance(manifest, dict) else None
@@ -164,7 +183,7 @@ def _pinned_version(project: Path) -> Optional[str]:
 
 def _playwright(project: Path, node_ok: bool) -> Check:
     fix = SETUP_FIX if node_ok else NODE_FIX
-    version = _pinned_version(project)
+    version = _installed_version(project, "@playwright/test")
     if version is None:
         return Check(PLAYWRIGHT, "missing", True, None, None, PLAYWRIGHT_VERSION, fix, "user")
     if version != PLAYWRIGHT_VERSION:
@@ -189,37 +208,54 @@ def _chromium(project: Path, node_path: Optional[str], environ: Mapping[str, str
     return Check(CHROMIUM, "missing", True, where, version, None, SETUP_FIX, "user")
 
 
+def _hyperframes(state_dir: Path) -> Check:
+    """The pinned hyperframes of the explainer. Optional (`required` is False): only an explicit explainer request needs it."""
+    project = hyperframes_folder(state_dir)
+    version = _installed_version(project, "hyperframes")
+    if version is None:
+        return Check(HYPERFRAMES, "missing", False, None, None, HYPERFRAMES_VERSION, SETUP_FIX, "user")
+    if version != HYPERFRAMES_VERSION:
+        return Check(HYPERFRAMES, "outdated", False, str(project), version, HYPERFRAMES_VERSION, SETUP_FIX, "user")
+    if not hyperframes_bin(state_dir).is_file():
+        return Check(HYPERFRAMES, "missing", False, None, version, HYPERFRAMES_VERSION, SETUP_FIX, "user")
+    return Check(HYPERFRAMES, "ok", False, str(hyperframes_bin(state_dir)), version, HYPERFRAMES_VERSION, "", "user")
+
+
 def check_all(state_dir: Path, *, environ: Mapping[str, str], which: Which, run: Run) -> list[Check]:
-    """node, the pinned @playwright/test and the Chromium build it drives. Looks only: nothing is installed or started."""
+    """node, the pinned @playwright/test and the Chromium build it drives, then the optional explainer. Looks only: nothing is
+    installed or started."""
     node, node_path = _node(which, run)
     project = folder(state_dir)
-    return [node, _playwright(project, node.status == "ok"), _chromium(project, node_path, environ, run)]
+    return [node, _playwright(project, node.status == "ok"), _chromium(project, node_path, environ, run), _hyperframes(state_dir)]
+
+
+def hyperframes_block(state_dir: Path) -> Optional[str]:
+    """What blocks the explainer: None when its pinned hyperframes is installed, else one sentence with the fix."""
+    check = _hyperframes(state_dir)
+    return None if check.status == "ok" else f"{_summary(check)}: {check.fix}"
 
 
 # --- installing ------------------------------------------------------------------------------------------------------
 
 
-def _write_manifest(project: Path) -> None:
-    manifest = {"name": "simplicio-evidence-tools", "private": True,
-                "description": "Playwright test runner of the delivery evidence (web_verify, video_evidence). Managed by simplicio-loop setup.",
-                "dependencies": {"@playwright/test": PLAYWRIGHT_VERSION}}
-    (project / "package.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
-
-def _install_package(project: Path, npm: Optional[str], env: Mapping[str, str], run: Run, dry_run: bool) -> Action:
+def _install_package(project: Path, *, name: str, description: str, dependencies: Mapping[str, str], npm: Optional[str],
+                     env: Mapping[str, str], run: Run, dry_run: bool) -> Action:
+    """npm installs the exact pins of `dependencies` into `project`, which gets its own package.json (its own npm project)."""
+    pins = ", ".join(f"{package} {version}" for package, version in dependencies.items())
     if dry_run:
-        return Action(PLAYWRIGHT, "would-install", f"@playwright/test {PLAYWRIGHT_VERSION} in {project}")
+        return Action(name, "would-install", f"{pins} in {project}")
     if npm is None:
-        return Action(PLAYWRIGHT, "failed", "npm is not on the PATH setup trusts (it comes with Node.js)")
+        return Action(name, "failed", "npm is not on the PATH setup trusts (it comes with Node.js)")
+    manifest = {"name": f"simplicio-{project.name}", "private": True, "description": description, "dependencies": dict(dependencies)}
     try:
         project.mkdir(parents=True, exist_ok=True)
-        _write_manifest(project)
+        (project / "package.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     except OSError as exc:
-        return Action(PLAYWRIGHT, "failed", f"cannot write {project}: {exc.strerror or exc}")
+        return Action(name, "failed", f"cannot write {project}: {exc.strerror or exc}")
     code, text = run([npm, "install", "--no-audit", "--no-fund", "--loglevel=error"], INSTALL_S, cwd=project, env=env)
     if code != 0:
-        return Action(PLAYWRIGHT, "failed", f"`npm install` in {project} did not finish ({_state(code)}): {excerpt(text)}")
-    return Action(PLAYWRIGHT, "installed", f"@playwright/test {PLAYWRIGHT_VERSION} in {project}")
+        return Action(name, "failed", f"`npm install` in {project} did not finish ({_state(code)}): {excerpt(text)}")
+    return Action(name, "installed", f"{pins} in {project}")
 
 
 def _install_browser(project: Path, env: Mapping[str, str], run: Run, dry_run: bool) -> Action:
@@ -233,24 +269,32 @@ def _install_browser(project: Path, env: Mapping[str, str], run: Run, dry_run: b
 
 def install_missing(state_dir: Path, checks: Sequence[Check], *, environ: Mapping[str, str], which: Which, run: Run,
                     dry_run: bool) -> list[Action]:
-    """Install what the checks found missing, in order: the pinned package, then its browser. Node.js is never installed."""
+    """Install what the checks found missing, in order: the pinned package, its browser, then the optional explainer's own
+    project. Node.js is never installed."""
     by_name = {check.name: check for check in checks}
     node = by_name[NODE]
     if node.status != "ok":
         return [Action(NODE, "skipped", NODE_FIX)] + [
-            Action(name, "skipped", f"needs Node.js {MIN_NODE} or newer") for name in (PLAYWRIGHT, CHROMIUM) if by_name[name].status != "ok"]
+            Action(name, "skipped", f"needs Node.js {MIN_NODE} or newer")
+            for name in (PLAYWRIGHT, CHROMIUM, HYPERFRAMES) if by_name[name].status != "ok"]
     project = folder(state_dir)
     env = _env(environ, node.path, install=True)
     actions: list[Action] = []
     ready = True
     if by_name[PLAYWRIGHT].status != "ok":
-        actions.append(_install_package(project, which("npm"), env, run, dry_run))
+        actions.append(_install_package(project, name=PLAYWRIGHT, description=PLAYWRIGHT_DESCRIPTION,
+                                        dependencies={"@playwright/test": PLAYWRIGHT_VERSION}, npm=which("npm"), env=env,
+                                        run=run, dry_run=dry_run))
         ready = actions[-1].result in ("installed", "would-install")
     if by_name[CHROMIUM].status != "ok":
         if ready:
             actions.append(_install_browser(project, env, run, dry_run))
         else:
             actions.append(Action(CHROMIUM, "skipped", f"{PLAYWRIGHT} is not ready, so its browser is not installed"))
+    if by_name[HYPERFRAMES].status != "ok":  # not tied to the required tools: its own failure is the only one it reports
+        actions.append(_install_package(hyperframes_folder(state_dir), name=HYPERFRAMES, description=HYPERFRAMES_DESCRIPTION,
+                                        dependencies={"hyperframes": HYPERFRAMES_VERSION}, npm=which("npm"), env=env,
+                                        run=run, dry_run=dry_run))
     return actions
 
 
@@ -259,12 +303,11 @@ def install_missing(state_dir: Path, checks: Sequence[Check], *, environ: Mappin
 
 def _run_in_folder(project: Path, *, spec: str, config: Mapping[str, object], files: Mapping[str, str],
                    environ: Mapping[str, str], node_path: Optional[str], run: Run, timeout: float) -> tuple[Optional[int], str]:
-    """Write one run into a fresh folder under the project's runs/, run the project's own `playwright test` on its config,
-    and remove the folder. The spec, its files and its config sit beside each other, so `@playwright/test` resolves from the
-    project's node_modules, and the config names the run's folder as the test directory: nothing is searched outside it."""
-    runs = project / RUNS
-    runs.mkdir(parents=True, exist_ok=True)
-    work = Path(tempfile.mkdtemp(prefix="run-", dir=runs))
+    """Write one run into a fresh folder of the system temp dir, run the project's own `playwright test` on its config, and
+    remove the folder. The spec, its files and its config sit beside each other, and the config names that folder as the test
+    directory, so nothing is searched elsewhere. The project is only read: `NODE_PATH` makes `@playwright/test` resolve from its
+    node_modules, which is what keeps a read-only tools folder (the 24/7 sandbox) working."""
+    work = Path(tempfile.mkdtemp(prefix="simplicio-evidence-run-"))
     try:
         (work / SPEC_FILE).write_text(spec, encoding="utf-8")
         for name, text in files.items():
@@ -272,15 +315,15 @@ def _run_in_folder(project: Path, *, spec: str, config: Mapping[str, object], fi
         settings = {"testDir": str(work), "reporter": "line", "workers": 1, "timeout": TEST_TIMEOUT_MS, **config}
         config_path = work / CONFIG_FILE
         config_path.write_text("module.exports = %s;\n" % json.dumps(settings, indent=2), encoding="utf-8")
-        return run([_bin(project), "test", "--config", config_path], timeout, cwd=project,
-                   env=_env(environ, node_path, install=False))
+        return run([_bin(project), "test", "--config", config_path], timeout, cwd=work,
+                   env=_env(environ, node_path, install=False, node_modules=project / "node_modules"))
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
 
 def _blocker(checks: Sequence[Check]) -> Optional[str]:
-    """The first tool that is not ok, as one sentence with the fix `setup` acts on; None when every tool is ready."""
-    bad = next((check for check in checks if check.status != "ok"), None)
+    """The first required tool that is not ok, as one sentence with the fix `setup` acts on; None when every required tool is ready."""
+    bad = next((check for check in checks if check.required and check.status != "ok"), None)
     if bad is None:
         return None
     return f"{_summary(bad)}: {bad.fix}" if bad.fix else _summary(bad)
@@ -302,7 +345,7 @@ def run_spec(state_dir: Path, *, spec: str, config: Mapping[str, object], enviro
         code, output = _run_in_folder(folder(state_dir), spec=spec, config=config, files=files or {}, environ=environ,
                                       node_path=checks[0].path, run=run, timeout=timeout)
     except OSError as exc:
-        return SpecRun(f"cannot write the run folder under {folder(state_dir) / RUNS}: {exc.strerror or exc}", None, "")
+        return SpecRun(f"cannot write the run folder under {tempfile.gettempdir()}: {exc.strerror or exc}", None, "")
     return SpecRun(None, code, output)
 
 
@@ -343,7 +386,7 @@ def step(state_dir: Path, *, environ: Mapping[str, str], which: Which, run: Run,
     if dry_run or not (validate or installed):
         return checks, actions
     checks = check_all(state_dir, environ=environ, which=which, run=run)  # what is on the machine after the installs
-    if any(check.status != "ok" for check in checks):
+    if any(check.required and check.status != "ok" for check in checks):
         return checks, actions
     proof = prove(state_dir, environ=environ, run=run, node_path=checks[0].path)
     passed = proof.result == "validated"
@@ -357,6 +400,12 @@ def _summary(check: Check) -> str:
         if check.version:
             return f"node {check.version} at {check.path} (needs {MIN_NODE} or newer)"
         return f"Node.js is not available (the evidence tools need {MIN_NODE} or newer)"
+    if check.name == HYPERFRAMES:
+        if check.status == "ok":
+            return f"hyperframes {check.version} in {check.path} (the explainer of video_evidence, optional)"
+        if check.version:
+            return f"hyperframes {check.version} is not the pinned {HYPERFRAMES_VERSION} (only the explainer needs it)"
+        return f"hyperframes is not installed (pinned {HYPERFRAMES_VERSION}; only the explainer needs it)"
     if check.name == PLAYWRIGHT:
         if check.status == "ok":
             return f"@playwright/test {check.version} in {check.path} (the test runner of web_verify and video_evidence)"

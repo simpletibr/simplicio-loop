@@ -56,10 +56,11 @@ captured:
 
 1. **`web_verify run`** drives the UI and writes per-step PNGs into `.simplicio-loop/orchestrator/tee/web/`.
 2. **`video_evidence verify --engine hyperframes --frames .simplicio-loop/orchestrator/tee/web --title "Screen X"`**
-   scaffolds those exact PNGs into a captioned hyperframes composition and runs
-   `npx hyperframes render` → a deterministic MP4 walkthrough.
+   scaffolds those exact PNGs into a captioned hyperframes composition and runs the pinned
+   `hyperframes render` of the evidence tools (`evidence_tools.HYPERFRAMES_VERSION`, installed by `simplicio-loop setup`;
+   never `npx`) → a deterministic MP4 walkthrough.
 
-Requirements (preflighted; BLOCK if absent): **Node.js 22+** and **FFmpeg**. Credit: **hyperframes**
+Requirements (preflighted; BLOCK if absent): **Node.js 22+**, **FFmpeg** and the pinned hyperframes. Credit: **hyperframes**
 by HeyGen — <https://github.com/heygen-com/hyperframes> (open-source, no API keys, local render via
 headless Chrome + FFmpeg). A pure-synthetic demo (no live UI) feeds `--shots a.png,b.png` directly.
 

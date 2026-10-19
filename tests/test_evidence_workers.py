@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -164,3 +166,127 @@ def test_video_evidence_without_a_url_is_blocked_before_any_run(tmp_path, toolch
     del options["url"]
     assert exit_code(lambda: video_evidence.cmd_verify(options)) == 3
     assert recorder.requests == []
+
+
+# --- web_verify, the pytest runner (Fallback B): a fresh folder, this Python's pytest, and the failure text -------------
+
+PYTEST_OPTIONS = {"runner": "pytest"}
+
+
+def completed(argv, code, stdout="", stderr=""):
+    return subprocess.CompletedProcess(argv, code, stdout=stdout, stderr=stderr)
+
+
+def test_the_pytest_runner_runs_its_spec_in_a_fresh_folder_with_this_pythons_pytest_and_reports_the_failure(tmp_path, monkeypatch):
+    seen = {}
+
+    def fake_run(argv, **kwargs):
+        seen.update(argv=list(argv), cwd=kwargs.get("cwd"), spec_existed=Path(argv[3]).is_file())
+        return completed(argv, 1, stdout="F", stderr="E   AssertionError: 'Sign in' not found\n")
+
+    monkeypatch.setattr(web_verify, "_run", fake_run)
+    out = tmp_path / "out"
+    assert exit_code(lambda: web_verify.cmd_run({**web_options(out), **PYTEST_OPTIONS})) == 1
+    assert seen["argv"][:3] == [sys.executable, "-m", "pytest"]  # not whatever `pytest` the PATH finds
+    assert seen["spec_existed"] and Path(seen["argv"][3]).parent == Path(seen["cwd"])
+    assert not Path(seen["cwd"]).exists()  # the run folder is removed when the run is over
+    assert "web_verify: FAIL" in ledger(out) and "AssertionError: 'Sign in' not found" in ledger(out)
+
+
+def test_the_pytest_runner_passes_on_exit_zero_and_leaves_no_folder(tmp_path, monkeypatch):
+    seen = {}
+
+    def fake_run(argv, **kwargs):
+        seen["cwd"] = kwargs.get("cwd")
+        return completed(argv, 0, stdout="1 passed")
+
+    monkeypatch.setattr(web_verify, "_run", fake_run)
+    out = tmp_path / "out"
+    assert exit_code(lambda: web_verify.cmd_run({**web_options(out), **PYTEST_OPTIONS})) == 0
+    assert "web_verify: PASS" in ledger(out) and "runner=pytest" in ledger(out)
+    assert not Path(seen["cwd"]).exists()
+
+
+def test_the_pytest_runner_is_blocked_with_the_fix_when_this_python_has_no_pytest(tmp_path, monkeypatch):
+    monkeypatch.setattr(web_verify, "_run", lambda argv, **kw: completed(argv, 1, stderr="No module named pytest\n"))
+    out = tmp_path / "out"
+    assert exit_code(lambda: web_verify.cmd_run({**web_options(out), **PYTEST_OPTIONS})) == 3
+    assert "web_verify: BLOCKED" in ledger(out) and "pytest is not installed" in ledger(out) and "pip install" in ledger(out)
+
+
+# --- video_evidence, the hyperframes explainer: the pinned binary of the tools folder, never `npx` ---------------------
+
+
+def install_hyperframes(home: Path) -> Path:
+    """What `setup` leaves for the explainer: the pinned hyperframes in its own folder, with its bin."""
+    state = home / ".simplicio-loop"
+    package = ev.hyperframes_folder(state) / "node_modules" / "hyperframes"
+    package.mkdir(parents=True)
+    (package / "package.json").write_text(json.dumps({"name": "hyperframes", "version": ev.HYPERFRAMES_VERSION}))
+    binary = ev.hyperframes_bin(state)
+    binary.parent.mkdir(parents=True)
+    binary.write_text("#!/bin/sh\n")
+    binary.chmod(0o755)
+    return binary
+
+
+def test_the_explainer_renders_with_the_pinned_hyperframes_of_the_tools_folder_and_never_npx(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_HOME", str(tmp_path / "home"))
+    binary = install_hyperframes(tmp_path / "home")
+    calls = []
+
+    def fake_run(argv, **kwargs):
+        calls.append([str(part) for part in argv])
+        if Path(argv[0]).name == "node":
+            return completed(argv, 0, stdout="v26.0.0\n")
+        if "render" in argv:
+            Path(argv[argv.index("-o") + 1]).write_bytes(b"mp4")
+        return completed(argv, 0)
+
+    monkeypatch.setattr(video_evidence, "_run", fake_run)
+    monkeypatch.setattr(video_evidence.shutil, "which", lambda name: "/fake/ffmpeg" if name == "ffmpeg" else None)
+    out = tmp_path / "out"
+    (out / "demo").mkdir(parents=True)
+    (out / "demo" / "index.html").write_text("<!doctype html><html></html>", encoding="utf-8")
+    assert exit_code(lambda: video_evidence.cmd_render({"name": "demo", "out": str(out), "issue": "7"})) == 0
+    [render] = [call for call in calls if "render" in call]
+    assert render[0] == str(binary)
+    assert not any("npx" in call[0] for call in calls)
+
+
+def test_the_explainer_scaffolds_with_a_non_interactive_init_that_names_an_example_and_skips_the_skills_check(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_HOME", str(tmp_path / "home"))
+    binary = install_hyperframes(tmp_path / "home")
+    calls = []
+
+    def fake_run(argv, **kwargs):
+        calls.append(([str(part) for part in argv], kwargs.get("env") or {}))
+        return completed(argv, 0)
+
+    monkeypatch.setattr(video_evidence, "_run", fake_run)
+    shots = tmp_path / "shots"
+    shots.mkdir()
+    (shots / "1-web.png").write_bytes(b"png")
+    video_evidence.cmd_scaffold({"name": "demo", "out": str(tmp_path / "out"), "frames": str(shots), "title": "Sign in"})
+    [(init, env)] = [(argv, env) for argv, env in calls if "init" in argv]
+    assert init[0] == str(binary)
+    assert init[init.index("--example") + 1] == "blank" and "--non-interactive" in init  # init refuses to run without an example
+    assert env.get("HYPERFRAMES_SKIP_SKILLS") == "1"  # the pinned init checks skills on GitHub unless told not to
+
+
+def test_the_explainer_lints_with_the_pinned_hyperframes_of_the_tools_folder(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_HOME", str(tmp_path / "home"))
+    binary = install_hyperframes(tmp_path / "home")
+    calls = []
+    monkeypatch.setattr(video_evidence, "_run", lambda argv, **kw: calls.append([str(part) for part in argv]) or completed(argv, 0))
+    out = tmp_path / "out"
+    assert exit_code(lambda: video_evidence.cmd_lint({"name": "demo", "out": str(out)})) == 0
+    assert calls == [[str(binary), "lint"]]
+
+
+def test_the_explainer_is_blocked_with_the_fix_when_its_hyperframes_is_not_installed(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(video_evidence, "_run", lambda argv, **kw: pytest.fail("no command may run without hyperframes"))
+    out = tmp_path / "out"
+    assert exit_code(lambda: video_evidence.cmd_lint({"name": "demo", "out": str(out)})) == 3
+    assert "video_evidence: BLOCKED" in ledger(out) and "simplicio-loop setup" in ledger(out)
