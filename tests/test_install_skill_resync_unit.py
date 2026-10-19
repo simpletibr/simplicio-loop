@@ -68,7 +68,7 @@ def test_digest_is_content_and_path_sensitive(tmp_path):
     ("claude", ".claude/skills"),
     ("cursor", ".cursor/skills"),
     ("grok", ".grok/skills"),
-    ("vscode", ".vscode/simplicio-skills"),
+    ("github-copilot", ".copilot/skills"),  # vscode reads this same root too: one copy, named by its first host
     ("opencode", ".config/opencode/skills"),
 ])
 def test_stale_skill_is_replaced_per_host_layout(home, host, rel):

@@ -39,6 +39,9 @@ def global_destinations(home: Path) -> list[tuple[str, Path]]:
         ("copilot", home / ".copilot" / "rules" / RULE_NAME),
         ("antigravity", home / ".antigravity" / "rules" / RULE_NAME),
         ("kiro_user", home / ".kiro" / "steering" / RULE_NAME),
+        ("cline_rules", home / "Documents" / "Cline" / "Rules" / RULE_NAME),  # the hosts whose docs name a rules folder
+        ("auggie_rules", home / ".augment" / "rules" / RULE_NAME),
+        ("devin_rules", home / ".devin" / "rules" / RULE_NAME),
         ("hermes", home / ".hermes" / "rules" / RULE_NAME),
         ("simplicio_agent", home / ".simplicio-loop" / "rules" / RULE_NAME),
         ("opencode", home / ".config" / "opencode" / "rules" / RULE_NAME),

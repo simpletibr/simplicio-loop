@@ -18,12 +18,13 @@ FRONTMATTER = {".continue/rules/simplicio-loop.md": "---\nname: simplicio-loop\n
 CONFIG = {".aider.conf.yml": "read:\n  - CONVENTIONS.md\n  - .claude/skills/simplicio-loop/SKILL.md\n"}
 
 
-def block() -> str:
-    """The block, from BEGIN to END (no trailing newline)."""
+def block(skills_root: str = ".claude/skills") -> str:
+    """The block, from BEGIN to END (no trailing newline). `skills_root` is where the skill copy the block names lives:
+    the project's `.claude/skills`, or `~/.claude/skills` in a user-level file."""
     body = (
         BEGIN + "\n"
         "## simplicio-loop — Unified Core + Loop (multi-LLM floor)\n\n"
-        "Load and follow `.claude/skills/simplicio-loop/SKILL.md` and companions "
+        f"Load and follow `{skills_root}/simplicio-loop/SKILL.md` and companions "
         "(`simplicio-orient`, `simplicio-review`, `simplicio-compress`, `simplicio-learn`, "
         "`simplicio-autoresearch`; `simplicio-tasks` = legacy alias) **IN FULL**.\n\n"
         "**Operator floor (Claude / Codex / Grok / Cursor / VS Code / Antigravity / Kiro / Hermes):**\n"
@@ -47,24 +48,24 @@ def block() -> str:
     return body
 
 
-def merge(existing: str) -> str:
+def merge(existing: str, skills_root: str = ".claude/skills") -> str:
     """`existing` with the block in place: appended below the user's text, or refreshed where it already is.
 
     A legacy `simplicio-tasks` block is replaced by the current one, where it stands.
     """
     begin, end = _markers(existing)
     if begin is None:
-        return (existing.rstrip() + "\n\n" if existing.strip() else "") + block() + "\n"
+        return (existing.rstrip() + "\n\n" if existing.strip() else "") + block(skills_root) + "\n"
     pre = existing.split(begin)[0].rstrip()
     post = existing.split(end, 1)[1]
-    return (pre + "\n\n" if pre else "") + block() + post
+    return (pre + "\n\n" if pre else "") + block(skills_root) + post
 
 
-def body_for(rel: str, existing: str) -> str:
+def body_for(rel: str, existing: str, skills_root: str = ".claude/skills") -> str:
     """The text of the entry file `rel` once Loop's block is in it. A file that does not exist yet starts with the
     frontmatter its host reads first, and a file that lacks that frontmatter gets it in front."""
     front = FRONTMATTER.get(rel, "")
-    text = merge(existing or front)
+    text = merge(existing or front, skills_root)
     if front and not text.startswith("---"):
         text = front + "\n" + text
     return text

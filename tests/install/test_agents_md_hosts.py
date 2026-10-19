@@ -13,8 +13,8 @@ from pathlib import Path
 import pytest
 
 from simplicio_loop import cli, cli_impl, setup_cli
-from simplicio_loop.install import entry
-from simplicio_loop.install.planner import InstallError, apply_plan, plan_install, uninstall
+from simplicio_loop.install import entry, planner
+from simplicio_loop.install.planner import InstallError, apply_plan, plan_install, runtime_for, uninstall
 
 AGENTS_MD_HOSTS = (
     "mimo-code", "amp", "openclaude", "antigravity", "pi", "oh-my-pi", "devin", "goose", "auggie", "autohand",
@@ -87,13 +87,21 @@ def test_a_users_agents_md_keeps_its_text_and_loses_only_the_block(host, repo, b
 
 
 @pytest.mark.parametrize("host", AGENTS_MD_HOSTS)
-def test_global_install_writes_skills_hooks_and_the_block_into_home(host, tmp_path, bundle):
+def test_global_install_writes_the_block_into_the_documented_user_file(host, tmp_path, bundle):
+    """A --global install writes the block into the user-level file the host's docs name, never a project path in
+    $HOME. A host whose docs name none is reported as skipped instead."""
     home = tmp_path / "home"
     home.mkdir()
-    apply_plan(plan_install(home, host=host, globally=True), bundle=bundle)
+    plan = plan_install(home, host=host, globally=True)
+    apply_plan(plan, bundle=bundle)
     assert (home / ".claude" / "skills" / "simplicio-loop" / "SKILL.md").is_file()
     assert (home / ".claude" / "hooks" / "loop_stop.py").is_file()
-    assert (home / "AGENTS.md").read_text(encoding="utf-8").count(entry.BEGIN) == 1
+    assert not (home / "AGENTS.md").exists()
+    runtime = runtime_for(host)
+    if runtime in planner.GLOBAL_ENTRIES:
+        assert (home / planner.GLOBAL_ENTRIES[runtime]).read_text(encoding="utf-8").count(entry.BEGIN) == 1
+    else:
+        assert runtime in plan["global_skipped"]
     again = apply_plan(plan_install(home, host=host, globally=True), bundle=bundle)
     assert again["up_to_date"] is True
     uninstall(home)

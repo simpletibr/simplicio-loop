@@ -96,6 +96,9 @@ def _install_lines(result: dict, host: str, head: str, resync: Optional[dict],
             rules_str = ", ".join(resync["rules"]) or "-"
         lines.append(f"  {verb} -> skills: {skills_str}; rules: {rules_str}")
         lines += [f"  resync error: {err['host']}: {err['error']}" for err in resync["errors"]]
+    if result.get("global_skipped"):  # a --global install writes only the instruction files a host's docs name
+        lines.append(f"  not written to the user level (no documented user-level instruction file) -> "
+                     f"{', '.join(result['global_skipped'])}")
     if prune_project is not None:
         verb = "would prune" if head.startswith(("check", "dry_run")) else "pruned"
         removed_list = prune_project.get("removed") or []

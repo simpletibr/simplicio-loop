@@ -198,8 +198,8 @@ def test_install_with_the_real_bundle_is_idempotent(tmp_path, capsys):
 
 def test_global_install_resyncs_skills_and_rules_of_hosts_that_already_have_them(tmp_path, capsys, monkeypatch):
     home = tmp_path / "home"
-    (home / ".codex" / "skills" / "simplicio-loop").mkdir(parents=True)
-    (home / ".codex" / "skills" / "simplicio-loop" / "SKILL.md").write_text("old release\n", encoding="utf-8")
+    (home / ".cursor" / "skills" / "simplicio-loop").mkdir(parents=True)
+    (home / ".cursor" / "skills" / "simplicio-loop" / "SKILL.md").write_text("old release\n", encoding="utf-8")
     rules = home / ".codex" / "rules"
     rules.mkdir(parents=True)
     (rules / host_rules.RULE_NAME).write_text("simplicio-loop-operator-flow OLD\n", encoding="utf-8")
@@ -208,9 +208,9 @@ def test_global_install_resyncs_skills_and_rules_of_hosts_that_already_have_them
     rc, out = run(capsys, "install", "--global", "--check")
     assert rc == 10 and not (home / ".claude").exists()
     rc, out = run(capsys, "install", "--global")
-    assert rc == 0 and "resynced" in out and "codex" in out
-    codex = home / ".codex" / "skills" / "simplicio-loop"
-    assert skill_sync.skill_digest(codex) == skill_sync.skill_digest(skill_sync.package_skills_dir() / "simplicio-loop")
+    assert rc == 0 and "resynced" in out and "cursor" in out
+    cursor = home / ".cursor" / "skills" / "simplicio-loop"
+    assert skill_sync.skill_digest(cursor) == skill_sync.skill_digest(skill_sync.package_skills_dir() / "simplicio-loop")
     assert (rules / host_rules.RULE_NAME).read_text(encoding="utf-8") != "simplicio-loop-operator-flow OLD\n"
     rc, out = run(capsys, "install", "--global", "--check")
     assert rc == 0

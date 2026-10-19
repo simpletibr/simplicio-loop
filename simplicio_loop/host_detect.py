@@ -106,6 +106,8 @@ HOSTS: tuple[HostSpec, ...] = (
     HostSpec("qwen-code", "Qwen Code", ("qwen",), "", install="npm install -g @qwen-code/qwen-code", needs_node=True, exe_verified=False),
     HostSpec("rovo-dev", "Atlassian Rovo Dev", ("acli",), "", install="see https://developer.atlassian.com/cloud/acli/", needs_node=False, exe_verified=False),
     HostSpec("grok", "Grok Build", ("grok",), "grok", install="see the Grok Build page at https://x.ai", needs_node=False, exe_verified=True),
+    HostSpec("aider", "Aider", ("aider",), "", install="see https://aider.chat", needs_node=False, exe_verified=False),
+    HostSpec("openclaw", "OpenClaw", ("openclaw",), "", install="see https://docs.openclaw.ai", needs_node=False, exe_verified=False),
 )
 
 NO_EXECUTABLE: tuple[str, ...] = tuple(h.id for h in HOSTS if not h.exes)

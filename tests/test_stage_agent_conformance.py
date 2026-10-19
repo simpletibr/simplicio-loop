@@ -29,13 +29,17 @@ spec.loader.exec_module(sac)  # type: ignore[union-attr]
 
 
 def test_matrix_covers_every_matrix_md_runtime():
-    # The frozen snapshot covers these 15 runtimes of adapters/MATRIX.md; it must not silently
-    # drop one.
+    # The frozen snapshot covers these 14 runtimes of adapters/MATRIX.md; it must not silently drop one.
     expected_min = {
         "claude", "codex", "vscode", "cursor", "antigravity", "kiro", "opencode", "gemini",
-        "kimi", "qwen", "deepseek", "aider", "simplicio_agent", "openclaw", "orca",
+        "kimi", "qwen", "aider", "simplicio_agent", "openclaw", "orca",
     }
     assert expected_min <= set(sac.MATRIX)
+
+
+def test_deepseek_is_a_model_provider_and_has_no_runtime_row():
+    # DeepSeek is a model provider, not a host (adapters/MATRIX.md row 12): it is not a runtime to conform.
+    assert "deepseek" not in sac.MATRIX
 
 
 def test_matrix_row_has_required_capability_fields():

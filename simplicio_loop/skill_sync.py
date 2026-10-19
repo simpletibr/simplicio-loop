@@ -17,25 +17,15 @@ import shutil
 from pathlib import Path
 from typing import Optional, Union
 
+from .install.planner import GLOBAL_SKILL_ROOTS
+
 SKILLS = ("simplicio-tasks", "simplicio-loop", "simplicio-orient",
           "simplicio-review", "simplicio-compress", "simplicio-learn",
           "simplicio-autoresearch")
 
-# host -> skills root under $HOME. Single table: the doctor digest and the resync both read it.
-# `claude` is also where every generic `--global` install lands (target = $HOME).
-HOST_SKILL_ROOTS = {
-    "claude": ".claude/skills",
-    "cursor": ".cursor/skills",
-    "codex": ".codex/skills",
-    "grok": ".grok/skills",
-    "agents": ".agents/skills",
-    "copilot": ".copilot/skills",
-    "vscode": ".vscode/simplicio-skills",
-    "opencode": ".config/opencode/skills",
-    "amp": ".config/amp/skills",
-    "kiro": ".kiro/steering",
-    "simplicio_agent": ".simplicio-loop/skills",
-}
+# host -> skills root under $HOME: the same roots a `--global` install writes (planner.GLOBAL_SKILL_ROOTS), so the resync
+# refreshes exactly what the installer owns. `claude` is the universal copy every global install writes.
+HOST_SKILL_ROOTS = {"claude": ".claude/skills", **GLOBAL_SKILL_ROOTS}
 
 # Written into the installed loop skill by the host-rule sync (simplicio_loop.host_rules), not
 # shipped in the package skill: skill digests and resyncs leave it alone.
@@ -72,10 +62,13 @@ def skill_digest(skill_dir: PathLike) -> str:
 
 
 def installed_skill_hosts(home: Optional[PathLike] = None) -> dict:
-    """host -> skills root, for hosts that already have ``simplicio-loop`` installed."""
+    """host -> skills root, for the roots that already have ``simplicio-loop`` installed. Hosts that read the same root
+    (codex, goose, codebuff and openclaw read ``.agents/skills``) share one copy, so the first host names it."""
     base = Path(home) if home is not None else default_home()
-    return {host: base / rel for host, rel in HOST_SKILL_ROOTS.items()
-            if (base / rel / "simplicio-loop").is_dir()}
+    roots: dict[str, str] = {}
+    for host, rel in HOST_SKILL_ROOTS.items():
+        roots.setdefault(rel, host)
+    return {host: base / rel for rel, host in roots.items() if (base / rel / "simplicio-loop").is_dir()}
 
 
 def stale_skills(home: Optional[PathLike] = None) -> list:

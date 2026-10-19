@@ -22,10 +22,10 @@ def _run(args):
 
 
 def test_suite_runs_portable_validation_without_claiming_runtime_execution():
-    """The core is a portable contract gate, not a 15-runtime execution claim."""
+    """The core is a portable contract gate, not a 14-runtime execution claim (DeepSeek is a provider, not a runtime)."""
     proc = _run([])
     assert proc.returncode == 0, proc.stderr
-    assert "portable conformance: 0/15 runtimes executed; gate=pass" in proc.stdout, proc.stdout
+    assert "portable conformance: 0/14 runtimes executed; gate=pass" in proc.stdout, proc.stdout
 
 
 def test_json_report_has_canonical_roles_and_results(tmp_path):
@@ -37,8 +37,9 @@ def test_json_report_has_canonical_roles_and_results(tmp_path):
     assert data["issue"] == 432
     # All 12 canonical roles must be present.
     assert len(data["roles_canonical"]) == 12
-    # Every runtime produces a result entry.
-    assert len(data["results"]) == 15
+    # Every runtime produces a result entry (14: DeepSeek is a provider, not a runtime).
+    assert len(data["results"]) == 14
+    assert "deepseek" not in {row["runtime"] for row in data["results"]}
     portable = data["portable_validation"]
     assert portable["passed"] is True
     # A README and declared capabilities are not evidence of a runnable runtime.

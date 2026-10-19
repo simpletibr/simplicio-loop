@@ -56,11 +56,12 @@ from simplicio_loop import stage_agents as sa  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 ADAPTERS_DIR = os.path.join(_REPO_ROOT, "adapters")
 
-# The 15 runtimes that have a stage-agent conformance profile: a subset of the harness catalog
-# (simplicio_loop/_catalog/harnesses.json), which lists every host in adapters/MATRIX.md.
+# The 14 runtimes that have a stage-agent conformance profile: a subset of the harness catalog
+# (simplicio_loop/_catalog/harnesses.json), which lists every host in adapters/MATRIX.md. DeepSeek is a model provider
+# (no installer target, no adapter code), so it is not a runtime here.
 RUNTIMES = [
     "claude", "codex", "cursor", "vscode", "antigravity", "kiro", "opencode",
-    "gemini", "aider", "simplicio_agent", "openclaw", "orca", "deepseek",
+    "gemini", "aider", "simplicio_agent", "openclaw", "orca",
     "qwen", "kimi",
 ]
 
@@ -80,7 +81,6 @@ RUNTIME_BINARIES = {
     "simplicio_agent": "simplicio",
     "openclaw": None,
     "orca": None,
-    "deepseek": None,
     "qwen": None,
     "kimi": None,
 }
@@ -142,10 +142,6 @@ CAPABILITIES = {
                  hooks="self-paced", scheduler="self-paced", slots=4, isolation="unknown",
                  cancellation="unknown", observation="N2+N3",
                  blocked=["native subagent mode (no native API)"]),
-    "deepseek": dict(native_api=False, command_adapter=True, queue_adapter=False,
-                     hooks="self-paced", scheduler="self-paced", slots=4,
-                     isolation="unknown", cancellation="unknown", observation="N2+N3",
-                     blocked=["native subagent mode (no native API)"]),
     "qwen": dict(native_api=False, command_adapter=True, queue_adapter=False,
                  hooks="self-paced", scheduler="self-paced", slots=4, isolation="unknown",
                  cancellation="unknown", observation="N2+N3",

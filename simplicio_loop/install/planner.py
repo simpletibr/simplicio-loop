@@ -35,30 +35,75 @@ HOSTS = (
     "opencode", "gemini", "aider", "simplicio_agent", "openclaw", "github-copilot", "continue", "qwen",
     *(host for host in AGENTS_MD_HOSTS if host not in OPT_IN_HOSTS),
 )
+# THE host table. One row per installer runtime: the project surface as `destination -> kind`. `skills` copies the
+# bundled skills, `hooks` copies the bundled hooks, `entry` merges the marker block into the host's instructions file
+# (the rest of the file stays), and `config` writes the file a host reads when it is absent (an existing one is the
+# user's). `.claude/skills` is the universal copy: every entry block names it. The other skill root of a row is the one
+# the host's own docs say it scans (the catalog `source` of each host); a host whose docs name none gets only the
+# universal copy (aider, continue, orca).
 AGENTS_MD_LAYOUT = {".claude/skills": "skills", "AGENTS.md": "entry"}
-# One row per installer runtime: the project surface as `destination -> kind`. `skills` copies the bundled skills,
-# `hooks` copies the bundled hooks, `entry` merges the marker block into the host's instructions file (the rest of the
-# file stays), and `config` writes the file a host reads when it is absent (an existing one is the user's).
-# The wave-B rows are the surfaces the catalog names and the hosts' official docs confirm; the skill directory of
-# GitHub Copilot, Continue, Qwen Code, Gemini and Aider is not stated on the pages read, so it is the universal copy.
 HOST_LAYOUT = {
     "claude": {".claude/skills": "skills", "hooks": "hooks"},
-    "cursor": {".claude/skills": "skills", "hooks": "hooks"},
-    "vscode": {".claude/skills": "skills", ".github/copilot-instructions.md": "entry"},
-    "kiro": {".claude/skills": "skills", ".kiro/steering/simplicio-loop.md": "entry"},
-    "github-copilot": {".claude/skills": "skills", ".github/copilot-instructions.md": "entry"},
+    "cursor": {".claude/skills": "skills", ".cursor/skills": "skills", "hooks": "hooks"},
+    "vscode": {".claude/skills": "skills", ".github/skills": "skills", ".github/copilot-instructions.md": "entry"},
+    "kiro": {".claude/skills": "skills", ".kiro/skills": "skills", ".kiro/steering/simplicio-loop.md": "entry"},
+    "github-copilot": {".claude/skills": "skills", ".github/skills": "skills", ".github/copilot-instructions.md": "entry"},
     "opencode": {".claude/skills": "skills", ".opencode/skills": "skills", "AGENTS.md": "entry"},
-    "simplicio_agent": {".claude/skills": "skills"},
+    "simplicio_agent": {".claude/skills": "skills", ".hermes/skills": "skills"},
     "continue": {".claude/skills": "skills", ".continue/rules/simplicio-loop.md": "entry"},
-    "qwen": {".claude/skills": "skills", "QWEN.md": "entry"},
-    "gemini": {".claude/skills": "skills", "GEMINI.md": "entry"},
+    "qwen": {".claude/skills": "skills", ".qwen/skills": "skills", "QWEN.md": "entry"},
+    "gemini": {".claude/skills": "skills", ".gemini/skills": "skills", "GEMINI.md": "entry"},
     "aider": {".claude/skills": "skills", "CONVENTIONS.md": "entry", ".aider.conf.yml": "config"},
     "openclaw": {".claude/skills": "skills", ".agents/skills": "skills"},
-    **{host: dict(AGENTS_MD_LAYOUT) for host in AGENTS_MD_HOSTS},
+    "codex": {".claude/skills": "skills", ".agents/skills": "skills", "AGENTS.md": "entry"},
+    "grok": {".claude/skills": "skills", ".grok/skills": "skills", "AGENTS.md": "entry"},
+    "antigravity": {".claude/skills": "skills", ".agents/skills": "skills", "AGENTS.md": "entry"},
+    "mimo-code": {".claude/skills": "skills", ".mimocode/skills": "skills", "AGENTS.md": "entry"},
+    "amp": {".claude/skills": "skills", ".agents/skills": "skills", "AGENTS.md": "entry"},
+    "openclaude": {".claude/skills": "skills", ".openclaude/skills": "skills", "AGENTS.md": "entry"},
+    "pi": {".claude/skills": "skills", ".pi/skills": "skills", "AGENTS.md": "entry"},
+    "oh-my-pi": {".claude/skills": "skills", ".omp/skills": "skills", "AGENTS.md": "entry"},
+    "devin": {".claude/skills": "skills", ".devin/skills": "skills", "AGENTS.md": "entry"},
+    "goose": {".claude/skills": "skills", ".agents/skills": "skills", "AGENTS.md": "entry"},
+    "auggie": {".claude/skills": "skills", ".augment/skills": "skills", "AGENTS.md": "entry"},
+    "autohand": {".claude/skills": "skills", ".autohand/skills": "skills", "AGENTS.md": "entry"},
+    "charm": {".claude/skills": "skills", ".crush/skills": "skills", "AGENTS.md": "entry"},
+    "cline": {".claude/skills": "skills", ".cline/skills": "skills", "AGENTS.md": "entry"},
+    "codebuff": {".claude/skills": "skills", ".agents/skills": "skills", "AGENTS.md": "entry"},
+    "command-code": {".claude/skills": "skills", ".commandcode/skills": "skills", "AGENTS.md": "entry"},
+    "droid": {".claude/skills": "skills", ".factory/skills": "skills", "AGENTS.md": "entry"},
+    "kilocode": {".claude/skills": "skills", ".kilo/skills": "skills", "AGENTS.md": "entry"},
+    "kimi": {".claude/skills": "skills", ".kimi-code/skills": "skills", "AGENTS.md": "entry"},
+    "mistral-vibe": {".claude/skills": "skills", ".vibe/skills": "skills", "AGENTS.md": "entry"},
+    "rovo-dev": {".claude/skills": "skills", ".rovodev/skills": "skills", "AGENTS.md": "entry"},
+    "orca": dict(AGENTS_MD_LAYOUT),
 }
-# Under $HOME a global install writes the universal `.claude/skills` and `.claude/hooks`; a host that scans another
-# skill root writes that one too (OpenClaw scans `~/.agents/skills`, not `~/.claude/skills`).
-GLOBAL_SKILL_ROOTS = {"openclaw": ".agents/skills"}
+# A --global install writes into $HOME, at the paths each host's docs name for user-level config. The universal
+# `~/.claude/skills` and `~/.claude/hooks` always; the host's own user-level skill root (`GLOBAL_SKILL_ROOTS`); and, for a
+# host that has a project entry file, the user-level instruction file it reads (`GLOBAL_ENTRIES`). A host with a project
+# entry and no documented user-level file is not written: the plan lists it in `global_skipped`.
+GLOBAL_SKILL_ROOTS = {
+    "amp": ".config/amp/skills", "antigravity": ".gemini/antigravity-cli/skills", "auggie": ".augment/skills",
+    "autohand": ".autohand/skills", "charm": ".config/crush/skills", "cline": ".cline/skills",
+    "codebuff": ".agents/skills", "codex": ".agents/skills", "command-code": ".commandcode/skills",
+    "cursor": ".cursor/skills", "devin": ".config/devin/skills", "droid": ".factory/skills", "gemini": ".gemini/skills",
+    "github-copilot": ".copilot/skills", "goose": ".agents/skills", "grok": ".grok/skills", "kilocode": ".kilo/skills",
+    "kimi": ".kimi-code/skills", "kiro": ".kiro/skills", "mimo-code": ".config/mimocode/skills",
+    "mistral-vibe": ".vibe/skills", "oh-my-pi": ".omp/agent/skills", "opencode": ".config/opencode/skills",
+    "openclaude": ".openclaude/skills", "openclaw": ".agents/skills", "pi": ".pi/agent/skills", "qwen": ".qwen/skills",
+    "rovo-dev": ".rovodev/skills", "simplicio_agent": ".hermes/skills", "vscode": ".copilot/skills",
+}
+GLOBAL_ENTRIES = {
+    "amp": ".config/amp/AGENTS.md", "antigravity": ".gemini/GEMINI.md", "auggie": ".augment/rules/simplicio-loop.md",
+    "autohand": ".autohand/AGENTS.md", "charm": ".config/crush/CRUSH.md", "cline": "Documents/Cline/Rules/simplicio-loop.md",
+    "codebuff": ".knowledge.md", "codex": ".codex/AGENTS.md", "command-code": ".commandcode/AGENTS.md",
+    "devin": ".config/devin/AGENTS.md", "gemini": ".gemini/GEMINI.md", "github-copilot": ".copilot/copilot-instructions.md",
+    "goose": ".config/goose/.goosehints", "kilocode": ".config/kilo/AGENTS.md", "kimi": ".kimi-code/AGENTS.md",
+    "kiro": ".kiro/steering/simplicio-loop.md", "mimo-code": ".config/mimocode/AGENTS.md",
+    "mistral-vibe": ".vibe/AGENTS.md", "oh-my-pi": ".omp/agent/AGENTS.md", "opencode": ".config/opencode/AGENTS.md",
+    "pi": ".pi/agent/AGENTS.md", "qwen": ".qwen/QWEN.md", "rovo-dev": ".rovodev/AGENTS.md",
+    "vscode": ".copilot/copilot-instructions.md",
+}
 
 
 class InstallError(RuntimeError):
@@ -126,17 +171,23 @@ def runtime_for(host: str) -> str:
     raise InstallError(f"unknown host: {host}")
 
 
+def _has_entry(runtime: str) -> bool:
+    return any(kind == "entry" for kind in HOST_LAYOUT.get(runtime, {}).values())
+
+
 def _layout(runtime: str, globally: bool) -> dict[str, str]:
     """The surface one runtime installs. Under $HOME that is the universal `.claude/skills` and `.claude/hooks`, the
-    runtime's own skill root when it scans another (OpenClaw), and the host's entry file beside them. A config file is
-    project-scoped: the host reads it from the project it runs in."""
+    host's own user-level skill root, and the user-level instruction file the host reads (only for a host that has a
+    project entry). A config file is project-scoped: the host reads it from the project it runs in."""
     layout = dict(HOST_LAYOUT.get(runtime, {".claude/skills": "skills"}))
     if not globally:
         return layout
     home = {".claude/skills": "skills", ".claude/hooks": "hooks"}
     if runtime in GLOBAL_SKILL_ROOTS:
         home[GLOBAL_SKILL_ROOTS[runtime]] = "skills"
-    return {**home, **{dest: kind for dest, kind in layout.items() if kind == "entry"}}
+    if _has_entry(runtime) and runtime in GLOBAL_ENTRIES:
+        home[GLOBAL_ENTRIES[runtime]] = "entry"
+    return home
 
 
 def plan_install(
@@ -173,6 +224,8 @@ def plan_install(
         "hosts": hosts,
         "actions": actions,
         "entrypoint": "simplicio-loop=simplicio_loop.cli:main",
+        # the hosts whose project entry file has no documented user-level file: a --global install does not write them
+        "global_skipped": [item for item in hosts if globally and _has_entry(item) and item not in GLOBAL_ENTRIES],
     }
     plan["digest"] = _digest({key: plan[key] for key in ("schema", "version", "hosts", "actions", "scope")})
     return plan
@@ -292,7 +345,9 @@ def apply_plan(
         if kind == "entry":  # the marker block is merged into the entry file; the file's other text stays as it is
             existed = dest.is_file()
             current = dest.read_text(encoding="utf-8") if existed else ""
-            _put(dest, entry.body_for(rel, current).encode("utf-8"), None, changes, root, dry_run, made)
+            # a user-level file is read from any project, so its block names the user-level skill copy
+            skills_root = "~/.claude/skills" if plan.get("scope") == "global" else ".claude/skills"
+            _put(dest, entry.body_for(rel, current, skills_root).encode("utf-8"), None, changes, root, dry_run, made)
             blocks.setdefault(rel, previous["blocks"].get(rel, not existed))  # the first write of this run decides
             block_files.append(rel)
             continue
@@ -331,7 +386,6 @@ def apply_plan(
         "schema": OWNERSHIP_SCHEMA,
         "owner": "simplicio-loop",
         "version": plan["version"],
-        "digest": plan["digest"],
         # an entry file is owned through its block, never as a whole: a receipt of an older install that listed it is corrected
         "paths": sorted((set(owned) | set(previous["paths"])) - set(block_files) - released),
         "dirs": sorted(made | set(previous["dirs"])),
@@ -339,6 +393,9 @@ def apply_plan(
     }
     if settings_record is not None:
         ownership["claude_settings"] = settings_record
+    # The digest describes what the receipt registers, not the last plan: installing another host later leaves it alone
+    # when nothing it lists changed, so a no-op install writes nothing.
+    ownership["digest"] = _digest(ownership)
     body = (json.dumps(ownership, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     _put(root / RECEIPT, body, None, changes, root, dry_run, made)
     pending = len(changes["created"]) + len(changes["updated"])
@@ -351,6 +408,7 @@ def apply_plan(
         "owned": sorted(set(owned) | set(block_files)),
         "ownership": ownership,
         "digest": plan["digest"],
+        "global_skipped": list(plan.get("global_skipped") or []),
     }
 
 

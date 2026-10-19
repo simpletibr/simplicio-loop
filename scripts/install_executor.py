@@ -285,6 +285,8 @@ def _step_paths(target: str, is_global: bool, runtime: str, mode: str,
         paths["reconcile"] = [os.path.join(target, ".claude", "skills", s) for s in stale_skills]
     if cfg["entry"]:
         paths["entry"] = [os.path.join(target, cfg["entry"])]
+        if runtime == "aider" and not is_global:  # aider reads CONVENTIONS.md only through this config (as install_lib does)
+            paths["entry"].append(os.path.join(target, ".aider.conf.yml"))
     if cfg["hooks"] == "claude":
         paths["claude_settings"] = [os.path.join(target, ".claude", "settings.json")]
     if mode == "full-stack":
@@ -320,6 +322,8 @@ def _run_step(step: str, target: str, is_global: bool, runtime: str,
         _lib.copy_scripts(target, is_global)
     elif step == "entry":
         _lib.ensure_entry(target, cfg["entry"])
+        if runtime == "aider" and not is_global:
+            _lib.ensure_aider_config(target)
     elif step == "claude_settings":
         _lib.wire_claude_hooks(target, is_global)
     elif step == "full_stack":
