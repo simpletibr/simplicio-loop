@@ -67,10 +67,21 @@ rehearsal fails on them before it does anything else.
    X.Y.Z` to rehearse an explicit real bump instead of the safe label, or `--require-signing` to
    fail closed if no gpg key is configured.
 
-4. **Publish.** PyPI publishing is still the pre-#292 manual/token-based flow described in the
-   issue's "Fluxo atual problemático" section. It has NOT been migrated to OIDC/Trusted
-   Publishing, and the automatic build-once pipeline (tag → build → attest → publish → verify)
-   has NOT been implemented. See "What remains blocked" below for why.
+4. **Publish from this machine.** This repository has no GitHub Actions (the global delivery policy
+   allows workflows only in simplicio-runtime and simplicio-code). After the gate passes and the
+   release PR is merged, tag the merge commit and upload the wheel and sdist with the maintainer's
+   PyPI token (`~/.pypirc` or `TWINE_PASSWORD`):
+
+   ```bash
+   git tag vX.Y.Z && git push origin vX.Y.Z
+   python3 -m build
+   python3 -m twine upload dist/simplicio_loop-X.Y.Z*
+   gh release create vX.Y.Z dist/simplicio_loop-X.Y.Z* --notes-file <notes>
+   ```
+
+   It has NOT been migrated to OIDC/Trusted Publishing, and the automatic build-once pipeline
+   (tag → build → attest → publish → verify) has NOT been implemented. See "What remains blocked"
+   below for why.
 
 ## Running the full gate
 

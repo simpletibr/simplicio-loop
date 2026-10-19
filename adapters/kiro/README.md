@@ -97,5 +97,5 @@ simplicio execution-report start|record-task|finish|show|consolidate --json
 simplicio-loop preflight --strict --json
 ```
 
-After Runtime install on Windows: `packaging/windows/install.ps1` then pip-install loop/mapper/dev-cli and re-run preflight until operational.
+On Windows: run the public installer (`irm https://raw.githubusercontent.com/simpletibr/simplicio/master/install.ps1 | iex`); it installs the Runtime and simplicio-loop (with Mapper and Dev CLI) via pip. Then run `simplicio-loop doctor`.
 
