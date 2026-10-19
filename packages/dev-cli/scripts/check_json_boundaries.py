@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import datetime as dt
 import sys
 import tarfile
 import zipfile
@@ -18,7 +17,11 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 optional backport
     import tomli as tomllib  # type: ignore[no-redef]
 
 _WILDCARDS = "*?[]{}"
-_TARGETS = {"hbp", "hbi", "toml"}
+# A registry entry is a permanent classification of one exact runtime artifact.
+# It has no expiry and no migration target: any other key is rejected, so a dated
+# waiver can never turn the inventory red on a calendar date.
+_ENTRY_KEYS = frozenset({"path", "category", "owner", "reason"})
+_REQUIRED_KEYS = ("category", "owner", "reason")
 # These directories are disposable outputs from external/runtime probes. They
 # are not checked-in state and must not turn a clean test run into a dirty
 # inventory finding. Persistent JSON under .simplicio-loop remains fail-closed.
@@ -61,17 +64,17 @@ def load_policy(root: Path) -> Policy:
         path = _exact_relative_path(entry.get("path"), "each exception")
         if path in exceptions:
             raise ValueError(f"duplicate exception: {path}")
-        missing = [key for key in ("category", "target", "owner", "reason", "expires") if not entry.get(key)]
+        unsupported = sorted(set(entry) - _ENTRY_KEYS)
+        if unsupported:
+            raise ValueError(
+                f"{path}: unsupported keys {', '.join(unsupported)}; "
+                "exceptions are permanent classifications with no expiry or migration target"
+            )
+        missing = [key for key in _REQUIRED_KEYS if not entry.get(key)]
         if missing:
             raise ValueError(f"{path}: missing {', '.join(missing)}")
-        if entry["target"] not in _TARGETS:
-            raise ValueError(f"{path}: target must be one of {sorted(_TARGETS)}")
         if not any(path == item or path.startswith(f"{item}/") for item in roots):
             raise ValueError(f"{path}: exception is outside configured internal roots")
-        try:
-            dt.date.fromisoformat(str(entry["expires"]))
-        except ValueError as error:
-            raise ValueError(f"{path}: expires must be an ISO date") from error
         exceptions[path] = entry
     return Policy(roots, formats, exceptions)
 
@@ -113,13 +116,8 @@ def check(root: Path, artifacts: Iterable[Path] = ()) -> list[str]:
             rel = path.relative_to(root).as_posix()
             if any(rel == ephemeral or rel.startswith(f"{ephemeral}/") for ephemeral in _EPHEMERAL_ROOTS):
                 continue
-            entry = policy.exceptions.get(rel)
-            if entry is None:
+            if rel not in policy.exceptions:
                 findings.append(f"UNCLASSIFIED {rel}")
-                continue
-            expiry = dt.date.fromisoformat(str(entry["expires"]))
-            if expiry < dt.date.today():
-                findings.append(f"EXPIRED {rel} ({expiry.isoformat()})")
     for artifact in artifacts:
         for rel in sorted(_owned_json(_archive_paths(artifact), policy)):
             findings.append(f"PACKAGED_INTERNAL_JSON {artifact.name}!{rel}")

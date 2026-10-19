@@ -7,6 +7,11 @@ import pytest
 
 from scripts.check_json_boundaries import check, load_policy, main
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python 3.10 optional backport
+    import tomli as tomllib  # type: ignore[no-redef]
+
 
 @pytest.fixture
 def policy_root(tmp_path: Path) -> Path:
@@ -21,6 +26,18 @@ def policy_root(tmp_path: Path) -> Path:
 
 def test_checked_in_state_is_inventory_classified():
     assert check(Path(__file__).parents[2]) == []
+
+
+def test_checked_in_registry_carries_only_permanent_classifications():
+    registry_path = Path(__file__).parents[2] / "config" / "json-boundaries.toml"
+    registry = tomllib.loads(registry_path.read_text(encoding="utf-8"))
+    permanent = {"path", "category", "owner", "reason"}
+    offending = {
+        entry["path"]: sorted(set(entry) - permanent)
+        for entry in registry.get("exceptions", [])
+        if set(entry) - permanent
+    }
+    assert offending == {}
 
 
 def test_unclassified_internal_state_is_blocked(policy_root: Path):
@@ -48,26 +65,39 @@ def test_exception_registry_rejects_non_exact_paths(policy_root: Path, path: str
     registry.write_text(
         "version=1\npolicy='internal-json-deny'\n"
         "[scanner]\ninternal_roots=['.simplicio-loop']\nformats=['.json']\n"
-        f"[[exceptions]]\npath='{path}'\ncategory='legacy'\ntarget='hbi'\n"
-        "owner='quality'\nreason='migration'\nexpires='2099-01-01'\n",
+        f"[[exceptions]]\npath='{path}'\ncategory='runtime-state'\n"
+        "owner='quality'\nreason='runtime output'\n",
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match="exact path|normalized repository-relative"):
         load_policy(policy_root)
 
 
-@pytest.mark.parametrize("missing", ["owner", "reason", "expires"])
+@pytest.mark.parametrize("missing", ["category", "owner", "reason"])
 def test_exception_registry_requires_accountability(policy_root: Path, missing: str):
-    fields = {"owner": "quality", "reason": "bounded legacy migration", "expires": "2099-01-01"}
+    fields = {"category": "runtime-state", "owner": "quality", "reason": "runtime output"}
     del fields[missing]
     extra = "\n".join(f"{key}='{value}'" for key, value in fields.items())
     (policy_root / "config" / "json-boundaries.toml").write_text(
         "version=1\npolicy='internal-json-deny'\n"
         "[scanner]\ninternal_roots=['.simplicio-loop']\nformats=['.json']\n"
-        "[[exceptions]]\npath='.simplicio-loop/legacy.json'\ncategory='legacy'\ntarget='hbi'\n" + extra,
+        "[[exceptions]]\npath='.simplicio-loop/legacy.json'\n" + extra,
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match=f"missing {missing}"):
+        load_policy(policy_root)
+
+
+@pytest.mark.parametrize("dated_key", ["expires='2099-01-01'", "target='hbi'"])
+def test_exception_registry_rejects_dated_waivers_and_migration_targets(policy_root: Path, dated_key: str):
+    (policy_root / "config" / "json-boundaries.toml").write_text(
+        "version=1\npolicy='internal-json-deny'\n"
+        "[scanner]\ninternal_roots=['.simplicio-loop']\nformats=['.json']\n"
+        "[[exceptions]]\npath='.simplicio-loop/legacy.json'\ncategory='runtime-state'\n"
+        f"owner='quality'\nreason='runtime output'\n{dated_key}\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="unsupported keys"):
         load_policy(policy_root)
 
 
