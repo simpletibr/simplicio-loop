@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shutil
 import stat
 import subprocess
 import sys
@@ -160,7 +161,8 @@ def test_the_detached_helper_never_runs_code_from_the_mapped_repository(tmp_path
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / shadow).write_text('raise SystemExit("REPO CODE RAN")\n', encoding="utf-8")
-    argv = msm.index_argv("/bin/true", str(repo))
+    # /bin/true is absent on macOS (it is /usr/bin/true): take the no-op binary from PATH.
+    argv = msm.index_argv(shutil.which("true"), str(repo))
     # A relative PYTHONPATH entry (the `PYTHONPATH=.` a developer exports) resolves against the child's cwd, the
     # mapped repo, and -P does not stop it. index_argv cannot control the caller's environment, so this test
     # drops relative entries to check what index_argv owns: the cwd is never put first on sys.path.
