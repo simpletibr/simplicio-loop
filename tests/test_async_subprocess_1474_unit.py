@@ -43,11 +43,14 @@ async def _ticks_during(coro):
 
 
 def _is_gone(pid: int) -> bool:
-    try:
-        state = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
-    except OSError:
-        return True
-    return state == "Z"
+    """True once ``pid`` has exited: no such process, or a zombie its parent has not reaped yet.
+
+    ``/proc/<pid>/stat`` exists only on Linux. On macOS that read always failed, so every pid looked
+    gone: 'still alive' assertions always failed and 'wait until gone' helpers returned at once.
+    ``ps -o stat=`` reports the same state on both: empty output once the pid is gone, ``Z`` for a zombie.
+    """
+    state = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True).stdout.strip()
+    return state == "" or state.startswith("Z")
 
 
 async def _wait_gone(pid: int, seconds: float = 5.0) -> bool:
