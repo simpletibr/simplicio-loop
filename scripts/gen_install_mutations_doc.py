@@ -66,9 +66,14 @@ MUTATIONS = [
      "between `<!-- simplicio-loop:begin/end -->` markers",
      "project/user",
      "yes (marker-delimited block is removable without touching the rest of the file)", "no"),
-    ("install_lib.py", "merge_claude_hooks()",
-     "merges `Stop` (+ project-local `PreToolUse`) hook entries into `.claude/settings.json`",
-     "project/user", "yes (JSON merge; existing unrelated keys untouched)", "no"),
+    ("install_lib.py / planner.py", "wire_claude_hooks() / claude_hooks.wire()",
+     "merges Loop's `Stop` and `PreToolUse` hook entries into `.claude/settings.json` (one merge for "
+     "`scripts/install.sh claude` and `simplicio-loop install`; `orient_rewrite` is project-only). A file that "
+     "cannot be parsed stops the install before anything is written, and is never overwritten",
+     "project/user",
+     "yes (the ownership receipt lists each entry; uninstall removes exactly those, and deletes the file only when "
+     "install created it)",
+     "no"),
     ("install_lib.py", "install_git_precommit_hook()",
      "writes `.git/hooks/pre-commit` (only if the target is a git repo and no foreign hook "
      "already lives there)",

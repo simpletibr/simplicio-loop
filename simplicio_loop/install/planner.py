@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Iterator, Mapping
 
 from .. import __version__, distribution
-from . import entry
+from . import claude_hooks, entry
 
 SCHEMA = "simplicio.loop-install-plan/v1"
 OWNERSHIP_SCHEMA = "simplicio.loop-install-ownership/v2"
@@ -120,6 +120,13 @@ def plan_install(
                 "destination": dest,
                 "owner": "simplicio-loop",
             })
+        if item == "claude":  # the hooks are registered in settings.json; the copies alone never run them
+            actions.append({
+                "host": item,
+                "kind": "claude_settings",
+                "destination": claude_hooks.SETTINGS.as_posix(),
+                "owner": "simplicio-loop",
+            })
     plan = {
         "schema": SCHEMA,
         "version": version,
@@ -144,9 +151,10 @@ def _blocks(payload: Mapping[str, Any]) -> dict[str, bool]:
 
 
 def _previous_receipt(root: Path) -> dict[str, Any]:
-    """What an earlier install registered, so a second host installed later does not drop the first one's files.
-    A receipt of another schema is not read: install rewrites it, and its paths are not trusted."""
-    empty: dict[str, Any] = {"paths": [], "dirs": [], "blocks": {}}
+    """What an earlier install registered, so a second host installed later does not drop the first one's files, and
+    a re-install keeps the marker blocks and the hook entries an earlier install added. A receipt of another schema is
+    not read: install rewrites it, and its paths are not trusted."""
+    empty: dict[str, Any] = {"paths": [], "dirs": [], "blocks": {}, "claude_settings": None}
     marker = root / RECEIPT
     if not marker.is_file():
         return empty
@@ -160,7 +168,49 @@ def _previous_receipt(root: Path) -> dict[str, Any]:
         blocks = _blocks(payload)
     except InstallError:
         return empty
-    return {"paths": list(payload.get("paths") or []), "dirs": list(payload.get("dirs") or []), "blocks": blocks}
+    record = payload.get("claude_settings")
+    return {
+        "paths": list(payload.get("paths") or []),
+        "dirs": list(payload.get("dirs") or []),
+        "blocks": blocks,
+        "claude_settings": record if claude_hooks.valid_record(record) else None,
+    }
+
+
+def _claude_wiring(plan: Mapping[str, Any], root: Path, hooks_src: Any) -> claude_hooks.Wiring | None:
+    """The merge of Loop's hook entries into `.claude/settings.json`, or None when this plan does not wire Claude.
+    It only reads: `apply_plan` writes the result once every other check has passed."""
+    if not any(action.get("kind") == "claude_settings" for action in plan.get("actions") or []):
+        return None
+    wanted = claude_hooks.entries(
+        root / ".claude" / "hooks",
+        is_global=plan.get("scope") == "global",
+        available=lambda name: hooks_src.joinpath(name).is_file(),
+    )
+    try:
+        return claude_hooks.wire(claude_hooks.read(root / claude_hooks.SETTINGS), wanted)
+    except claude_hooks.SettingsError as exc:
+        raise InstallError(str(exc)) from exc
+
+
+def _settings_unwiring(root: Path, receipt: Mapping[str, Any]) -> claude_hooks.Unwiring | None:
+    """What uninstall does to `.claude/settings.json`, read before any file is removed so a refusal removes nothing."""
+    record = receipt.get("claude_settings")
+    if record is None:
+        return None
+    if not claude_hooks.valid_record(record):
+        raise InstallError("ownership receipt is malformed: `claude_settings` must list the hook entries Loop added")
+    try:
+        return claude_hooks.unwire_file(root / claude_hooks.SETTINGS, record)
+    except claude_hooks.SettingsError as exc:
+        raise InstallError(f"{exc}; nothing was removed") from exc
+
+
+def _unwired(settings: claude_hooks.Unwiring | None) -> dict[str, int]:
+    """The settings file, and how many of Loop's hook entries were taken out of it."""
+    if settings is None or not settings.removed:
+        return {}
+    return {claude_hooks.SETTINGS.as_posix(): settings.removed}
 
 
 def apply_plan(
@@ -169,13 +219,15 @@ def apply_plan(
     dry_run: bool = False,
     bundle: Any = None,  # a path, or any importlib.resources Traversable; None = the bundle of this package
 ) -> dict[str, Any]:
-    """Copy the bundled skills and hooks into the plan's target. Idempotent: a file that is already identical is not
-    rewritten. `changes` says what was created, what was updated, how many were unchanged and what was left alone
+    """Copy the bundled skills and hooks into the plan's target, merge the marker block into each entry file, and register
+    the Claude Code hooks in `.claude/settings.json`. Idempotent: a file that is already identical is not rewritten, a
+    settings file that already has the entries is not touched, and a marker block that is already in place is refreshed
+    where it stands. `changes` says what was created, what was updated, how many were unchanged and what was left alone
     (files in the target that Loop does not own).
 
-    The ownership receipt registers exactly the files Loop wrote or found identical, the directories it created, and
-    the marker blocks it put into entry files (AGENTS.md ...): a block is Loop's, the rest of that file is not. uninstall
-    removes only those.
+    The ownership receipt registers exactly the files Loop wrote or found identical, the directories it created, the
+    marker blocks it put into entry files (AGENTS.md ...): a block is Loop's, the rest of that file is not, and the hook
+    entries it added to the settings file. uninstall removes only those.
     """
     root = Path(plan["target"])
     owned: list[str] = []
@@ -189,9 +241,14 @@ def apply_plan(
     hooks_src = source.joinpath("hooks")
     if not skills_src.is_dir():
         raise InstallError("bundled skills not found in the installed package.")
+    # Read and merge the settings before anything is written: a settings file that cannot be parsed stops the install
+    # while the target is still untouched.
+    wiring = _claude_wiring(plan, root, hooks_src)
     for action in plan.get("actions") or []:
         dest = root / action["destination"]
         kind = action["kind"]
+        if kind == "claude_settings":  # written below, with the rest of the Claude wiring, once every other check has passed
+            continue
         if kind == "entry":  # the marker block is merged into the entry file; the file's other text stays as it is
             rel = dest.relative_to(root).as_posix()
             existed = dest.is_file()
@@ -210,10 +267,17 @@ def apply_plan(
         if dest.is_dir():
             changes["left_alone"] += [child.relative_to(root).as_posix() for child in sorted(dest.iterdir())
                                       if child.name not in top and child.name != "__pycache__"]
+    settings_record = previous["claude_settings"]
+    if wiring is not None:
+        if wiring.added:
+            _put(root / claude_hooks.SETTINGS, claude_hooks.render(wiring.data), None, changes, root, dry_run, made)
+        elif (root / claude_hooks.SETTINGS).is_file():
+            changes["unchanged"] += 1
+        settings_record = claude_hooks.record_of(settings_record, wiring)
     if not (root / RECEIPT.parent).exists():  # the receipt's own directory is one more thing install creates
         made.add(RECEIPT.parent.as_posix())
     all_blocks = {**previous["blocks"], **blocks}
-    ownership = {
+    ownership: dict[str, Any] = {
         "schema": OWNERSHIP_SCHEMA,
         "owner": "simplicio-loop",
         "version": plan["version"],
@@ -223,6 +287,8 @@ def apply_plan(
         "dirs": sorted(made | set(previous["dirs"])),
         "blocks": [{"path": rel, "created": created} for rel, created in sorted(all_blocks.items())],
     }
+    if settings_record is not None:
+        ownership["claude_settings"] = settings_record
     body = (json.dumps(ownership, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     _put(root / RECEIPT, body, None, changes, root, dry_run, made)
     pending = len(changes["created"]) + len(changes["updated"])
@@ -273,15 +339,38 @@ def _read_receipt(root: Path) -> dict[str, Any]:
     return payload
 
 
+def _entry_edits(root: Path, receipt: Mapping[str, Any]) -> tuple[dict[str, str], list[str]]:
+    """What taking Loop's marker blocks out of the entry files does: the text each edited file keeps, and the files
+    install created that hold nothing but the block now. Nothing is written here; the caller decides."""
+    edits: dict[str, str] = {}
+    emptied: list[str] = []
+    for rel, created in sorted(_blocks(receipt).items()):  # only the marker block goes; the rest of the file stays
+        path = _receipt_path(root, rel)
+        if not path.is_file():
+            continue
+        rest = entry.remove(path.read_text(encoding="utf-8"))
+        if rest is None:
+            continue
+        if created and not rest.strip():  # install created this file, and nothing but the block was ever in it
+            emptied.append(rel)
+        else:
+            edits[rel] = rest
+    return edits, emptied
+
+
 def uninstall(target: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
     """Remove the files the receipt registers, strip the marker blocks it wrote into entry files (deleting a file only
-    when install created it and nothing else is left), then remove the registered directories that are empty by then.
-    A directory that holds anything Loop did not register (a user's skill, rule or hook) is kept, and so is every
-    directory that install did not create. `dry_run` returns the same lists and touches nothing.
+    when install created it and nothing else is left), take the hook entries it added out of `.claude/settings.json`
+    (deleting that file only when install created it and nothing else is left), then remove the registered directories
+    that are empty by then. A directory that holds anything Loop did not register (a user's skill, rule or hook) is
+    kept, and so is every directory that install did not create. `dry_run` returns the same lists and touches nothing;
+    then `removed` is what would go.
     """
     root = Path(target).resolve()
     receipt = _read_receipt(root)
-    files = sorted({RECEIPT.as_posix(), *_listed(receipt, "paths")})
+    settings = _settings_unwiring(root, receipt)
+    edits, emptied = _entry_edits(root, receipt)
+    files = sorted({RECEIPT.as_posix(), *_listed(receipt, "paths"), *emptied})
     gone: set[str] = set()
     removed: list[str] = []
     skipped: list[str] = []
@@ -292,21 +381,9 @@ def uninstall(target: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
             gone.add(rel)
         elif path.exists():  # a directory where a file was registered: not Loop's to delete
             skipped.append(rel)
-    edits: dict[str, str] = {}
-    edited: list[str] = []
-    for rel, created in sorted(_blocks(receipt).items()):  # only the marker block goes; the rest of the file stays
-        path = _receipt_path(root, rel)
-        if not path.is_file():
-            continue
-        rest = entry.remove(path.read_text(encoding="utf-8"))
-        if rest is None:
-            continue
-        if created and not rest.strip():  # install created this file, and nothing but the block was ever in it
-            removed.append(rel)
-            gone.add(rel)
-        else:
-            edits[rel] = rest
-            edited.append(rel)
+    if settings is not None and settings.delete:
+        removed.append(claude_hooks.SETTINGS.as_posix())
+        gone.add(claude_hooks.SETTINGS.as_posix())
     removed_dirs: list[str] = []
     kept: list[str] = []
     for rel in sorted(set(_listed(receipt, "dirs")), key=lambda item: item.count("/"), reverse=True):
@@ -323,16 +400,19 @@ def uninstall(target: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
             _receipt_path(root, rel).write_text(text, encoding="utf-8", newline="\n")
         for rel in removed:
             _receipt_path(root, rel).unlink()
+        if settings is not None and settings.removed and not settings.delete:
+            claude_hooks.write(root / claude_hooks.SETTINGS, settings.data or {})
         for rel in removed_dirs:
             _receipt_path(root, rel).rmdir()
     return {
         "schema": OWNERSHIP_SCHEMA,
         "status": "dry_run" if dry_run else "removed",
         "removed": removed,
-        "edited": edited,
+        "edited": sorted(edits),
         "removed_dirs": removed_dirs,
         "kept": kept,
         "skipped": skipped,
+        "unwired": _unwired(settings),
     }
 
 
@@ -352,6 +432,8 @@ def prune_project_copies(target: str | Path, *, dry_run: bool = False) -> dict[s
     - Project-scope simplicio-* skill directories (.claude/skills, .cursor/skills, etc.)
     - Project-scope Loop rule files (.claude/rules, .cursor/rules, .github, etc.)
     - Project-scope hooks installed by Loop
+    - The Loop marker blocks in the entry files (AGENTS.md ...) and the hook entries in .claude/settings.json that the
+      receipt registers: only those go, and a file is deleted only when install created it and nothing else is left
     - The .simplicio-loop directory itself
 
     Never deletes foreign user files or unmanaged user directories.
@@ -371,7 +453,20 @@ def prune_project_copies(target: str | Path, *, dry_run: bool = False) -> dict[s
         except (OSError, ValueError):
             pass
 
-    candidates: set[Path] = set()
+    # The marker blocks and the hook entries the project's install added are taken out with the files they point at.
+    # Read first, so an unreadable receipt or settings file stops the prune before anything is deleted.
+    entry_edits: dict[str, str] = {}
+    emptied: list[str] = []
+    if receipt_data is not None:
+        entry_edits, emptied = _entry_edits(root, receipt_data)
+    settings = None
+    if receipt_data is not None and claude_hooks.valid_record(receipt_data.get("claude_settings")):
+        try:
+            settings = claude_hooks.unwire_file(root / claude_hooks.SETTINGS, receipt_data["claude_settings"])
+        except claude_hooks.SettingsError as exc:
+            raise InstallError(f"{exc}; nothing was removed") from exc
+
+    candidates: set[Path] = {root / rel for rel in emptied}
     dirs_to_check: set[Path] = set()
 
     if receipt_data:
@@ -433,6 +528,22 @@ def prune_project_copies(target: str | Path, *, dry_run: bool = False) -> dict[s
                 except OSError:
                     pass
 
+    for rel, text in entry_edits.items():
+        if not dry_run:
+            _receipt_path(root, rel).write_text(text, encoding="utf-8", newline="\n")
+
+    if settings is not None:
+        if settings.delete:
+            removed.append(claude_hooks.SETTINGS.as_posix())
+            gone.add(root / claude_hooks.SETTINGS)
+            if not dry_run:
+                try:
+                    (root / claude_hooks.SETTINGS).unlink()
+                except OSError:
+                    pass
+        elif settings.removed and not dry_run:
+            claude_hooks.write(root / claude_hooks.SETTINGS, settings.data or {})
+
     all_dirs: set[Path] = set()
     for d in dirs_to_check:
         cur = d
@@ -464,4 +575,6 @@ def prune_project_copies(target: str | Path, *, dry_run: bool = False) -> dict[s
         "removed": sorted(removed),
         "removed_dirs": sorted(removed_dirs),
         "kept": sorted(kept),
+        "edited": sorted(entry_edits),
+        "unwired": _unwired(settings),
     }

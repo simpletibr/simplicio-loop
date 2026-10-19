@@ -7,7 +7,7 @@ a deterministic `simplicio.install-transaction/v1` plan with NO side effects. Th
 executor that actually APPLIES that plan's file effects (skills, hooks, worker scripts, the
 runtime entry file, and — for Claude — `.claude/settings.json`) using the same idempotent
 primitives already in `scripts/install_lib.py` (`copy_skills`, `copy_hooks`, `copy_scripts`,
-`ensure_entry`, `merge_claude_hooks`), but wraps each one with:
+`ensure_entry`, `wire_claude_hooks`), but wraps each one with:
 
 - a backup of whatever already exists at that path, taken BEFORE the mutation runs;
 - a before/after content hash, so the receipt records exactly what changed;
@@ -321,7 +321,7 @@ def _run_step(step: str, target: str, is_global: bool, runtime: str,
     elif step == "entry":
         _lib.ensure_entry(target, cfg["entry"])
     elif step == "claude_settings":
-        _lib.merge_claude_hooks(target, is_global)
+        _lib.wire_claude_hooks(target, is_global)
     elif step == "full_stack":
         # File-surface only: operator/capture-proxy/dashboard CODE lands on disk here, reversibly,
         # under the same backup/rollback discipline as every other step. Actually registering it

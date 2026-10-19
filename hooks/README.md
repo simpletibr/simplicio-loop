@@ -28,7 +28,7 @@ it unwired.
 ## The safety gate (`action_gate.py`)
 
 Enforces `simplicio-tasks` Step 5 mechanically instead of trusting the model to remember it.
-Wire it as a Claude `PreToolUse` Bash hook (the installer does this) AND a git pre-push hook
+Wire it as a Claude `PreToolUse` hook with no matcher, so it also sees host Write/Edit calls under STRICT (the installer does this) AND a git pre-push hook
 (the installer does this too, project-local only):
 
 ```bash

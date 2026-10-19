@@ -44,7 +44,9 @@ cross-platform Python). For GitHub sources you also want `git` + an authenticate
 What the installer does (all reversible — copies + a config edit):
 - copies `.claude/skills/simplicio-*` (7 skills) into the runtime's skills location,
 - copies `hooks/` so hook paths resolve,
-- wires the loop (`Stop`/`stop` hook) where the runtime supports it; else the loop self-paces,
+- for Claude Code, registers the loop's `Stop` hook and the `PreToolUse` safety gate in `.claude/settings.json`
+  (existing keys and hooks are kept; `install --uninstall` removes only the entries it added); the loop is wired
+  wherever the runtime supports it, else it self-paces,
 - ensures the runtime's entry file (`AGENTS.md` / `GEMINI.md` / `.github/copilot-instructions.md`
   / `.kiro/steering/…` / `CONVENTIONS.md`) references the protocol — idempotently,
 - prints `simplicio-cli mcp register --client <runtime>` for optional native binding.

@@ -36,6 +36,7 @@ import os
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 try:  # Windows consoles default to cp1252 and choke on non-ASCII — force UTF-8.
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -47,6 +48,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SOURCE = os.path.dirname(HERE)
 # The marker block and its merge live in one place, shared with `simplicio-loop install` (planner.py).
 sys.path.insert(0, SOURCE)
+from simplicio_loop.install import claude_hooks as _claude_hooks  # noqa: E402
 from simplicio_loop.install import entry as _entry  # noqa: E402
 # Explicit override keeps portable profiles and isolated installer tests honest;
 # normal installs still use the platform's real user home.
@@ -410,61 +412,21 @@ def ensure_entry(target, rel):
     log("entry -> %s" % rel)
 
 
-def merge_claude_hooks(target, is_global):
-    path = os.path.join(target, ".claude", "settings.json")
-    data = {}
-    if os.path.exists(path):
-        try:
-            with open(path, encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception:
-            log("! .claude/settings.json unreadable — printing snippet instead")
-            return print_claude_snippet()
-    hooks = data.setdefault("hooks", {})
-
-    def has(event, needle):
-        for grp in hooks.get(event, []):
-            for h in grp.get("hooks", []):
-                if needle in h.get("command", ""):
-                    return True
-        return False
-
-    # Global install: cwd varies per session, so reference hooks by ABSOLUTE path
-    # (forward slashes work on Windows too). Project install: relative ./hooks (portable).
-    def cmd(name):
-        if is_global:
-            return 'python3 "%s"' % os.path.abspath(
-                os.path.join(hooks_dir(target, True), name)).replace("\\", "/")
-        return "python3 ./hooks/%s" % name
-
-    if not has("Stop", "loop_stop.py"):
-        hooks.setdefault("Stop", []).append({"hooks": [
-            {"type": "command", "command": cmd("loop_stop.py")},
-        ]})
-    wired = "Stop"
-    # action_gate: Bash safety + under STRICT block Write/Edit/StrReplace (operator-only).
-    # Project-local and global: gate is fail-open outside simplicio projects
-    # (see hooks/action_gate.py _project_relevant).
-    if not has("PreToolUse", "action_gate.py"):
-        hooks.setdefault("PreToolUse", []).append({
-            "hooks": [{"type": "command", "command": cmd("action_gate.py")}],
-        })
-        wired = "Stop + PreToolUse(action_gate)"
-    # orient_rewrite rewrites Bash calls; only wire it project-locally (opt-in), never
-    # globally — a global PreToolUse rewrite would touch every session on the machine.
-    if not is_global and not has("PreToolUse", "orient_rewrite.py"):
-        hooks.setdefault("PreToolUse", []).append({
-            "matcher": "Bash",
-            "hooks": [{"type": "command", "command": cmd("orient_rewrite.py")}],
-        })
-        wired = "Stop + PreToolUse(action_gate+orient)"
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-    log("hooks wired -> %s settings.json (%s)" % ("global" if is_global else ".claude", wired))
-
-
-def print_claude_snippet():
-    log("add to .claude/settings.json manually — see adapters/claude/README.md")
+def wire_claude_hooks(target, is_global):
+    """Register Loop's `Stop` and `PreToolUse` hooks in `<target>/.claude/settings.json`. The merge is the package's
+    (simplicio_loop/install/claude_hooks.py), so this installer and `simplicio-loop install` write the same wiring."""
+    src_hooks = os.path.join(SOURCE, "hooks")
+    wanted = _claude_hooks.entries(Path(hooks_dir(target, is_global)), is_global=is_global,
+                                   available=lambda name: os.path.isfile(os.path.join(src_hooks, name)))
+    path = Path(target) / _claude_hooks.SETTINGS
+    try:
+        wiring = _claude_hooks.wire(_claude_hooks.read(path), wanted)
+    except _claude_hooks.SettingsError as exc:
+        log("! %s — hooks not wired; add them by hand, see adapters/claude/README.md" % exc)
+        return
+    if wiring.added:
+        _claude_hooks.write(path, wiring.data)
+    log("hooks wired -> %s (%s)" % (path, ", ".join("%s %s" % (e.event, e.file) for e in wanted)))
 
 
 def _is_externally_managed_error(stderr):
@@ -1078,7 +1040,7 @@ def main():
         copy_scripts(target, is_global)
         ensure_entry(target, cfg["entry"])
         if cfg["hooks"] == "claude":
-            merge_claude_hooks(target, is_global)
+            wire_claude_hooks(target, is_global)
     install_git_precommit_hook(target)
     install_git_prepush_hook(target)
     # Always-on multi-LLM rules + strict env (Claude/Codex/Grok/Cursor/VS Code/…) -- but

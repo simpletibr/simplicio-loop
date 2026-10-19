@@ -115,7 +115,18 @@ def _install_lines(result: dict, host: str, head: str, resync: Optional[dict],
             lines.append(prefix + ", ".join(shown_items) + (f" (+{more} more)" if more > 0 else ""))
         else:
             lines.append("  project copies -> 0 stale files found")
+        edit_verb = "would edit" if head.startswith(("check", "dry_run")) else "edited"
+        if prune_project.get("edited"):
+            lines.append(f"  {edit_verb} project entry files (Loop's marker block removed) -> "
+                         f"{', '.join(prune_project['edited'])}")
+        unwire_verb = "would unwire" if head.startswith(("check", "dry_run")) else "unwired"
+        lines += [f"  {unwire_verb} project hooks -> {path} ({_entries(count)})"
+                  for path, count in (prune_project.get("unwired") or {}).items()]
     return lines
+
+
+def _entries(count: int) -> str:
+    return f"{count} hook {'entry' if count == 1 else 'entries'}"
 
 
 def install(target: Path, globally: bool, host: str = "claude",
@@ -139,7 +150,10 @@ def install(target: Path, globally: bool, host: str = "claude",
               f"{verb} {len(payload['removed'])} files, {len(payload['removed_dirs'])} empty directories")
         print("\n".join(f"  {verb}: {rel}" for rel in payload["removed"] + [f"{rel}/" for rel in payload["removed_dirs"]]))
         if payload["edited"]:
-            print(f"  edited (Loop's marker block removed, the rest of the file kept): {', '.join(payload['edited'])}")
+            print(f"  {'would edit' if dry_run else 'edited'} (Loop's marker block removed, the rest of the file kept): "
+                  f"{', '.join(payload['edited'])}")
+        for path, count in payload["unwired"].items():
+            print(f"  {'would unwire' if dry_run else 'unwired'}: {path} ({_entries(count)})")
         if payload["kept"]:
             print(f"  kept (not empty, holds files Loop did not install): {', '.join(payload['kept'])}")
         if globally:
@@ -157,7 +171,11 @@ def install(target: Path, globally: bool, host: str = "claude",
         print(f"error: {exc}", flush=True)
         return 1
     resync = _resync_hosts(root, apply=not (dry_run or check)) if globally else None
-    prune_result = prune_fn(target, dry_run=dry_run or check) if (globally and prune_project_copies) else None
+    try:
+        prune_result = prune_fn(target, dry_run=dry_run or check) if (globally and prune_project_copies) else None
+    except InstallError as exc:
+        print(f"error: {exc}", flush=True)
+        return 1
     pending = not result["up_to_date"] or bool(resync and resync["pending"])
     if as_json:
         payload = {**result, "host": host, "version": __version__, "resynced": resync}

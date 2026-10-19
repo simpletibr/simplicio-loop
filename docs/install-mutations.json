@@ -69,11 +69,11 @@
     },
     {
       "consent_required": "no",
-      "effect": "merges `Stop` (+ project-local `PreToolUse`) hook entries into `.claude/settings.json`",
-      "function": "merge_claude_hooks()",
-      "reversible": "yes (JSON merge; existing unrelated keys untouched)",
+      "effect": "merges Loop's `Stop` and `PreToolUse` hook entries into `.claude/settings.json` (one merge for `scripts/install.sh claude` and `simplicio-loop install`; `orient_rewrite` is project-only). A file that cannot be parsed stops the install before anything is written, and is never overwritten",
+      "function": "wire_claude_hooks() / claude_hooks.wire()",
+      "reversible": "yes (the ownership receipt lists each entry; uninstall removes exactly those, and deletes the file only when install created it)",
       "scope": "project/user",
-      "source": "install_lib.py"
+      "source": "install_lib.py / planner.py"
     },
     {
       "consent_required": "no — but a *foreign* existing hook is never overwritten (logged, not clobbered)",
