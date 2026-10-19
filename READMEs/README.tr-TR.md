@@ -155,7 +155,7 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## Çalışma zamanları
 
-- **34 `wired`** adaptörün `adapters/` içinde kodu ve bir ana makine testi var: kataloğun her kurulum ana makinesi; Claude Code, Codex, Cursor, Grok, Kiro, VS Code, 20 `AGENTS.md` ana makinesi ve B dalgasının sekiz ana makinesi dahil.
+- **34 `wired`** adaptörün `adapters/` içinde kodu ve bir ana makine testi var: kataloğun her kurulum ana makinesi; Claude Code, Codex, Grok, Cursor, GitHub Copilot, OpenCode, MiMo Code, Amp, OpenClaude, Antigravity, Pi, oh-my-pi, Hermes Agent (Simplicio Agent), Devin, Goose, Auggie, Autohand Code, Charm, Cline, Codebuff, Command Code, Continue, Droid, Kilocode, Kimi, Kiro, Mistral Vibe, Qwen Code, Rovo Dev, Gemini CLI, Visual Studio Code, OrcaDev / Orca ADE, Aider ve OpenClaw dahil.
 - **0 `listed`** ana makine: katalogdaki her ana makinenin adaptör kodu var. DeepSeek bir model sağlayıcısıdır, ana makine değil.
 - Yukarıdaki operatörler sıradan komutlardır; bu yüzden `wired` olsun ya da olmasın her harness'ten çalışırlar. Host başına durum: [adapters/MATRIX.md](../adapters/MATRIX.md) ve [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 

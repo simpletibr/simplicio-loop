@@ -155,7 +155,7 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## Runtimes
 
-- **34 `wired`** adaptadores tienen código en `adapters/` y una prueba de host: cada host de instalación del catálogo, incluidos Claude Code, Codex, Cursor, Grok, Kiro, VS Code, los 20 `AGENTS.md` y los ocho de la ola B.
+- **34 `wired`** adaptadores tienen código en `adapters/` y una prueba de host: cada host de instalación del catálogo, incluidos Claude Code, Codex, Grok, Cursor, GitHub Copilot, OpenCode, MiMo Code, Amp, OpenClaude, Antigravity, Pi, oh-my-pi, Hermes Agent (Simplicio Agent), Devin, Goose, Auggie, Autohand Code, Charm, Cline, Codebuff, Command Code, Continue, Droid, Kilocode, Kimi, Kiro, Mistral Vibe, Qwen Code, Rovo Dev, Gemini CLI, Visual Studio Code, OrcaDev / Orca ADE, Aider y OpenClaw.
 - **0 `listed`** hosts: todo host del catálogo tiene código de adaptador. DeepSeek es un proveedor de modelos, no un host.
 - Los operadores de arriba son comandos simples, así que funcionan desde cualquier harness, `wired` o no. Estado por host: [adapters/MATRIX.md](../adapters/MATRIX.md) y [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 

@@ -155,7 +155,7 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## रनटाइम
 
-- **34 `wired`** एडैप्टर में `adapters/` में कोड और होस्ट टेस्ट है: कैटलॉग का हर इंस्टॉल होस्ट, जिनमें Claude Code, Codex, Cursor, Grok, Kiro, VS Code, 20 `AGENTS.md` होस्ट और लहर B के आठ होस्ट शामिल हैं।
+- **34 `wired`** एडैप्टर में `adapters/` में कोड और होस्ट टेस्ट है: कैटलॉग का हर इंस्टॉल होस्ट, जिनमें Claude Code, Codex, Grok, Cursor, GitHub Copilot, OpenCode, MiMo Code, Amp, OpenClaude, Antigravity, Pi, oh-my-pi, Hermes Agent (Simplicio Agent), Devin, Goose, Auggie, Autohand Code, Charm, Cline, Codebuff, Command Code, Continue, Droid, Kilocode, Kimi, Kiro, Mistral Vibe, Qwen Code, Rovo Dev, Gemini CLI, Visual Studio Code, OrcaDev / Orca ADE, Aider और OpenClaw शामिल हैं।
 - **0 `listed`** होस्ट: कैटलॉग के हर होस्ट में एडैप्टर कोड है। DeepSeek एक मॉडल प्रदाता है, होस्ट नहीं।
 - ऊपर के ऑपरेटर सामान्य कमांड हैं, इसलिए वे किसी भी हार्नेस से चलते हैं, `wired` हो या न हो। हर होस्ट की स्थिति: [adapters/MATRIX.md](../adapters/MATRIX.md) और [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json)।
 

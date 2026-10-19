@@ -155,7 +155,7 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## ランタイム
 
-- **34 `wired`** アダプターは `adapters/` にコードとホストテストを持ちます。カタログのインストール対象ホストすべてが対象で、Claude Code、Codex、Cursor、Grok、Kiro、VS Code、20 の `AGENTS.md` ホスト、ウェーブ B の 8 ホストを含みます。
+- **34 `wired`** アダプターは `adapters/` にコードとホストテストを持ちます。カタログのインストール対象ホストすべてが対象で、Claude Code、Codex、Grok、Cursor、GitHub Copilot、OpenCode、MiMo Code、Amp、OpenClaude、Antigravity、Pi、oh-my-pi、Hermes Agent (Simplicio Agent)、Devin、Goose、Auggie、Autohand Code、Charm、Cline、Codebuff、Command Code、Continue、Droid、Kilocode、Kimi、Kiro、Mistral Vibe、Qwen Code、Rovo Dev、Gemini CLI、Visual Studio Code、OrcaDev / Orca ADE、Aider と OpenClaw を含みます。
 - **0 `listed`** ホスト: カタログの各ホストにはアダプターのコードがあります。DeepSeek はモデルプロバイダーであり、ホストではありません。
 - 上のオペレーターは普通のコマンドなので、`wired` かどうかに関係なく、どのハーネスからでも動きます。ホストごとの状態：[adapters/MATRIX.md](../adapters/MATRIX.md) と [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json)。
 

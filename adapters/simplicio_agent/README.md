@@ -10,8 +10,10 @@ integration — most steps run deterministically at near-zero token cost.
 bash scripts/install.sh simplicio_agent
 ```
 
-The installer copies the 7 skills into `.claude/skills/`. Whether Simplicio Agent's skill recall reads that root is
-not verified here, and the installer does not check the native bindings.
+The installer copies the 7 skills into `.claude/skills/` (the copy the loop block names) and into `.hermes/skills/`, the
+project skill root that the upstream Hermes docs name (`~/.hermes/skills/` at user level, which `--global` writes). The
+Simplicio Agent config moved to `~/.simplicio-agent/`, so whether its skill recall reads `.hermes/skills` after the rename
+is not verified here, and the installer does not check the native bindings.
 
 ## Loop drive — native loop
 

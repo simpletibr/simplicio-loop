@@ -155,7 +155,7 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## 运行时
 
-- **34 `wired`** 个适配器在 `adapters/` 中包含代码和主机测试：目录中的每个安装主机都有，包括 Claude Code、Codex、Cursor、Grok、Kiro、VS Code、20 个 `AGENTS.md` 主机和 B 波次的 8 个主机。
+- **34 `wired`** 个适配器在 `adapters/` 中包含代码和主机测试：目录中的每个安装主机都有，包括 Claude Code、Codex、Grok、Cursor、GitHub Copilot、OpenCode、MiMo Code、Amp、OpenClaude、Antigravity、Pi、oh-my-pi、Hermes Agent (Simplicio Agent)、Devin、Goose、Auggie、Autohand Code、Charm、Cline、Codebuff、Command Code、Continue、Droid、Kilocode、Kimi、Kiro、Mistral Vibe、Qwen Code、Rovo Dev、Gemini CLI、Visual Studio Code、OrcaDev / Orca ADE、Aider 和 OpenClaw。
 - **0 `listed`** 个主机：目录中的每个主机都有适配器代码。DeepSeek 是模型提供方，不是主机。
 - 上面的操作符是普通命令，因此无论是否为 `wired`，任何 harness 都能运行它们。各 host 状态见 [adapters/MATRIX.md](../adapters/MATRIX.md) 和 [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json)。
 

@@ -155,7 +155,7 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## Runtimes
 
-- **34 `wired`** adapters hebben code in `adapters/` en een hosttest: elke installatiehost uit de catalogus, waaronder Claude Code, Codex, Cursor, Grok, Kiro, VS Code, de 20 `AGENTS.md`-hosts en de acht van golf B.
+- **34 `wired`** adapters hebben code in `adapters/` en een hosttest: elke installatiehost uit de catalogus, waaronder Claude Code, Codex, Grok, Cursor, GitHub Copilot, OpenCode, MiMo Code, Amp, OpenClaude, Antigravity, Pi, oh-my-pi, Hermes Agent (Simplicio Agent), Devin, Goose, Auggie, Autohand Code, Charm, Cline, Codebuff, Command Code, Continue, Droid, Kilocode, Kimi, Kiro, Mistral Vibe, Qwen Code, Rovo Dev, Gemini CLI, Visual Studio Code, OrcaDev / Orca ADE, Aider en OpenClaw.
 - **0 `listed`** hosts: elke catalogushost heeft adaptercode. DeepSeek is een modelprovider, geen host.
 - De operators hierboven zijn gewone commando's en werken dus vanuit elk harnas, `wired` of niet. Status per host: [adapters/MATRIX.md](../adapters/MATRIX.md) en [simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 

@@ -604,8 +604,8 @@ The hosts are listed once, in [`simplicio_loop/_catalog/harnesses.json`](../simp
 and each one is either `wired` or `listed`, or `provider` for DeepSeek, a model provider rather than a host. The status is measured from the tree, not declared: **wired** means
 `adapters/<host>/` ships code and `tests/host_<host>/` tests it; **listed** means a catalog entry and a README,
 with no adapter code (a listing is not proof that the host runs the loop). `bash scripts/install.sh <runtime>`
-installs a wired adapter, and gives every listed host the generic installer target that writes the
-skills and the host's entry file; DeepSeek is a model provider rather than a host, so its adapter README lists manual steps.
+installs a wired adapter. Today every catalog host is wired; DeepSeek is a model provider rather than a host, so its
+adapter README lists manual steps.
 
 ### Tier 1 — Guaranteed (gated on every commit)
 

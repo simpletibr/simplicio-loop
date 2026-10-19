@@ -155,7 +155,7 @@ pie showData title Extension points in the 24/7 path (of 50)
 
 ## بيئات التشغيل
 
-- **34 `wired`** محوّلًا (adapter) له كود في `adapters/` واختبار مضيف: كل مضيف تثبيت في الكتالوج، ومنها Claude Code وCodex وCursor وGrok وKiro وVS Code و20 مضيفًا على سطح `AGENTS.md` وثمانية مضيفين من الموجة B.
+- **34 `wired`** محوّلًا (adapter) له كود في `adapters/` واختبار مضيف: كل مضيف تثبيت في الكتالوج، ومنها Claude Code، Codex، Grok، Cursor، GitHub Copilot، OpenCode، MiMo Code، Amp، OpenClaude، Antigravity، Pi، oh-my-pi، Hermes Agent (Simplicio Agent)، Devin، Goose، Auggie، Autohand Code، Charm، Cline، Codebuff، Command Code، Continue، Droid، Kilocode، Kimi، Kiro، Mistral Vibe، Qwen Code، Rovo Dev، Gemini CLI، Visual Studio Code، OrcaDev / Orca ADE، Aider و OpenClaw.
 - **0 `listed`** مضيف: لا يوجد في الكتالوج مضيف دون كود محوِّل. DeepSeek نموذج مزوِّد وليس مضيفًا.
 - المشغّلات أعلاه أوامر عادية، لذا تعمل من أي بيئة، سواء كانت `wired` أم لا. الحالة لكل مضيف: [adapters/MATRIX.md](../adapters/MATRIX.md) و[simplicio_loop/_catalog/harnesses.json](../simplicio_loop/_catalog/harnesses.json).
 
