@@ -6,6 +6,10 @@ Run with: python3 -m unittest discover -s tests/python
 from __future__ import annotations
 
 import importlib.util
+import os
+import shutil
+import subprocess
+import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
@@ -67,6 +71,14 @@ class NormalizeTest(unittest.TestCase):
             normalized["a"][0]["b"]["root"], f"{self.mod.NORMALIZED_ROOT_PLACEHOLDER}/x"
         )
 
+    def test_pins_host_platform_because_it_is_machine_local(self) -> None:
+        # execution_plan.platform is platform.system(): "Linux" on the machine that committed the golden,
+        # "Darwin" on a developer's Mac. It is host state, not artifact shape, so it must not drift the check.
+        payload = {"execution_plan": {"platform": "Darwin", "selected_profile": "sync"}}
+        normalized = self.mod._normalize(payload, "/abs/fixture/source")
+        self.assertEqual(normalized["execution_plan"]["platform"], self.mod.NORMALIZED_PLATFORM)
+        self.assertEqual(normalized["execution_plan"]["selected_profile"], "sync")
+
 
 class CheckCommandTest(unittest.TestCase):
     """End-to-end: runs the real mapper CLI against the committed fixture
@@ -108,6 +120,38 @@ class CheckCommandTest(unittest.TestCase):
                 code = mod.cmd_check()
         self.assertEqual(code, 1)
         self.assertIn("golden fixture drift", errors.getvalue())
+
+
+class FixtureSourceIsolationTest(unittest.TestCase):
+    """The mapper publishes project capabilities (.catalog, .skills/_generated, .agents/_generated) into the
+    indexed root when that root is a clean checkout of the canonical branch. Fixture sources are committed
+    inputs, so a regen run must never write there. The canonical branch is reproduced in a throwaway git
+    checkout, whatever branch the test suite itself runs on."""
+
+    CAPABILITY_DIRS = (".catalog", ".skills", ".agents")
+
+    def test_mapper_runs_leave_canonical_checkout_untouched(self) -> None:
+        mod = _load_module()
+        identity = {
+            "GIT_AUTHOR_NAME": "fixture",
+            "GIT_AUTHOR_EMAIL": "fixture@example.invalid",
+            "GIT_COMMITTER_NAME": "fixture",
+            "GIT_COMMITTER_EMAIL": "fixture@example.invalid",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            checkout = Path(tmp) / "checkout"
+            shutil.copytree(mod._source_dir("python-minimal"), checkout)
+            git_env = {**os.environ, **identity}
+            subprocess.run(["git", "-C", str(checkout), "init", "-q", "-b", "canonical"], check=True)
+            subprocess.run(["git", "-C", str(checkout), "add", "-A"], check=True)
+            subprocess.run(
+                ["git", "-C", str(checkout), "commit", "-q", "-m", "fixture"], check=True, env=git_env
+            )
+            with patch.dict(os.environ, {"SIMPLICIO_MAPPER_CANONICAL_REF": "canonical"}):
+                mod._run_map(str(checkout), str(Path(tmp) / "out-map"))
+                mod._run_index_json(str(checkout), str(Path(tmp) / "out-json"))
+            leaked = [name for name in self.CAPABILITY_DIRS if (checkout / name).exists()]
+        self.assertEqual(leaked, [])
 
 
 if __name__ == "__main__":

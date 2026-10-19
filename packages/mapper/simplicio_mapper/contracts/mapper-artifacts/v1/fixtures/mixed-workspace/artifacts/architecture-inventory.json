@@ -237,7 +237,7 @@
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:5d4fb31dca0b9d538bb90cde49d6633db638c55c3ff6daf7090d367a10545166",
+    "canonical_digest": "sha256:8a4cc9fb0088a2ee3dc5f590a158c8a37230b73f4cbe08efe8f1caef91c4dc76",
     "capability_coverage": {
       "architecture": "full",
       "files": "full",
@@ -271,6 +271,9 @@
       "lexical_unique": 3
     },
     "invalid_edges": 0,
+    "name_candidate_limit": null,
+    "name_capped_call_sites": 0,
+    "name_edges_discarded": 0,
     "observed_edges": 4,
     "omitted_edges": 0,
     "status": "complete",

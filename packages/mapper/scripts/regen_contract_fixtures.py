@@ -66,6 +66,13 @@ NORMALIZED_TIMESTAMP = "1970-01-01T00:00:00.000Z"
 NORMALIZED_LAST_MODIFIED = NORMALIZED_TIMESTAMP
 NORMALIZED_REPOSITORY_ID = "sha256:" + ("0" * 64)
 NORMALIZED_VERSION = "0.26.28"
+NORMALIZED_PLATFORM = "<host-platform>"
+
+# The mapper publishes project capabilities into the indexed root (.catalog, .skills/_generated,
+# .agents/_generated) when that root is a clean checkout of SIMPLICIO_MAPPER_CANONICAL_REF. Fixture sources are
+# committed inputs, never outputs, so every mapper run here pins the ref to one that no git branch can carry
+# (branch names cannot contain spaces): the publish stays a preview and only the temporary output dir is written.
+NO_BRANCH_CANONICAL_REF = "fixture regen"
 
 
 def _source_dir(name: str) -> str:
@@ -74,6 +81,10 @@ def _source_dir(name: str) -> str:
 
 def _artifacts_dir(name: str) -> str:
     return os.path.join(FIXTURES_ROOT, name, "artifacts")
+
+
+def _mapper_env() -> dict[str, str]:
+    return {**os.environ, "SIMPLICIO_MAPPER_CANONICAL_REF": NO_BRANCH_CANONICAL_REF}
 
 
 def _run_map(source_dir: str, out_dir: str) -> None:
@@ -87,6 +98,7 @@ def _run_map(source_dir: str, out_dir: str) -> None:
         capture_output=True,
         text=True,
         stdin=subprocess.DEVNULL,
+        env=_mapper_env(),
     )
 
 
@@ -101,15 +113,17 @@ def _run_index_json(source_dir: str, out_dir: str) -> dict:
         capture_output=True,
         text=True,
         stdin=subprocess.DEVNULL,
+        env=_mapper_env(),
     )
     return json.loads(result.stdout)
 
 
 def _normalize(value, source_dir_abs: str, out_dir_abs: str | None = None):
     """Replace the fixture's absolute source (and, when given, output)
-    directory paths with stable placeholders and pin runtime timestamps,
-    so committed fixtures do not churn on every regen run for
-    reasons unrelated to real shape drift (temp dir names, timestamps)."""
+    directory paths with stable placeholders and pin runtime timestamps and
+    machine-local identity (repository id, host platform), so committed
+    fixtures do not churn on every regen run for reasons unrelated to real
+    shape drift (temp dir names, timestamps, the machine running the check)."""
     if isinstance(value, str):
         text = value
         if out_dir_abs and out_dir_abs in text:
@@ -130,6 +144,8 @@ def _normalize(value, source_dir_abs: str, out_dir_abs: str | None = None):
                 out[key] = NORMALIZED_REPOSITORY_ID
             elif key == "version" and isinstance(sub_value, str):
                 out[key] = NORMALIZED_VERSION
+            elif key == "platform" and isinstance(sub_value, str):
+                out[key] = NORMALIZED_PLATFORM
             else:
                 out[key] = _normalize(sub_value, source_dir_abs, out_dir_abs)
         return out

@@ -17,7 +17,7 @@
     "fallback_profile": "sync",
     "fallback_reason": null,
     "file_count": 4,
-    "platform": "Linux",
+    "platform": "<host-platform>",
     "predicted_p95_ms": null,
     "reason": "auto fell back to the conservative synchronous path because no compatible calibration evidence was available",
     "requested_profile": "auto",
@@ -31,6 +31,7 @@
     "architecture_inventory": "<fixture-root>/.simplicio-loop/architecture-inventory.json",
     "call_graph": "<fixture-root>/.simplicio-loop/call-graph.json",
     "execution_plan": "<fixture-root>/.simplicio-loop/execution-plan.json",
+    "fast_snapshot": "<fixture-root>/.simplicio-loop/project.sfast",
     "precedent_index": "<fixture-root>/.simplicio-loop/precedent-index.json",
     "project_map": "<fixture-root>/.simplicio-loop/project-map.json",
     "symbol_index": "<fixture-root>/.simplicio-loop/symbol-index.json"

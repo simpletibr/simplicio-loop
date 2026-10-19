@@ -757,7 +757,7 @@
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:c9309884d314e72e59593a512244498b29d19e3b3db608613b92ac9116764a44",
+    "canonical_digest": "sha256:5691f52cd54c158ddc76189022cf93ccd25c6cabed62a6801551b8e5de55d47e",
     "capability_coverage": {
       "architecture": "partial",
       "files": "partial",
@@ -794,6 +794,9 @@
       "lexical_unique": 1
     },
     "invalid_edges": 0,
+    "name_candidate_limit": null,
+    "name_capped_call_sites": 0,
+    "name_edges_discarded": 0,
     "observed_edges": 1,
     "omitted_edges": 0,
     "status": "complete",

@@ -12,6 +12,9 @@
       "lexical_unique": 1
     },
     "invalid_edges": 0,
+    "name_candidate_limit": 32,
+    "name_capped_call_sites": 0,
+    "name_edges_discarded": 0,
     "observed_edges": 1,
     "omitted_edges": 0,
     "status": "complete",
@@ -48,7 +51,7 @@
   "generated_at": "1970-01-01T00:00:00.000Z",
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:421ad8f9721a3630e2d7028c8493a6214c8b64f8d45bdbafc0b315181730380f",
+    "canonical_digest": "sha256:f5e5ed353ad21fa536d0883c86e274d59840255e2e714a3447e4b231d40808a9",
     "capability_coverage": {
       "architecture": "unsupported",
       "files": "unsupported",
@@ -74,6 +77,7 @@
   },
   "schema": "simplicio.call-graph/v1",
   "semantic_resolution": {
+    "input_key": "452bd0bdfd325118894063e648520bab7d1b986cc4d0e6e5",
     "languages": [],
     "protocol": "v1",
     "provider_versions": [],

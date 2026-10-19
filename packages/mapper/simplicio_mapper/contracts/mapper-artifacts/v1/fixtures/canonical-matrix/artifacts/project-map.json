@@ -1357,6 +1357,7 @@
     ],
     "schema": "simplicio.mapper-capability-coverage/v1",
     "semantic_resolution": {
+      "input_key": "452bd0bdfd325118894063e648520bab7d1b986cc4d0e6e5",
       "languages": [],
       "protocol": "v1",
       "provider_versions": [],
@@ -1822,7 +1823,7 @@
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:8b28ba7ce6c797159cde6975b0c6ed31c2a6284769996d072631d109ee0b1e34",
+    "canonical_digest": "sha256:dbcc4db92a876f01542e430093280322e3a8a65cb72befd2fe0d730efece12ba",
     "capability_coverage": {
       "architecture": "partial",
       "files": "partial",

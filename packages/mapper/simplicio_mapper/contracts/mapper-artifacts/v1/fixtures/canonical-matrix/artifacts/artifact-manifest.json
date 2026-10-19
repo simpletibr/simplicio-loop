@@ -1,12 +1,12 @@
 {
-  "artifact_set_digest": "sha256:c4678270bcf0bf4907c182d0590e58e4da8a0fc2e3ec0e9d48a7d8912af63f1c",
+  "artifact_set_digest": "sha256:3fd8d6aa106dc67dc00c29bffc20f0632ff1ad9bd8d8fb144fb80e1061050939",
   "artifacts": {
     "architecture_inventory": {
-      "canonical_digest": "sha256:c9309884d314e72e59593a512244498b29d19e3b3db608613b92ac9116764a44",
+      "canonical_digest": "sha256:5691f52cd54c158ddc76189022cf93ccd25c6cabed62a6801551b8e5de55d47e",
       "schema": "simplicio.architecture-inventory/v1"
     },
     "call_graph": {
-      "canonical_digest": "sha256:421ad8f9721a3630e2d7028c8493a6214c8b64f8d45bdbafc0b315181730380f",
+      "canonical_digest": "sha256:f5e5ed353ad21fa536d0883c86e274d59840255e2e714a3447e4b231d40808a9",
       "schema": "simplicio.call-graph/v1"
     },
     "precedent_index": {
@@ -14,11 +14,11 @@
       "schema": "simplicio.precedent-index/v1"
     },
     "project_map": {
-      "canonical_digest": "sha256:8b28ba7ce6c797159cde6975b0c6ed31c2a6284769996d072631d109ee0b1e34",
+      "canonical_digest": "sha256:dbcc4db92a876f01542e430093280322e3a8a65cb72befd2fe0d730efece12ba",
       "schema": "simplicio.project-map/v1"
     },
     "symbol_index": {
-      "canonical_digest": "sha256:b3d014108acbf26dbfc132c868c4cb520d719f49f4ec99ca8bc4f601310d30cd",
+      "canonical_digest": "sha256:c17f7f54040043d6250bd2f219819289aebee7c84ff03ae4ac5ee32ab4f12e31",
       "schema": "simplicio.symbol-index/v1"
     }
   },

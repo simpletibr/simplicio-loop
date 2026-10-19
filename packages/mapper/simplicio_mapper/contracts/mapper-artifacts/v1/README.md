@@ -93,8 +93,9 @@ committing so fixtures do not churn on irrelevant noise: the fixture's
 absolute source/output directory paths are replaced with the placeholder
 `<fixture-root>` (and `<fixture-root>/.simplicio-loop` for output paths), and
 `generated_at`/`last_modified` fields are pinned to
-`1970-01-01T00:00:00.000Z`. The local `repository_id` is pinned to a fixture
-sentinel; the semantic digest is
+`1970-01-01T00:00:00.000Z`. The local `repository_id` and the host `platform`
+(`execution_plan.platform`, e.g. `Linux` or `Darwin`) are pinned to fixture
+sentinels; the semantic digest is
 computed before normalization and excludes producer/runtime-local fields.
 Nothing else is touched — the schemas describe exactly what the mapper
 produced.
@@ -161,9 +162,11 @@ python3 scripts/regen_contract_fixtures.py update   # regenerate fixtures after 
 
 `check` runs the real mapper fresh against all `fixtures/*/source/`
 directories (in a temp output dir, so it never touches the committed
-fixtures), validates the output against `schemas/`, and compares normalized
-output to the committed golden fixtures. Normalization pins timestamps,
-repository identity and machine-local paths only. If a code change makes the mapper
+fixtures: the mapper's capability publish is pinned to a non-branch ref so it
+never writes `.catalog`/`.skills`/`.agents` into a source), validates the
+output against `schemas/`, and compares normalized output to the committed
+golden fixtures. Normalization pins timestamps, repository identity, the host
+platform and machine-local paths only. If a code change makes the mapper
 emit something that no longer matches the contract or golden semantic content,
 `check` fails — forcing either a mapper fix or a deliberate contract bump (edit
 the schema, run `update`, review the fixture diff, commit both together).
