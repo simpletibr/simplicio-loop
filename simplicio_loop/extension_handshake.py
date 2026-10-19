@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.metadata
 import json
 import sys
 from pathlib import Path
 from typing import Any, Mapping
 
 from . import __version__
+from .distribution import install_record
 from .extension_manifest import SCHEMA_ID as EXTENSION_SCHEMA, compose_stage_graph
 from .extension_registry import ExtensionRegistry
 from .feedback_recovery_agent import FEEDBACK_RECOVERY_RECEIPT_SCHEMA
@@ -60,10 +60,8 @@ def _module_file() -> Path:
 def runtime_identity() -> dict[str, Any]:
     executable = Path(sys.executable).resolve()
     package = Path(__file__).resolve().parent
-    try:
-        distribution = Path(importlib.metadata.distribution("simplicio-loop").locate_file("")).resolve()
-    except importlib.metadata.PackageNotFoundError:
-        distribution = package.parent
+    record = install_record()
+    distribution = Path(record.locate_file("")).resolve() if record is not None else package.parent
     return {
         "executable": str(executable),
         "argv0": str(Path(sys.argv[0]).resolve()),

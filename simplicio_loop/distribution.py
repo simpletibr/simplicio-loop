@@ -38,6 +38,16 @@ def installed_version() -> Optional[str]:
     return str(record.version) if record is not None and record.version else None
 
 
+def installed_distribution(name: str) -> Optional[metadata.Distribution]:
+    """The installed distribution ``name``: pip's record for simplicio-loop (see install_record), else the first match."""
+    if name == DISTRIBUTION:
+        return install_record()
+    try:
+        return metadata.distribution(name)
+    except metadata.PackageNotFoundError:
+        return None
+
+
 def is_editable() -> bool:
     """Installed with `pip install -e` (pip records it in direct_url.json)."""
     record = install_record()

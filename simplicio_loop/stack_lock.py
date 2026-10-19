@@ -9,7 +9,6 @@ updates, or launches a component.
 from __future__ import annotations
 
 import hashlib
-import importlib.metadata
 import importlib.util
 import json
 import os
@@ -19,6 +18,8 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
+
+from .distribution import installed_distribution
 
 STACK_LOCK_SCHEMA = "simplicio.stack-lock/v1"
 STACK_REGISTRY_SCHEMA = "simplicio.stack-registry/v1"
@@ -409,22 +410,22 @@ def _module_artifact(module_name: str) -> str:
 
 
 def _distribution_version(distribution: str, module_name: str) -> str:
-    try:
-        return str(importlib.metadata.version(distribution))
-    except importlib.metadata.PackageNotFoundError:
-        if distribution == "simplicio-loop":
-            try:
-                from . import __version__
-
-                return str(__version__)
-            except (ImportError, AttributeError):
-                pass
-        module = module_name.rsplit(".", 1)[0] if module_name else ""
+    record = installed_distribution(distribution)
+    if record is not None:
+        return str(record.version)
+    if distribution == "simplicio-loop":
         try:
-            imported = __import__(module, fromlist=["__version__"])
-            return str(getattr(imported, "__version__", ""))
+            from . import __version__
+
+            return str(__version__)
         except (ImportError, AttributeError):
-            return ""
+            pass
+    module = module_name.rsplit(".", 1)[0] if module_name else ""
+    try:
+        imported = __import__(module, fromlist=["__version__"])
+        return str(getattr(imported, "__version__", ""))
+    except (ImportError, AttributeError):
+        return ""
 
 
 def _executable_or_module(executables: Iterable[str], module_name: str) -> str:

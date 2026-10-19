@@ -17,6 +17,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .distribution import installed_distribution
+
 STACK_SCHEMA = "simplicio.loop-stack/v1"
 
 # Role labels are fixed; expected floors come from pyproject (see _train_components).
@@ -253,10 +255,8 @@ def _mapper_identity(binding: dict[str, Any], *, timeout_seconds: float = 10.0) 
 
 
 def _installed_version(distribution: str) -> str | None:
-    try:
-        return metadata.version(distribution)
-    except metadata.PackageNotFoundError:
-        return None
+    record = installed_distribution(distribution)
+    return record.version if record is not None else None
 
 
 def installed_legacy_distributions() -> list[str]:

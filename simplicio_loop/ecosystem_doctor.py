@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib.metadata
 import json
 import os
 import platform as platform_module
@@ -23,6 +22,8 @@ import sys
 import time
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
+
+from .distribution import installed_distribution
 
 try:  # Keep wheel installs independent from the checkout-only scripts helper.
     import fcntl
@@ -203,9 +204,8 @@ def _component_sha(component: str, root: Path, submodules: Mapping[str, str],
 
 
 def _distribution(distribution: str) -> dict[str, Any]:
-    try:
-        dist = importlib.metadata.distribution(distribution)
-    except importlib.metadata.PackageNotFoundError:
+    dist = installed_distribution(distribution)
+    if dist is None:
         # A source checkout is not necessarily installed as a wheel.  The Loop
         # package has a documented fallback literal for that case; reporting it
         # keeps checkout/wheel/mixed installs on the same contract.

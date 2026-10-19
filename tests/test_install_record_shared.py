@@ -73,3 +73,28 @@ def test_daemon_status_version_comes_from_the_pip_record(tmp_path, monkeypatch):
     _stale_egg_info_first(tmp_path, monkeypatch)
     daemon = Daemon(tmp_path / "run", key="install-record", roots=[])
     assert daemon.status()["version"] == PIP_VERSION
+
+
+def test_stack_manifest_reads_the_pip_record_for_simplicio_loop(tmp_path, monkeypatch):
+    _stale_egg_info_first(tmp_path, monkeypatch)
+    from simplicio_loop import stack_manifest
+    assert stack_manifest._installed_version("simplicio-loop") == PIP_VERSION
+
+
+def test_stack_lock_reads_the_pip_record_for_simplicio_loop(tmp_path, monkeypatch):
+    _stale_egg_info_first(tmp_path, monkeypatch)
+    from simplicio_loop import stack_lock
+    assert stack_lock._distribution_version("simplicio-loop", "simplicio_loop") == PIP_VERSION
+
+
+def test_ecosystem_doctor_reads_the_pip_record_for_simplicio_loop(tmp_path, monkeypatch):
+    _stale_egg_info_first(tmp_path, monkeypatch)
+    from simplicio_loop import ecosystem_doctor
+    info = ecosystem_doctor._distribution("simplicio-loop")
+    assert info["installed"] is True and info["version"] == PIP_VERSION
+
+
+def test_runtime_identity_locates_the_distribution_by_the_pip_record(tmp_path, monkeypatch):
+    _stale_egg_info_first(tmp_path, monkeypatch)
+    from simplicio_loop import extension_handshake
+    assert extension_handshake.runtime_identity()["distribution_path"] == str((tmp_path / "site-packages").resolve())
