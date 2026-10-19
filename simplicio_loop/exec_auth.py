@@ -6,8 +6,11 @@ Part of #1467: detect login state in preflight without storing/printing secrets.
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import os
 import re
 import shutil
+import signal
 import stat
 from dataclasses import dataclass
 from pathlib import Path
@@ -76,6 +79,8 @@ _STATUS_ARGS = {
 _COUNT_FAMILIES = frozenset({"opencode"})  # exit code alone is not the answer; stdout is reduced to a count
 _CREDENTIAL_COUNT = re.compile(r"^\W*(\d+) credentials?\s*$", re.MULTILINE)
 _STATUS_TIMEOUT = 5.0  # seconds; a hung status command fails closed
+_REAP_TIMEOUT = 2.0  # seconds a killed check gets to exit and release its pipes before we stop waiting
+_OWN_SESSION = os.name != "nt"  # POSIX: the check leads its own group (pgid == pid), so one killpg reaches its helpers
 
 
 async def check(family: ExecFamily) -> AuthCheckResult:
@@ -128,6 +133,26 @@ async def check_all(families: list[ExecFamily]) -> list[AuthCheckResult]:
     return await asyncio.gather(*tasks)
 
 
+def _kill_check(proc: asyncio.subprocess.Process) -> None:
+    """SIGKILL the check's whole process group, then the leader.
+
+    The group is named by the leader's pid rather than looked up with getpgid(): a leader that already exited and was
+    reaped can still have a helper holding the pipe, and that group stays signalable by its id while any member lives.
+    """
+    if _OWN_SESSION:
+        with contextlib.suppress(ProcessLookupError, PermissionError):
+            os.killpg(proc.pid, signal.SIGKILL)
+    with contextlib.suppress(ProcessLookupError):
+        proc.kill()
+
+
+async def _kill_and_reap(proc: asyncio.subprocess.Process) -> None:
+    """Kill a timed-out check and its group, then wait at most _REAP_TIMEOUT for asyncio to report it finished."""
+    _kill_check(proc)
+    with contextlib.suppress(asyncio.TimeoutError):
+        await asyncio.wait_for(proc.wait(), timeout=_REAP_TIMEOUT)
+
+
 async def _run_status_check(family: ExecFamily, binary: str) -> bool:
     """Run the CLI's verified status subcommand (resolved `binary` path), check exit code.
 
@@ -149,12 +174,13 @@ async def _run_status_check(family: ExecFamily, binary: str) -> bool:
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
+            start_new_session=_OWN_SESSION,
         )
         returncode = await asyncio.wait_for(proc.wait(), timeout=_STATUS_TIMEOUT)
         return returncode == 0
     except (FileNotFoundError, asyncio.TimeoutError, OSError):
-        if proc is not None and proc.returncode is None:
-            proc.kill()
+        if proc is not None:
+            await _kill_and_reap(proc)
         return False
 
 
@@ -169,12 +195,12 @@ async def _run_count_check(binary: str, args: list[str]) -> bool:
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
+            start_new_session=_OWN_SESSION,
         )
         out, _ = await asyncio.wait_for(proc.communicate(), timeout=_STATUS_TIMEOUT)
     except (FileNotFoundError, asyncio.TimeoutError, OSError):
-        if proc is not None and proc.returncode is None:
-            proc.kill()
-            await proc.wait()  # reap the killed child
+        if proc is not None:
+            await _kill_and_reap(proc)
         return False
     if proc.returncode != 0:
         return False
