@@ -28,7 +28,7 @@ from simplicio_loop.watcher247 import config, points, proc, sandbox, squad_flow,
 from .fakes import issue
 from .sandbox_rig import needs_bwrap
 
-REPO = "demo"
+REPO = "simpletibr/demo"
 WAIT = 20  # seconds: the ceiling of every wait on an Event; a healthy run is far below it
 LOOP_TOML = 'enabled = true\nverify = "python3 -m pytest -q"\n'
 
@@ -112,7 +112,7 @@ def commit_in(path: Path, name: str, text: str = "x\n") -> str:
 
 @pytest.fixture
 def real_repo(tmp_path, monkeypatch):
-    """A bare origin with `main`, a shallow base clone at config.WORK/demo, and nothing of the user's global git."""
+    """A bare origin with `main`, a shallow base clone at config.WORK/simpletibr/demo, and nothing of the user's global git."""
     home = tmp_path / "home"
     home.mkdir()
     empty = tmp_path / "gitconfig"
@@ -240,7 +240,7 @@ def test_drop_refuses_any_path_that_is_not_the_items_and_removes_nothing(real_re
     async def scenario():
         one = await worktrees._acquire(gate, REPO, "main", 1, False)
         ten = await worktrees._acquire(gate, REPO, "main", 10, False)
-        with pytest.raises(ValueError, match="is not the worktree of demo#1"):
+        with pytest.raises(ValueError, match="is not the worktree of simpletibr/demo#1"):
             await worktrees._drop(REPO, 1, paths[name])
         assert one.path.is_dir() and ten.path.is_dir() and (r.base / "README.md").is_file()
         assert r.entries() == ["1", "10"] and len(r.rows()) == 2
@@ -272,6 +272,7 @@ def run_main_until_sigterm(r, gate, monkeypatch, tmp_path, numbers):
     """watcher247.__main__.main(once=True) whose tick holds one live item per number; SIGTERM arrives when all are alive."""
     monkeypatch.setattr(config, "CLAIMS", tmp_path / "claims.json")
     monkeypatch.setenv("SIMPLICIO_247_ENV_FILE", str(tmp_path / "no-such.env"))
+    monkeypatch.setenv("SIMPLICIO_247_OWNERS", "simpletibr")  # the watcher refuses to start without an owner
     alive, inside = [], []
 
     async def blocked_tick(dry_run=False):
@@ -1056,7 +1057,10 @@ def test_a_link_at_the_items_path_to_a_directory_outside_is_removed_and_the_outs
     assert (outside / "keep.txt").read_text() == "keep\n" and [p.name for p in outside.iterdir()] == ["keep.txt"]
 
 
-@pytest.mark.parametrize("repo", ["../x", "..", ".", "a/b", "/abs", "", "foo.wt", "foo.state", "foo.WT", "x.Wt", "foo.State", "-rf", ".hidden", "sp ace", "ünï", "a\nb"])
+@pytest.mark.parametrize("repo", ["simpletibr/../x", "simpletibr/..", "simpletibr/.", "simpletibr/a/b", "/abs", "", "simpletibr/",
+                                  "Simpletibr/demo", "acme_co/demo", "-acme/demo", "demo", "foo.wt", "simpletibr/foo.wt",
+                                  "simpletibr/foo.state", "simpletibr/foo.WT", "simpletibr/x.Wt", "simpletibr/foo.State",
+                                  "simpletibr/-rf", "simpletibr/.hidden", "simpletibr/sp ace", "simpletibr/ünï", "simpletibr/a\nb"])
 def test_a_repo_name_that_could_leave_work_or_collide_with_a_layout_dir_is_refused_everywhere(repo):
     for call in (worktrees.item_path, worktrees.state_home):
         with pytest.raises(ValueError):
@@ -1065,16 +1069,17 @@ def test_a_repo_name_that_could_leave_work_or_collide_with_a_layout_dir_is_refus
         worktrees.base_path(repo)
 
 
-@pytest.mark.parametrize("repo", ["demo", "simplicio-loop", "simplicio.runtime", "a_b", "x1", "foo.wtx", "wt", "state"])
+@pytest.mark.parametrize("repo", ["simpletibr/demo", "simpletibr/simplicio-loop", "simpletibr/simplicio.runtime", "acme/a_b", "acme/x1",
+                                  "acme/foo.wtx", "acme/wt", "acme/state"])
 def test_a_github_repo_name_is_kept_under_work(repo):
     for path in (worktrees.item_path(repo, 7), worktrees.state_home(repo, 7), worktrees.base_path(repo)):
         assert config.WORK in path.parents
 
 
 def test_a_repo_named_foo_wt_cannot_share_a_directory_with_the_items_of_foo(real_repo):
-    assert worktrees.item_path("foo", 1).parent == config.WORK / "foo.wt"
+    assert worktrees.item_path("acme/foo", 1).parent == config.WORK / "acme" / "foo.wt"
     with pytest.raises(ValueError):
-        worktrees.base_path("foo.wt")
+        worktrees.base_path("acme/foo.wt")
 
 
 def fs(*names: str) -> frozenset[str]:

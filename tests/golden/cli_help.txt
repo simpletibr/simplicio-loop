@@ -40,7 +40,7 @@ positional arguments:
     ecc                 inspect the opt-in ECC advisory integration
     deploy              plan a gated serverless deployment (dry-run unless --apply is explicit)
     verify              run the independent watcher and delivery gates
-    watch247            run the 24/7 watcher for simplicio-* repos
+    watch247            run the 24/7 watcher for SIMPLICIO_247_OWNERS repos
     progress            render visual progress for a run
     resume              resume a non-terminal run
     tick                execute one planned task through simplicio-dev-cli

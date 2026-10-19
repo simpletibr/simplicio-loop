@@ -5,7 +5,7 @@ from simplicio_loop.watcher247 import config, proc
 
 from .fakes import FakeRun, baseline, issue, read_json, run_tick
 
-REPO = "simplicio-a"
+REPO = "simpletibr/simplicio-a"
 
 
 class VerifyingRun(FakeRun):

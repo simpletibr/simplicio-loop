@@ -19,6 +19,13 @@ async def main(once: bool = False, dry_run: bool = False) -> int:
 
 
 async def _serve(once: bool, dry_run: bool) -> int:
+    try:
+        config.owners()
+    except ValueError as exc:  # no default owner: the watcher serves only the owners the operator names
+        state.log(f"refusing to start: {exc}")
+        if not dry_run:
+            await state.write_status(phase="blocked", reason_code=config.OWNERS_INVALID, detail=str(exc))
+        return 1
     if invalid := author_executor.refusal():  # a typo must not fall back to the plan flow in silence
         state.log(f"refusing to start: {invalid}")
         if not dry_run:

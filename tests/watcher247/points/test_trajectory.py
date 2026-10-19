@@ -13,7 +13,7 @@ from .tick_ctx import capture_done_ctx
 
 PR_URL = "https://github.com/simpletibr/simplicio-a/pull/9"
 LABEL = "MEASURED|verify_passed: `python3 -m pytest -q`"  # the label of a tick run with the default loop.toml of the fakes
-TRAJECTORY = ".simplicio-loop/orchestrator/trajectory/simplicio-a-7.jsonl"
+TRAJECTORY = ".simplicio-loop/orchestrator/trajectory/simpletibr__simplicio-a-7.jsonl"
 # The dict host_mode.run_exec returns (the default executor); the tick's openrouter path returns the first three keys.
 EXEC_TURBO = {
     "turbo_status": "ok", "exit_code": 0, "verify": "MEASURED|verify_passed: `pytest -q`", "executor": "exec",
@@ -46,12 +46,12 @@ def test_the_tick_context_carries_turbo_status_not_status(done_ctx):
 
 def test_records_the_real_outcome_of_the_tick_run(point_contract, done_ctx):
     result = point_contract("trajectory", done_ctx, expect="ok")
-    assert result.evidence == {"run_id": "simplicio-a-7", "trajectory_file": TRAJECTORY, "status": "ok",
-                               "lesson": f"simplicio-a: solved via turbo executor; verified by {LABEL}"}
+    assert result.evidence == {"run_id": "simpletibr__simplicio-a-7", "trajectory_file": TRAJECTORY, "status": "ok",
+                               "lesson": f"simpletibr/simplicio-a: solved via turbo executor; verified by {LABEL}"}
     assert records(done_ctx) == [{
-        "run_id": "simplicio-a-7", "issue": 7, "status": "ok", "verify": LABEL, "executor": None, "steps": [],
+        "run_id": "simpletibr__simplicio-a-7", "issue": 7, "status": "ok", "verify": LABEL, "executor": None, "steps": [],
         "attempts": 1, "role": None, "family": None, "pr_url": PR_URL,
-        "lesson": f"simplicio-a: solved via turbo executor; verified by {LABEL}"}]
+        "lesson": f"simpletibr/simplicio-a: solved via turbo executor; verified by {LABEL}"}]
 
 
 def test_records_the_steps_of_an_exec_run(point_contract, done_ctx):
@@ -60,7 +60,7 @@ def test_records_the_steps_of_an_exec_run(point_contract, done_ctx):
     [record] = records(ctx)
     assert (record["executor"], record["attempts"], record["family"]) == ("exec", 2, "codex")
     assert record["steps"] == EXEC_TURBO["steps"]
-    assert record["lesson"] == "simplicio-a: solved via exec executor (claude/opus, codex/gpt-5); verified by MEASURED|verify_passed: `pytest -q`"
+    assert record["lesson"] == "simpletibr/simplicio-a: solved via exec executor (claude/opus, codex/gpt-5); verified by MEASURED|verify_passed: `pytest -q`"
 
 
 def test_a_failed_run_is_recorded_without_a_lesson(point_contract, done_ctx):

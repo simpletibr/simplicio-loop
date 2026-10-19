@@ -38,7 +38,7 @@ The command prints one JSON object: `status`, `rounds`, `session_id`, `changed`,
 
 Set `SIMPLICIO_247_EXECUTOR=author` in the env file of the service. The default is `plan`. Any other value stops the service at start.
 
-- The tick calls `run_author` in the worktree of the item (`<repo>.wt/<n>`) instead of `host_mode.run_exec`.
+- The tick calls `run_author` in the worktree of the item (`<owner>/<repo>.wt/<n>`) instead of `host_mode.run_exec`.
 - `SIMPLICIO_247_AUTHOR_ROUNDS` sets the rounds. The default is 3. The maximum is 10.
 - `SIMPLICIO_247_AUTHOR_TIMEOUT_S` sets the time limit of one CLI round, in seconds. The default is 900. The minimum is 60. The maximum is 3600. The value must be a whole number. The flow ignores any other value and uses 900.
 - `SIMPLICIO_247_AUTHOR_RUN_TESTS=1` lets the CLI run `pytest` itself. Without it the CLI has only the file tools and no `Bash(...)` entry. The prompt says it cannot run tests. The host runs the verify and sends the failures back.

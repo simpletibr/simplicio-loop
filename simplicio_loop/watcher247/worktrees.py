@@ -1,8 +1,8 @@
 """One git worktree per work item (#1601): the items of one repo run in parallel.
 
 Before, process() held the repo lock for the whole item (clone, plan, turbo, apply, verify, PR) on ONE working tree per repo.
-Now a repo has a BASE clone (config.WORK/<repo>) that no item edits, and every item gets its own worktree
-(config.WORK/<repo>.wt/<issue>, branch loop/issue-<issue>, or loop/issue-<issue>-r<K> from the second attempt) for its whole run. The repo lock covers only what really conflicts:
+Now a repo has a BASE clone (config.WORK/<owner>/<repo>) that no item edits, and every item gets its own worktree
+(config.WORK/<owner>/<repo>.wt/<issue>, branch loop/issue-<issue>, or loop/issue-<issue>-r<K> from the second attempt) for its whole run. The repo lock covers only what really conflicts:
 
 - updating the base clone (fetch), `git worktree add`, the push (`git push -u` writes the shared .git/config) and the removal of
   the item's own worktree. All short git calls. Never the plan, the turbo, the apply, the verify or the PR.
@@ -13,7 +13,7 @@ Cleanup is exact. An item removes only its own path (`git worktree remove --forc
 `<git-common-dir>/worktrees/<name>` entry whose `gitdir` file names exactly `<path>/.git` (same idea as scripts/build_binary.py
 release_source, #1587). There is no `git worktree prune`: it forgets every worktree whose directory is missing at that moment,
 and those are not ours. The state an item keeps in `.simplicio-loop/` (escalation ladder, runs, reports) is copied to
-config.WORK/<repo>.state/<issue> when the worktree goes and put back when the next one for that issue is made.
+config.WORK/<owner>/<repo>.state/<issue> when the worktree goes and put back when the next one for that issue is made.
 
 Files: items of one batch that name the same target file (squad_flow.target_paths) run one after the other, in batch order; the
 others run at once. Merge stays serial through the merge train.
@@ -74,10 +74,11 @@ _REPO_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
 
 def _repo_dir(repo: str) -> str:
-    """The repo name as one directory under config.WORK: a GitHub name, never a path, never `<x>.wt` / `<x>.state` (those are ours)."""
-    if not _REPO_NAME.fullmatch(repo) or repo.lower().endswith((".wt", ".state")):  # any case: a case-insensitive disk folds `X.WT` onto `x.wt`
+    """`owner/repo` as two directories under config.WORK: a GitHub login and a GitHub name, never a path, never `<x>.wt` / `<x>.state` (those are ours)."""
+    owner, sep, name = repo.partition("/")
+    if not sep or not config.OWNER_LOGIN.fullmatch(owner) or not _REPO_NAME.fullmatch(name) or name.lower().endswith((".wt", ".state")):  # any case: a case-insensitive disk folds `X.WT` onto `x.wt`
         raise ValueError(f"not a usable repo name: {repo!r}")
-    return repo
+    return f"{owner}/{name}"
 
 
 def base_path(repo: str) -> Path:
@@ -181,7 +182,7 @@ async def _update_base(repo: str, branch: str, number: int, fix: bool, head: str
     if not (dest / ".git").exists():
         dest.parent.mkdir(parents=True, exist_ok=True)
         result = await proc.run(
-            ["gh", "repo", "clone", f"{config.ORG}/{repo}", str(dest), "--", "--depth", "1"], timeout=300)
+            ["gh", "repo", "clone", repo, str(dest), "--", "--depth", "1"], timeout=300)
         if result.returncode != 0:
             raise _fail(result, "clone failed")
     await proc.run(["git", "config", "user.name", "simplicio-loop"], cwd=dest)

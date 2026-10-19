@@ -12,6 +12,7 @@ from simplicio_loop.watcher247 import config, squad_flow, verify
 from .fakes import FakeRun, baseline, issue, read_json, run_tick
 
 REPO = "simplicio-a"
+FULL = "simpletibr/simplicio-a"
 NUMBERS = range(1, 7)
 
 
@@ -35,7 +36,7 @@ def six(env, monkeypatch):
     """Six admitted issues of one repo, a pre-cloned repo, six PRs 101..106."""
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "6")
     monkeypatch.delenv("SIMPLICIO_247_AUTO_MERGE", raising=False)
-    clone = config.WORK / REPO
+    clone = config.WORK / FULL
     (clone / ".git").mkdir(parents=True)
 
     def make(**kwargs):
@@ -49,7 +50,7 @@ def six(env, monkeypatch):
 
 
 def _squads():
-    return read_json(config.STATUS)["squads"][REPO]
+    return read_json(config.STATUS)["squads"][FULL]
 
 
 def _opens_unverified(*args, **kwargs):
@@ -79,7 +80,7 @@ def test_without_auto_merge_squad_approves_but_nothing_merges(six):
 
 def test_review_rejects_a_pr_whose_verify_did_not_measure_tests():
     outcome = squad_flow.Outcome("https://github.com/simpletibr/simplicio-a/pull/101", "UNVERIFIED|no_test_command", [])
-    review = asyncio.run(squad_flow._review(REPO, None, None, 1, outcome, None, None))  # it answers before any gh call
+    review = asyncio.run(squad_flow._review(FULL, None, None, 1, outcome, None, None))  # it answers before any gh call
     assert review == {"pr": 101, "issue": 1, "approved": False, "reasons": ["tests not measured green"]}
 
 
@@ -112,8 +113,8 @@ def test_execution_report_carries_role_model_and_effort_of_each_agent(six):
     for agent in agents:
         assert agent == {"role": agent["role"], **model_roles.resolve("claude", agent["role"])}
     by_issue = {t["issue"]: t["agent"]["role"] for t in report["tasks"] if t.get("agent") and t["issue"]}
-    assert by_issue[f"{REPO}#3"] == "coordination"  # the security issue is routed to coordination
-    assert all(by_issue[f"{REPO}#{n}"] == "execution" for n in (1, 2, 4, 5, 6))
+    assert by_issue[f"{FULL}#3"] == "coordination"  # the security issue is routed to coordination
+    assert all(by_issue[f"{FULL}#{n}"] == "execution" for n in (1, 2, 4, 5, 6))
 
 
 def test_review_rejects_a_pr_that_touches_a_shared_file(six):
@@ -142,7 +143,7 @@ def test_auto_merge_is_off_unless_exactly_one(value):
 def test_a_dependency_cycle_between_issues_does_not_stop_the_plan():
     rows = [{"number": 1, "title": "a", "body": "depende de #2 `src/a/x.py`"},
             {"number": 2, "title": "b", "body": "depends on #1 `src/b/x.py`"}]
-    plan = squad_flow.plan_repo(REPO, rows, "claude")
+    plan = squad_flow.plan_repo(FULL, rows, "claude")
     assert sorted(i for s in plan.plan.squads for i in s.issues) == [1, 2]
 
 
@@ -236,7 +237,7 @@ def test_the_default_mode_is_v2_in_the_plan_the_status_and_the_report(six):
     six()
     run_tick()
     assert _squads()["mode"] == "v2" and _report()["mode"] == "v2"
-    assert squad_flow.plan_repo(REPO, [{"number": 1, "title": "a", "body": ""}], "claude").mode == "v2"
+    assert squad_flow.plan_repo(FULL, [{"number": 1, "title": "a", "body": ""}], "claude").mode == "v2"
 
 
 def test_baseline_mode_is_recorded_in_the_status_and_in_the_report(six, monkeypatch):
@@ -250,20 +251,20 @@ def test_a_value_other_than_exactly_one_stays_v2(six, monkeypatch):
     monkeypatch.setenv(BASELINE, "true")
     six()
     run_tick()
-    assert _squads()["mode"] == "v2" and _starting_roles()[f"{REPO}#3"] == "coordination"
+    assert _squads()["mode"] == "v2" and _starting_roles()[f"{FULL}#3"] == "coordination"
 
 
 def test_baseline_turns_routing_off_every_worker_starts_at_execution(six, monkeypatch):
     monkeypatch.setenv(BASELINE, "1")
     six()
     run_tick()
-    assert _starting_roles() == {f"{REPO}#{n}": "execution" for n in NUMBERS}  # #3 is a security issue: v2 would start it at coordination
+    assert _starting_roles() == {f"{FULL}#{n}": "execution" for n in NUMBERS}  # #3 is a security issue: v2 would start it at coordination
 
 
 def test_baseline_routing_off_in_the_plan_itself_and_on_by_default():
     rows = [{"number": 3, "title": "sec", "body": "`src/m3/app.py`", "labels": [{"name": "security"}]}]
-    assert squad_flow.plan_repo(REPO, rows, "claude").routed == {3: "coordination"}
-    assert squad_flow.plan_repo(REPO, rows, "claude", mode="baseline").routed == {3: "execution"}
+    assert squad_flow.plan_repo(FULL, rows, "claude").routed == {3: "coordination"}
+    assert squad_flow.plan_repo(FULL, rows, "claude", mode="baseline").routed == {3: "execution"}
 
 
 def test_baseline_turns_the_merge_batch_off_one_pr_per_train_through_the_same_code_path(six, monkeypatch):
@@ -290,16 +291,16 @@ def test_v2_keeps_the_batch_of_four(six, monkeypatch):
 
 
 def test_baseline_turns_the_cross_squad_contracts_off():
-    v2 = squad_flow.plan_repo(REPO, _cross_squad_rows(), "claude")
+    v2 = squad_flow.plan_repo(FULL, _cross_squad_rows(), "claude")
     assert len(v2.plan.squads) == 2 and len(v2.plan.contracts) == 1  # the edge between two squads has a contract
-    base = squad_flow.plan_repo(REPO, _cross_squad_rows(), "claude", mode="baseline")
+    base = squad_flow.plan_repo(FULL, _cross_squad_rows(), "claude", mode="baseline")
     assert len(base.plan.squads) == 2 and base.plan.contracts == ()
     assert [step.issue for step in base.plan.merge_order] == [1, 2] and base.deps == {1: (), 2: (1,)}  # the declared order stays
 
 
 def test_baseline_keeps_the_squads_the_ownership_and_the_dependency_order():
-    v2 = squad_flow.plan_repo(REPO, _cross_squad_rows(), "claude")
-    base = squad_flow.plan_repo(REPO, _cross_squad_rows(), "claude", mode="baseline")
+    v2 = squad_flow.plan_repo(FULL, _cross_squad_rows(), "claude")
+    base = squad_flow.plan_repo(FULL, _cross_squad_rows(), "claude", mode="baseline")
     assert [(s.id, s.issues, s.owned_paths) for s in base.plan.squads] == [(s.id, s.issues, s.owned_paths) for s in v2.plan.squads]
     assert base.plan.shared_files == v2.plan.shared_files and base.plan.merge_order == v2.plan.merge_order
 

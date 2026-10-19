@@ -18,12 +18,13 @@ def test_map_gc_bases_visits_only_git_repos_under_work(tmp_path, monkeypatch):
     config.WORK.mkdir()
     
     # Create test directories
-    (config.WORK / "repo-a.wt").mkdir()  # Should NOT be visited (ends with .wt)
-    (config.WORK / "repo-a.state").mkdir()  # Should NOT be visited (ends with .state)
-    (config.WORK / "no-git").mkdir()  # Should NOT be visited (no .git)
+    (config.WORK / "alice").mkdir()  # bases are config.WORK/<owner>/<repo>
+    (config.WORK / "alice" / "repo-a.wt").mkdir()  # Should NOT be visited (ends with .wt)
+    (config.WORK / "alice" / "repo-a.state").mkdir()  # Should NOT be visited (ends with .state)
+    (config.WORK / "alice" / "no-git").mkdir()  # Should NOT be visited (no .git)
     
     # Create valid base clone (has .git)
-    base_repo = config.WORK / "base-clone"
+    base_repo = config.WORK / "alice" / "base-clone"
     base_repo.mkdir()
     (base_repo / ".git").mkdir()
     
@@ -53,8 +54,8 @@ def test_map_gc_bases_skips_parent_of_work(tmp_path, monkeypatch):
     (parent_repo / ".git").mkdir()
     
     # Create a valid repo in WORK
-    work_repo = work_dir / "work-repo"
-    work_repo.mkdir()
+    work_repo = work_dir / "alice" / "work-repo"
+    work_repo.mkdir(parents=True)
     (work_repo / ".git").mkdir()
     
     calls = []
@@ -105,10 +106,11 @@ def test_map_gc_bases_skips_item_folders_whatever_the_case_of_the_suffix(tmp_pat
     """A case-insensitive disk folds `X.WT` onto `x.wt`: the item folders are skipped in any case (#1656 item 5)."""
     monkeypatch.setattr(config, "WORK", tmp_path / "work")
     config.WORK.mkdir()
+    (config.WORK / "alice").mkdir()
     for name in ("repo-a.WT", "repo-b.Wt", "repo-c.STATE", "repo-d.State"):
-        (config.WORK / name).mkdir()
-        (config.WORK / name / ".git").mkdir()
-    base = config.WORK / "base-clone"
+        (config.WORK / "alice" / name).mkdir()
+        (config.WORK / "alice" / name / ".git").mkdir()
+    base = config.WORK / "alice" / "base-clone"
     (base / ".git").mkdir(parents=True)
     calls = []
     monkeypatch.setattr(map_gc_auto, "maybe_gc", lambda path: calls.append(path))

@@ -101,7 +101,7 @@ flowchart LR
   B --> C["3. PR with evidence"]
 ```
 
-**As a 24/7 watcher** (a service that watches `simpletibr/simplicio-*` repos and opens PRs):
+**As a 24/7 watcher** (a service that watches the repos of the GitHub owners in `SIMPLICIO_247_OWNERS` that opted in with `.simplicio-loop/loop.toml`, and opens PRs):
 
 ```bash
 simplicio-loop watch247 --once --dry-run          # one simulated tick, changes nothing
@@ -111,6 +111,9 @@ sudo cp packaging/systemd/simplicio-loop-247.service /etc/systemd/system/
 sudo cp packaging/systemd/simplicio-loop-247.env.example /etc/simplicio-loop-247.env   # edit it, then chmod 600
 sudo systemctl enable --now simplicio-loop-247
 ```
+
+Set `SIMPLICIO_247_OWNERS` in that env file to the owners to serve (`SIMPLICIO_247_OWNERS=acme,jane`). There is no default: the
+service refuses to start without it. See [docs/WATCHER_247.md](docs/WATCHER_247.md#donos-simplicio_247_owners).
 
 ```mermaid
 flowchart LR

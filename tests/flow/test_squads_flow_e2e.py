@@ -15,7 +15,7 @@ import pytest
 
 from simplicio_loop import model_roles
 from simplicio_loop.watcher247 import config, subscription, tick
-from tests.flow.conftest import ISSUE_BODY, REPO_NAME, make_remote
+from tests.flow.conftest import FULL_NAME, ISSUE_BODY, REPO_NAME, make_remote
 
 NUMBERS = (7, 8)
 
@@ -62,7 +62,7 @@ def _run(flow_env, flow_base: Path, name: str, auto_merge: bool, approval_author
             subscription.mcp_subscription = original
             config.set_state_dir(previous)
     calls = [json.loads(line) for line in log.read_text().splitlines()]
-    return {"state": state_dir, "clone": state_dir / "work" / REPO_NAME, "calls": calls,
+    return {"state": state_dir, "clone": state_dir / "work" / FULL_NAME, "calls": calls,
             "status": json.loads((state_dir / "status.json").read_text())}
 
 
@@ -105,18 +105,18 @@ def _merges(run) -> list[int]:
 
 
 def test_two_issues_form_one_squad_with_a_coordinator_and_two_workers(merged):
-    (squad,) = merged["status"]["squads"][REPO_NAME]["squads"]
+    (squad,) = merged["status"]["squads"][FULL_NAME]["squads"]
     assert squad["issues"] == list(NUMBERS) and len(squad["workers"]) == 2 and squad["coordinator"].endswith("-coord")
-    assert sorted(json.loads((merged["state"] / "claims.json").read_text())) == [f"{REPO_NAME}#{n}" for n in NUMBERS]
+    assert sorted(json.loads((merged["state"] / "claims.json").read_text())) == [f"{FULL_NAME}#{n}" for n in NUMBERS]
 
 
 def test_the_squad_coordinator_approves_each_pr_through_pr_evidence(merged):
     assert sorted(c["path"].split("/")[-2] for c in _approvals(merged)) == ["107", "108"]
-    assert merged["status"]["squads"][REPO_NAME]["approved"] == [107, 108]
+    assert merged["status"]["squads"][FULL_NAME]["approved"] == [107, 108]
 
 
 def test_auto_merge_tests_the_batch_once_and_merges_in_order(merged):
-    entry = merged["status"]["squads"][REPO_NAME]
+    entry = merged["status"]["squads"][FULL_NAME]
     assert entry["merge"] == "enabled" and entry["merged"] == [107, 108] and entry["failed"] == []
     assert _merges(merged) == [107, 108]
     merges = subprocess.run(["git", "log", "--format=%s", "loop/merge-train"], cwd=merged["clone"],
@@ -126,7 +126,7 @@ def test_auto_merge_tests_the_batch_once_and_merges_in_order(merged):
 
 def test_without_auto_merge_the_squad_approves_and_nothing_merges(unmerged):
     assert len(_approvals(unmerged)) == 2
-    assert unmerged["status"]["squads"][REPO_NAME]["merge"] == "disabled"
+    assert unmerged["status"]["squads"][FULL_NAME]["merge"] == "disabled"
     assert _merges(unmerged) == []
 
 
@@ -142,7 +142,7 @@ def test_role_model_and_effort_of_every_agent_are_in_the_execution_report(merged
 
 def test_an_approval_written_by_an_outsider_never_merges_even_with_auto_merge(outsider):
     """#1534: the real gate rejects the approval phrase when its author is not the watcher's gh login."""
-    entry = outsider["status"]["squads"][REPO_NAME]
+    entry = outsider["status"]["squads"][FULL_NAME]
     assert entry["merge"] == "enabled" and entry["merged"] == [] and entry["gate_blocked"] == [107, 108]
     assert _merges(outsider) == []
 
@@ -157,7 +157,7 @@ def test_each_worker_task_records_its_escalation_and_dependency_wait_from_the_re
         assert (record["initial_role"], record["final_role"], record["escalations"]) == ("execution", "execution", [])
         assert record["dependency_wait_s"] == 0.0 and record["final_outcome"] == "ok"
         assert record["proof_kind"] == {"escalations": "measured", "dependency_wait": "measured", "final_outcome": "measured"}
-    metrics = merged["status"]["squads"][REPO_NAME]["metrics"]
+    metrics = merged["status"]["squads"][FULL_NAME]["metrics"]
     assert (metrics["tasks"], metrics["escalation_n"], metrics["escalated"], metrics["escalation_rate"]) == (2, 2, 0, 0.0)
 
 
@@ -176,27 +176,27 @@ def _trains(run) -> int:
 
 
 def test_the_default_run_is_v2_in_the_status_and_the_report(merged):
-    assert merged["status"]["squads"][REPO_NAME]["mode"] == "v2" and _report(merged)["mode"] == "v2"
+    assert merged["status"]["squads"][FULL_NAME]["mode"] == "v2" and _report(merged)["mode"] == "v2"
 
 
 def test_baseline_mode_is_recorded_in_the_status_and_the_report(baseline_merged):
-    assert baseline_merged["status"]["squads"][REPO_NAME]["mode"] == "baseline" and _report(baseline_merged)["mode"] == "baseline"
+    assert baseline_merged["status"]["squads"][FULL_NAME]["mode"] == "baseline" and _report(baseline_merged)["mode"] == "baseline"
 
 
 def test_baseline_merges_the_same_prs_in_the_same_order_one_train_per_pr(merged, baseline_merged):
     assert _merges(baseline_merged) == _merges(merged) == [107, 108]
-    entry = baseline_merged["status"]["squads"][REPO_NAME]
+    entry = baseline_merged["status"]["squads"][FULL_NAME]
     assert entry["merge"] == "enabled" and entry["merged"] == [107, 108] and entry["failed"] == []
     assert (_trains(merged), _trains(baseline_merged)) == (1, 2)  # v2 tests the batch once; baseline tests each PR alone
 
 
 def test_baseline_without_auto_merge_approves_and_never_merges(baseline_unmerged):
     assert len(_approvals(baseline_unmerged)) == 2 and _merges(baseline_unmerged) == []
-    assert baseline_unmerged["status"]["squads"][REPO_NAME]["merge"] == "disabled"
+    assert baseline_unmerged["status"]["squads"][FULL_NAME]["merge"] == "disabled"
 
 
 def test_baseline_never_merges_an_approval_written_by_an_outsider(baseline_outsider):
-    entry = baseline_outsider["status"]["squads"][REPO_NAME]
+    entry = baseline_outsider["status"]["squads"][FULL_NAME]
     assert entry["merge"] == "enabled" and entry["merged"] == [] and entry["gate_blocked"] == [107, 108]
     assert _merges(baseline_outsider) == []
 

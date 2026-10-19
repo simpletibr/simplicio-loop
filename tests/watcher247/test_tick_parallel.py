@@ -13,7 +13,7 @@ from simplicio_loop.watcher247 import config, tick, worktrees
 
 from .fakes import FakeRun, baseline, issue, read_json, run_tick
 
-REPO = "simplicio-a"
+REPO = "simpletibr/simplicio-a"
 
 
 def body(*files):
@@ -75,7 +75,7 @@ def test_the_repo_lock_is_not_held_during_the_turbo(env, monkeypatch):
     baseline()
     asyncio.run(scenario())
     assert holder["event"].is_set()
-    assert read_json(config.CLAIMS)["simplicio-a#1"]["status"] == "done_no_diff"  # item 1 finished: it was not starved
+    assert read_json(config.CLAIMS)["simpletibr/simplicio-a#1"]["status"] == "done_no_diff"  # item 1 finished: it was not starved
 
 
 def test_worktree_is_removed_when_the_turbo_fails(env, monkeypatch):
@@ -83,7 +83,7 @@ def test_worktree_is_removed_when_the_turbo_fails(env, monkeypatch):
     baseline()
     run_tick()
     assert fake.worktree_log == [("add", wt(1)), ("remove", wt(1))]
-    assert read_json(config.CLAIMS)["simplicio-a#1"]["status"] in ("retry", "dead")
+    assert read_json(config.CLAIMS)["simpletibr/simplicio-a#1"]["status"] in ("retry", "dead")
 
 
 def test_worktree_is_removed_when_the_tick_is_cancelled(env, monkeypatch):
@@ -129,7 +129,7 @@ def test_a_full_disk_defers_the_item_without_a_worktree(env, monkeypatch):
     baseline()
     run_tick()
     assert fake.worktree_log == [] and fake.turbo_argv == []
-    claim = read_json(config.CLAIMS)["simplicio-a#1"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#1"]
     assert claim["status"] == "retry" and claim["reason_code"] == "disk_low" and claim["attempts"] == 0  # no attempt spent
 
 

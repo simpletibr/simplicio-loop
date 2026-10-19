@@ -19,7 +19,7 @@ def test_repo_without_loop_toml_is_skipped(env):
     run_tick()
     assert fake.ran("gh", "issue", "list", "--repo", "simpletibr/simplicio-b") == []
     assert len(tasks(fake)) == 1 and "Issue #1" in tasks(fake)[0]
-    assert read_json(config.STATUS)["skipped_repos"] == {"simplicio-b": "not_opted_in"}
+    assert read_json(config.STATUS)["skipped_repos"] == {"simpletibr/simplicio-b": "not_opted_in"}
 
 
 def test_repo_gate_error_is_recorded_and_repo_skipped(env):
@@ -27,7 +27,7 @@ def test_repo_gate_error_is_recorded_and_repo_skipped(env):
     baseline()
     run_tick()
     assert fake.turbo_argv == []
-    assert read_json(config.STATUS)["skipped_repos"] == {"simplicio-a": "gh_api_error"}
+    assert read_json(config.STATUS)["skipped_repos"] == {"simpletibr/simplicio-a": "gh_api_error"}
 
 
 def test_issue_without_loop_auto_label_is_skipped(env):
@@ -35,7 +35,7 @@ def test_issue_without_loop_auto_label_is_skipped(env):
     baseline()
     run_tick()
     assert len(tasks(fake)) == 1 and "Issue #2" in tasks(fake)[0]
-    assert read_json(config.STATUS)["skipped_issues"] == {"simplicio-a#1": "missing_label"}
+    assert read_json(config.STATUS)["skipped_issues"] == {"simpletibr/simplicio-a#1": "missing_label"}
 
 
 def test_needs_human_posts_one_question_and_never_processes(env):
@@ -53,19 +53,19 @@ def test_needs_human_posts_one_question_and_never_processes(env):
 def test_expired_lease_is_reaped_then_retried_when_due(env, monkeypatch):
     fake = env(FakeRun({"simplicio-a": [issue(5)]}))
     baseline()
-    write_json(config.CLAIMS, {"simplicio-a#5": {
-        "key": "simplicio-a#5", "owner": "crashed", "owner_token": "old",
+    write_json(config.CLAIMS, {"simpletibr/simplicio-a#5": {
+        "key": "simpletibr/simplicio-a#5", "owner": "crashed", "owner_token": "old",
         "lease_expires_at": (FIXED - timedelta(minutes=5)).timestamp(), "attempts": 1,
         "status": "running", "started_at": state.iso(FIXED - timedelta(minutes=10)),
     }})
     run_tick()
-    claim = read_json(config.CLAIMS)["simplicio-a#5"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#5"]
     assert claim["status"] == "retry" and claim["reason_code"] == "lease_expired"
     assert fake.turbo_argv == []
     monkeypatch.setattr(state, "now", lambda: FIXED + timedelta(minutes=10))  # past the 5 min retry window
     run_tick()
     assert len(fake.turbo_argv) == 1
-    assert read_json(config.CLAIMS)["simplicio-a#5"]["status"] == "done"
+    assert read_json(config.CLAIMS)["simpletibr/simplicio-a#5"]["status"] == "done"
 
 
 def test_heartbeat_runs_while_turbo_is_long(env, monkeypatch):
@@ -82,7 +82,7 @@ def test_heartbeat_runs_while_turbo_is_long(env, monkeypatch):
     monkeypatch.setattr(config, "HEARTBEAT_S", 0.02)
     run_tick()
     assert len(beats) >= 2
-    assert read_json(config.CLAIMS)["simplicio-a#6"]["status"] == "done"
+    assert read_json(config.CLAIMS)["simpletibr/simplicio-a#6"]["status"] == "done"
 
 
 def test_one_status_comment_is_updated_in_place_per_phase(env):
@@ -95,7 +95,7 @@ def test_one_status_comment_is_updated_in_place_per_phase(env):
     assert len(posts) == 1
     assert len(patches) >= 4  # PLANNED, IN_PROGRESS, VERIFYING, PR_OPEN
     assert fake.canonical_state(7) == "PR_OPEN"
-    assert read_json(config.CLAIMS)["simplicio-a#7"]["pr"] == PR_URL
+    assert read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]["pr"] == PR_URL
 
 
 def test_claim_held_by_another_owner_skips_the_issue(env):
@@ -117,13 +117,13 @@ def test_review_on_loop_pr_becomes_queued_fix_for_the_same_issue(env):
         prs=[pr_row(9, "loop/issue-7", review="CHANGES_REQUESTED")],
         pr_views={9: {"reviews": [review], "files": [{"path": "app.py"}], "statusCheckRollup": []}},
     ))
-    baseline("simplicio-a#7")  # the issue is old, but the fix is new work for it
+    baseline("simpletibr/simplicio-a#7")  # the issue is old, but the fix is new work for it
     run_tick()
     assert len(fake.turbo_argv) == 1
     assert "troque o retorno para dict" in tasks(fake)[0] and "Issue #7" in tasks(fake)[0]
     # the fix starts from the open PR head (`origin/loop/issue-7`), on the same branch, in the item's own worktree: the whole argv
     assert fake.ran("git", "worktree", "add") == [
-        ["git", "worktree", "add", "-q", "-B", "loop/issue-7", str(config.WORK / "simplicio-a.wt" / "7"), "origin/loop/issue-7"]]
+        ["git", "worktree", "add", "-q", "-B", "loop/issue-7", str(config.WORK / "simpletibr" / "simplicio-a.wt" / "7"), "origin/loop/issue-7"]]
     run_tick()  # the same review is never queued twice
     assert len(fake.turbo_argv) == 1
 
@@ -131,11 +131,11 @@ def test_review_on_loop_pr_becomes_queued_fix_for_the_same_issue(env):
 def test_legacy_running_claim_is_migrated_once_at_startup(env):
     fake = env(FakeRun({"simplicio-a": [issue(4)]}))
     baseline()
-    write_json(config.CLAIMS, {"simplicio-a#4": {
+    write_json(config.CLAIMS, {"simpletibr/simplicio-a#4": {
         "status": "running", "attempts": 1, "started_at": state.iso(FIXED - timedelta(hours=1)),
     }})
     asyncio.run(watcher_main(once=True))
-    claim = read_json(config.CLAIMS)["simplicio-a#4"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#4"]
     assert claim["status"] == "retry" and claim["reason_code"] == "lease_expired"
     assert fake.turbo_argv == []  # the migrated retry is not due yet
 

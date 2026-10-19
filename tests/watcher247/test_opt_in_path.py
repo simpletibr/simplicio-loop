@@ -71,9 +71,9 @@ def test_the_tick_skips_a_repo_without_the_new_file_and_says_where_to_put_it(env
     fake = env(FakeRun({"simplicio-a": [issue(1)]}, opted_in=[]))
     baseline()
     run_tick()
-    assert read_json(config.STATUS)["skipped_repos"] == {"simplicio-a": "not_opted_in"}
+    assert read_json(config.STATUS)["skipped_repos"] == {"simpletibr/simplicio-a": "not_opted_in"}
     out = capsys.readouterr().out
-    line = next(line for line in out.splitlines() if "not opted in simplicio-a" in line)
+    line = next(line for line in out.splitlines() if "not opted in simpletibr/simplicio-a" in line)
     assert NEW in line and "enabled = true" in line and OLD not in line
     assert fake.turbo_argv == []
     asked = [argv[argv.index("api") + 1:] for argv in fake.ran("gh", "api")]

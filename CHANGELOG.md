@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- **24/7 watcher serves the owners in `SIMPLICIO_247_OWNERS`**: the hardcoded `simpletibr` org and the `simplicio*` repo-name prefix are gone. Set the variable to the GitHub owners (orgs or users) to serve, comma separated; the service refuses to start without it. Claims, status and worktrees are keyed by `owner/repo`. Before upgrading a running service, delete its `baseline.json`, `claims.json` and `fixes.json` (see `docs/WATCHER_247.md`).
+
 ## [3.50.0] - 2026-10-14
 
 - **Multi-Issue Planning & Squads**:

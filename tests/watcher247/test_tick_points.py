@@ -37,11 +37,11 @@ def test_context_carries_what_each_stage_knows(env, stages):
     baseline()
     run_tick()
     by_stage = dict(stages)
-    clone = worktrees.item_path("simplicio-a", 7)  # every stage sees the item's own worktree, not the base clone
+    clone = worktrees.item_path("simpletibr/simplicio-a", 7)  # every stage sees the item's own worktree, not the base clone
     for stage, ctx in stages:
-        assert ctx.repo == "simplicio-a" and ctx.issue["number"] == 7 and ctx.clone == clone
+        assert ctx.repo == "simpletibr/simplicio-a" and ctx.issue["number"] == 7 and ctx.clone == clone
         assert ctx.state_dir == config.ROOT
-        assert ctx.run_dir == clone / ".simplicio-loop" / "orchestrator" / "points" / "simplicio-a-7"
+        assert ctx.run_dir == clone / ".simplicio-loop" / "orchestrator" / "points" / "simpletibr__simplicio-a-7"
     assert "Issue #7: Add x" in by_stage["plan"].task_text
     assert by_stage["apply"].turbo_json["turbo_status"] == "ok"
     assert by_stage["verify"].verify == by_stage["apply"].turbo_json["verify"]
@@ -72,7 +72,7 @@ def test_blocked_result_at_pr_stops_the_pr(env, monkeypatch):
     run_tick()
     assert fake.ran("gh", "pr", "create") == [] and fake.ran("git", "commit") == []
     assert "done" not in ran
-    claim = read_json(config.CLAIMS)["simplicio-a#7"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]
     assert claim["status"] == "retry" and claim["reason_code"] == "gate_failed"  # a failed attempt, not dead
     assert "gate_failed" in fake.marker_comments(7)[-1]["body"]
 
@@ -97,7 +97,7 @@ def test_blocked_at_verify_retries_with_the_reasons_and_is_dead_only_at_the_max(
     monkeypatch.setattr(config, "RETRY_AFTER", timedelta(0))  # the retry is due on the next tick
     raise_at(monkeypatch, "verify", "blocked", "judge_reject", {"why": "no tests"})
     run_tick()
-    claim = read_json(config.CLAIMS)["simplicio-a#7"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]
     assert claim["status"] == "retry" and claim["attempts"] == 1 and claim["reason_code"] == "judge_reject"
     assert claim["owner_token"] is None  # released
     body = fake.marker_comments(7)[-1]["body"]
@@ -107,7 +107,7 @@ def test_blocked_at_verify_retries_with_the_reasons_and_is_dead_only_at_the_max(
     run_tick()  # attempt 2 is told why attempt 1 was refused, and the limit (2) is reached
     first, second = tasks(fake)
     assert "judge_reject" not in first and "judge_reject" in second and "no tests" in second
-    claim = read_json(config.CLAIMS)["simplicio-a#7"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]
     assert claim["status"] == "dead" and claim["attempts"] == config.MAX_ATTEMPTS
     assert "judge_reject" in fake.marker_comments(7)[-1]["body"]
 
@@ -121,7 +121,7 @@ def test_deferred_at_intake_consumes_no_attempt_and_is_due_on_the_next_tick(env,
     ran, real_run = [], points.run
     raise_at(monkeypatch, "intake", "deferred", "low_disk", ran=ran)
     run_tick()
-    claim = read_json(config.CLAIMS)["simplicio-a#7"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]
     assert claim["status"] == "retry" and claim["attempts"] == 0  # the attempt is given back
     assert claim["owner_token"] is None and claim["lease_expires_at"] is None  # claim and lease released
     assert claim.get("next_try_at") is None and claim["reason_code"] == "low_disk"
@@ -130,7 +130,7 @@ def test_deferred_at_intake_consumes_no_attempt_and_is_due_on_the_next_tick(env,
 
     monkeypatch.setattr(points, "run", real_run)  # the condition cleared: the real registry runs again
     run_tick()
-    claim = read_json(config.CLAIMS)["simplicio-a#7"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]
     assert claim["status"] == "done" and claim["attempts"] == 1
 
 
@@ -140,7 +140,7 @@ def test_deferred_never_reaches_dead_however_often_it_repeats(env, monkeypatch):
     raise_at(monkeypatch, "intake", "deferred", "high_load")
     for _ in range(config.MAX_ATTEMPTS + 2):
         run_tick()
-    claim = read_json(config.CLAIMS)["simplicio-a#7"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]
     assert claim["status"] == "retry" and claim["attempts"] == 0
 
 
@@ -162,7 +162,7 @@ def test_error_and_skipped_results_do_not_change_the_tick(env, monkeypatch):
 
     monkeypatch.setattr(points, "run", fake_run)
     run_tick()
-    assert read_json(config.CLAIMS)["simplicio-a#7"]["status"] == "done"
+    assert read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]["status"] == "done"
 
 
 def test_the_real_registry_runs_in_the_tick_and_writes_events(env):
@@ -170,6 +170,6 @@ def test_the_real_registry_runs_in_the_tick_and_writes_events(env):
     baseline()
     run_tick()
     # State is copied to state_home after worktree removal
-    events = (state_home("simplicio-a", 7) / ".simplicio-loop" / "orchestrator" / "points" / "simplicio-a-7" / "events.jsonl")
+    events = (state_home("simpletibr/simplicio-a", 7) / ".simplicio-loop" / "orchestrator" / "points" / "simpletibr__simplicio-a-7" / "events.jsonl")
     assert "toolchain_detect" in events.read_text()
-    assert read_json(config.CLAIMS)["simplicio-a#7"]["status"] == "done"
+    assert read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]["status"] == "done"

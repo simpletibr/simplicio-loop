@@ -63,7 +63,7 @@ def task_text(repo: str, issue: dict, fix: str = "", retry: str = "") -> str:
         "Protocolo Simplicio-Loop, nesta ordem: orientar o repositorio, "
         "planejar uma mudanca atomica, aplicar patch cirurgico "
         "(nao reescrever arquivo inteiro), validar, entregar so o que o teste sustenta.\n"
-        f"Repositorio: {config.ORG}/{repo}\n"
+        f"Repositorio: {repo}\n"
         + prompt_guard.untrusted(f"Issue #{issue['number']}: {issue.get('title') or ''}\n{body}")
     )
     if fix:
@@ -106,13 +106,13 @@ async def commit_and_pr(gate: worktrees.Gate, dest: Path, repo: str, branch: str
     if push.returncode != 0:
         raise _fail(push, "push failed")
     if pr:
-        return f"https://github.com/{config.ORG}/{repo}/pull/{pr}"
+        return f"https://github.com/{repo}/pull/{pr}"
     body = sanitize(
         f"Processamento automatico do Simplicio-Loop 24h (executor {executor}) da issue #{number}.\n\n"
         f"{label}\n\n"
         f"Parte de #{number}\n", "PR body")  # the label comes from the model
     pr_cmd = [
-        "gh", "pr", "create", "--repo", f"{config.ORG}/{repo}",
+        "gh", "pr", "create", "--repo", repo,
         "--base", branch, "--head", head,
         "--title", title, "--body", body,
     ]
@@ -187,7 +187,7 @@ async def _phase(runner, repo: str, number: int, phase: str, detail: str = "", r
     """Move the issue's ONE status comment to `phase`. A refused or failed update is logged, never raised."""
     try:
         receipt = await watcher_github.post_status(
-            repo=f"{config.ORG}/{repo}", issue=str(number), state=phase, detail=detail,
+            repo=repo, issue=str(number), state=phase, detail=detail,
             reason_code=reason_code, runner=runner)
     except Exception as exc:
         state.log(f"status {phase} failed {repo}#{number}: {exc}")
@@ -253,7 +253,6 @@ async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, c
     name = work.repo
     number = int(work.issue["number"])
     ident = state.key_of(name, number)
-    full = f"{config.ORG}/{name}"
     token = await store.acquire(ident, config.OWNER, config.LEASE_TTL_S, now=clock, reopen=bool(work.fix))
     if token is None:
         state.log(f"lease held or final {ident}")
@@ -264,11 +263,11 @@ async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, c
     steps: list[dict[str, str]] = []  # the steps run_exec ran, also when it failed: a failed task counts in the metrics (#1565)
     run_failed = False
     try:
-        if not work.fix and (open_pr := await _open_loop_pr(full, number)):
+        if not work.fix and (open_pr := await _open_loop_pr(name, number)):
             state.log(f"open PR {open_pr} already on loop/issue-{number}: no second PR for {ident}")
             await store.release(ident, token, "preexisting", now=clock, pr=open_pr, reason_code="open_pr_exists")
             return
-        claim = await watcher_github.claim_on_github(repo=full, issue=str(number), owner=config.OWNER, runner=runner)
+        claim = await watcher_github.claim_on_github(repo=name, issue=str(number), owner=config.OWNER, runner=runner)
         if not claim.verified:
             await store.release(ident, token, "claimed_elsewhere", now=clock, reason_code=claim.reason)
             state.log(f"claimed elsewhere {ident}: {claim.reason}")
@@ -290,10 +289,12 @@ async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, c
             async with worktrees.checkout(gate, name, work.branch, number, fix=bool(work.fix), head=work.head or None) as item:  # the lock is held only inside
                 dest, head = item.path, item.head
                 try:
+                    # one name for the run: its folder and the report file are named by it, so owner and repo stay in it
+                    run_name = f"{name.replace('/', '__')}-{number}"
                     ctx = points.PointContext(
                         repo=name, issue=work.issue, clone=dest, state_dir=config.ROOT, family=_family(executor),
                         capacity=probe, test_command=work.verify,
-                        run_dir=dest / ".simplicio-loop" / "orchestrator" / "points" / f"{name}-{number}")
+                        run_dir=dest / ".simplicio-loop" / "orchestrator" / "points" / run_name)
                     await points.run("intake", ctx)
                     if executor.mode == "exec":
                         run_id = await asyncio.to_thread(events.open_run, dest, name, number, fix=bool(work.fix))
@@ -389,7 +390,7 @@ async def _enqueue_fixes(runner, name: str, fixes: dict) -> None:
     queued again. A patrol failure is logged; the next tick tries again.
     """
     try:
-        found = await watcher_github.patrol_open_prs(repo=f"{config.ORG}/{name}", runner=runner)
+        found = await watcher_github.patrol_open_prs(repo=name, runner=runner)
     except Exception as exc:
         state.log(f"patrol failed {name}: {exc}")
         return
@@ -407,9 +408,9 @@ async def _enqueue_fixes(runner, name: str, fixes: dict) -> None:
 
 
 def _map_gc_bases() -> None:
-    """`map gc` (default policy) for each base clone under config.WORK, at most once an hour per repo (#1671). Never raises."""
+    """`map gc` (default policy) for each base clone config.WORK/<owner>/<repo>, at most once an hour per repo (#1671). Never raises."""
     try:
-        bases = sorted(p for p in config.WORK.iterdir() if p.is_dir() and not p.name.lower().endswith((".wt", ".state")) and (p / ".git").exists())
+        bases = sorted(p for p in config.WORK.glob("*/*") if p.is_dir() and not p.name.lower().endswith((".wt", ".state")) and (p / ".git").exists())
     except OSError:
         return
     for base in bases:
@@ -496,7 +497,7 @@ async def tick(dry_run: bool = False) -> None:
         if name in await state.issues_disabled():
             continue
         try:
-            opted = await intake_gate.repo_opted_in(f"{config.ORG}/{name}", cache=gate_cache, run=_intake_run)
+            opted = await intake_gate.repo_opted_in(name, cache=gate_cache, run=_intake_run)
         except intake_gate.IntakeGateError as exc:
             skipped_repos[name] = exc.reason_code
             continue
@@ -505,7 +506,7 @@ async def tick(dry_run: bool = False) -> None:
             state.log(f"not opted in {name}: add {intake_gate.CONFIG_PATH} with `enabled = true` to its default branch")
             continue
         # The one source of the verify command: loop.toml of the default branch (cached above), never the clone, which a plan can edit (#1567).
-        cmd = verify.configured_command(await intake_gate.repo_config(f"{config.ORG}/{name}", cache=gate_cache, run=_intake_run))
+        cmd = verify.configured_command(await intake_gate.repo_config(name, cache=gate_cache, run=_intake_run))
         if cmd is None:
             state.log(f"verify not configured {name}: add `verify = \"<targeted test command>\"` to {intake_gate.CONFIG_PATH} on its default branch; its issues are skipped")
         if baseline is not None and persist:

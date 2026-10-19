@@ -16,7 +16,7 @@ from simplicio_loop.watcher247 import config, proc, worktrees
 from .fakes import FakeRun, baseline, issue, run_tick
 from .test_worktrees import REPO, real_repo, state_file  # noqa: F401  (real_repo is a fixture)
 
-TICK_REPO = "simplicio-a"
+TICK_REPO = "simpletibr/simplicio-a"
 
 
 # --- R01: the admin entry of a killed run is found when WORK sits behind a symlink ----------------------------------------------------

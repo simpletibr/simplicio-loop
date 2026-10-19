@@ -58,7 +58,7 @@ def test_one_probe_per_tick_is_shared_with_resource_governor(env, host, monkeypa
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
     one_issue_per_repo(env, 2)
     run_tick()
-    assert sorted(read_json(config.STATUS)["processed"]) == ["simplicio-a#1", "simplicio-b#2"]
+    assert sorted(read_json(config.STATUS)["processed"]) == ["simpletibr/simplicio-a#1", "simpletibr/simplicio-b#2"]
     assert host.calls == 1, "the sizing probe is the governor's sample: two workers, ONE measurement"
 
 
@@ -67,7 +67,7 @@ def test_a_stale_sample_is_not_reused_by_the_governor(env, host, monkeypatch):
     host.set(age_ns=squad_capacity.SHARE_MAX_AGE_NS + 10**9)
     one_issue_per_repo(env, 1)
     run_tick()
-    assert read_json(config.STATUS)["processed"] == ["simplicio-a#1"]
+    assert read_json(config.STATUS)["processed"] == ["simpletibr/simplicio-a#1"]
     assert host.calls == 2, "an old sample is not a safety check: the governor measures for itself"
 
 
@@ -81,7 +81,7 @@ def test_a_busy_machine_shrinks_the_batch_to_one(env, host):
     host.set(load=(12.0, 12.0, 12.0))
     one_issue_per_repo(env, 4)
     run_tick()
-    assert read_json(config.STATUS)["processed"] == ["simplicio-a#1"]
+    assert read_json(config.STATUS)["processed"] == ["simpletibr/simplicio-a#1"]
 
 
 def test_a_small_machine_limits_the_batch_by_cpu(env, host):
@@ -114,7 +114,7 @@ def test_an_invalid_concurrency_never_fails_the_tick_it_logs_one_warning_and_the
     host.set(load=(12.0, 12.0, 12.0))
     one_issue_per_repo(env, 4)
     run_tick()  # a 5,000-digit or "\u00b2" value used to raise ValueError in int() and fail every tick
-    assert read_json(config.STATUS)["processed"] == ["simplicio-a#1"], "automatic sizing: the busy host runs one"
+    assert read_json(config.STATUS)["processed"] == ["simpletibr/simplicio-a#1"], "automatic sizing: the busy host runs one"
     warned = [line for line in capsys.readouterr().out.splitlines() if "WARN: SIMPLICIO_247_CONCURRENCY=" in line]
     assert len(warned) == (0 if not bad.strip() else 1), warned
     assert all(len(line) < 400 for line in warned), "a huge value is clipped in the log line"
@@ -159,7 +159,7 @@ def test_status_carries_the_capacity_and_why(env, host):
                         diff=False))
     baseline()
     run_tick()
-    capacity = read_json(config.STATUS)["squads"]["simplicio-a"]["capacity"]
+    capacity = read_json(config.STATUS)["squads"]["simpletibr/simplicio-a"]["capacity"]
     assert (capacity["total_workers"], capacity["squads"], capacity["limited_by"]) == (3, 1, "demand")
     assert capacity["proof_kind"] == "MEASURED" and capacity["reasons"] and capacity["probe"]["cpu_count"] == 10
     assert fake.turbo_argv, "the issues were worked"
@@ -170,8 +170,8 @@ def test_an_unmeasurable_machine_runs_one_worker_and_says_unverified(env, host, 
     one_issue_per_repo(env, 3)
     run_tick()
     status = read_json(config.STATUS)
-    assert status["processed"] == ["simplicio-a#1"]
-    assert status["squads"]["simplicio-a"]["capacity"]["proof_kind"] == "UNVERIFIED"
+    assert status["processed"] == ["simpletibr/simplicio-a#1"]
+    assert status["squads"]["simpletibr/simplicio-a"]["capacity"]["proof_kind"] == "UNVERIFIED"
 
 
 def test_zero_squads_in_the_env_is_a_tick_error_not_a_silent_default(env, host, monkeypatch):

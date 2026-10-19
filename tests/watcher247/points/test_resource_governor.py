@@ -80,7 +80,7 @@ def test_real_tick_low_disk_gives_the_attempt_back_and_the_issue_is_due_again(en
     baseline()
     probe.sample = sample(safe_workers=0, reason="disk_pressure", disk=1 * GB)
     run_tick()
-    claim = read_json(config.CLAIMS)["simplicio-a#7"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]
     assert claim["status"] == "retry" and claim["attempts"] == 0  # the attempt is given back
     assert claim["owner_token"] is None and claim["lease_expires_at"] is None  # lease released
     assert claim.get("next_try_at") is None and claim["reason_code"] == "disk_pressure"
@@ -89,6 +89,6 @@ def test_real_tick_low_disk_gives_the_attempt_back_and_the_issue_is_due_again(en
 
     probe.sample = sample()  # the disk was freed: the same issue is picked up on the next tick
     run_tick()
-    claim = read_json(config.CLAIMS)["simplicio-a#7"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]
     assert claim["status"] == "done" and claim["attempts"] == 1
     assert len(tasks(fake)) == 1

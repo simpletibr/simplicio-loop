@@ -1,4 +1,4 @@
-"""24/7 watcher for simplicio-* repos: intake, plan, apply, verify, open PR, optionally merge.
+"""24/7 watcher for the repos of SIMPLICIO_247_OWNERS: intake, plan, apply, verify, open PR, optionally merge.
 
 Stages: intake gate (issues) → plan (exec CLI, default) → apply (dev-cli turbo)
 → verify (tests) → PR (draft/open) → done (merge iff SIMPLICIO_247_AUTO_MERGE=1).

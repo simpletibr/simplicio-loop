@@ -1,4 +1,4 @@
-"""`watch247`: the 24/7 watcher for simplicio-* repos.
+"""`watch247`: the 24/7 watcher for the repos of SIMPLICIO_247_OWNERS.
 
 Split from cli_impl.py (#1818). The code is moved unchanged; see
 cli_commands/_base.py for why some names are read through impl().
@@ -11,7 +11,7 @@ _WATCH247_QUIET = ("The GitHub token is never an argument: pipe it to --github-t
 
 def add_watch247(sub):
     p_watch247 = sub.add_parser(
-        "watch247", help="run the 24/7 watcher for simplicio-* repos", allow_abbrev=False,
+        "watch247", help="run the 24/7 watcher for SIMPLICIO_247_OWNERS repos", allow_abbrev=False,
         quiet=_WATCH247_QUIET)
     p_watch247.add_argument("action", nargs="?", choices=["login-check", "setup"],
                             help="login-check: exec CLI logins (#1467); setup: first-run credentials")

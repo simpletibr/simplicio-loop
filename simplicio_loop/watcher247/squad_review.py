@@ -16,7 +16,7 @@ from .. import squads
 from ..review_gate import gate as review_gate
 from ..review_gate import identity
 from ..review_gate.model import GateReport
-from . import config, proc
+from . import config, proc, worktrees
 
 FETCH_DEPTH = "200"
 MAIN_REF = "refs/remotes/origin/main"
@@ -53,11 +53,11 @@ async def evaluate(repo: str, number: int, issue: int, head: str, author: identi
     can carry the independent-review marker, the same rule as `squads.squad_gate` (finding m2 of #1649)."""
     if not FULL_SHA.fullmatch(head):  # the approval is tied to one commit: a prefix (or any other spelling) is not that commit
         raise ReviewError(f"the reviewed head must be the full 40-character sha, got {head!r}")
-    full, dest = f"{config.ORG}/{repo}", config.WORK / repo
-    view = await _gh(["pr", "view", str(number), "--repo", full, "--json", "body,comments,headRefName"])
+    dest = worktrees.base_path(repo)
+    view = await _gh(["pr", "view", str(number), "--repo", repo, "--json", "body,comments,headRefName"])
     branch = branch or view.get("headRefName") or f"loop/issue-{issue}"
     pr_ref = f"refs/remotes/origin/{branch}"
-    issue_view = await _gh(["issue", "view", str(issue), "--repo", full, "--json", "body"])
+    issue_view = await _gh(["issue", "view", str(issue), "--repo", repo, "--json", "body"])
     allowed, associations = squads.logins(approvers), frozenset(trusted_associations)
     trusted = [c for c in view.get("comments") or [] if squads.authorized(c, allowed, associations)]
     independent = identity.parse_independent_marker(trusted, head)

@@ -43,21 +43,26 @@ def pr_row(number, head, review="", checks=()):
     }
 
 
+def bare(name: str) -> str:
+    """A repo key is a bare name or `owner/name`. FakeRun answers by the name, whichever owner was asked for."""
+    return name.rpartition("/")[2]
+
+
 class FakeRun:
     """Answers every proc.run call by argv and records what ran."""
 
     def __init__(self, issues, *, turbo_ok=True, diff=True, delay=0.0, opted_in=None,
                  broken_gate=(), prs=(), pr_views=None, claimed_by=None, distinct_prs=False,
                  train_ok=True, login="squad-bot", loop_toml=None, meet=0):
-        self.issues = issues  # repo name -> list of issue rows
+        self.issues = {bare(name): rows for name, rows in issues.items()}  # repo name -> list of issue rows
         self.turbo_ok = turbo_ok
         self.diff = diff
         self.delay = delay
         self.meet = meet  # a turbo waits until `meet` turbos run together: overlap is proven by a rendezvous, not by a short sleep
         self._met = asyncio.Event()
-        self.opted_in = set(issues) if opted_in is None else set(opted_in)
-        self.loop_toml = loop_toml or {}  # repo name -> the .simplicio-loop/loop.toml text of its default branch (default LOOP_TOML)
-        self.broken_gate = set(broken_gate)
+        self.opted_in = set(self.issues) if opted_in is None else {bare(name) for name in opted_in}
+        self.loop_toml = {bare(name): text for name, text in (loop_toml or {}).items()}  # repo name -> the .simplicio-loop/loop.toml text of its default branch (default LOOP_TOML)
+        self.broken_gate = {bare(name) for name in broken_gate}
         self.prs = list(prs)
         self.pr_views = pr_views or {}
         self.claimed_by = claimed_by  # owner already named on the canonical comment

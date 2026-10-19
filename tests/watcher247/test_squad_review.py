@@ -52,8 +52,8 @@ class World:
         src, self.base, self.head = scenario.make_repo(tmp_path / "src", name)
         self.origin = tmp_path / "origin.git"
         subprocess.run(["git", "clone", "-q", "--bare", str(src), str(self.origin)], check=True)
-        (tmp_path / "work").mkdir()
-        self.dest = tmp_path / "work" / "myrepo"
+        (tmp_path / "work" / "org").mkdir(parents=True)
+        self.dest = tmp_path / "work" / "org" / "myrepo"
         subprocess.run(["git", "clone", "-q", str(self.origin), str(self.dest)], check=True)
         self.state = tmp_path / "state"
         self.state.mkdir()
@@ -63,7 +63,6 @@ class World:
 def world(tmp_path, monkeypatch):
     made = World(tmp_path, "notest")  # a head the gate rejects without running a test: fast
     monkeypatch.setattr(config, "WORK", tmp_path / "work")
-    monkeypatch.setattr(config, "ORG", "org")
     monkeypatch.setattr(config, "ROOT", made.state)
     monkeypatch.setattr(isolation, "make_jail", scenario.unsandboxed_jail)  # the jail has its own tests; the host may have no bwrap
     return made
@@ -77,7 +76,7 @@ def gh(monkeypatch):
 
 
 def _evaluate(head, lock=None, author=WORKER, number=11, issue=7, **extra):
-    return asyncio.run(squad_review.evaluate("myrepo", number, issue, head, author, lock or asyncio.Lock(), **extra))
+    return asyncio.run(squad_review.evaluate("org/myrepo", number, issue, head, author, lock or asyncio.Lock(), **extra))
 
 
 # --- evaluate ---------------------------------------------------------------------------------------------------------
@@ -183,7 +182,7 @@ def test_a_single_branch_clone_whose_refspec_never_lists_the_pr_branch_is_review
 
 def test_a_branch_that_does_not_exist_on_origin_is_a_review_error_with_the_cause_never_an_ambiguous_revision(world, gh):
     with pytest.raises(ReviewError) as caught:
-        asyncio.run(squad_review.evaluate("myrepo", 11, 99, world.head, WORKER, asyncio.Lock()))  # no loop/issue-99 on origin
+        asyncio.run(squad_review.evaluate("org/myrepo", 11, 99, world.head, WORKER, asyncio.Lock()))  # no loop/issue-99 on origin
     assert str(caught.value).startswith("git fetch --depth 200 failed: ") and "ambiguous" not in str(caught.value)
 
 
@@ -299,7 +298,7 @@ def test_the_gate_runs_in_a_thread_so_the_event_loop_keeps_turning(world, gh, mo
                 await asyncio.sleep(0.02)
 
         task = asyncio.create_task(ticker())
-        out = await squad_review.evaluate("myrepo", 11, 7, world.head, WORKER, asyncio.Lock())
+        out = await squad_review.evaluate("org/myrepo", 11, 7, world.head, WORKER, asyncio.Lock())
         task.cancel()
         return out
 

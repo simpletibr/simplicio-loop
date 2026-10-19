@@ -19,6 +19,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(squad_capacity, "measure", lambda root=".", **kw: squad_capacity.Probe(
         cpu_count=2, load_average=(0.0, 0.0, 0.0), memory_available_bytes=64 << 30, disk_free_bytes=512 << 30))
     monkeypatch.setenv("GH_TOKEN", "ghp_FAKEconftest00000000000000000000")  # the tick idles without a GitHub token
+    monkeypatch.setenv("SIMPLICIO_247_OWNERS", "simpletibr")  # the watcher refuses to start without an owner; FakeRun's repos are this owner's
     monkeypatch.setenv("SIMPLICIO_247_ALLOW_UNSANDBOXED", "1")  # sandbox has its own tests
     monkeypatch.setattr(sandbox.shutil, "which", lambda binary: None)  # same argv on every host
     # The default executor is exec (host_mode, see test_host_mode.py); these tests cover the opt-in openrouter path.

@@ -50,7 +50,7 @@ def test_tick_blocks_the_push_on_a_secret_and_never_echoes_it(env):
     baseline()
     run_tick()
     assert fake.ran("git", "push") == [] and fake.ran("git", "commit") == []
-    claim = read_json(config.CLAIMS)["simplicio-a#9"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#9"]
     assert claim["reason_code"] == "secret_detected"
     comment = fake.marker_comments(9)[-1]["body"]
     assert "app.py" in comment and "secret_detected" in comment
@@ -118,4 +118,4 @@ def test_issue_from_author_association_none_is_skipped(env):
     baseline()
     run_tick()
     assert fake.turbo_argv == []
-    assert read_json(config.STATUS)["skipped_issues"] == {"simplicio-a#4": "author_not_allowed"}
+    assert read_json(config.STATUS)["skipped_issues"] == {"simpletibr/simplicio-a#4": "author_not_allowed"}

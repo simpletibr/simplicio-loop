@@ -8,7 +8,7 @@ from simplicio_loop.watcher247 import config, verify
 
 from .fakes import FakeRun, baseline, issue, pr_row, read_json, run_tick, tasks
 
-REPO = "simplicio-a"
+REPO = "simpletibr/simplicio-a"
 TARGETED = "python3 -m pytest -q tests/x.py"
 WITH_VERIFY = f'enabled = true\nverify = "{TARGETED}"\n'
 WITHOUT_VERIFY = "enabled = true\n"
@@ -73,7 +73,7 @@ def test_only_the_repo_without_verify_is_skipped(env):
     baseline()
     run_tick()
     assert len(tasks(fake)) == 1 and "Issue #1" in tasks(fake)[0]
-    assert _skipped() == {"simplicio-b#2": "verify_not_configured"}
+    assert _skipped() == {"simpletibr/simplicio-b#2": "verify_not_configured"}
 
 
 def test_the_configured_command_is_what_turbo_verifies(env):

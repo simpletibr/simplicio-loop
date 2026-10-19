@@ -12,6 +12,7 @@ from simplicio_loop.watcher247 import config, proc
 from .fakes import FakeRun, baseline, issue, read_json, run_tick
 
 REPO = "simplicio-a"
+FULL = "simpletibr/simplicio-a"
 NUMBERS = range(1, 7)
 AUTO = "SIMPLICIO_247_AUTO_MERGE"
 MODE = "SIMPLICIO_247_MERGE_MODE"
@@ -76,7 +77,7 @@ def six(env, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "6")
     monkeypatch.delenv(AUTO, raising=False)
     monkeypatch.delenv(MODE, raising=False)
-    (config.WORK / REPO / ".git").mkdir(parents=True)
+    (config.WORK / FULL / ".git").mkdir(parents=True)
 
     def make(**kwargs):
         rows = [issue(n, f"Task {n}", body=f"Ajustar `src/m{n}/app.py` para o fluxo do watcher seguir o contrato descrito abaixo.")
@@ -88,7 +89,7 @@ def six(env, monkeypatch):
 
 
 def _squads():
-    return read_json(config.STATUS)["squads"][REPO]
+    return read_json(config.STATUS)["squads"][FULL]
 
 
 def test_the_default_mode_is_batch_and_the_status_says_so(six, monkeypatch):

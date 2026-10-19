@@ -10,7 +10,7 @@ import json
 
 import pytest
 
-from simplicio_loop.watcher247 import config, github, state
+from simplicio_loop.watcher247 import github, state
 
 
 def test_open_issues_uses_rest_api_not_issue_list(monkeypatch):
@@ -45,7 +45,7 @@ def test_open_issues_uses_rest_api_not_issue_list(monkeypatch):
 
     monkeypatch.setattr(github, "gh_json", fake_gh_json)
 
-    result = asyncio.run(github.open_issues("test-repo"))
+    result = asyncio.run(github.open_issues("simpletibr/test-repo"))
 
     # Verify the correct endpoint was called
     assert len(calls) == 1
@@ -53,7 +53,7 @@ def test_open_issues_uses_rest_api_not_issue_list(monkeypatch):
     assert args[0] == "api"
     assert "-X" in args
     assert "GET" in args
-    repo_path = f"repos/{config.ORG}/test-repo/issues"
+    repo_path = "repos/simpletibr/test-repo/issues"
     assert repo_path in " ".join(args)
     assert "state=open" in " ".join(args)
     assert "authorAssociation" not in " ".join(args)  # Old field should not be requested
@@ -85,10 +85,10 @@ def test_open_issues_handles_disabled_issues_error(monkeypatch):
     monkeypatch.setattr(github, "gh_json", fake_gh_json)
     monkeypatch.setattr(state, "mark_issues_disabled", fake_mark_issues_disabled)
 
-    result = asyncio.run(github.open_issues("test-repo"))
+    result = asyncio.run(github.open_issues("simpletibr/test-repo"))
 
     assert result == []
-    assert mark_calls == ["test-repo"]
+    assert mark_calls == ["simpletibr/test-repo"]
 
 
 def test_open_issues_case_insensitive_disabled_check(monkeypatch):
@@ -108,7 +108,7 @@ def test_open_issues_case_insensitive_disabled_check(monkeypatch):
         monkeypatch.setattr(github, "gh_json", fake_gh_json)
         monkeypatch.setattr(state, "mark_issues_disabled", fake_mark_issues_disabled)
 
-        result = asyncio.run(github.open_issues("test-repo"))
+        result = asyncio.run(github.open_issues("simpletibr/test-repo"))
 
         assert result == [], f"Failed for error message: {error_msg}"
         assert len(mark_calls) == 1, f"Failed for error message: {error_msg}"
@@ -123,7 +123,7 @@ def test_open_issues_other_errors_propagate(monkeypatch):
     monkeypatch.setattr(github, "gh_json", fake_gh_json)
 
     with pytest.raises(RuntimeError, match="Some other error"):
-        asyncio.run(github.open_issues("test-repo"))
+        asyncio.run(github.open_issues("simpletibr/test-repo"))
 
 
 def test_open_issues_preserves_output_contract(monkeypatch):
@@ -144,7 +144,7 @@ def test_open_issues_preserves_output_contract(monkeypatch):
 
     monkeypatch.setattr(github, "gh_json", fake_gh_json)
 
-    result = asyncio.run(github.open_issues("test-repo"))
+    result = asyncio.run(github.open_issues("simpletibr/test-repo"))
 
     assert len(result) == 1
     issue = result[0]
@@ -182,7 +182,7 @@ def test_open_issues_reads_past_the_prs_that_share_the_pages(monkeypatch):
     run, served = _rest_pages(prs + issues)
     monkeypatch.setattr(github.proc, "run", run)
 
-    found = asyncio.run(github.open_issues("test-repo"))
+    found = asyncio.run(github.open_issues("simpletibr/test-repo"))
 
     assert [row["number"] for row in found] == list(range(1, 26))
     assert len(served) == 2  # 145 items at 100 per page; per_page=1 or the default 30 would take 145 or 5

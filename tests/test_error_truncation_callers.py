@@ -77,6 +77,7 @@ def test_watcher_tick_error_status_keeps_the_cause(monkeypatch, tmp_path: Path) 
     monkeypatch.setattr(watcher_main.worktrees, "cancel_on_sigterm", lambda: None)
     monkeypatch.setattr(watcher_main.author_executor, "refusal", lambda: None)
     monkeypatch.setattr(watcher_main.env_guard, "refusal", lambda: None)
+    monkeypatch.setenv("SIMPLICIO_247_OWNERS", "simpletibr")  # the watcher refuses to start without an owner
     monkeypatch.setattr(watcher_main.config, "WORK", tmp_path / "work")
     monkeypatch.setattr(watcher_main, "ClaimStore", FakeStore)
     monkeypatch.setattr(watcher_main.tick, "tick", fake_tick)

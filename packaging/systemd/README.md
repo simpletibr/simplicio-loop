@@ -23,6 +23,14 @@ Expected: `rc=0`. Without `@mount` in `SystemCallFilter`, the same command exits
 cannot read `/proc/<watcher pid>/environ` (issue #1563); it only starts if the unit leaves `/proc` whole (see
 "`--unshare-pid` under the unit" below).
 
+## Owners to serve (`SIMPLICIO_247_OWNERS`)
+
+The env file (`/etc/simplicio-loop-247.env`, copied from `simplicio-loop-247.env.example`) names the GitHub owners (orgs or
+users) the watcher serves: `SIMPLICIO_247_OWNERS=acme,jane`. There is no default owner. Without the variable, or with a value
+that is not a GitHub login, the watcher exits at start: the journal shows `refusing to start: SIMPLICIO_247_OWNERS ...` and
+`status.json` shows `reason_code=owners_env_invalid`. The unit has `Restart=always`, so until the variable is set the journal
+repeats that line every 10 seconds. The maintainer's example sets `SIMPLICIO_247_OWNERS=simpletibr`.
+
 ## Reproduction on a VPS (systemd 259, bubblewrap 0.11.1, transient `systemd-run --user` services)
 
 `SystemCallFilter` is not a scope property (`--scope` answers `Unknown assignment`), so the checks use a

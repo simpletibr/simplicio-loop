@@ -18,9 +18,9 @@ from simplicio_loop import execution_report
 from simplicio_loop.dashboard import runs as dashboard_runs
 from simplicio_loop.dashboard_events import read_events
 from simplicio_loop.watcher247 import config, subscription, tick, verify
-from tests.flow.conftest import ISSUE_NUMBER, ISSUE_TITLE, REPO_NAME
+from tests.flow.conftest import FULL_NAME, ISSUE_NUMBER, ISSUE_TITLE, REPO_NAME
 
-IDENT = f"{REPO_NAME}#{ISSUE_NUMBER}"
+IDENT = f"{FULL_NAME}#{ISSUE_NUMBER}"
 HEAD = f"loop/issue-{ISSUE_NUMBER}"
 # The pipeline of #1469: the watcher's own stages wrap the turbo ones.
 PIPELINE_STAGES = ["intake", "orient", "plan", "apply", "verify", "pr", "done"]
@@ -51,7 +51,7 @@ def tick_run(flow_env, flow_base: Path, remote_bare: Path):
     calls = [json.loads(line) for line in (flow_base / "gh-calls.jsonl").read_text().splitlines()]
     # #1601: the base clone is never edited. The item runs in `<repo>.wt/<issue>` and its `.simplicio-loop/` (map, events,
     # reports) is kept in `<repo>.state/<issue>` once the worktree is removed.
-    return {"state": state_dir, "clone": work / REPO_NAME, "item_state": work / f"{REPO_NAME}.state" / str(ISSUE_NUMBER),
+    return {"state": state_dir, "clone": work / FULL_NAME, "item_state": work / f"{FULL_NAME}.state" / str(ISSUE_NUMBER),
             "remote": remote_bare, "calls": calls}
 
 
@@ -60,7 +60,7 @@ def _claims(run) -> dict:
 
 
 def _turbo_document(run) -> dict:
-    log = run["state"] / "logs" / f"{REPO_NAME}-{ISSUE_NUMBER}-1-s1.log"  # attempt 1, planner step 1
+    log = run["state"] / "logs" / f"{FULL_NAME}-{ISSUE_NUMBER}-1-s1.log"  # attempt 1, planner step 1
     return verify.parse_turbo(log.read_text().split("\n--- stderr ---")[0])
 
 
@@ -165,7 +165,7 @@ def test_pipeline_events_open_and_close_the_run_once_without_issue_text(tick_run
     pr = next(e for e in events if e["kind"] == "phase_entered" and e["phase"] == "pr")
     assert pr["payload"]["pr_number"] is not None and pr["payload"]["from"] == "verify"
     intake = next(e for e in events if e["kind"] == "phase_entered" and e["phase"] == "intake")
-    assert intake["payload"]["repo"] == REPO_NAME and intake["payload"]["issue"] == ISSUE_NUMBER
+    assert intake["payload"]["repo"] == FULL_NAME and intake["payload"]["issue"] == ISSUE_NUMBER
     assert ISSUE_TITLE not in json.dumps(events), "event payloads carry ids and numbers, never the issue text"
 
 

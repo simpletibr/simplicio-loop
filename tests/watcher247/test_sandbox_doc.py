@@ -32,7 +32,7 @@ def real_wrap(tmp_path, monkeypatch):
     for name in (*host_mode.FAMILY_HOME["claude"]["rw"], ".local/share/claude"):
         (home / name).mkdir(parents=True)
     state = tmp_path / "state"
-    clone, common = state / "work" / "demo.wt" / "31", state / "work" / "demo" / ".git"
+    clone, common = state / "work" / "simpletibr" / "demo.wt" / "31", state / "work" / "simpletibr" / "demo" / ".git"
     for folder in (clone, common / "worktrees" / "31", common / "objects", common / "simplicio"):
         folder.mkdir(parents=True)
     view = sandbox.HomeView(home, **host_mode.FAMILY_HOME["claude"])
@@ -42,7 +42,7 @@ def real_wrap(tmp_path, monkeypatch):
 
 def writable_tokens(argv: list[str], where: dict) -> set[str]:
     """The writable binds of the argv, named the way the doc names them."""
-    names = {where["clone"]: "<WORK>/<repo>.wt/<issue>", where["common"] / "worktrees" / "31": "<git-dir>/worktrees/<issue>",
+    names = {where["clone"]: "<WORK>/<owner>/<repo>.wt/<issue>", where["common"] / "worktrees" / "31": "<git-dir>/worktrees/<issue>",
              where["common"] / "objects": "<git-dir>/objects", where["common"] / "simplicio": "<git-dir>/simplicio"}
     tokens = set()
     for i, arg in enumerate(argv):

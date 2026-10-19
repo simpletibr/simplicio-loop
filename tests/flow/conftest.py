@@ -22,6 +22,7 @@ from simplicio_loop.watcher247 import sandbox
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 REPO_NAME = "simplicio-demo"
+FULL_NAME = f"simpletibr/{REPO_NAME}"  # the watcher's name for the repo: owner/repo (SIMPLICIO_247_OWNERS)
 ORIGINAL_APP = 'def greet():\n    return "hello"\n'
 ISSUE_NUMBER = 7
 ISSUE_TITLE = "Trocar a saudacao para hi"
@@ -255,6 +256,7 @@ def fake_gh_env(flow_base: Path, remote_bare: Path, planner_log: Path):
         "PYTHONPATH": str(REPO_ROOT),
         # The sandbox (bwrap) has its own tests (#1494); here it would hide the shims under /tmp.
         "SIMPLICIO_247_ALLOW_UNSANDBOXED": "1",
+        "SIMPLICIO_247_OWNERS": "simpletibr",  # the watcher refuses to start without an owner; the fake gh answers for it
         "SIMPLICIO_EXEC_FAMILIES": "claude",
         "FAKE_GH_FIXTURES": str(fixtures_path),
         "FAKE_GH_LOG": str(flow_base / "gh-calls.jsonl"),

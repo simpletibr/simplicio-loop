@@ -130,5 +130,5 @@ def test_layout_reads_the_item_folder_suffix_in_any_case():
     from simplicio_loop.watcher247 import sandbox
 
     for suffix in (".wt", ".WT", ".Wt"):
-        assert sandbox._layout(f"/work/repo{suffix}/7") == (Path("/work"), Path("/work/repo/.git"), "7"), suffix
+        assert sandbox._layout(f"/work/repo{suffix}/7") == (Path("/work/repo/.git"), "7"), suffix
     assert sandbox._layout("/work/repo.other/7") is None

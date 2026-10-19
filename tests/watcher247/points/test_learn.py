@@ -13,7 +13,7 @@ from simplicio_loop.watcher247 import config, points
 from ..fakes import FakeRun, baseline, issue, run_tick
 from .tick_ctx import capture_done_ctx
 
-LESSON = "simplicio-a: solved via turbo executor; verified by MEASURED|verify_passed: `python3 -m pytest -q`"
+LESSON = "simpletibr/simplicio-a: solved via turbo executor; verified by MEASURED|verify_passed: `python3 -m pytest -q`"
 
 
 @pytest.fixture
@@ -59,7 +59,7 @@ def test_a_solved_tick_run_writes_one_lesson_with_hit_count_one(done_ctx):
     assert results["trajectory"].status == "ok"
     assert results["learn"].status == "ok"
     assert results["learn"].evidence == {
-        "run_id": "simplicio-a-7", "records_seen": 1, "new_lessons": 1, "merged_lessons": 0,
+        "run_id": "simpletibr__simplicio-a-7", "records_seen": 1, "new_lessons": 1, "merged_lessons": 0,
         "lessons_path": str(done_ctx.state_dir / ".simplicio-loop" / "orchestrator" / "lessons.jsonl")}
     [row] = lessons(done_ctx)
     assert (row["lesson"], row["hit_count"]) == (LESSON, 1)
@@ -67,7 +67,7 @@ def test_a_solved_tick_run_writes_one_lesson_with_hit_count_one(done_ctx):
 
 def test_the_same_lesson_in_another_run_raises_hit_count_to_two(done_ctx):
     run_done(done_ctx)
-    other = replace(done_ctx, run_dir=done_ctx.run_dir.parent / "simplicio-a-8", issue={"number": 8})
+    other = replace(done_ctx, run_dir=done_ctx.run_dir.parent / "simpletibr__simplicio-a-8", issue={"number": 8})
     results = run_done(other)
     assert (results["learn"].evidence["new_lessons"], results["learn"].evidence["merged_lessons"]) == (0, 1)
     [row] = lessons(done_ctx)
@@ -75,14 +75,14 @@ def test_the_same_lesson_in_another_run_raises_hit_count_to_two(done_ctx):
 
 
 def test_issue_7_does_not_read_the_trajectory_of_issue_70(done_ctx):
-    other = replace(done_ctx, run_dir=done_ctx.run_dir.parent / "simplicio-a-70", issue={"number": 70},
+    other = replace(done_ctx, run_dir=done_ctx.run_dir.parent / "simpletibr__simplicio-a-70", issue={"number": 70},
                     verify="MEASURED|verify_passed: `pytest -q`",
                     turbo_json={**done_ctx.turbo_json, "verify": "MEASURED|verify_passed: `pytest -q`"})
     run_done(other)
     results = run_done(done_ctx)
     assert (results["learn"].evidence["records_seen"], results["learn"].evidence["merged_lessons"]) == (1, 0)
     assert sorted((row["lesson"], row["hit_count"]) for row in lessons(done_ctx)) == [
-        ("simplicio-a: solved via turbo executor; verified by MEASURED|verify_passed: `pytest -q`", 1), (LESSON, 1)]
+        ("simpletibr/simplicio-a: solved via turbo executor; verified by MEASURED|verify_passed: `pytest -q`", 1), (LESSON, 1)]
 
 
 def test_a_solved_tick_leaves_one_lesson_in_lessons_jsonl(env):
@@ -90,7 +90,7 @@ def test_a_solved_tick_leaves_one_lesson_in_lessons_jsonl(env):
     baseline()
     run_tick()
     orchestrator = config.ROOT / ".simplicio-loop" / "orchestrator"
-    [record] = [json.loads(line) for line in (orchestrator / "trajectory" / "simplicio-a-7.jsonl").read_text().splitlines()]
+    [record] = [json.loads(line) for line in (orchestrator / "trajectory" / "simpletibr__simplicio-a-7.jsonl").read_text().splitlines()]
     assert (record["issue"], record["status"]) == (7, "ok")
     [row] = [json.loads(line) for line in (orchestrator / "lessons.jsonl").read_text().splitlines()]
     assert (row["lesson"], row["hit_count"]) == (LESSON, 1)

@@ -71,7 +71,7 @@ def test_author_ok_opens_the_pr_with_the_same_delivery_path(author, monkeypatch)
     assert fake.turbo_argv == [], "the plan flow (turbo) does not run"
     assert len(author.calls) == 1
     task_text, worktree, kwargs = author.calls[0]
-    assert worktree == config.WORK / "simplicio-a.wt" / "7" and worktree != config.WORK / "simplicio-a"
+    assert worktree == config.WORK / "simpletibr" / "simplicio-a.wt" / "7" and worktree != config.WORK / "simpletibr" / "simplicio-a"
     assert "Issue #7: Add x" in task_text
     assert kwargs["family"] == "claude" and kwargs["verify"] == "python3 -m pytest -q" and kwargs["rounds"] == 3
     assert fake.ran("git", "commit")[0][3] == "loop: #7 Add x\n\nParte de #7\n"
@@ -79,7 +79,7 @@ def test_author_ok_opens_the_pr_with_the_same_delivery_path(author, monkeypatch)
     pr = fake.ran("gh", "pr", "create")[0]
     assert pr[pr.index("--body") + 1].endswith("Parte de #7\n") and "--draft" in pr
     assert "executor author" in pr[pr.index("--body") + 1]
-    claim = read_json(config.CLAIMS)["simplicio-a#7"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]
     assert claim["status"] == "done" and claim["pr"] == PR_URL
     assert claim["verify"] == "MEASURED|verify_passed: `python3 -m pytest -q`" and claim["executor"] == "author"
     assert claim["rounds"] == 2 and claim["usage"] == OK.usage
@@ -115,7 +115,7 @@ def test_author_failed_releases_the_claim_with_the_reason_and_opens_no_pr(author
     fake = author.use(FakeRun({"simplicio-a": [issue(5)]}))
     baseline()
     run_tick()
-    claim = read_json(config.CLAIMS)["simplicio-a#5"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#5"]
     assert claim["status"] == "retry" and claim["attempts"] == 1 and claim["reason_code"] == "verify_failed"
     assert "rounds=3" in claim["error"] and "protected_path" in claim["error"]
     assert fake.ran("git", "commit") == [] and fake.ran("git", "push") == [] and fake.ran("gh", "pr", "create") == []
@@ -137,9 +137,9 @@ def test_second_author_failure_is_dead_like_the_plan_flow(author):
     author.answer = failed()
     author.use(FakeRun({"simplicio-a": [issue(5)]}))
     baseline()
-    write_json(config.CLAIMS, {"simplicio-a#5": {"attempts": 1, "status": "retry", "next_try_at": state.iso(FIXED)}})
+    write_json(config.CLAIMS, {"simpletibr/simplicio-a#5": {"attempts": 1, "status": "retry", "next_try_at": state.iso(FIXED)}})
     run_tick()
-    assert read_json(config.CLAIMS)["simplicio-a#5"]["status"] == "dead"
+    assert read_json(config.CLAIMS)["simpletibr/simplicio-a#5"]["status"] == "dead"
 
 
 def test_unsupported_family_fails_with_unsupported_family_and_gives_the_attempt_back(env, monkeypatch):
@@ -148,7 +148,7 @@ def test_unsupported_family_fails_with_unsupported_family_and_gives_the_attempt_
     fake = env(FakeRun({"simplicio-a": [issue(5)]}))
     baseline()
     run_tick()  # the real run_author refuses a family it has no argv for, before any process
-    claim = read_json(config.CLAIMS)["simplicio-a#5"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#5"]
     assert claim["status"] == "retry" and claim["reason_code"] == "unsupported_family" and claim["attempts"] == 0
     assert fake.ran("git", "commit") == [] and fake.ran("gh", "pr", "create") == []
 
@@ -162,7 +162,7 @@ def test_a_configuration_failure_gives_the_attempt_back_and_backs_off(author, re
     author.use(FakeRun({"simplicio-a": [issue(5)]}))
     baseline()
     run_tick()
-    claim = read_json(config.CLAIMS)["simplicio-a#5"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#5"]
     assert claim["status"] == "retry" and claim["attempts"] == 0 and claim["reason_code"] == reason
     assert claim["next_try_at"] == state.iso(FIXED + config.RETRY_AFTER)
     assert f"reason_code={reason}" in capsys.readouterr().out
@@ -173,9 +173,9 @@ def test_a_configuration_failure_never_makes_the_item_dead(author, reason):
     author.answer = failed(reason, rounds=0, kinds=(reason,))
     author.use(FakeRun({"simplicio-a": [issue(5)]}))
     baseline()
-    write_json(config.CLAIMS, {"simplicio-a#5": {"attempts": 1, "status": "retry", "next_try_at": state.iso(FIXED)}})
+    write_json(config.CLAIMS, {"simpletibr/simplicio-a#5": {"attempts": 1, "status": "retry", "next_try_at": state.iso(FIXED)}})
     run_tick()
-    claim = read_json(config.CLAIMS)["simplicio-a#5"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#5"]
     assert claim["status"] == "retry" and claim["attempts"] == 1
 
 
@@ -184,7 +184,7 @@ def test_a_real_failure_still_counts_the_attempt(author):
     author.use(FakeRun({"simplicio-a": [issue(5)]}))
     baseline()
     run_tick()
-    assert read_json(config.CLAIMS)["simplicio-a#5"]["attempts"] == 1
+    assert read_json(config.CLAIMS)["simpletibr/simplicio-a#5"]["attempts"] == 1
 
 
 def test_the_first_supported_family_is_the_author(author, monkeypatch):
@@ -217,7 +217,7 @@ def test_an_empty_executor_value_is_the_same_as_unset(env, monkeypatch):
     fake = env(FakeRun({"simplicio-a": [issue(7)]}))
     baseline()
     run_tick()
-    assert len(fake.turbo_argv) == 1 and read_json(config.CLAIMS)["simplicio-a#7"]["status"] == "done"
+    assert len(fake.turbo_argv) == 1 and read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]["status"] == "done"
 
 
 @pytest.mark.parametrize("value", ["plan", "author"])
@@ -296,7 +296,7 @@ def test_the_plan_flow_is_unchanged_when_the_variable_is_unset(env, monkeypatch)
     baseline()
     run_tick()
     assert len(fake.turbo_argv) == 1
-    assert read_json(config.CLAIMS)["simplicio-a#7"]["status"] == "done"
+    assert read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]["status"] == "done"
 
 
 def test_the_plan_value_runs_the_plan_flow(env, monkeypatch):
@@ -307,11 +307,11 @@ def test_the_plan_value_runs_the_plan_flow(env, monkeypatch):
     assert len(fake.turbo_argv) == 1
 
 
-@pytest.mark.parametrize("where", [("simplicio-a",), ("simplicio-a.wt", "6"), ("elsewhere",)])
+@pytest.mark.parametrize("where", [("simpletibr", "simplicio-a"), ("simpletibr", "simplicio-a.wt", "6"), ("elsewhere",)])
 def test_a_worktree_that_is_not_the_items_own_is_refused(author, where):
     dest = config.WORK.joinpath(*where)
     with pytest.raises(author_executor.AuthorFailed) as raised:
-        asyncio.run(author_executor.run(dest, "simplicio-a", issue(5), "task", "pytest", host_mode.Executor("exec", ("claude",)), "loop/issue-5"))
+        asyncio.run(author_executor.run(dest, "simpletibr/simplicio-a", issue(5), "task", "pytest", host_mode.Executor("exec", ("claude",)), "loop/issue-5"))
     assert raised.value.reason_code == "worktree_mismatch" and author.calls == []
 
 
@@ -356,7 +356,7 @@ def test_the_watcher_gives_the_author_and_verify_no_github_token(env, monkeypatc
     for seen in fake.author_envs:
         assert "GH_TOKEN" not in seen and "GITHUB_TOKEN" not in seen and "OPENROUTER_API_KEY" not in seen
         assert "ghp_SECRETSECRETSECRET" not in json.dumps(seen)
-    assert read_json(config.CLAIMS)["simplicio-a#7"]["status"] == "done"
+    assert read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]["status"] == "done"
     assert fake.ran("gh", "pr", "create")
 
 
@@ -392,7 +392,7 @@ def test_only_the_value_one_lets_the_cli_run_tests(author, monkeypatch, value, e
 
 def call_run(head="loop/issue-5", number=5):
     dest = worktrees_item(number)
-    return asyncio.run(author_executor.run(dest, "simplicio-a", issue(number), "task", "pytest", host_mode.Executor("exec", ("claude",)), head))
+    return asyncio.run(author_executor.run(dest, "simpletibr/simplicio-a", issue(number), "task", "pytest", host_mode.Executor("exec", ("claude",)), head))
 
 
 def test_the_author_is_sandboxed_unless_the_operator_opted_out(author, env, monkeypatch):
@@ -415,7 +415,7 @@ def test_allow_unsandboxed_follows_the_environment(author, env, monkeypatch, val
 
 def worktrees_item(number):
     from simplicio_loop.watcher247 import worktrees
-    return worktrees.item_path("simplicio-a", number)
+    return worktrees.item_path("simpletibr/simplicio-a", number)
 
 
 def heads(monkeypatch, ref="refs/heads/loop/issue-5", code=0):
@@ -487,7 +487,7 @@ def test_a_head_that_moved_off_the_items_branch_fails_the_run_before_any_commit(
     fake.moved_head = "refs/heads/loop/issue-1"
     baseline()
     run_tick()
-    claim = read_json(config.CLAIMS)["simplicio-a#9"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#9"]
     assert claim["status"] == "retry" and claim["reason_code"] == "head_moved" and claim["attempts"] == 1
     assert "refs/heads/loop/issue-1" in claim["error"] and "refs/heads/loop/issue-9" in claim["error"]
     assert fake.ran("git", "add") == [] and fake.ran("git", "commit") == [] and fake.ran("git", "push") == [] and fake.ran("gh", "pr", "create") == []
@@ -595,7 +595,7 @@ def test_a_round_longer_than_the_heartbeat_still_ends_ok(logged_in, env, monkeyp
     baseline()
     run_tick()
     assert fake.telemetry and fake.telemetry[0], "the heartbeat wrote its events inside the worktree while the CLI ran"
-    claim = read_json(config.CLAIMS)["simplicio-a#7"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]
     assert claim["status"] == "done" and claim["pr"] == PR_URL, claim
     assert fake.ran("git", "commit") and fake.ran("gh", "pr", "create")
 

@@ -19,7 +19,7 @@ from simplicio_loop.watcher247 import config, host_mode, proc, sandbox
 from .fakes import FakeRun, baseline, issue, pr_row, read_json, run_tick
 from simplicio_loop.watcher247.worktrees import state_home
 
-REPO = "simplicio-a"
+REPO = "simpletibr/simplicio-a"
 PLAN = {"operations": [{"path": "app.py", "find": "", "replace": "print('x')\n"}]}
 OK = {"schema": "simplicio.turbo-run/v1", "status": "ok", "verify": {"passed": True}}
 BAD = {"schema": "simplicio.turbo-run/v1", "status": "failed",

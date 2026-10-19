@@ -6,7 +6,7 @@ import pytest
 from simplicio_loop.watcher247 import config
 
 from .fakes import FakeRun, baseline, issue, read_json, run_tick
-from .test_squads_tick import REPO, _view
+from .test_squads_tick import FULL, REPO, _view
 
 BASE = ["gh", "pr", "create", "--repo", "simpletibr/simplicio-a", "--base", "main", "--head"]
 
@@ -38,7 +38,7 @@ def test_draft_with_auto_merge_runs_no_train_and_no_merge(env, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
     monkeypatch.setenv("SIMPLICIO_247_PR_DRAFT", "1")
     monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
-    clone = config.WORK / REPO
+    clone = config.WORK / FULL
     (clone / ".git").mkdir(parents=True)
     (clone / "pytest.ini").write_text("[pytest]\n")
     rows = [issue(n, f"Task {n}", body=f"Ajustar `src/m{n}/app.py` para o fluxo do watcher seguir o contrato descrito abaixo.")
@@ -46,7 +46,7 @@ def test_draft_with_auto_merge_runs_no_train_and_no_merge(env, monkeypatch):
     fake = env(FakeRun({REPO: rows}, distinct_prs=True, pr_views={100 + n: _view(n) for n in (1, 2)}))
     baseline()
     run_tick()
-    squads = read_json(config.STATUS)["squads"][REPO]
+    squads = read_json(config.STATUS)["squads"][FULL]
     assert squads["merge"] == "draft"
     assert fake.ran("gh", "pr", "merge") == [] and fake.tests_run == 0 and fake.ran("git", "merge") == []
 

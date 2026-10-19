@@ -18,6 +18,7 @@ from .fakes import FakeRun, baseline, issue, read_json, run_tick
 from .test_host_mode import BAD, OK, HostRun, checkout, cli_dir  # noqa: F401  (cli_dir is a fixture)
 
 REPO = "simplicio-a"
+FULL = "simpletibr/simplicio-a"
 
 
 def _squads_report() -> dict:
@@ -25,7 +26,7 @@ def _squads_report() -> dict:
 
 
 def _worker_metrics(number: int) -> dict:
-    (task,) = [t for t in _squads_report()["tasks"] if t.get("issue") == f"{REPO}#{number}"]
+    (task,) = [t for t in _squads_report()["tasks"] if t.get("issue") == f"{FULL}#{number}"]
     return task["squad_metrics"]
 
 
@@ -58,9 +59,9 @@ def test_the_status_block_of_the_repo_carries_the_same_record_and_the_rate(env, 
     baseline()
     checkout()
     run_tick()
-    entry = read_json(config.STATUS)["squads"][REPO]
+    entry = read_json(config.STATUS)["squads"][FULL]
     (row,) = entry["task_metrics"]
-    assert row["issue"] == f"{REPO}#1" and row["escalations"] == _worker_metrics(1)["escalations"]
+    assert row["issue"] == f"{FULL}#1" and row["escalations"] == _worker_metrics(1)["escalations"]
     metrics = entry["metrics"]
     assert (metrics["tasks"], metrics["escalation_n"], metrics["escalated"], metrics["escalation_rate"]) == (1, 1, 1, 1.0)
     assert metrics["by_initial_role"] == {"execution": {"n": 1, "escalated": 1, "escalation_rate": 1.0}}
@@ -85,7 +86,7 @@ def test_an_executor_that_records_no_steps_is_unverified_with_a_reason(env):
     record = _worker_metrics(1)
     assert record["escalations"] is None and record["initial_role"] is None and record["final_role"] is None
     assert record["proof_kind"]["escalations"] == "UNVERIFIED" and record["unverified"]["escalations"] == "no_steps_recorded"
-    metrics = read_json(config.STATUS)["squads"][REPO]["metrics"]
+    metrics = read_json(config.STATUS)["squads"][FULL]["metrics"]
     assert (metrics["escalation_n"], metrics["escalation_unverified"], metrics["escalation_rate"]) == (0, 1, None)
 
 
@@ -93,7 +94,7 @@ def test_an_executor_that_records_no_steps_is_unverified_with_a_reason(env):
 
 
 def _worker_task(number: int) -> dict:
-    (task,) = [t for t in _squads_report()["tasks"] if t.get("issue") == f"{REPO}#{number}"]
+    (task,) = [t for t in _squads_report()["tasks"] if t.get("issue") == f"{FULL}#{number}"]
     return task
 
 
@@ -103,7 +104,7 @@ def test_a_task_that_climbs_and_then_fails_is_a_measured_escalation_with_outcome
     baseline()
     checkout()
     run_tick()
-    assert read_json(config.CLAIMS)[f"{REPO}#1"]["status"] == "retry"  # the worker really failed
+    assert read_json(config.CLAIMS)[f"{FULL}#1"]["status"] == "retry"  # the worker really failed
     record = _worker_metrics(1)
     assert (record["initial_role"], record["final_role"]) == ("execution", "planning")
     assert record["escalations"] == [{"from": "execution", "to": "coordination", "reason": "verify_failed", "attempt": 3},
@@ -119,7 +120,7 @@ def test_a_failed_task_counts_in_the_escalation_rate_and_in_its_own_outcome_row(
     baseline()
     checkout()
     run_tick()
-    entry = read_json(config.STATUS)["squads"][REPO]
+    entry = read_json(config.STATUS)["squads"][FULL]
     assert entry["approved"] == [] and entry["merge"] == "disabled"  # a failed worker has no PR to review or merge
     metrics = entry["metrics"]
     assert (metrics["tasks"], metrics["escalation_n"], metrics["escalated"], metrics["escalation_rate"]) == (1, 1, 1, 1.0)
@@ -145,12 +146,12 @@ def test_a_task_that_climbs_and_finishes_with_no_diff_is_escalated_with_outcome_
     baseline()
     checkout()
     run_tick()
-    assert read_json(config.CLAIMS)[f"{REPO}#1"]["status"] == "done_no_diff"
+    assert read_json(config.CLAIMS)[f"{FULL}#1"]["status"] == "done_no_diff"
     record = _worker_metrics(1)
     assert record["escalations"] == [{"from": "execution", "to": "coordination", "reason": "verify_failed", "attempt": 3}]
     assert record["final_outcome"] == "no_pr" and record["proof_kind"]["final_outcome"] == "measured"
     assert _worker_task(1)["outcome"] == "FAIL"  # no PR: the worker did not deliver
-    by_outcome = read_json(config.STATUS)["squads"][REPO]["metrics"]["by_final_outcome"]
+    by_outcome = read_json(config.STATUS)["squads"][FULL]["metrics"]["by_final_outcome"]
     assert by_outcome["no_pr"] == {"n": 1, "escalated": 1, "escalation_rate": 1.0}
 
 
@@ -160,7 +161,7 @@ def test_a_task_that_finishes_with_a_pr_is_outcome_ok(env, cli_dir):
     checkout()
     run_tick()
     assert _worker_metrics(1)["final_outcome"] == "ok" and _worker_task(1)["outcome"] == "COMPLETE"
-    by_outcome = read_json(config.STATUS)["squads"][REPO]["metrics"]["by_final_outcome"]
+    by_outcome = read_json(config.STATUS)["squads"][FULL]["metrics"]["by_final_outcome"]
     assert by_outcome["ok"] == {"n": 1, "escalated": 1, "escalation_rate": 1.0}
 
 
@@ -173,7 +174,7 @@ def test_a_task_that_failed_before_any_step_keeps_the_no_steps_unverified_path(e
     record = _worker_metrics(1)
     assert record["escalations"] is None and record["unverified"]["escalations"] == "no_steps_recorded"
     assert record["final_outcome"] is None and record["unverified"]["final_outcome"] == "outcome_not_observed"
-    metrics = read_json(config.STATUS)["squads"][REPO]["metrics"]
+    metrics = read_json(config.STATUS)["squads"][FULL]["metrics"]
     assert (metrics["escalation_n"], metrics["escalation_unverified"], metrics["escalation_rate"]) == (0, 1, None)
 
 
@@ -218,9 +219,9 @@ def test_a_failed_worker_does_not_change_which_other_pr_is_approved_and_merged_a
     baseline()
     checkout()
     run_tick()
-    entry = read_json(config.STATUS)["squads"][REPO]
+    entry = read_json(config.STATUS)["squads"][FULL]
     claims = read_json(config.CLAIMS)
-    assert claims[f"{REPO}#1"]["status"] == "retry" and claims[f"{REPO}#2"]["status"] == "done"
+    assert claims[f"{FULL}#1"]["status"] == "retry" and claims[f"{FULL}#2"]["status"] == "done"
     assert fake.merges == [102] and entry["approved"] == [102] and entry["merged"] == [102]
     assert (_worker_metrics(1)["final_outcome"], _worker_metrics(2)["final_outcome"]) == ("failed", "ok")
     metrics = entry["metrics"]
@@ -284,7 +285,7 @@ def dependent(env, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
     clock = FakeClock()
     monkeypatch.setattr(squad_flow, "clock", clock)
-    clone = config.WORK / REPO
+    clone = config.WORK / FULL
     (clone / ".git").mkdir(parents=True)
 
     def make(auto_merge: bool):
@@ -316,7 +317,7 @@ def test_a_dependent_task_waits_exactly_the_gap_between_its_approval_and_its_dep
 def test_the_status_block_summarizes_the_wait_with_n(dependent):
     dependent(auto_merge=True)
     run_tick()
-    metrics = read_json(config.STATUS)["squads"][REPO]["metrics"]
+    metrics = read_json(config.STATUS)["squads"][FULL]["metrics"]
     assert (metrics["dependency_wait_n"], metrics["no_dependency_tasks"], metrics["dependency_wait_unverified"]) == (1, 1, 0)
     assert metrics["dependency_wait_p50_s"] == metrics["dependency_wait_p95_s"] == metrics["dependency_wait_max_s"] == 12.5
 
@@ -329,7 +330,7 @@ def test_without_a_merge_the_dependency_wait_is_unverified_never_estimated(depen
     assert waiting["dependency_wait_s"] is None and waiting["proof_kind"]["dependency_wait"] == "UNVERIFIED"
     assert waiting["unverified"]["dependency_wait_s"] == "dependency_merge_not_observed: #1"
     assert _worker_metrics(1)["dependency_wait_s"] == 0.0  # no dependency: a measured zero even without a merge
-    metrics = read_json(config.STATUS)["squads"][REPO]["metrics"]
+    metrics = read_json(config.STATUS)["squads"][FULL]["metrics"]
     assert (metrics["dependency_wait_n"], metrics["dependency_wait_unverified"], metrics["dependency_wait_p50_s"]) == (0, 1, None)
 
 
@@ -348,7 +349,7 @@ def test_the_cli_aggregates_the_report_the_tick_wrote_to_the_same_numbers_as_the
     capsys.readouterr()
     assert cli_impl.main(["squads", "metrics", "--reports", str(reports), "--json"]) == 0  # latest.json is not counted twice
     summary = json.loads(capsys.readouterr().out)
-    status = read_json(config.STATUS)["squads"][REPO]["metrics"]
+    status = read_json(config.STATUS)["squads"][FULL]["metrics"]
     assert summary["reports"] == 1 and summary["tasks"] == 2
     for key in ("tasks", "issues", "escalation_n", "escalation_unverified", "dependency_wait_n", "no_dependency_tasks",
                 "dependency_wait_p50_s", "dependency_wait_p95_s", "dependency_wait_max_s"):
@@ -369,7 +370,7 @@ def test_a_clock_that_raises_does_not_stop_the_merge_and_leaves_the_wait_unverif
     assert fake.merges == [101, 102]  # both approved, both merged, in order
     waiting = _worker_metrics(2)
     assert waiting["dependency_wait_s"] is None and waiting["proof_kind"]["dependency_wait"] == "UNVERIFIED"
-    entry = read_json(config.STATUS)["squads"][REPO]
+    entry = read_json(config.STATUS)["squads"][FULL]
     assert entry["merged"] == [101, 102] and entry["approved"] == [101, 102]
 
 
@@ -385,7 +386,7 @@ def test_a_clock_that_raises_only_at_the_merge_still_records_the_merge(dependent
     monkeypatch.setattr(squad_flow, "clock", clock)
     run_tick()
     assert fake.merges == [101, 102]
-    assert read_json(config.STATUS)["squads"][REPO]["merged"] == [101, 102]  # the merge was not lost for want of an instant
+    assert read_json(config.STATUS)["squads"][FULL]["merged"] == [101, 102]  # the merge was not lost for want of an instant
     assert _worker_metrics(2)["unverified"]["dependency_wait_s"] == "dependency_merge_not_observed: #1"
 
 
@@ -399,7 +400,7 @@ def test_a_task_record_that_raises_is_unverified_and_the_tick_still_finishes_eve
         assert record["proof_kind"] == {"escalations": "UNVERIFIED", "dependency_wait": "UNVERIFIED", "final_outcome": "UNVERIFIED"}
         assert record["unverified"] == {"escalations": "metrics_error", "dependency_wait_s": "metrics_error",
                                         "final_outcome": "metrics_error"}
-    metrics = read_json(config.STATUS)["squads"][REPO]["metrics"]
+    metrics = read_json(config.STATUS)["squads"][FULL]["metrics"]
     assert (metrics["tasks"], metrics["escalation_n"], metrics["escalation_unverified"]) == (2, 0, 2)
 
 
@@ -408,7 +409,7 @@ def test_a_summary_that_raises_leaves_a_marked_block_and_the_status_is_still_wri
     monkeypatch.setattr(squad_metrics, "summarize_records", _boom)
     run_tick()
     assert fake.merges == [101, 102]
-    entry = read_json(config.STATUS)["squads"][REPO]
+    entry = read_json(config.STATUS)["squads"][FULL]
     assert entry["metrics"]["unverified"] == "metrics_error" and len(entry["task_metrics"]) == 2
 
 

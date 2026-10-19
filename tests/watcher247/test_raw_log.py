@@ -62,7 +62,7 @@ def test_the_raw_text_lands_before_the_apply_and_is_redacted(env, cli_dir):
     checkout()
     run_tick()
     [path] = _raw_logs()
-    assert path.name == f"{REPO}-7-1-s1.raw.log"
+    assert path == config.LOGS / f"{REPO}-7-1-s1.raw.log"
     text = path.read_text()
     assert "thinking with" in text and "operations" in text and SK not in text and "REDACTED" in text
     assert (config.LOGS / f"{REPO}-7-1-s1.log").exists() and fake.turbo_stdin  # the apply log still exists, beside it

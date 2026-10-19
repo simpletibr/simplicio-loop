@@ -15,24 +15,30 @@ async def gh_json(args: list[str], timeout: int = 60) -> Any:
 
 
 async def repos() -> list[dict]:
-    rows = await gh_json([
-        "repo", "list", config.ORG, "--limit", "200",
-        "--json", "name,isArchived,defaultBranchRef",
-    ], timeout=90)
+    """The non-archived repos of every owner in SIMPLICIO_247_OWNERS. `name` is the full name, `owner/repo`.
+
+    No name filter: a repo is watched when its own `.simplicio-loop/loop.toml` opts it in, which the tick checks.
+    """
     out = []
-    for row in rows:
-        name = row.get("name") or ""
-        if row.get("isArchived") or not name.startswith("simplicio"):
-            continue
-        branch = ((row.get("defaultBranchRef") or {}).get("name")) or "main"
-        out.append({"name": name, "branch": branch})
+    for owner in config.owners():
+        rows = await gh_json([
+            "repo", "list", owner, "--limit", "200",
+            "--json", "name,isArchived,defaultBranchRef",
+        ], timeout=90)
+        for row in rows:
+            name = row.get("name") or ""
+            if row.get("isArchived") or not name:
+                continue
+            branch = ((row.get("defaultBranchRef") or {}).get("name")) or "main"
+            out.append({"name": f"{owner}/{name}", "branch": branch})
     return out
 
 
 async def open_issues(repo: str) -> list[dict]:
+    """The open issues of `repo` (`owner/repo`), without the PRs that the issues route also lists."""
     try:
         rows = await gh_json([
-            "api", "--paginate", "-X", "GET", f"repos/{config.ORG}/{repo}/issues",
+            "api", "--paginate", "-X", "GET", f"repos/{repo}/issues",
             "-f", "state=open", "-F", "per_page=100",
         ], timeout=120)
     except RuntimeError as exc:

@@ -19,7 +19,7 @@ from .fakes import FIXED, PR_URL, FakeRun, baseline, issue, pr_row, read_json, r
 def test_first_tick_writes_baseline_only(env):
     fake = env(FakeRun({"simplicio-a": [issue(1), issue(2)]}))
     run_tick()
-    assert read_json(config.BASELINE)["issues"] == ["simplicio-a#1", "simplicio-a#2"]
+    assert read_json(config.BASELINE)["issues"] == ["simpletibr/simplicio-a#1", "simpletibr/simplicio-a#2"]
     assert fake.ran("simplicio-loop") == []
     assert fake.api_writes == []
     assert read_json(config.STATUS)["phase"] == "baselined"
@@ -28,7 +28,7 @@ def test_first_tick_writes_baseline_only(env):
 
 def test_baselined_issue_is_never_processed(env):
     fake = env(FakeRun({"simplicio-a": [issue(1)]}))
-    baseline("simplicio-a#1")
+    baseline("simpletibr/simplicio-a#1")
     run_tick()
     assert fake.ran("simplicio-loop") == []
     assert read_json(config.STATUS)["phase"] == "idle"
@@ -40,9 +40,9 @@ def test_exactly_one_due_issue_at_concurrency_one(env):
     run_tick()
     assert len(fake.turbo_argv) == 1
     claims = read_json(config.CLAIMS)
-    assert list(claims) == ["simplicio-a#1"]
+    assert list(claims) == ["simpletibr/simplicio-a#1"]
     status = read_json(config.STATUS)
-    assert status["phase"] == "processed" and status["last"] == "simplicio-a#1"
+    assert status["phase"] == "processed" and status["last"] == "simpletibr/simplicio-a#1"
 
 
 def test_turbo_ok_commits_opens_pr_and_comments_url(env):
@@ -51,7 +51,7 @@ def test_turbo_ok_commits_opens_pr_and_comments_url(env):
     run_tick()
     argv = fake.turbo_argv[0]
     assert argv[:2] == ["simplicio-loop", "turbo"]
-    assert argv[argv.index("--repo") + 1] == str(config.WORK / "simplicio-a.wt" / "7")  # the item's own worktree, not the base clone
+    assert argv[argv.index("--repo") + 1] == str(config.WORK / "simpletibr" / "simplicio-a.wt" / "7")  # the item's own worktree, not the base clone
     assert argv[argv.index("--provider") + 1] == "openrouter"
     task = argv[argv.index("--task") + 1]
     assert "Issue #7: Add x" in task and "Protocolo Simplicio-Loop, nesta ordem" in task and "50 pontos" not in task
@@ -66,9 +66,9 @@ def test_turbo_ok_commits_opens_pr_and_comments_url(env):
     assert pr[pr.index("--base") + 1] == "main" and pr[pr.index("--head") + 1] == "loop/issue-7"
     assert pr[pr.index("--title") + 1] == "loop: #7 Add x" and pr[pr.index("--body") + 1].endswith("Parte de #7\n")
     assert PR_URL in fake.marker_comments(7)[-1]["body"]
-    claim = read_json(config.CLAIMS)["simplicio-a#7"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#7"]
     assert claim["status"] == "done" and claim["pr"] == PR_URL and claim["turbo_status"] == "ok"
-    assert (config.LOGS / "simplicio-a-7-1.log").exists()
+    assert (config.LOGS / "simpletibr" / "simplicio-a-7-1.log").exists()
 
 
 def test_turbo_ok_without_diff_is_done_no_diff(env):
@@ -76,7 +76,7 @@ def test_turbo_ok_without_diff_is_done_no_diff(env):
     baseline()
     run_tick()
     assert fake.ran("gh", "pr", "create") == [] and fake.ran("git", "commit") == []
-    claim = read_json(config.CLAIMS)["simplicio-a#4"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#4"]
     assert claim["status"] == "done_no_diff" and claim["pr"] is None
     assert "sem diff" in fake.marker_comments(4)[-1]["body"]
 
@@ -85,7 +85,7 @@ def test_first_failure_schedules_retry_in_six_hours(env):
     fake = env(FakeRun({"simplicio-a": [issue(5)]}, turbo_ok=False))
     baseline()
     run_tick()
-    claim = read_json(config.CLAIMS)["simplicio-a#5"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#5"]
     assert claim["status"] == "retry" and claim["attempts"] == 1 and claim["error"] == "boom"
     assert claim["next_try_at"] == state.iso(FIXED + timedelta(hours=6))
     assert "parou" not in fake.marker_comments(5)[-1]["body"]
@@ -94,7 +94,7 @@ def test_first_failure_schedules_retry_in_six_hours(env):
 def test_retry_is_not_due_before_six_hours(env):
     fake = env(FakeRun({"simplicio-a": [issue(5)]}, turbo_ok=False))
     baseline()
-    write_json(config.CLAIMS, {"simplicio-a#5": {"attempts": 1, "status": "retry", "next_try_at": state.iso(FIXED + timedelta(hours=6))}})
+    write_json(config.CLAIMS, {"simpletibr/simplicio-a#5": {"attempts": 1, "status": "retry", "next_try_at": state.iso(FIXED + timedelta(hours=6))}})
     run_tick()
     assert fake.turbo_argv == []
 
@@ -102,9 +102,9 @@ def test_retry_is_not_due_before_six_hours(env):
 def test_second_failure_is_dead_with_stop_comment(env):
     fake = env(FakeRun({"simplicio-a": [issue(5)]}, turbo_ok=False))
     baseline()
-    write_json(config.CLAIMS, {"simplicio-a#5": {"attempts": 1, "status": "retry", "next_try_at": state.iso(FIXED)}})
+    write_json(config.CLAIMS, {"simpletibr/simplicio-a#5": {"attempts": 1, "status": "retry", "next_try_at": state.iso(FIXED)}})
     run_tick()
-    claim = read_json(config.CLAIMS)["simplicio-a#5"]
+    claim = read_json(config.CLAIMS)["simpletibr/simplicio-a#5"]
     assert claim["status"] == "dead" and claim["attempts"] == 2
     assert "parou" in fake.marker_comments(5)[-1]["body"]
     run_tick()  # dead is final
@@ -141,7 +141,7 @@ def test_skip_labels_are_never_processed(env):
     baseline()
     run_tick()
     assert fake.turbo_argv == []
-    assert read_json(config.STATUS)["skipped_issues"] == {"simplicio-a#1": "skip_label", "simplicio-a#2": "skip_label"}
+    assert read_json(config.STATUS)["skipped_issues"] == {"simpletibr/simplicio-a#1": "skip_label", "simpletibr/simplicio-a#2": "skip_label"}
     assert fake.api_writes == []
 
 
@@ -153,7 +153,7 @@ def test_in_flight_equals_concurrency(env, monkeypatch):
     run_tick()
     assert fake.max_turbo == 2
     assert len(fake.turbo_argv) == 2
-    assert read_json(config.STATUS)["processed"] == ["simplicio-a#1", "simplicio-b#2"]
+    assert read_json(config.STATUS)["processed"] == ["simpletibr/simplicio-a#1", "simpletibr/simplicio-b#2"]
 
 def test_same_repo_issues_overlap_each_in_its_own_worktree(env, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
@@ -163,9 +163,9 @@ def test_same_repo_issues_overlap_each_in_its_own_worktree(env, monkeypatch):
     run_tick()
     assert len(fake.turbo_argv) == 2
     assert fake.max_turbo == 2 and fake.max_worktrees == 2
-    assert set(fake.turbo_cwds) == {config.WORK / "simplicio-a.wt" / "1", config.WORK / "simplicio-a.wt" / "2"}
+    assert set(fake.turbo_cwds) == {config.WORK / "simpletibr" / "simplicio-a.wt" / "1", config.WORK / "simpletibr" / "simplicio-a.wt" / "2"}
     assert fake.worktrees == {}  # both removed
-    assert set(read_json(config.CLAIMS)) == {"simplicio-a#1", "simplicio-a#2"}
+    assert set(read_json(config.CLAIMS)) == {"simpletibr/simplicio-a#1", "simpletibr/simplicio-a#2"}
 
 
 def test_different_repos_do_overlap(env, monkeypatch):
@@ -189,7 +189,7 @@ def test_a_real_tick_runs_the_map_gc_once_and_a_dry_run_never_does(env, monkeypa
     calls = []
     monkeypatch.setattr(tick, "_map_gc_bases", lambda: calls.append("gc"))
     env(FakeRun({"simplicio-a": [issue(1)]}))
-    baseline("simplicio-a#1")
+    baseline("simpletibr/simplicio-a#1")
     run_tick(dry_run=True)
     assert calls == []
     run_tick()
@@ -210,24 +210,24 @@ def test_backoff_issues_do_not_starve_the_fresh_ones(env, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
     fake = env(FakeRun({"simplicio-a": [issue(1), issue(2), issue(3), issue(4)]}, diff=False))
     baseline()
-    write_json(config.CLAIMS, {"simplicio-a#1": _backoff(), "simplicio-a#2": _backoff()})
+    write_json(config.CLAIMS, {"simpletibr/simplicio-a#1": _backoff(), "simpletibr/simplicio-a#2": _backoff()})
     run_tick()
     assert len(fake.turbo_argv) == 2
     status = read_json(config.STATUS)
-    assert status["processed"] == ["simplicio-a#3", "simplicio-a#4"]
-    assert status["skipped_issues"] == {"simplicio-a#1": "claim_retry", "simplicio-a#2": "claim_retry"}
+    assert status["processed"] == ["simpletibr/simplicio-a#3", "simpletibr/simplicio-a#4"]
+    assert status["skipped_issues"] == {"simpletibr/simplicio-a#1": "claim_retry", "simpletibr/simplicio-a#2": "claim_retry"}
     claims = read_json(config.CLAIMS)
-    assert claims["simplicio-a#1"]["attempts"] == 1 and claims["simplicio-a#2"]["attempts"] == 1  # untouched
+    assert claims["simpletibr/simplicio-a#1"]["attempts"] == 1 and claims["simpletibr/simplicio-a#2"]["attempts"] == 1  # untouched
 
 
 def test_a_retry_whose_next_try_is_past_is_taken(env):
     fake = env(FakeRun({"simplicio-a": [issue(1)]}, diff=False))
     baseline()
-    write_json(config.CLAIMS, {"simplicio-a#1": _claim("retry", next_try_at=state.iso(FIXED - timedelta(minutes=1)))})
+    write_json(config.CLAIMS, {"simpletibr/simplicio-a#1": _claim("retry", next_try_at=state.iso(FIXED - timedelta(minutes=1)))})
     run_tick()
     assert len(fake.turbo_argv) == 1
     status = read_json(config.STATUS)
-    assert status["processed"] == ["simplicio-a#1"] and "simplicio-a#1" not in status["skipped_issues"]
+    assert status["processed"] == ["simpletibr/simplicio-a#1"] and "simpletibr/simplicio-a#1" not in status["skipped_issues"]
 
 
 def test_a_final_issue_is_skipped_but_its_review_fix_is_taken(env, monkeypatch):
@@ -237,13 +237,13 @@ def test_a_final_issue_is_skipped_but_its_review_fix_is_taken(env, monkeypatch):
                pr_views={9: {"reviews": [review], "files": [{"path": "app.py"}], "statusCheckRollup": []}})
     toml = 'enabled = true\nverify = "pytest -q tests/x.py"\n'
     fake = env(FakeRun({"simplicio-a": [issue(7), issue(8)]}, loop_toml={"simplicio-a": toml}, diff=False, **prs))
-    baseline("simplicio-a#7")  # #7 is old (its review is the new work); #8 is new but its claim is final
-    write_json(config.CLAIMS, {"simplicio-a#7": _claim("done"), "simplicio-a#8": _claim("done")})
+    baseline("simpletibr/simplicio-a#7")  # #7 is old (its review is the new work); #8 is new but its claim is final
+    write_json(config.CLAIMS, {"simpletibr/simplicio-a#7": _claim("done"), "simpletibr/simplicio-a#8": _claim("done")})
     run_tick()
     assert len(fake.turbo_argv) == 1 and "troque o retorno para dict" in fake.turbo_argv[0][fake.turbo_argv[0].index("--task") + 1]
     status = read_json(config.STATUS)
-    assert status["processed"] == ["simplicio-a#7"]
-    assert status["skipped_issues"] == {"simplicio-a#8": "claim_done"}
+    assert status["processed"] == ["simpletibr/simplicio-a#7"]
+    assert status["skipped_issues"] == {"simpletibr/simplicio-a#8": "claim_done"}
 
 
 def test_a_review_fix_for_a_live_lease_stays_queued(env, monkeypatch):
@@ -252,12 +252,12 @@ def test_a_review_fix_for_a_live_lease_stays_queued(env, monkeypatch):
                pr_views={9: {"reviews": [review], "files": [{"path": "app.py"}], "statusCheckRollup": []}})
     toml = 'enabled = true\nverify = "pytest -q tests/x.py"\n'
     fake = env(FakeRun({"simplicio-a": [issue(7)]}, loop_toml={"simplicio-a": toml}, diff=False, **prs))
-    baseline("simplicio-a#7")
-    write_json(config.CLAIMS, {"simplicio-a#7": _claim("running", lease_expires_at=FIXED.timestamp() + 600)})
+    baseline("simpletibr/simplicio-a#7")
+    write_json(config.CLAIMS, {"simpletibr/simplicio-a#7": _claim("running", lease_expires_at=FIXED.timestamp() + 600)})
     run_tick()
     assert fake.turbo_argv == []
-    assert read_json(config.STATUS)["skipped_issues"] == {"simplicio-a#7": "claim_running"}
-    assert "simplicio-a#7" in read_json(config.FIXES)["queued"]  # not lost: it waits for the lease
+    assert read_json(config.STATUS)["skipped_issues"] == {"simpletibr/simplicio-a#7": "claim_running"}
+    assert "simpletibr/simplicio-a#7" in read_json(config.FIXES)["queued"]  # not lost: it waits for the lease
 
 
 def test_a_running_claim_is_taken_only_when_its_lease_expired(env, monkeypatch):
@@ -265,28 +265,28 @@ def test_a_running_claim_is_taken_only_when_its_lease_expired(env, monkeypatch):
     fake = env(FakeRun({"simplicio-a": [issue(1), issue(2)]}, diff=False))
     baseline()
     now = FIXED.timestamp()
-    write_json(config.CLAIMS, {"simplicio-a#1": _claim("running", lease_expires_at=now + 600),
-                               "simplicio-a#2": _claim("running", lease_expires_at=now - 600)})
+    write_json(config.CLAIMS, {"simpletibr/simplicio-a#1": _claim("running", lease_expires_at=now + 600),
+                               "simpletibr/simplicio-a#2": _claim("running", lease_expires_at=now - 600)})
     run_tick()
     assert len(fake.turbo_argv) == 1
     status = read_json(config.STATUS)
-    assert status["processed"] == ["simplicio-a#2"]
-    assert status["skipped_issues"] == {"simplicio-a#1": "claim_running"}
+    assert status["processed"] == ["simpletibr/simplicio-a#2"]
+    assert status["skipped_issues"] == {"simpletibr/simplicio-a#1": "claim_running"}
 
 
 def test_dry_run_lists_the_same_set_as_the_real_tick(env, monkeypatch, capsys):
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
     fake = env(FakeRun({"simplicio-a": [issue(1), issue(2), issue(3), issue(4)]}, diff=False))
     baseline()
-    write_json(config.CLAIMS, {"simplicio-a#1": _backoff(), "simplicio-a#2": _backoff()})
+    write_json(config.CLAIMS, {"simpletibr/simplicio-a#1": _backoff(), "simpletibr/simplicio-a#2": _backoff()})
     before = config.CLAIMS.read_text()
     files = sorted(p.name for p in config.CLAIMS.parent.iterdir())
     asyncio.run(watcher_main(once=True, dry_run=True))
     assert sorted(p.name for p in config.CLAIMS.parent.iterdir()) == files  # not even a lock file
     out = capsys.readouterr().out
-    assert "[dry-run] would process simplicio-a#3" in out and "[dry-run] would process simplicio-a#4" in out
-    assert "would process simplicio-a#1" not in out and "would process simplicio-a#2" not in out
-    assert "not due simplicio-a#1: retry" in out
+    assert "[dry-run] would process simpletibr/simplicio-a#3" in out and "[dry-run] would process simpletibr/simplicio-a#4" in out
+    assert "would process simpletibr/simplicio-a#1" not in out and "would process simpletibr/simplicio-a#2" not in out
+    assert "not due simpletibr/simplicio-a#1: retry" in out
     assert fake.turbo_argv == [] and config.CLAIMS.read_text() == before
 
 

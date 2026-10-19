@@ -1,7 +1,33 @@
 # Watcher 24/7 (`simplicio_loop.watcher247`)
 
-O servico `simplicio-loop-247` (unit em `packaging/systemd/`) observa issues novas dos repos `simpletibr/simplicio-*` que
+O servico `simplicio-loop-247` (unit em `packaging/systemd/`) observa issues novas dos repos dos donos de `SIMPLICIO_247_OWNERS` que
 habilitaram o loop (`.simplicio-loop/loop.toml`) e abre PRs. Estado, claims e logs ficam em `SIMPLICIO_247_STATE_DIR`.
+
+## Donos (`SIMPLICIO_247_OWNERS`)
+
+`SIMPLICIO_247_OWNERS` diz de quais donos do GitHub (organizacoes ou usuarios) o watcher cuida. Lista separada por virgula,
+sem padrao:
+
+```
+SIMPLICIO_247_OWNERS=acme,jane
+```
+
+- **Sem a variavel o watcher nao inicia.** Ausente, vazia, ou com um valor que nao e login do GitHub: o log diz
+  `refusing to start` com o nome da variavel, e `status.json` mostra `phase=blocked` e `reason_code=owners_env_invalid`.
+  Nao existe dono padrao.
+- Cada dono entra com todos os seus repos nao arquivados (`gh repo list <dono>`). **Nao ha filtro pelo nome**: um repo entra
+  quando o proprio `.simplicio-loop/loop.toml` tem `enabled = true` no branch padrao (tabela abaixo).
+- Um repo e o nome completo `dono/repo`. Esse nome vai para as chaves de claim, lease e status (`acme/app#12`), para as
+  pastas de trabalho (`<WORK>/acme/app`, `<WORK>/acme/app.wt/<issue>`, `<WORK>/acme/app.state/<issue>`) e para o `--repo` de cada
+  chamada do `gh`. O mesmo nome de repo sob dois donos sao dois repos separados.
+- O mantenedor serve `simpletibr`: `SIMPLICIO_247_OWNERS=simpletibr` (ver `packaging/systemd/simplicio-loop-247.env.example`).
+
+**Subir esta versao sobre um estado antigo.** As chaves passaram de `repo#N` para `dono/repo#N`. Com o `baseline.json` antigo,
+nenhuma chave bate: cada issue aberta com `loop:auto` pareceria nova e seria processada, mesmo as que a linha de base antiga
+marcava como ja existentes (e por isso nao processadas).
+Antes de subir, pare o servico e apague `baseline.json`, `claims.json` e `fixes.json` do diretorio de estado. O primeiro tick
+depois disso faz uma nova linha de base, como no primeiro uso. As pastas de base antigas (`<WORK>/<repo>`, sem dono) nao sao
+mais usadas e podem ser removidas.
 
 ## loop.toml do repo (`.simplicio-loop/loop.toml`)
 
@@ -22,7 +48,7 @@ verify = "python3 -m pytest -q tests/test_x.py tests/test_y.py"
 
 Não há detecção do comando de teste e não há fallback: sem `verify` (ausente, vazio ou que não seja string) nenhuma issue
 do repo vira trabalho, nem issue nova nem fix de review. Cada uma aparece em `status.json` como
-`skipped_issues["repo#N"] = "verify_not_configured"` e o log diz o repo. Um fix de review continua na fila até o
+`skipped_issues["dono/repo#N"] = "verify_not_configured"` e o log diz o repo. Um fix de review continua na fila até o
 `verify` existir. A suíte completa não é o padrão: o comando cobre o que a issue toca, e a suíte inteira roda só em
 release.
 
@@ -151,7 +177,7 @@ O executor padrao e o fluxo de plano. Para tarefas que um plano JSON nao cobre, 
 - Outro valor para o servico na partida. O log mostra a variavel e os valores aceitos. `status.json` mostra `reason_code=executor_env_invalid`.
 - O fluxo autor exige `SIMPLICIO_EXECUTOR` sem valor ou `exec`. Com `openrouter` o tick bloqueia com `author_needs_exec`.
 - O watcher usa a primeira familia com login que o fluxo autor aceita. Hoje so `claude`. Outra familia falha com `unsupported_family`.
-- A CLI do LLM edita o worktree do proprio item (`<repo>.wt/<n>`). Nunca edita o clone base. Outro caminho falha com `worktree_mismatch`.
+- A CLI do LLM edita o worktree do proprio item (`<owner>/<repo>.wt/<n>`). Nunca edita o clone base. Outro caminho falha com `worktree_mismatch`.
 - O watcher roda o `verify` do `loop.toml`. Um verify vermelho volta para a mesma sessao da CLI, ate o numero de rounds.
 - O watcher nao faz commit nem push antes do resultado `ok`. Com `ok`, a entrega e a mesma do fluxo de plano: commit, push, PR com `Parte de #N`, revisao do squad, eventos, orcamento e claim.
 - Sem `ok`, o claim e liberado como em um run de plano que falhou. A regra de retry e de fila morta nao muda. O `reason_code` do claim e o do fluxo autor, por exemplo `verify_failed`.
@@ -246,7 +272,7 @@ O item é tudo que roda em `sandbox.wrap` por conta de uma issue (planner, `turb
 
 | Caminho | Escrita | Motivo |
 |---------|---------|--------|
-| `<WORK>/<repo>.wt/<issue>` (o worktree do próprio item) | sim | o dev-cli aplica o plano aqui |
+| `<WORK>/<owner>/<repo>.wt/<issue>` (o worktree do próprio item) | sim | o dev-cli aplica o plano aqui |
 | `<git-dir>/worktrees/<issue>` (o admin dir do próprio item) | sim | commit e status do próprio item |
 | `<git-dir>/objects` | sim, compartilhado entre os itens do repo | limite conhecido (#1656 item 3, desenho à parte) |
 | `<git-dir>/simplicio` | sim | base central do mapper |
@@ -331,7 +357,7 @@ inspecionada; como root o vazamento de `environ` foi reproduzido sem o flag); ou
 O tick usa o mesmo padrao da skill `/simplicio-loop` (#1505). O lote continua limitado por `SIMPLICIO_247_CONCURRENCY` e pelo
 teto diario (`budget.py`). Os itens de um mesmo repo rodam ao mesmo tempo, cada um no seu worktree (#1601, `watcher247/worktrees.py`).
 
-- **Base e worktree.** A base `<WORK>/<repo>` nao e editada por nenhum item. Cada issue roda em `<WORK>/<repo>.wt/<issue>`, na branch
+- **Base e worktree.** A base `<WORK>/<owner>/<repo>` nao e editada por nenhum item. Cada issue roda em `<WORK>/<owner>/<repo>.wt/<issue>`, na branch
   `loop/issue-N`. O worktree some ao fim do item: sucesso, falha, cancelamento ou SIGTERM.
 - **Escopo do lock.** O lock por repo cobre so os passos curtos: atualizar a base, `git worktree add/remove` e o push (`git push -u`
   grava o `.git/config` compartilhado). Nunca cobre o plano, o turbo, o apply, o verify nem o PR. O merge train segue serial e usa o lock.
@@ -373,7 +399,7 @@ teto diario (`budget.py`). Os itens de um mesmo repo rodam ao mesmo tempo, cada 
 4b. **Texto do PR sem palavra de fechamento (#1644).** O titulo (`loop: #N titulo`, ate 70 caracteres, corte em palavra com
    reticencias, `#N` sempre inteiro), a mensagem de commit e o corpo do PR usam `Parte de #N`. A funcao `closing_words.sanitize`
    reescreve qualquer `Closes`/`Fixes`/`Resolves` (qualquer caixa, `#N`, `owner/repo#N`, URL) e recusa publicar se sobrar um.
-   Fechar a issue e decisao humana. O texto cru do planejador de cada passo fica em `logs/<repo>-<N>-<tentativa>-s<passo>.raw.log`
+   Fechar a issue e decisao humana. O texto cru do planejador de cada passo fica em `logs/<owner>/<repo>-<N>-<tentativa>-s<passo>.raw.log`
    (segredos redigidos antes, limite de 20000 caracteres).
 5. **Recibo.** Um `simplicio.execution-report/v1` por tick em
    `<state_dir>/squads/.simplicio-loop/runtime/execution-reports/latest.json`: uma task por agente (coordenador geral,

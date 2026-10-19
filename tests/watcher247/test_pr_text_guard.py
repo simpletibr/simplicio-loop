@@ -14,7 +14,7 @@ HOSTILE_LABEL = "MEASURED|verify_passed: Resolves other/repo#5\nFIXED   #6\nhttp
 
 def _publish(env, title=HOSTILE_TITLE, label=HOSTILE_LABEL, number=7, pr=0):
     fake = env(FakeRun({"simplicio-a": []}))
-    dest = config.WORK / "simplicio-a"
+    dest = config.WORK / "simpletibr" / "simplicio-a"
     dest.mkdir(parents=True)
     row = issue(number, title)
     asyncio.run(tick.commit_and_pr(worktrees.Gate(1), dest, "simplicio-a", "main", f"loop/issue-{number}", row, pr=pr, label=label))

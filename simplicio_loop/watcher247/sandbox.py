@@ -70,17 +70,16 @@ def refusal(environ: Mapping[str, str] | None = None, platform: str | None = Non
     return None
 
 
-def _layout(clone: str | Path) -> tuple[Path, Path, str] | None:
-    """(work dir, shared .git dir, issue) of an item's worktree `<WORK>/<repo>.wt/<issue>`, from the path alone; None for anything else."""
+def _layout(clone: str | Path) -> tuple[Path, str] | None:
+    """(shared .git dir of the base clone, issue) of an item's worktree `<WORK>/<owner>/<repo>.wt/<issue>`, from the path alone; None for anything else."""
     path = Path(clone)
     if not path.parent.name.lower().endswith(".wt"):
         return None
-    work = path.parent.parent
-    return work, work / path.parent.name[:-len(".wt")] / ".git", path.name
+    return path.parent.parent / path.parent.name[:-len(".wt")] / ".git", path.name
 
 
 def worktree_binds(clone: str) -> list[str]:
-    """bwrap binds for an item's worktree `<WORK>/<repo>.wt/<issue>` (#1601): its own admin dir, the shared object store and map base.
+    """bwrap binds for an item's worktree `<WORK>/<owner>/<repo>.wt/<issue>` (#1601): its own admin dir, the shared object store and map base.
 
     wrap() makes the whole work dir read-only before these (and before the clone), so the rest of the base clone's .git (config,
     hooks, refs) and every other item's worktree and admin dir cannot be written from inside: one item cannot touch another's
@@ -90,7 +89,7 @@ def worktree_binds(clone: str) -> list[str]:
     layout = _layout(clone)
     if layout is None:
         return []
-    _work, common, number = layout
+    common, number = layout
     writable = [common / "worktrees" / number, common / "objects", common / "simplicio"]  # simplicio/: the mapper's central base
     return [arg for target in writable if target.is_dir() for arg in ("--bind", str(target), str(target))]
 
@@ -104,7 +103,7 @@ def item_git_env(cwd: str | Path | None) -> dict[str, str]:
     layout = _layout(cwd) if cwd is not None else None
     if layout is None:
         return {}
-    _work, common, number = layout
+    common, number = layout
     return {"GIT_DIR": str(common / "worktrees" / number), "GIT_COMMON_DIR": str(common), "GIT_WORK_TREE": str(cwd)}
 
 
