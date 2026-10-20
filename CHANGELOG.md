@@ -56,6 +56,7 @@
   - Squads runs keep their state under `.simplicio-loop/squads-run/`, not in the `.simplicio/` folder.
   - The descendant-leak diagnostic reads a process's command line with `ps` where there is no procfs (macOS). Secret masking still applies.
   - The quality provider's receipt names the check script under the caller's repo path, not the symlink-resolved path (macOS `/var` to `/private/var`).
+  - `scripts/version_sync.py apply` rewrites, and `check` reads, the `installed_version() or` fallback literal in `simplicio_loop/__init__.py`. Before, `apply` left that literal at the old version and `check` still reported READY.
 - **Removed**:
   - Standalone binary: the PyInstaller build in `packaging/binary/`, `simplicio_loop/frozen.py`, the build, smoke and publish scripts, and their tests. `simplicio-loop update` has no binary branch.
   - `scripts/billing_aggregator.py`, which had no caller. Its docs, tests and manifest references are removed.
