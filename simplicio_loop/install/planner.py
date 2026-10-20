@@ -21,6 +21,9 @@ from . import claude_hooks, entry
 SCHEMA = "simplicio.loop-install-plan/v1"
 OWNERSHIP_SCHEMA = "simplicio.loop-install-ownership/v2"
 RECEIPT = Path(".simplicio-loop") / "install-ownership.json"
+# The state folder ignores itself: `*` keeps the receipt and this file out of git, as pytest's .pytest_cache does.
+STATE_IGNORE = RECEIPT.parent / ".gitignore"
+STATE_IGNORE_BODY = b"*\n"
 CATALOG = Path(__file__).resolve().parents[1] / "_catalog" / "harnesses.json"
 # Hosts whose surface is `.claude/skills/` + an AGENTS.md marker block (catalog surface ".claude/skills/ + AGENTS.md").
 # One row per host: the layout below and the host's adapter (adapters/<host>/) follow from this list.
@@ -308,6 +311,26 @@ def _unwired(settings: claude_hooks.Unwiring | None) -> dict[str, int]:
     return {claude_hooks.SETTINGS.as_posix(): settings.removed}
 
 
+def _state_ignore(root: Path, previous: Mapping[str, Any], owned: list[str], released: set[str],
+                  changes: dict[str, Any], dry_run: bool, made: set[str]) -> None:
+    """Write `.simplicio-loop/.gitignore` (`*`: git never lists the state folder, the receipt included) and own it.
+
+    Install owns the file only when it creates it, or when the file it wrote is still there as written. Any other file
+    there is the user's or another command's: it is left alone and not owned, so uninstall never removes it.
+    """
+    rel = STATE_IGNORE.as_posix()
+    path = root / STATE_IGNORE
+    if not path.exists() and not path.is_symlink():
+        _put(path, STATE_IGNORE_BODY, None, changes, root, dry_run, made)
+        owned.append(rel)
+    elif (rel in previous["paths"] and path.is_file() and not path.is_symlink()
+          and path.read_bytes() == STATE_IGNORE_BODY):
+        changes["unchanged"] += 1
+    else:
+        changes["left_alone"].append(rel)
+        released.add(rel)
+
+
 def _public(ownership: dict[str, Any]) -> dict[str, Any]:
     """The receipt as the command reports it. The settings text the receipt keeps (`original`) stays in the file: output
     never prints the user's settings, which may hold secrets."""
@@ -394,6 +417,7 @@ def apply_plan(
         settings_record = claude_hooks.record_of(settings_record, wiring)
     if not (root / RECEIPT.parent).exists():  # the receipt's own directory is one more thing install creates
         made.add(RECEIPT.parent.as_posix())
+    _state_ignore(root, previous, owned, released, changes, dry_run, made)
     all_blocks = {**previous["blocks"], **blocks}
     ownership: dict[str, Any] = {
         "schema": OWNERSHIP_SCHEMA,

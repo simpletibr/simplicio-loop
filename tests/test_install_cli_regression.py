@@ -35,8 +35,8 @@ def test_owned_paths_deduplicated_in_planner_and_install_lines(tmp_path):
     (tmp_path / "skills").mkdir()
     (tmp_path / "hooks").mkdir()
     result = planner.apply_plan(plan, dry_run=True, bundle=tmp_path)
-    # Planner output should have deduplicated owned list
-    assert result["owned"] == ["AGENTS.md"]
+    # Planner output should have deduplicated owned list (the state folder's .gitignore is owned too)
+    assert result["owned"] == [".simplicio-loop/.gitignore", "AGENTS.md"]
 
     # Even if result had duplicates injected, _install_lines deduplicates
     result_with_dups = {

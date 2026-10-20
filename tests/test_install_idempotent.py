@@ -56,9 +56,10 @@ def test_first_install_creates_everything_and_the_pycache_is_not_shipped(repo, b
     changes = result["changes"]
     assert sorted(changes["created"]) == [
         ".claude/settings.json", ".claude/skills/simplicio-loop/SKILL.md",
-        ".claude/skills/simplicio-loop/references/a.md", ".simplicio-loop/install-ownership.json", "hooks/loop_stop.py"]
+        ".claude/skills/simplicio-loop/references/a.md", ".simplicio-loop/.gitignore",
+        ".simplicio-loop/install-ownership.json", "hooks/loop_stop.py"]
     assert changes["updated"] == [] and changes["unchanged"] == 0 and changes["left_alone"] == []
-    assert result["written"] == 5 and result["up_to_date"] is False
+    assert result["written"] == 6 and result["up_to_date"] is False
     assert not list(repo.rglob("__pycache__"))
 
 
@@ -69,7 +70,7 @@ def test_a_second_install_changes_nothing_and_rewrites_nothing(repo, bundle):
         os.utime(path, ns=(10**9, 10**9))
     result = apply(repo, bundle)
     changes = result["changes"]
-    assert changes["created"] == [] and changes["updated"] == [] and changes["unchanged"] == 5
+    assert changes["created"] == [] and changes["updated"] == [] and changes["unchanged"] == 6
     assert result["written"] == 0 and result["up_to_date"] is True and result["status"] == "applied"
     assert {p.stat().st_mtime_ns for p in files} == {10**9}, "an identical file was rewritten"
 
@@ -81,7 +82,7 @@ def test_a_changed_bundle_file_is_updated_and_a_deleted_one_is_created_again(rep
     result = apply(repo, bundle)
     assert result["changes"]["updated"] == [".claude/skills/simplicio-loop/SKILL.md"]
     assert result["changes"]["created"] == ["hooks/loop_stop.py"]
-    assert result["changes"]["unchanged"] == 3  # the settings file, the receipt and the skill's reference
+    assert result["changes"]["unchanged"] == 4  # the settings file, the receipt, the state folder's .gitignore, the skill's reference
     assert (repo / ".claude/skills/simplicio-loop/SKILL.md").read_text(encoding="utf-8") == "loop v2\n"
 
 
@@ -111,11 +112,11 @@ def test_dry_run_reports_the_same_changes_and_writes_nothing(repo, bundle):
     before = sorted(repo.rglob("*"))
     result = apply(repo, bundle, dry_run=True)
     assert result["status"] == "dry_run" and result["written"] == 0
-    assert len(result["changes"]["created"]) == 5
+    assert len(result["changes"]["created"]) == 6
     assert sorted(repo.rglob("*")) == before
     apply(repo, bundle)
     again = apply(repo, bundle, dry_run=True)
-    assert again["up_to_date"] is True and again["changes"]["unchanged"] == 5
+    assert again["up_to_date"] is True and again["changes"]["unchanged"] == 6
 
 
 def test_the_bundle_can_be_a_traversable_that_is_not_a_filesystem_path(tmp_path, repo, bundle):
@@ -126,7 +127,7 @@ def test_the_bundle_can_be_a_traversable_that_is_not_a_filesystem_path(tmp_path,
             if path.is_file():
                 handle.write(path, path.relative_to(bundle).as_posix())
     result = apply_plan(plan_install(repo, host="claude"), bundle=zipfile.Path(archive))
-    assert len(result["changes"]["created"]) == 5
+    assert len(result["changes"]["created"]) == 6
     assert (repo / ".claude/skills/simplicio-loop/references/a.md").read_text(encoding="utf-8") == "ref a\n"
     assert apply_plan(plan_install(repo, host="claude"), bundle=zipfile.Path(archive))["up_to_date"] is True
 
@@ -151,9 +152,9 @@ def test_install_prints_what_changed_then_says_it_is_up_to_date(tmp_path, capsys
     target = tmp_path / "proj"
     target.mkdir()
     rc, out = run(capsys, "install", "--target", str(target))
-    assert rc == 0 and "installed:" in out and "5 created, 0 updated, 0 unchanged" in out
+    assert rc == 0 and "installed:" in out and "6 created, 0 updated, 0 unchanged" in out
     rc, out = run(capsys, "install", "--target", str(target))
-    assert rc == 0 and "already up to date" in out and "0 created, 0 updated, 5 unchanged" in out
+    assert rc == 0 and "already up to date" in out and "0 created, 0 updated, 6 unchanged" in out
 
 
 def test_install_check_exits_10_while_changes_are_pending_and_writes_nothing(tmp_path, capsys, monkeypatch):
@@ -161,7 +162,7 @@ def test_install_check_exits_10_while_changes_are_pending_and_writes_nothing(tmp
     target = tmp_path / "proj"
     target.mkdir()
     rc, out = run(capsys, "install", "--check", "--target", str(target))
-    assert rc == 10 and "5 created" in out and not (target / ".claude").exists()
+    assert rc == 10 and "6 created" in out and not (target / ".claude").exists()
     run(capsys, "install", "--target", str(target))
     rc, out = run(capsys, "install", "--check", "--target", str(target))
     assert rc == 0 and "up to date" in out
@@ -172,7 +173,7 @@ def test_install_dry_run_exits_0_even_with_pending_changes(tmp_path, capsys, mon
     target = tmp_path / "proj"
     target.mkdir()
     rc, out = run(capsys, "install", "--dry-run", "--target", str(target))
-    assert rc == 0 and "dry_run" in out and "5 created" in out and not (target / ".claude").exists()
+    assert rc == 0 and "dry_run" in out and "6 created" in out and not (target / ".claude").exists()
 
 
 def test_install_json(tmp_path, capsys, monkeypatch):
@@ -181,7 +182,7 @@ def test_install_json(tmp_path, capsys, monkeypatch):
     target.mkdir()
     rc, out = run(capsys, "install", "--json", "--check", "--target", str(target))
     doc = json.loads(out)
-    assert rc == 10 and doc["up_to_date"] is False and len(doc["changes"]["created"]) == 5
+    assert rc == 10 and doc["up_to_date"] is False and len(doc["changes"]["created"]) == 6
     assert doc["host"] == "claude" and doc["status"] == "dry_run"
 
 
