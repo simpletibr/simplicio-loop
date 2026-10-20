@@ -380,7 +380,7 @@ def test_a_folder_above_an_entry_of_another_owner_is_unsafe_on_any_system(tmp_pa
 
 INSTALL_KEYS = (
     "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "all_proxy", "no_proxy",
-    "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "UV_CA_CERT", "UV_NATIVE_TLS",
+    "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "NODE_EXTRA_CA_CERTS", "UV_CA_CERT", "UV_NATIVE_TLS",
     "UV_HTTP_TIMEOUT", "UV_PYTHON_INSTALL_MIRROR", "UV_PYTHON_INSTALL_DIR",
 )
 

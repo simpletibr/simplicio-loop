@@ -57,6 +57,7 @@ INSTALL_ENV_KEYS = (
     "SSL_CERT_DIR",
     "REQUESTS_CA_BUNDLE",
     "CURL_CA_BUNDLE",
+    "NODE_EXTRA_CA_CERTS",  # Node.js (npm, playwright install) reads a private CA only from here
     "UV_CA_CERT",
     "UV_NATIVE_TLS",
     "UV_HTTP_TIMEOUT",
