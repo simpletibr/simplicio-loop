@@ -4,7 +4,7 @@
 > (`bench/results_exec_sindico.json`). Re-avaliar quando o batch fechar e o
 > output cru dos cases regredidos estiver disponível.
 >
-> **Repositório-alvo:** `wesleysimplicio/simplicio-prompt`
+> **Repositório-alvo:** `simpletibr/simplicio-prompt`
 > **Arquivo-alvo:** `prompts/agent-runtime-execution-prompt.md` (ONE-SHOT, 102 linhas, 3,907 chars)
 
 ---

@@ -11,7 +11,7 @@ This producer independently re-derives that truth from disk and writes
 intake is genuinely complete. It is a real computation, never a hand-write.
 
 Usage:
-    python3 scripts/watcher_verify_drain.py verify [--repo wesleysimplicio/simplicio-loop]
+    python3 scripts/watcher_verify_drain.py verify [--repo simpletibr/simplicio-loop]
 """
 import json
 import os

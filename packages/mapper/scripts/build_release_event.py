@@ -19,8 +19,8 @@ from typing import Any
 EVENT_SCHEMA = "simplicio.component-release-event/v1"
 EVENT_TYPE = "simplicio-component-release"
 CONSUMERS = (
-    "wesleysimplicio/simplicio-dev-cli",
-    "wesleysimplicio/simplicio-loop",
+    "simpletibr/simplicio-dev-cli",
+    "simpletibr/simplicio-loop",
 )
 
 

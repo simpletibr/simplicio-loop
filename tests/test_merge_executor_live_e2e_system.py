@@ -30,7 +30,7 @@ sys.path.insert(0, REPO_ROOT)
 
 from simplicio_loop.merge_executor import MergeExecutor  # noqa: E402
 
-LIVE_REPO = os.environ.get("SIMPLICIO_LIVE_GH_REPO", "wesleysimplicio/simplicio-loop")
+LIVE_REPO = os.environ.get("SIMPLICIO_LIVE_GH_REPO", "simpletibr/simplicio-loop")
 
 
 def _live_gate_open():

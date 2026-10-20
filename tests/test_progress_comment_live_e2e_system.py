@@ -9,7 +9,7 @@ test IS that opt-in e2e.
 
 Gate: only runs when SIMPLICIO_LIVE_GH_E2E=1 is set AND `gh` is authenticated AND
 SIMPLICIO_LIVE_GH_REPO names a repo the token can create/close issues and post/delete comments in
-(defaults to wesleysimplicio/simplicio-loop, this project's own repo, where the agent running this
+(defaults to simpletibr/simplicio-loop, this project's own repo, where the agent running this
 suite has push/comment access). Skipped everywhere else (default local runs, CI without a token) —
 never touches the network unless explicitly opted into.
 
@@ -34,7 +34,7 @@ pytestmark = pytest.mark.external_integration
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PR_EVIDENCE = os.path.join(REPO, "scripts", "pr_evidence.py")
-LIVE_REPO = os.environ.get("SIMPLICIO_LIVE_GH_REPO", "wesleysimplicio/simplicio-loop")
+LIVE_REPO = os.environ.get("SIMPLICIO_LIVE_GH_REPO", "simpletibr/simplicio-loop")
 
 
 def _live_gate_open():

@@ -7,7 +7,7 @@ CLI, and confirms every step with a real re-query -- ending in ``close_source_is
 closing the issue and the final canonical comment (re-queried) showing CLOSED.
 
 Gate: only runs when SIMPLICIO_LIVE_GH_E2E=1 is set AND `gh` is authenticated. Repo overridable
-via SIMPLICIO_LIVE_GH_REPO (defaults to wesleysimplicio/simplicio-loop). Skipped everywhere else
+via SIMPLICIO_LIVE_GH_REPO (defaults to simpletibr/simplicio-loop). Skipped everywhere else
 (default local runs, CI without a token) -- never touches the network unless explicitly opted
 into, exactly like ``test_planning_gate_live_e2e.py``/``test_merge_executor_live_e2e.py``.
 
@@ -49,7 +49,7 @@ from pr_evidence import publish_comment  # noqa: E402  (scripts/ on sys.path for
 
 from simplicio_loop import github_lifecycle  # noqa: E402
 
-LIVE_REPO = os.environ.get("SIMPLICIO_LIVE_GH_REPO", "wesleysimplicio/simplicio-loop")
+LIVE_REPO = os.environ.get("SIMPLICIO_LIVE_GH_REPO", "simpletibr/simplicio-loop")
 
 
 def _live_gate_open():

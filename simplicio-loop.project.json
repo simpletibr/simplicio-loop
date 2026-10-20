@@ -14,7 +14,7 @@
     "version_note": "O bloco 'Official capability record (v3.4.0)' no README está desatualizado; a versão canônica do pacote é a de pyproject.toml, e scripts/version_sync.py a grava em project.version.",
     "license": "MIT",
     "author": { "name": "Wesley Simplicio", "email": "wesleybob4@gmail.com" },
-    "ecosystem": "Simplicio (https://github.com/wesleysimplicio)",
+    "ecosystem": "Simplicio (https://github.com/simpletibr)",
     "repository": "https://github.com/simpletibr/simplicio-loop",
     "homepage": "https://github.com/simpletibr/simplicio-loop",
     "issues": "https://github.com/simpletibr/simplicio-loop/issues",

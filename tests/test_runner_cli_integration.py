@@ -1379,7 +1379,7 @@ def test_sync_source_requeries_github_fixture_for_merge_ready(tmp_path):
         "branch": {"up_to_date": True}
     })
     synced = _run(CLI + ["sync-source", "--repo", str(repo), run_id, "--source", "github",
-                         "--external-repo", "wesleysimplicio/simplicio-loop", "--pr", "77"], REPO,
+                         "--external-repo", "simpletibr/simplicio-loop", "--pr", "77"], REPO,
                   env={"SIMPLICIO_LOOP_GITHUB_FIXTURE_JSON": fixture})
     assert synced.returncode == 0, synced.stdout + synced.stderr
     synced_payload = json.loads(synced.stdout)
@@ -1388,7 +1388,7 @@ def test_sync_source_requeries_github_fixture_for_merge_ready(tmp_path):
     assert synced_payload["state"]["phase"] == "delivering"
     receipt = json.loads((Path(payload["run_dir"]) / "delivery-receipt.json").read_text(encoding="utf-8"))
     assert receipt["source_payload"]["source_query"]["provider"] == "github"
-    assert receipt["source_payload"]["source_query"]["repo"] == "wesleysimplicio/simplicio-loop"
+    assert receipt["source_payload"]["source_query"]["repo"] == "simpletibr/simplicio-loop"
 
 
 def test_sync_source_requeries_github_fixture_for_release(tmp_path):
@@ -1436,7 +1436,7 @@ def test_sync_source_requeries_github_fixture_for_release(tmp_path):
         "install_smoke": {"passed": True}
     })
     synced = _run(CLI + ["sync-source", "--repo", str(repo), run_id, "--source", "github",
-                         "--external-repo", "wesleysimplicio/simplicio-loop", "--tag", "v1.2.3"], REPO,
+                         "--external-repo", "simpletibr/simplicio-loop", "--tag", "v1.2.3"], REPO,
                   env={"SIMPLICIO_LOOP_GITHUB_FIXTURE_JSON": fixture})
     assert synced.returncode == 0, synced.stdout + synced.stderr
     synced_payload = json.loads(synced.stdout)
@@ -1486,7 +1486,7 @@ def test_sync_source_reopens_delivery_when_merge_ready_regresses(tmp_path):
         "branch": {"up_to_date": True}
     })
     ready = _run(CLI + ["sync-source", "--repo", str(repo), run_id, "--source", "github",
-                        "--external-repo", "wesleysimplicio/simplicio-loop", "--pr", "77"], REPO,
+                        "--external-repo", "simpletibr/simplicio-loop", "--pr", "77"], REPO,
                  env={"SIMPLICIO_LOOP_GITHUB_FIXTURE_JSON": ready_fixture})
     assert ready.returncode == 0, ready.stdout + ready.stderr
     ready_payload = json.loads(ready.stdout)
@@ -1500,7 +1500,7 @@ def test_sync_source_reopens_delivery_when_merge_ready_regresses(tmp_path):
         "branch": {"up_to_date": True}
     })
     regressed = _run(CLI + ["sync-source", "--repo", str(repo), run_id, "--source", "github",
-                            "--external-repo", "wesleysimplicio/simplicio-loop", "--pr", "77"], REPO,
+                            "--external-repo", "simpletibr/simplicio-loop", "--pr", "77"], REPO,
                      env={"SIMPLICIO_LOOP_GITHUB_FIXTURE_JSON": regressed_fixture})
     assert regressed.returncode == 0, regressed.stdout + regressed.stderr
     regressed_payload = json.loads(regressed.stdout)
@@ -1593,7 +1593,7 @@ def test_sync_source_infers_pr_open_when_merge_ready_target_is_not_yet_satisfied
         "branch": {"up_to_date": False}
     })
     synced = _run(CLI + ["sync-source", "--repo", str(repo), run_id, "--source", "github",
-                         "--external-repo", "wesleysimplicio/simplicio-loop", "--pr", "77"], REPO,
+                         "--external-repo", "simpletibr/simplicio-loop", "--pr", "77"], REPO,
                   env={"SIMPLICIO_LOOP_GITHUB_FIXTURE_JSON": fixture})
     assert synced.returncode == 0, synced.stdout + synced.stderr
     synced_payload = json.loads(synced.stdout)
@@ -1638,7 +1638,7 @@ def test_sync_source_infers_merged_even_when_target_is_merge_ready(tmp_path):
         }
     })
     synced = _run(CLI + ["sync-source", "--repo", str(repo), run_id, "--source", "github",
-                         "--external-repo", "wesleysimplicio/simplicio-loop", "--pr", "77"], REPO,
+                         "--external-repo", "simpletibr/simplicio-loop", "--pr", "77"], REPO,
                   env={"SIMPLICIO_LOOP_GITHUB_FIXTURE_JSON": fixture})
     assert synced.returncode == 0, synced.stdout + synced.stderr
     synced_payload = json.loads(synced.stdout)

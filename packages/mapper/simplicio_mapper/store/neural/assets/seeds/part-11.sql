@@ -639,7 +639,7 @@ the runtime doc consolidation, `ff006028`):
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/ISSUE_TRIAGE_2026_06_04.md','project_doc','doc://simplicio-runtime/docs/ISSUE_TRIAGE_2026_06_04.md','doc: Triagem & Roadmap de Issues — gerado pelo Simplicio','# Triagem & Roadmap de Issues — gerado pelo Simplicio
 
 - **Data:** 2026-06-04
-- **Fonte:** 37 issues abertas de `wesleysimplicio/simplicio-runtime`, buscadas e indexadas na memória neural via `simplicio memory ingest` (ingestor `project-github`, kind `github_issue`).
+- **Fonte:** 37 issues abertas de `simpletibr/simplicio-runtime`, buscadas e indexadas na memória neural via `simplicio memory ingest` (ingestor `project-github`, kind `github_issue`).
 - **Classificação:** cada issue passou por `simplicio plan "<título>" --repo . --json` (decisão determinística `simplicio.decision/v1`). Os campos `task_kind` e `model_strategy` abaixo vêm direto do runtime — não são opinião manual.
 - **Binário:** `target/release/simplicio` v0.3.16 (rebuild do `main` atual).
 
@@ -8555,7 +8555,7 @@ This epic decomposes into 5 sub-issues.
 - `scripts/hermes-sync-cron.sh` — Replace text-file tracking with htool invocation
 
 **Acceptance criteria:**
-- `simplicio-runtime hermes_sync_issues --repo wesleysimplicio/simplicio-runtime --dry-run` works end-to-end
+- `simplicio-runtime hermes_sync_issues --repo simpletibr/simplicio-runtime --dry-run` works end-to-end
 - Cron script uses new htool instead of `tracked-features.txt`
 - Integration test with mock report data
 

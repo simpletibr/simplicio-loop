@@ -106,7 +106,7 @@ def _load_sp_runtime() -> str:
     raise SystemExit(
         "simplicio-prompt runtime template not found (needed when BENCH_INCLUDE_SP=1). "
         "Set BENCH_SIMPLICIO_PROMPT_PATH, or clone "
-        "https://github.com/wesleysimplicio/simplicio-prompt to /tmp/prompt_check."
+        "https://github.com/simpletibr/simplicio-prompt to /tmp/prompt_check."
     )
 
 

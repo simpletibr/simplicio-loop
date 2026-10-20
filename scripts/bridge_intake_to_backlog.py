@@ -65,7 +65,7 @@ def _is_infra_dependent_issue(title, labels=(), body=""):
 
 LEDGER = os.path.join(REPO, ".simplicio-loop/orchestrator", "intake", "ledger.jsonl")
 BACKLOG = tb.BACKLOG
-GH_REPO = "wesleysimplicio/simplicio-loop"
+GH_REPO = "simpletibr/simplicio-loop"
 
 
 def live_open_issues():

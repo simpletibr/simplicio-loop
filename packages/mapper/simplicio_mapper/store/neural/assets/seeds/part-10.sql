@@ -7,7 +7,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 The repository owner accepted this decision on 2026-07-21. This ADR is
 normative for Simplicio Runtime, Mapper, Dev CLI, Loop, Loop OSS, Loop
 Marketing, Agent, Code, Sprint and Prompt. Implementation is tracked by
-[#3492](https://github.com/wesleysimplicio/simplicio-runtime/issues/3492) and
+[#3492](https://github.com/simpletibr/simplicio-runtime/issues/3492) and
 its repository-specific child issues.
 
 ## Context
@@ -839,7 +839,7 @@ No code changes required. Both files exist and are operational.
 - `src/asolaria/cosign_chain.rs` — 401 lines, 16 tests ✅','docs/architecture/receipt-chain-vs-cosign-chain.md','02c531c82a8a3427fab84392e0f37a367c5c1acd8fe5f20e2e36454d2df257c9','doc,simplicio',1.1);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/asolaria/behcs-256-integration.md','project_doc','doc://simplicio-runtime/docs/asolaria/behcs-256-integration.md','doc: 🌌 Integração Asolaria: BEHCS-256','# 🌌 Integração Asolaria: BEHCS-256
 
-> **Issue:** [#2777 — Integração Asolaria: BEHCS-256 — Federação Multi-Agente + Bus + Supervisores](https://github.com/wesleysimplicio/simplicio-runtime/issues/2777)
+> **Issue:** [#2777 — Integração Asolaria: BEHCS-256 — Federação Multi-Agente + Bus + Supervisores](https://github.com/simpletibr/simplicio-runtime/issues/2777)
 > **Status:** 📋 Planejado · **Prioridade:** P0 (Barramento) / P1 (Supervisores) / P2 (Pipeline)
 > **Repositório de referência:** [asolaria-behcs-256](https://github.com/JesseBrown1980/asolaria-behcs-256) (★25)
 
@@ -2072,7 +2072,7 @@ Every meaningful subcommand release should add at least one benchmark row. If a 
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/benchmarks/2026-07-19-30-issues-partial.md','project_doc','doc://simplicio-runtime/docs/benchmarks/2026-07-19-30-issues-partial.md','doc: Benchmark parcial - lote de 30 issues (ranks 21-50)','# Benchmark parcial - lote de 30 issues (ranks 21-50)
 
 Data da coleta: 2026-07-19 UTC  
-Repositorio: `wesleysimplicio/simplicio-runtime`  
+Repositorio: `simpletibr/simplicio-runtime`  
 Base Runtime: `3265fb5ee3e4b7f4cfb3f50c504aec395e53a7b8`  
 Loop: `8155d2203f0018b00d842ddea5910271bd85d3c4`  
 Mapper: `7271d369fd064718ee988e6c1a7a8a47f9cffd07`  
@@ -2336,18 +2336,18 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 
 ## Task
 
-Repository: `wesleysimplicio/simplicio-runtime`
+Repository: `simpletibr/simplicio-runtime`
 
 Task: implement and prove a backlog slice covering runtime evidence, resume,
 integrations, packaging, benchmarks, and release scaffolding.
 
 Follow-up issues:
 
-- https://github.com/wesleysimplicio/simplicio-runtime/issues/24
-- https://github.com/wesleysimplicio/simplicio-runtime/issues/26
-- https://github.com/wesleysimplicio/simplicio-runtime/issues/29
-- https://github.com/wesleysimplicio/simplicio-runtime/issues/30
-- https://github.com/wesleysimplicio/simplicio-runtime/issues/47
+- https://github.com/simpletibr/simplicio-runtime/issues/24
+- https://github.com/simpletibr/simplicio-runtime/issues/26
+- https://github.com/simpletibr/simplicio-runtime/issues/29
+- https://github.com/simpletibr/simplicio-runtime/issues/30
+- https://github.com/simpletibr/simplicio-runtime/issues/47
 
 ## Baseline
 
@@ -7452,7 +7452,7 @@ Then check the `"health"` field. Every error has a `"action"` suggestion.
 - `simplicio help` — full command reference
 - `docs/SIMPLICIO_OPERATIONAL_MANUAL.md` — deep technical reference
 - `simplicio agi-status` — roadmap and component health
-- GitHub Issues: https://github.com/wesleysimplicio/simplicio-runtime/issues','docs/getting-started.md','90fc3d478fbe6306ba9eb6268a841ad20fe6eaf86229bea6e5832d7174676614','doc,simplicio',1.1);
+- GitHub Issues: https://github.com/simpletibr/simplicio-runtime/issues','docs/getting-started.md','90fc3d478fbe6306ba9eb6268a841ad20fe6eaf86229bea6e5832d7174676614','doc,simplicio',1.1);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/git-preflight.md','project_doc','doc://simplicio-runtime/docs/git-preflight.md','doc: Git pull preflight','# Git pull preflight
 
 `simplicio git preflight --repo <path> --json` is a read-only gate for Runtime
@@ -7622,7 +7622,7 @@ The committed `simplicio.hermes-cli-parity/v1` matrix is now live in
 
 Não, ainda não temos paridade completa de comandos Hermes no Simplicio. O Hermes Agent v0.16.0 expõe 54 comandos top-level. O `simplicio --help` expõe muitos comandos próprios e 20 nomes batem diretamente, mas a auditoria encontrou lacunas e superfícies parciais que precisam de issues específicas.
 
-- Master issue: [#1558](https://github.com/wesleysimplicio/simplicio-runtime/issues/1558)
+- Master issue: [#1558](https://github.com/simpletibr/simplicio-runtime/issues/1558)
 - Counts nesta matriz inicial: Covered: 12, Gap: 14, Partial: 28
 - Committed matrix (src/hermes_parity_cli_audit.rs): 56 entries, schema `simplicio.hermes-cli-parity/v1`
 
@@ -7640,39 +7640,39 @@ Versões auditadas:
 
 ## Issues abertas
 
-- [#1551](https://github.com/wesleysimplicio/simplicio-runtime/issues/1551) — Provider/config/fallback/secrets/portal/prompt-size
-- [#1552](https://github.com/wesleysimplicio/simplicio-runtime/issues/1552) — Messaging/gateway/send/WhatsApp Cloud/Slack
-- [#1553](https://github.com/wesleysimplicio/simplicio-runtime/issues/1553) — Skills/plugins/bundles/curator/tools/MCP
-- [#1554](https://github.com/wesleysimplicio/simplicio-runtime/issues/1554) — Sessions/checkpoints/import/debug/insights/state
-- [#1556](https://github.com/wesleysimplicio/simplicio-runtime/issues/1556) — ACP/LSP/profile/desktop/Claw/computer-use
+- [#1551](https://github.com/simpletibr/simplicio-runtime/issues/1551) — Provider/config/fallback/secrets/portal/prompt-size
+- [#1552](https://github.com/simpletibr/simplicio-runtime/issues/1552) — Messaging/gateway/send/WhatsApp Cloud/Slack
+- [#1553](https://github.com/simpletibr/simplicio-runtime/issues/1553) — Skills/plugins/bundles/curator/tools/MCP
+- [#1554](https://github.com/simpletibr/simplicio-runtime/issues/1554) — Sessions/checkpoints/import/debug/insights/state
+- [#1556](https://github.com/simpletibr/simplicio-runtime/issues/1556) — ACP/LSP/profile/desktop/Claw/computer-use
 
 ## Matriz top-level inicial
 
 | Hermes command | Status | Simplicio surface | Observação | Issue |
 |---|---|---|---|---|
-| `chat` | Covered | `chat` | Direct chat surface exists; behavior parity still needs future subcommand checks. | [#1558](https://github.com/wesleysimplicio/simplicio-runtime/issues/1558) |
-| `model` | Partial | `model` | Simplicio reports/checks model; Hermes selects default model/provider. | [#1551](https://github.com/wesleysimplicio/simplicio-runtime/issues/1551) |
-| `fallback` | Gap | `—` | No provider fallback manager equivalent observed. | [#1551](https://github.com/wesleysimplicio/simplicio-runtime/issues/1551) |
-| `secrets` | Gap | `—` | No Bitwarden/external secret-source CLI parity observed. | [#1551](https://github.com/wesleysimplicio/simplicio-runtime/issues/1551) |
-| `migrate` | Partial | `migrate` | Simplicio has guided migration/from-source surfaces; Hermes xai migration needs mapping. | [#1556](https://github.com/wesleysimplicio/simplicio-runtime/issues/1556) |
-| `gateway` | Partial | `gateway` | Simplicio gateway exists; Hermes lifecycle subcommands need exact map. | [#1552](https://github.com/wesleysimplicio/simplicio-runtime/issues/1552) |
-| `proxy` | Covered | `proxy` | OpenAI-compatible proxy lifecycle exists. | [#1558](https://github.com/wesleysimplicio/simplicio-runtime/issues/1558) |
-| `lsp` | Partial | `lsp` | Simplicio serve/status/help; Hermes install/list semantics need mapping. | [#1556](https://github.com/wesleysimplicio/simplicio-runtime/issues/1556) |
-| `setup` | Partial | `setup` | Both have setup; Hermes setup subcommands need mapping. | [#1551](https://github.com/wesleysimplicio/simplicio-runtime/issues/1551) |
-| `postinstall` | Gap | `install/toolchain?` | No Hermes-style deps bootstrap command observed. | [#1554](https://github.com/wesleysimplicio/simplicio-runtime/issues/1554) |
-| `whatsapp` | Partial | `whatsapp` | Simplicio WhatsApp exists; setup/API flow parity unresolved. | [#1552](https://github.com/wesleysimplicio/simplicio-runtime/issues/1552) |
-| `whatsapp-cloud` | Gap | `—` | Business Cloud API setup command not observed. | [#1552](https://github.com/wesleysimplicio/simplicio-runtime/issues/1552) |
-| `slack` | Gap | `gateway?` | No Slack manifest/helper parity observed. | [#1552](https://github.com/wesleysimplicio/simplicio-runtime/issues/1552) |
-| `send` | Partial | `gateway send / telegram send` | Generic top-level send parity not observed. | [#1552](https://github.com/wesleysimplicio/simplicio-runtime/issues/1552) |
-| `login` | Partial | `login` | Simplicio login is Google identity oriented; Hermes provider login matrix differs. | [#1551](https://github.com/wesleysimplicio/simplicio-runtime/issues/1551) |
-| `logout` | Partial | `logout` | Same name; provider matrix differs. | [#1551](https://github.com/wesleysimplicio/simplicio-runtime/issues/1551) |
-| `auth` | Partial | `auth` | Same name; Hermes pooled provider credentials not covered by current Simplicio auth. | [#1551](https://github.com/wesleysimplicio/simplicio-runtime/issues/1551) |
-| `status` | Covered | `status` | Status surface exists. | [#1558](https://github.com/wesleysimplicio/simplicio-runtime/issues/1558) |
-| `cron` | Partial | `cron` | Both have cron; subcommands differ. | [#1554](https://github.com/wesleysimplicio/simplicio-runtime/issues/1554) |
-| `webhook` | Partial | `webhook` | Both have webhook; subscription/register semantics differ. | [#1552](https://github.com/wesleysimplicio/simplicio-runtime/issues/1552) |
-| `portal` | Gap | `—` | Nous Portal helper not observed. | [#1551](https://github.com/wesleysimplicio/simplicio-runtime/issues/1551) |
-| `kanban` | Partial | `kanban` | Simplicio board exists; Hermes multi-profile collaboration board has richer subcommands. | [#1554](https://github.com/wesleysimplicio/simplicio-runtime/issues/1554) |
-| `hooks` | Covered | `hooks` | Hook list/test/revoke/doctor exists. | [#1558](https://github.com/wesleysimplicio/simplicio-runtime/issues/1558) |
+| `chat` | Covered | `chat` | Direct chat surface exists; behavior parity still needs future subcommand checks. | [#1558](https://github.com/simpletibr/simplicio-runtime/issues/1558) |
+| `model` | Partial | `model` | Simplicio reports/checks model; Hermes selects default model/provider. | [#1551](https://github.com/simpletibr/simplicio-runtime/issues/1551) |
+| `fallback` | Gap | `—` | No provider fallback manager equivalent observed. | [#1551](https://github.com/simpletibr/simplicio-runtime/issues/1551) |
+| `secrets` | Gap | `—` | No Bitwarden/external secret-source CLI parity observed. | [#1551](https://github.com/simpletibr/simplicio-runtime/issues/1551) |
+| `migrate` | Partial | `migrate` | Simplicio has guided migration/from-source surfaces; Hermes xai migration needs mapping. | [#1556](https://github.com/simpletibr/simplicio-runtime/issues/1556) |
+| `gateway` | Partial | `gateway` | Simplicio gateway exists; Hermes lifecycle subcommands need exact map. | [#1552](https://github.com/simpletibr/simplicio-runtime/issues/1552) |
+| `proxy` | Covered | `proxy` | OpenAI-compatible proxy lifecycle exists. | [#1558](https://github.com/simpletibr/simplicio-runtime/issues/1558) |
+| `lsp` | Partial | `lsp` | Simplicio serve/status/help; Hermes install/list semantics need mapping. | [#1556](https://github.com/simpletibr/simplicio-runtime/issues/1556) |
+| `setup` | Partial | `setup` | Both have setup; Hermes setup subcommands need mapping. | [#1551](https://github.com/simpletibr/simplicio-runtime/issues/1551) |
+| `postinstall` | Gap | `install/toolchain?` | No Hermes-style deps bootstrap command observed. | [#1554](https://github.com/simpletibr/simplicio-runtime/issues/1554) |
+| `whatsapp` | Partial | `whatsapp` | Simplicio WhatsApp exists; setup/API flow parity unresolved. | [#1552](https://github.com/simpletibr/simplicio-runtime/issues/1552) |
+| `whatsapp-cloud` | Gap | `—` | Business Cloud API setup command not observed. | [#1552](https://github.com/simpletibr/simplicio-runtime/issues/1552) |
+| `slack` | Gap | `gateway?` | No Slack manifest/helper parity observed. | [#1552](https://github.com/simpletibr/simplicio-runtime/issues/1552) |
+| `send` | Partial | `gateway send / telegram send` | Generic top-level send parity not observed. | [#1552](https://github.com/simpletibr/simplicio-runtime/issues/1552) |
+| `login` | Partial | `login` | Simplicio login is Google identity oriented; Hermes provider login matrix differs. | [#1551](https://github.com/simpletibr/simplicio-runtime/issues/1551) |
+| `logout` | Partial | `logout` | Same name; provider matrix differs. | [#1551](https://github.com/simpletibr/simplicio-runtime/issues/1551) |
+| `auth` | Partial | `auth` | Same name; Hermes pooled provider credentials not covered by current Simplicio auth. | [#1551](https://github.com/simpletibr/simplicio-runtime/issues/1551) |
+| `status` | Covered | `status` | Status surface exists. | [#1558](https://github.com/simpletibr/simplicio-runtime/issues/1558) |
+| `cron` | Partial | `cron` | Both have cron; subcommands differ. | [#1554](https://github.com/simpletibr/simplicio-runtime/issues/1554) |
+| `webhook` | Partial | `webhook` | Both have webhook; subscription/register semantics differ. | [#1552](https://github.com/simpletibr/simplicio-runtime/issues/1552) |
+| `portal` | Gap | `—` | Nous Portal helper not observed. | [#1551](https://github.com/simpletibr/simplicio-runtime/issues/1551) |
+| `kanban` | Partial | `kanban` | Simplicio board exists; Hermes multi-profile collaboration board has richer subcommands. | [#1554](https://github.com/simpletibr/simplicio-runtime/issues/1554) |
+| `hooks` | Covered | `hooks` | Hook list/test/revoke/doctor exists. | [#1558](https://github.com/simpletibr/simplicio-runtime/issues/1558) |
 | `doctor` | Covered | `doctor` | Doctor','docs/hermes-import/2026-06-15-command-parity-audit.md','2bbc1980c8a26439b1f0cfb1697c37010517954a2c1289a4b2fbe4659c11ae54','doc,simplicio',1.1);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/hermes-import/2026-06-15-import-log.md','project_doc','doc://simplicio-runtime/docs/hermes-import/2026-06-15-import-log.md','doc: Hermes → Simplicio import log — 2026-06-15','# Hermes → Simplicio import log — 2026-06-15
 
@@ -7683,7 +7683,7 @@ modo Simplicio de trabalhar: Helo/Isa como fronteira, dedupe antes de cópia,
 evidência antes de adoção, e promoção somente como contrato, skill, capability,
 adapter, teste ou memória governada.
 
-Issue de acompanhamento: [#1505](https://github.com/wesleysimplicio/simplicio-runtime/issues/1505).
+Issue de acompanhamento: [#1505](https://github.com/simpletibr/simplicio-runtime/issues/1505).
 
 ## Resultado do ensaio
 
@@ -7888,7 +7888,7 @@ Both are captured in `hermes_parity_1556::unsafe_help_commands()` as actionable
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/hermes-import/2026-06-17-issue-1551-parity-report.md','project_doc','doc://simplicio-runtime/docs/hermes-import/2026-06-17-issue-1551-parity-report.md','doc: Hermes CLI Parity — Issue #1551 Implementation Report','# Hermes CLI Parity — Issue #1551 Implementation Report
 
 Date: 2026-06-17
-Issue: [#1551](https://github.com/wesleysimplicio/simplicio-runtime/issues/1551)
+Issue: [#1551](https://github.com/simpletibr/simplicio-runtime/issues/1551)
 Module: `src/hermes_parity_cli_gaps_1551.rs`
 Schema: `simplicio.hermes-cli-parity/v1`
 
@@ -7990,7 +7990,7 @@ not rejected.','docs/hermes-import/2026-06-17-issue-1551-parity-report.md','9c43
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/hermes-import/2026-06-17-issue-1553-parity-report.md','project_doc','doc://simplicio-runtime/docs/hermes-import/2026-06-17-issue-1553-parity-report.md','doc: Hermes parity — Skills/plugins/bundles/curator/tools/MCP CLI gaps (issue #1553)','# Hermes parity — Skills/plugins/bundles/curator/tools/MCP CLI gaps (issue #1553)
 
 **Date:** 2026-06-17  
-**Issue:** [#1553](https://github.com/wesleysimplicio/simplicio-runtime/issues/1553)  
+**Issue:** [#1553](https://github.com/simpletibr/simplicio-runtime/issues/1553)  
 **Module:** `src/hermes_parity_cli_gaps_1553.rs`  
 **Schema:** `simplicio.hermes-parity-cli-gaps/v1`
 

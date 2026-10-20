@@ -223,7 +223,7 @@ def check_model_backend_capable() -> Tuple[bool, str]:
     return False, "no_capable_backend: local subcapacity or no remote credentials"
 
 
-def do_intake(issue: Dict[str, Any], gh_repo: str = "wesleysimplicio/simplicio-loop") -> Tuple[Dict[str, Any], str, List[str]]:
+def do_intake(issue: Dict[str, Any], gh_repo: str = "simpletibr/simplicio-loop") -> Tuple[Dict[str, Any], str, List[str]]:
     """Run the #284 intake contract via the current ``simplicio_loop.intake_contract``
     API (``build_task_intake`` + ``lint_task_intake``). Returns (envelope, hash, errors).
 
@@ -401,7 +401,7 @@ def append_ledger(row: Dict[str, Any]) -> None:
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
-def reconcile_cursor(gh_repo: str = "wesleysimplicio/simplicio-loop") -> Dict[str, Any]:
+def reconcile_cursor(gh_repo: str = "simpletibr/simplicio-loop") -> Dict[str, Any]:
     """Fail-closed integrity pass over `.simplicio-loop/orchestrator/gh-issue-cursor.json`.
 
     The cron drain projects work items into ``work_items_state``. Across many
@@ -681,7 +681,7 @@ def _derive_gh_repo(repo: str = ".") -> Optional[str]:
         if not out:
             return None
         out = out.rsplit("/", 1)[-1].removesuffix(".git")
-        owner = out.split("/")[-2] if "/" in out else "wesleysimplicio"
+        owner = out.split("/")[-2] if "/" in out else "simpletibr"
         return f"{owner}/{out.split('/')[-1]}"
     except Exception:
         return None
@@ -718,7 +718,7 @@ def main() -> int:
     if args.reconcile:
         # Integrity pass: drop repo:None, collapse 1-WI-per-issue, sync GitHub
         # truth. Idempotent — safe to run every tick before normal intake.
-        repo_arg = args.gh_repo or _derive_gh_repo(args.repo) or "wesleysimplicio/simplicio-loop"
+        repo_arg = args.gh_repo or _derive_gh_repo(args.repo) or "simpletibr/simplicio-loop"
         res = reconcile_cursor(repo_arg)
         print(f"MEASURED| reconcile_cursor: {json.dumps(res, ensure_ascii=False)}",
               flush=True)
@@ -790,7 +790,7 @@ def main() -> int:
             print(f"MEASURED| issue {n}: [DRY] status={status} projected={proj} "
                   f"would_append=True", flush=True)
             continue
-        env, h, blockers = do_intake(issue, gh_repo or "wesleysimplicio/simplicio-loop")
+        env, h, blockers = do_intake(issue, gh_repo or "simpletibr/simplicio-loop")
         intake_ok = bool(env) and not blockers
         status = classify_status(issue, intake_ok, blockers)
         proj = projected_state(status)

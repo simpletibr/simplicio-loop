@@ -2279,7 +2279,7 @@ closed-source (`publish = false`) — `crates/simplicio-savings/src/analytics.rs
 tokenizer ids + the shared `chars/4` heuristic), `watch.rs` + `dashboard.rs`
 (the two blessed live aggregators — see [§6](#6-the-two-blessed-aggregators)).
 
-**Why this doc exists (issue [#2775](https://github.com/wesleysimplicio/simplicio-runtime/issues/2775)):**
+**Why this doc exists (issue [#2775](https://github.com/simpletibr/simplicio-runtime/issues/2775)):**
 the reference implementation lives in a closed-source crate. Without an
 extracted, versioned doc, the ecosystem''s other (open) repos — mapper,
 dev-cli, prompt, sprint, loop, loop-marketing — have no choice but to
@@ -2325,7 +2325,7 @@ below match the Rust structs in `analytics.rs` verbatim.
 | `tokens.actual_input` / `tokens.actual_output` / `tokens.actual_total` | u64 | yes | tokens spent *with* Simplicio |
 | `tokens.baseline_total` | u64 | yes | tokens the same outcome would have cost *without* Simplicio |
 | `tokens.saved_total` | u64 | yes | `baseline_total − actual_total`, saturating (never negative) |
-| `tokens.input_chars` / `tokens.output_chars` | u64? | no | raw character counts, set only on `llm_spend` events (`savings record --input-chars N --output-chars N`, [#3158](https://github.com/wesleysimplicio/simplicio-runtime/issues/3158)) — omitted (not `null`) on every other event, so pre-#3158 ledger lines re-hash identically |
+| `tokens.input_chars` / `tokens.output_chars` | u64? | no | raw character counts, set only on `llm_spend` events (`savings record --input-chars N --output-chars N`, [#3158](https://github.com/simpletibr/simplicio-runtime/issues/3158)) — omitted (not `null`) on every other event, so pre-#3158 ledger lines re-hash identically |
 | `cost.currency` / `cost.actual` / `cost.baseline` / `cost.saved` / `cost.status` | string/f64?/f64?/f64?/string | yes | `status` is `"versioned_catalog"` or `"unknown"` — an `"unknown"` status MUST NOT be paired with a non-null dollar figure (mirrors `PriceConfidence::Unknown`, [§4](#4-tokenizer-policy)) |
 | `proof.kind` | `measured\|estimated\|replayed\|benchmark` | yes | see [§2](#2-proofkind) |
 | `proof.confidence` | string | yes | `"high"` (measured/replayed/benchmark) or `"low"`/`"medium"` (estimated) |
@@ -2486,7 +2486,7 @@ py scripts/audit-script-ownership.py
 _A lista completa fica no JSON canônico sob `.simplicio-loop/docs/`._','docs/SCRIPT_OWNERSHIP_QUARANTINE.md','952e0f2a78d4304c55c933fe5bd818c85488de9dd1e498eb4af43aedd3607adb','doc,simplicio',1.1);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/security/PRIVACY.md','project_doc','doc://simplicio-runtime/docs/security/PRIVACY.md','doc: Simplicio Runtime — Privacy Policy (Local-First)','# Simplicio Runtime — Privacy Policy (Local-First)
 
-> Companion to [`SECURITY.md`](SECURITY.md) · Issue [#32](https://github.com/wesleysimplicio/simplicio-runtime/issues/32)
+> Companion to [`SECURITY.md`](SECURITY.md) · Issue [#32](https://github.com/simpletibr/simplicio-runtime/issues/32)
 
 This policy explains what the Simplicio Runtime collects, how it is minimized,
 and the controls that keep private repositories and enterprise usage safe.
@@ -2670,7 +2670,7 @@ Value is never written to the ledger.
 GitHub: #2222','docs/security/SECRETS_VAULT_SPEC.md','4d4b78efb74a45a324da6ed2a5a92d1e8498116f374168b1571d40910bddf74d','doc,simplicio',1.1);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/security/SECURITY.md','project_doc','doc://simplicio-runtime/docs/security/SECURITY.md','doc: Simplicio Runtime — Local-First Security & Privacy Review','# Simplicio Runtime — Local-First Security & Privacy Review
 
-> Issue: [#32 — chore: Add local-first security and privacy review](https://github.com/wesleysimplicio/simplicio-runtime/issues/32)
+> Issue: [#32 — chore: Add local-first security and privacy review](https://github.com/simpletibr/simplicio-runtime/issues/32)
 > Milestone: M8 — Security and Reliability
 > Status: implemented (docs + redaction tests + explicit remote-LLM event logging)
 
@@ -3004,8 +3004,8 @@ the active run keeps its existing binary until the handoff is deliberate.','docs
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/SEMANTIC_ABI_SPEC.md','project_doc','doc://simplicio-runtime/docs/SEMANTIC_ABI_SPEC.md','doc: Federated semantic ABI v1 — Runtime''s owned slice (#3135)','# Federated semantic ABI v1 — Runtime''s owned slice (#3135)
 
 **Status:** Phase 1 slice, canonical for the Runtime-owned families only.
-**Parent epic:** [#3134](https://github.com/wesleysimplicio/simplicio-runtime/issues/3134)
-(Agent-driven ecosystem architecture). **This issue:** [#3135](https://github.com/wesleysimplicio/simplicio-runtime/issues/3135).
+**Parent epic:** [#3134](https://github.com/simpletibr/simplicio-runtime/issues/3134)
+(Agent-driven ecosystem architecture). **This issue:** [#3135](https://github.com/simpletibr/simplicio-runtime/issues/3135).
 
 ## Why this doc exists
 
@@ -3299,7 +3299,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 > Não há mais divisão upstream/downstream — simplicio-loop É EMBUTIDO no runtime
 > como capability obrigatória. Toda execução do runtime passa pelo loop de convergência.
 >
-> Issue: [#2779](https://github.com/wesleysimplicio/simplicio-runtime/issues/2779)
+> Issue: [#2779](https://github.com/simpletibr/simplicio-runtime/issues/2779)
 > Contrato versionado: [`LOOP-CONTRACT.md`](../LOOP-CONTRACT.md)
 > Port nativo: [`src/loop_contract.rs`](../src/loop_contract.rs)
 
@@ -4445,7 +4445,7 @@ below.
 ## The recommended path
 
 Run everything through the **runtime** (`simplicio`, this repo). It is the
-front door — see [#2951](https://github.com/wesleysimplicio/simplicio-runtime/issues/2951)
+front door — see [#2951](https://github.com/simpletibr/simplicio-runtime/issues/2951)
 and [`docs/workspace-dispatch-guide.md`](workspace-dispatch-guide.md) for the
 dispatch internals:
 
@@ -4786,7 +4786,7 @@ or the original machine.
 
 | Repo | Path (Mac) | Remote | Branch |
 |---|---|---|---|
-| Runtime (Rust, closed-source) | `~/Projetos/ai/simplicio-runtime` | `github.com/wesleysimplicio/simplicio-runtime` | `main` |
+| Runtime (Rust, closed-source) | `~/Projetos/ai/simplicio-runtime` | `github.com/simpletibr/simplicio-runtime` | `main` |
 | Marketing site | `~/Projetos/ai/site_simpleti` | `github.com/wesleysimplicio/site_simpleti` | `master` |
 | Public install repo | `~/Projetos/ai/simplicio` | `github.com/simpletibr/simplicio` | `master` |
 
@@ -6342,11 +6342,11 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 
 | # | Repo | Issue | Gap |
 |---|---|---|---|
-| 1 | runtime | [#2986](https://github.com/wesleysimplicio/simplicio-runtime/issues/2986) (sub de #2983) | `map/memory/edit/validate` ainda self-execam por chamada; `checkpoint`/`savings` não são tools MCP; sem tabela de latência per-hop |
-| 2 | runtime | [#2982](https://github.com/wesleysimplicio/simplicio-runtime/issues/2982) (já aberta) | Harness A/B de qualidade com/sem o stack — só documentado no ADR, zero implementação |
-| 3 | runtime | [#2987](https://github.com/wesleysimplicio/simplicio-runtime/issues/2987) (sub de #2953) | Crates `simplicio-memory` e `simplicio-delivery` não extraídas; `main_parts/` ~88k linhas |
-| 4 | runtime | [#2988](https://github.com/wesleysimplicio/simplicio-runtime/issues/2988) | Sem gate de CI de compatibilidade cross-repo; live-probe do loop nunca retestada com `xattr -c` |
-| 5 | runtime | [#2989](https://github.com/wesleysimplicio/simplicio-runtime/issues/2989) | Dogfooding do stack sobre o próprio runtime não existe como prática registrada |
+| 1 | runtime | [#2986](https://github.com/simpletibr/simplicio-runtime/issues/2986) (sub de #2983) | `map/memory/edit/validate` ainda self-execam por chamada; `checkpoint`/`savings` não são tools MCP; sem tabela de latência per-hop |
+| 2 | runtime | [#2982](https://github.com/simpletibr/simplicio-runtime/issues/2982) (já aberta) | Harness A/B de qualidade com/sem o stack — só documentado no ADR, zero implementação |
+| 3 | runtime | [#2987](https://github.com/simpletibr/simplicio-runtime/issues/2987) (sub de #2953) | Crates `simplicio-memory` e `simplicio-delivery` não extraídas; `main_parts/` ~88k linhas |
+| 4 | runtime | [#2988](https://github.com/simpletibr/simplicio-runtime/issues/2988) | Sem gate de CI de compatibilidade cross-repo; live-probe do loop nunca retestada com `xattr -c` |
+| 5 | runtime | [#2989](https://github.com/simpletibr/simplicio-runtime/issues/2989) | Dogfooding do stack sobre o próprio runtime não existe como prática registrada |
 | 6 | mapper | [#174](packages/mapper/) (historical issue, pre-monorepo simplicio-mapper repo) | Sem token budget guard; delegação nativa mínima (só precedent); sem savings por verbo. Nota: `contract/impact/tests-for` não existem na CLI |
 | 7 | dev-cli | [#111](packages/dev-cli/) (historical issue, pre-monorepo simplicio-dev-cli repo) | Delegação madura mas invisível: sem métrica de % native path por verbo; sem token budget guard |
 | 8 | loop | [#127](https://github.com/simpletibr/simplicio-loop/issues/127) | Zero file locking no journal/handoffs/ledger — corrupção possível multi-worker |
@@ -6767,7 +6767,7 @@ simplicio dump      # writes a diagnostics dump under .simplicio-loop/dump/
 
 ## Community & support
 
-- **Issues / bug reports:** <https://github.com/wesleysimplicio/simplicio-runtime/issues>
+- **Issues / bug reports:** <https://github.com/simpletibr/simplicio-runtime/issues>
   (include `simplicio doctor --json` output and your OS/arch)
 - **Official site:** <https://simpleti.com.br/simplicio/#start>
 - **Build help for developers:** [BUILDING.md](../BUILDING.md)
@@ -6953,7 +6953,7 @@ simplicio dump      # escreve um dump de diagnóstico em .simplicio-loop/dump/
 
 ## Comunidade & suporte
 
-- **Issues / relatórios de bug:** <https://github.com/wesleysimplicio/simplicio-runtime/issues>
+- **Issues / relatórios de bug:** <https://github.com/simpletibr/simplicio-runtime/issues>
   (inclua a saída de `simplicio doctor --json` e seu SO/arquitetura)
 - **Site oficial:** <https://simpleti.com.br/simplicio/#start>
 - **Ajuda de build para devs:** [BUILDING.md](../BUILDING.md)
@@ -7160,7 +7160,7 @@ The installer overwrites the binary at the canonical location
 ## Cargo
 
 ```bash
-cargo install --git https://github.com/wesleysimplicio/simplicio-runtime --locked --force
+cargo install --git https://github.com/simpletibr/simplicio-runtime --locked --force
 ```
 
 The `--force` flag replaces the existing installed binary.
@@ -7305,7 +7305,7 @@ então nunca há uma segunda cópia obsoleta.
 ## Cargo
 
 ```bash
-cargo install --git https://github.com/wesleysimplicio/simplicio-runtime --locked --force
+cargo install --git https://github.com/simpletibr/simplicio-runtime --locked --force
 ```
 
 A flag `--force` substitui o binário instalado existente.

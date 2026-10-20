@@ -20,7 +20,7 @@ def build_manifest() -> dict:
     files = sorted(p for p in ROOT.rglob("*.json") if p != MANIFEST)
     return {
         "contract": "simplicio.mapper-context-conformance/v1",
-        "owner": "wesleysimplicio/simplicio-mapper",
+        "owner": "simpletibr/simplicio-mapper",
         "schema_ids": ["simplicio.context-snapshot/v1", "simplicio.context-graph/v1"],
         "compatibility": {
             "current": "v1",

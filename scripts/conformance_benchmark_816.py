@@ -80,7 +80,7 @@ def fabric_fixture(workspace: Path, attempt: int = 1):
         stage="execution", attempt=attempt, fence="f1", plan_revision="1",
         sender=sender, recipient=recipient, payload_handle="mapper://page/same",
         payload_hash=sha(b"same-input"), causal_parent="root", sequence=attempt,
-        scope="cross-repo", repo="wesleysimplicio/simplicio-loop", commit="a7bef68170f871af3acd89c92a4757aa0db0b5d8",
+        scope="cross-repo", repo="simpletibr/simplicio-loop", commit="a7bef68170f871af3acd89c92a4757aa0db0b5d8",
         worktree=str(workspace), policy_hash="policy-v1", ttl_seconds=120,
         expected_receipt="fabric-dispatch-receipt/v1",
         evidence_handles=["mapper://atlas", "quality://mandatory"],

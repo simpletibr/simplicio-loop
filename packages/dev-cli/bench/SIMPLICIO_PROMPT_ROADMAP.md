@@ -2,7 +2,7 @@
 
 > **Status:** rascunho estratégico. Base empírica em
 > `bench/results_full_qwen3.md` + `bench/SIMPLICIO_PROMPT_ADJUSTMENTS.md`.
-> **Repositório-alvo:** `wesleysimplicio/simplicio-prompt`
+> **Repositório-alvo:** `simpletibr/simplicio-prompt`
 > **Repositório de validação:** `simpletibr/simplicio-loop` (`packages/dev-cli/`, formerly `wesleysimplicio/simplicio-dev-cli`)
 > **Premissa central:** sp não vai ganhar single-call competindo com cli — ele
 > ganha em fan-out diversificado com agregação inteligente. O roadmap reposiciona

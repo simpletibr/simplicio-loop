@@ -17,7 +17,7 @@ Simplicio Canvas importer can already open.
 
 ## Open it in Canvas today
 
-1. Clone and run `wesleysimplicio/simplicio-canvas` locally.
+1. Clone and run `simpletibr/simplicio-canvas` locally.
 2. Select **Import map**.
 3. Choose `canvas-flow.json` from this directory.
 

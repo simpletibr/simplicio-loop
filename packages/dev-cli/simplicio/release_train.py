@@ -30,7 +30,7 @@ EVENT_TYPE = "simplicio-component-release"
 PLAN_SCHEMA = "simplicio.dev-cli.release-train/v1"
 DOCTOR_SCHEMA = "simplicio.release-train-doctor/v1"
 MAPPER_COMPONENT = "simplicio-mapper"
-LOOP_REPOSITORY = "wesleysimplicio/simplicio-loop"
+LOOP_REPOSITORY = "simpletibr/simplicio-loop"
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
@@ -370,7 +370,7 @@ def build_release_event(manifest: Mapping[str, Any], *, channel: str = "canary")
             "channel": channel,
         },
         "consumers": [
-            {"repository": "wesleysimplicio/simplicio-dev-cli", "action": "prepare-bump"},
+            {"repository": "simpletibr/simplicio-dev-cli", "action": "prepare-bump"},
             {"repository": LOOP_REPOSITORY, "action": "dispatch-after-pypi-publish"},
         ],
         "rollback": {

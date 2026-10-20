@@ -65,5 +65,5 @@ Requires Python 3.11+. Mapper and dev-cli ship inside this wheel, so there are n
 `simplicio-mapper` / `simplicio-cli` packages to install. The package remains
 pure cross-platform Python.
 
-MIT — part of the [Simplicio](https://github.com/wesleysimplicio) ecosystem.
+MIT — part of the [Simplicio](https://github.com/simpletibr) ecosystem.
 Full docs: <https://github.com/simpletibr/simplicio-loop>

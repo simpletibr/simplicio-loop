@@ -14,7 +14,7 @@ silently applied.
 
 Verbs:
     check    Compare local canonical version (pyproject.toml) against the latest GitHub release
-             tag for --repo (default: wesleysimplicio/simplicio-loop). Exit 0 = up to date or
+             tag for --repo (default: simpletibr/simplicio-loop). Exit 0 = up to date or
              check inconclusive (network/gh unavailable); exit 10 = a newer release exists (for
              `if:` gating in a preflight/doctor chain). Never exits non-zero for a transient
              network failure — that would make an offline dev environment look broken.
@@ -23,7 +23,7 @@ Verbs:
 
 Usage:
     python3 scripts/release_check.py check
-    python3 scripts/release_check.py check --repo wesleysimplicio/simplicio-loop --json
+    python3 scripts/release_check.py check --repo simpletibr/simplicio-loop --json
     python3 scripts/release_check.py selftest
 """
 import json
@@ -40,7 +40,7 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
-DEFAULT_GH_REPO = "wesleysimplicio/simplicio-loop"
+DEFAULT_GH_REPO = "simpletibr/simplicio-loop"
 
 _VERSION_RE = re.compile(r'version\s*=\s*"([^"]+)"')
 _SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)")

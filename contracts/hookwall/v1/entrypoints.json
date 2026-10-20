@@ -17,7 +17,7 @@
       "repository": "simplicio-runtime",
       "entrypoint": "Stage ABI mutable dispatch/effect entrypoints",
       "mutable": true,
-      "dependency": "https://github.com/wesleysimplicio/simplicio-runtime/issues/3629",
+      "dependency": "https://github.com/simpletibr/simplicio-runtime/issues/3629",
       "verified": false,
       "reason_code": "CROSS_REPO_RUNTIME_OPEN"
     },

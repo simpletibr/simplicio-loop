@@ -132,7 +132,7 @@ def test_selftest_passes():
 
 def test_resolve_owner_exact_match():
     result = finding_collector.resolve_owner("scripts/coordinator.py")
-    assert result["repo"] == "wesleysimplicio/simplicio-loop"
+    assert result["repo"] == "simpletibr/simplicio-loop"
     assert result["reason_code"] == "exact_match"
 
 
@@ -174,7 +174,7 @@ def test_cmd_resolve_prints_measured_for_exact_match(capsys):
     out = capsys.readouterr().out.strip()
     assert out.startswith("MEASURED|")
     payload = json.loads(out[len("MEASURED|"):])
-    assert payload["repo"] == "wesleysimplicio/simplicio-loop"
+    assert payload["repo"] == "simpletibr/simplicio-loop"
 
 
 def test_cmd_resolve_prints_unverified_for_triage(capsys):

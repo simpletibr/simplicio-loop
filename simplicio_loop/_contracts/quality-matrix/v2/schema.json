@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/wesleysimplicio/simplicio-loop/contracts/quality-matrix/v2/schema.json",
+  "$id": "https://github.com/simpletibr/simplicio-loop/contracts/quality-matrix/v2/schema.json",
   "title": "simplicio.quality-matrix/v2",
   "description": "Closed terminal projection of a full quality report. Semantic constraints are enforced by quality_matrix_v2.validate_v2.",
   "type": "object",

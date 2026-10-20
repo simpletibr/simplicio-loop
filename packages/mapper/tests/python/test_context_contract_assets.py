@@ -20,7 +20,7 @@ class ContextContractAssetsTest(unittest.TestCase):
 
     def test_manifest_is_deterministic_and_declares_governance(self):
         manifest = json.loads((CONTRACT / "contract-manifest.json").read_text())
-        self.assertEqual(manifest["owner"], "wesleysimplicio/simplicio-mapper")
+        self.assertEqual(manifest["owner"], "simpletibr/simplicio-mapper")
         self.assertEqual(
             manifest["schema_ids"], ["simplicio.context-snapshot/v1", "simplicio.context-graph/v1"]
         )

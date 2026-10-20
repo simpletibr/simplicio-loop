@@ -7,8 +7,8 @@
   "repositories": [
     {
       "id": "canvas",
-      "name": "wesleysimplicio/simplicio-canvas",
-      "url": "https://github.com/wesleysimplicio/simplicio-canvas",
+      "name": "simpletibr/simplicio-canvas",
+      "url": "https://github.com/simpletibr/simplicio-canvas",
       "revision": "b40dd57aa727507b61e543cbe1f10292fed50aec",
       "branch": "main",
       "dirty": false,
@@ -17,13 +17,13 @@
       "language": "TypeScript",
       "status": "measured-repo",
       "evidence": [
-        { "kind": "source", "url": "https://github.com/wesleysimplicio/simplicio-canvas/blob/b40dd57aa727507b61e543cbe1f10292fed50aec/src/domain/multi-repo.ts", "revision": "b40dd57aa727507b61e543cbe1f10292fed50aec", "scope": "renderer-neutral multi-repository contract", "status": "measured-repo" }
+        { "kind": "source", "url": "https://github.com/simpletibr/simplicio-canvas/blob/b40dd57aa727507b61e543cbe1f10292fed50aec/src/domain/multi-repo.ts", "revision": "b40dd57aa727507b61e543cbe1f10292fed50aec", "scope": "renderer-neutral multi-repository contract", "status": "measured-repo" }
       ]
     },
     {
       "id": "mapper",
-      "name": "wesleysimplicio/simplicio-mapper",
-      "url": "https://github.com/wesleysimplicio/simplicio-mapper",
+      "name": "simpletibr/simplicio-mapper",
+      "url": "https://github.com/simpletibr/simplicio-mapper",
       "revision": "d374c59a4939023f6119a1e7b8c3f7d2fa7f07e4",
       "branch": "main",
       "dirty": false,
@@ -32,13 +32,13 @@
       "language": "Python",
       "status": "measured-repo",
       "evidence": [
-        { "kind": "source", "url": "https://github.com/wesleysimplicio/simplicio-mapper/blob/d374c59a4939023f6119a1e7b8c3f7d2fa7f07e4/contracts/mapper-artifacts/v1/README.md", "revision": "d374c59a4939023f6119a1e7b8c3f7d2fa7f07e4", "scope": "versioned artifact contracts and fixtures", "status": "measured-repo" }
+        { "kind": "source", "url": "https://github.com/simpletibr/simplicio-mapper/blob/d374c59a4939023f6119a1e7b8c3f7d2fa7f07e4/contracts/mapper-artifacts/v1/README.md", "revision": "d374c59a4939023f6119a1e7b8c3f7d2fa7f07e4", "scope": "versioned artifact contracts and fixtures", "status": "measured-repo" }
       ]
     },
     {
       "id": "loop",
-      "name": "wesleysimplicio/simplicio-loop",
-      "url": "https://github.com/wesleysimplicio/simplicio-loop",
+      "name": "simpletibr/simplicio-loop",
+      "url": "https://github.com/simpletibr/simplicio-loop",
       "revision": "86619d1286d293eb9cd50ed64803bbafdf244b0f",
       "branch": "main",
       "dirty": false,
@@ -47,13 +47,13 @@
       "language": "Python",
       "status": "measured-repo",
       "evidence": [
-        { "kind": "source", "url": "https://github.com/wesleysimplicio/simplicio-loop/tree/86619d1286d293eb9cd50ed64803bbafdf244b0f", "revision": "86619d1286d293eb9cd50ed64803bbafdf244b0f", "scope": "versioned loop and evidence producer", "status": "measured-repo" }
+        { "kind": "source", "url": "https://github.com/simpletibr/simplicio-loop/tree/86619d1286d293eb9cd50ed64803bbafdf244b0f", "revision": "86619d1286d293eb9cd50ed64803bbafdf244b0f", "scope": "versioned loop and evidence producer", "status": "measured-repo" }
       ]
     },
     {
       "id": "runtime",
-      "name": "wesleysimplicio/simplicio-runtime",
-      "url": "https://github.com/wesleysimplicio/simplicio-runtime",
+      "name": "simpletibr/simplicio-runtime",
+      "url": "https://github.com/simpletibr/simplicio-runtime",
       "revision": "625ee3df48c3f75b5a9e45fe3427e56fad9bf3fa",
       "branch": "main",
       "dirty": false,
@@ -62,7 +62,7 @@
       "language": "Rust",
       "status": "cannot-see",
       "evidence": [
-        { "kind": "documentation", "url": "https://github.com/wesleysimplicio/simplicio-runtime/commit/625ee3df48c3f75b5a9e45fe3427e56fad9bf3fa", "revision": "625ee3df48c3f75b5a9e45fe3427e56fad9bf3fa", "scope": "private repository revision visible only to authorized seats", "status": "cannot-see" }
+        { "kind": "documentation", "url": "https://github.com/simpletibr/simplicio-runtime/commit/625ee3df48c3f75b5a9e45fe3427e56fad9bf3fa", "revision": "625ee3df48c3f75b5a9e45fe3427e56fad9bf3fa", "scope": "private repository revision visible only to authorized seats", "status": "cannot-see" }
       ]
     },
     {
@@ -343,9 +343,9 @@
     { "id": "algorithms-path2", "from": "algorithms", "to": "path2", "type": "governs", "label": "CRT, residual selector and inverse-gate formulas", "status": "canon", "evidence": [{ "kind": "documentation", "url": "https://github.com/JesseBrown1980/Algorithms-of-Asolaria/blob/396c45f14f1d1f9807db8ba6c2f5cbf9c1e43985/PATH2-DBBH-DBWH-ALGORITHMS-2026-07-11.md", "revision": "396c45f14f1d1f9807db8ba6c2f5cbf9c1e43985", "scope": "formula ownership", "status": "canon" }] },
     { "id": "nnest-path2", "from": "nnest", "to": "path2", "type": "verifies", "label": "reported-equals-recomputed inverse-gate dual", "status": "measured-repo", "evidence": [{ "kind": "documentation", "url": "https://github.com/JesseBrown1980/N-Nest-Prime-INFINITE-SELF-REFLECT-AGENTS-NESTED/blob/d37ee2f4cd21a2b55d5b2c6d8d0429acf3d9d753/PATH2-DBWH-NNEST-INVERSE-GATE-2026-07-11.md", "revision": "d37ee2f4cd21a2b55d5b2c6d8d0429acf3d9d753", "scope": "shared inverse-check theorem", "status": "measured-repo" }] },
     { "id": "hyperbehcs-algorithms", "from": "hyperbehcs", "to": "algorithms", "type": "governs", "label": "trilateral evidence doctrine and repository coverage", "status": "canon", "evidence": [{ "kind": "receipt", "url": "https://github.com/JesseBrown1980/HYPER-BECHS--the-third-set/blob/2455481850fa84f77d6ceeaa487785f9e656db18/ASOLARIA-TRILATERAL-REPOSITORY-COVERAGE-2026-07-11.hbp", "revision": "2455481850fa84f77d6ceeaa487785f9e656db18", "scope": "public coverage ledger", "status": "canon" }] },
-    { "id": "mapper-canvas", "from": "mapper", "to": "canvas", "type": "api", "label": "versioned mapper and ecosystem artifacts", "status": "measured-repo", "evidence": [{ "kind": "source", "url": "https://github.com/wesleysimplicio/simplicio-canvas/blob/b40dd57aa727507b61e543cbe1f10292fed50aec/src/domain/mapper-artifacts.ts", "revision": "b40dd57aa727507b61e543cbe1f10292fed50aec", "scope": "safe artifact parser", "status": "measured-repo" }] },
-    { "id": "loop-canvas", "from": "loop", "to": "canvas", "type": "package", "label": "safe bundled example and project skill", "status": "measured-repo", "evidence": [{ "kind": "documentation", "url": "https://github.com/wesleysimplicio/simplicio-canvas/blob/b40dd57aa727507b61e543cbe1f10292fed50aec/README.md", "revision": "b40dd57aa727507b61e543cbe1f10292fed50aec", "scope": "default Canvas workspace", "status": "measured-repo" }] },
-    { "id": "runtime-canvas", "from": "runtime", "to": "canvas", "type": "event", "label": "redacted runtime trace contract", "status": "unverified-live", "evidence": [{ "kind": "source", "url": "https://github.com/wesleysimplicio/simplicio-canvas/blob/b40dd57aa727507b61e543cbe1f10292fed50aec/src/domain/runtime-trace.ts", "revision": "b40dd57aa727507b61e543cbe1f10292fed50aec", "scope": "opt-in runtime/static correlation contract", "status": "measured-repo" }] },
+    { "id": "mapper-canvas", "from": "mapper", "to": "canvas", "type": "api", "label": "versioned mapper and ecosystem artifacts", "status": "measured-repo", "evidence": [{ "kind": "source", "url": "https://github.com/simpletibr/simplicio-canvas/blob/b40dd57aa727507b61e543cbe1f10292fed50aec/src/domain/mapper-artifacts.ts", "revision": "b40dd57aa727507b61e543cbe1f10292fed50aec", "scope": "safe artifact parser", "status": "measured-repo" }] },
+    { "id": "loop-canvas", "from": "loop", "to": "canvas", "type": "package", "label": "safe bundled example and project skill", "status": "measured-repo", "evidence": [{ "kind": "documentation", "url": "https://github.com/simpletibr/simplicio-canvas/blob/b40dd57aa727507b61e543cbe1f10292fed50aec/README.md", "revision": "b40dd57aa727507b61e543cbe1f10292fed50aec", "scope": "default Canvas workspace", "status": "measured-repo" }] },
+    { "id": "runtime-canvas", "from": "runtime", "to": "canvas", "type": "event", "label": "redacted runtime trace contract", "status": "unverified-live", "evidence": [{ "kind": "source", "url": "https://github.com/simpletibr/simplicio-canvas/blob/b40dd57aa727507b61e543cbe1f10292fed50aec/src/domain/runtime-trace.ts", "revision": "b40dd57aa727507b61e543cbe1f10292fed50aec", "scope": "opt-in runtime/static correlation contract", "status": "measured-repo" }] },
     { "id": "hyperbehcs-mapper", "from": "hyperbehcs", "to": "mapper", "type": "schema", "label": "public metadata-only Asolaria ecosystem fixture", "status": "audited", "evidence": [{ "kind": "documentation", "url": "https://github.com/JesseBrown1980/HYPER-BECHS--the-third-set/blob/2455481850fa84f77d6ceeaa487785f9e656db18/ASOLARIA-TRILATERAL-REPOSITORY-COVERAGE-2026-07-11.md", "revision": "2455481850fa84f77d6ceeaa487785f9e656db18", "scope": "source ledger for this fixture", "status": "audited" }] },
     { "id": "workspace-stage-canvas", "from": "post-trigger", "to": "canvas", "type": "motivates", "label": "capacity-limited evidence focus and broadcast view", "status": "unverified-live", "evidence": [{ "kind": "paper", "url": "https://transformer-circuits.pub/2026/workspace/index.html", "revision": null, "scope": "functional global-workspace analogy for selective visual focus", "status": "canon" }] },
     { "id": "matterwave-qprism", "from": "qprism-control", "to": "qprism-3d", "type": "calibrates", "label": "matter-wave experiment grounds the simulator parameters", "status": "audited", "evidence": [{ "kind": "paper", "url": "https://www.nature.com/articles/s41586-025-09917-9", "revision": null, "scope": "external physical experiment; not proof of Q-PRISM hardware", "status": "audited" }] },

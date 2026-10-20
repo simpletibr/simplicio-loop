@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/wesleysimplicio/simplicio-loop/blob/main/contracts/ecosystem-doctor/v1/schema.json",
+  "$id": "https://github.com/simpletibr/simplicio-loop/blob/main/contracts/ecosystem-doctor/v1/schema.json",
   "title": "Simplicio ecosystem doctor receipt",
   "type": "object",
   "additionalProperties": false,

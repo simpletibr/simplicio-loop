@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_REPOSITORY = "wesleysimplicio/simplicio-dev-cli"
+DEFAULT_REPOSITORY = "simpletibr/simplicio-dev-cli"
 DEFAULT_JSON = ROOT / "docs/evidence/issue-265-meta-audit.json"
 DEFAULT_MARKDOWN = ROOT / "docs/evidence/issue-265-meta-audit.md"
 SCHEMA = "simplicio.dev-cli.meta-issue-audit/v1"

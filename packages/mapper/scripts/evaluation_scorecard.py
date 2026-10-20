@@ -262,7 +262,7 @@ def _evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
         nonexistent_paths = sum(1 for path in selected_paths if not (tempdir / path).exists())
 
         # `handoff`'s slimmed envelope ("slim handoff envelope", Refs
-        # wesleysimplicio/simplicio-loop#1284) only wraps `selection`/
+        # simpletibr/simplicio-loop#1284) only wraps `selection`/
         # `context_pack` into a `simplicio.context-reference/v1` envelope
         # (full content moved one level deeper, under the wrapper's own
         # `summary`) when the field had to be referenced-out to fit the

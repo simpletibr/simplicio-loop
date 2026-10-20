@@ -2344,7 +2344,6 @@ compete com o **plumbing que falta entre o LLM e o código real**.
 | **GitHub - simpletibr/simplicio** | Pronto | Critico | Devs globais | Medio |
 | **PyPI - simplicio-installer** | Pronto | Critico | Pythonistas | Baixo |
 | **Docker - simplicio:latest** | Pronto | Alto | DevOps/CI | Baixo |
-| **Homebrew - simplicio/tap** | Em progresso | Alto | macOS devs | Medio |
 | **npm - @simplicio/installer** | Planejado | Alto | Node.js devs | Medio |
 | **Site - simpleti.com.br/simplicio** | Pronto | Alto | Todos (CDN) | Baixo |
 | **AUR - simplicio-bin** | Planejado | Medio | Arch Linux | Baixo |
@@ -2675,7 +2674,7 @@ absolute terms either way, it is just a smaller fraction of a slower
 operation''s total time.','docs/MCP_LATENCY.md','20a88350ef0ae203f25e99916cb3ff29d205802847640f89baade977bc35c3bf','doc,simplicio',1.1);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/MCP_SERVER_MODE.md','project_doc','doc://simplicio-runtime/docs/MCP_SERVER_MODE.md','doc: MCP / Server Mode — Design Specification','# MCP / Server Mode — Design Specification
 
-- **Issue:** [#24 — feat: Define MCP/server mode](https://github.com/wesleysimplicio/simplicio-runtime/issues/24)
+- **Issue:** [#24 — feat: Define MCP/server mode](https://github.com/simpletibr/simplicio-runtime/issues/24)
 - **Milestone:** M5 - Integrations
 - **Status:** Designed. Implemented for `mcp`, `stdio`, and `local-http` modes
   (`status: "implemented"` in `service_spec_json`); other modes remain
@@ -5935,7 +5934,7 @@ Rode `simplicio --help` para a lista completa de comandos.
 - [BUILDING.md](../BUILDING.md) — compilar do código-fonte','docs/QUICKSTART.pt-BR.md','0262f41bf0a8ef3cf7ee3752251f9f5c0e1903e794f3f9c58ef11d529b71340f','doc,simplicio',1.1);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/rebrand/HERMES_INVENTORY_REPORT.md','project_doc','doc://simplicio-runtime/docs/rebrand/HERMES_INVENTORY_REPORT.md','doc: Hermes occurrence inventory — issue #3140','# Hermes occurrence inventory — issue #3140
 
-Generated from `wesleysimplicio/simplicio-runtime@9551f74a03b1`. 
+Generated from `simpletibr/simplicio-runtime@9551f74a03b1`. 
 Classification schema: wesleysimplicio/simplicio-agent#187. Epic: wesleysimplicio/simplicio-agent#186.
 
 
@@ -6516,7 +6515,7 @@ this doc explains each, the gotchas, and how to verify.
 | # | Target | What lands there | Auth |
 |---|--------|------------------|------|
 | 1 | **PyPI** | `simplicio-installer` wrapper wheel (**no sdist**, no runtime source) | `PYPI_TOKEN` |
-| 2 | **Private repo** `wesleysimplicio/simplicio-runtime` | source tag + GH release (no binaries) | `gh` (this repo) |
+| 2 | **Private repo** `simpletibr/simplicio-runtime` | source tag + GH release (no binaries) | `gh` (this repo) |
 | 3 | **Public repo** `simpletibr/simplicio` | compiled raw binaries + installers | `GH_TOKEN_PUBLIC` PAT |
 | 4 | **Site (FTP)** `simpleti.com.br/simplicio` | installers + `dist/` binaries | `FTP_HOST/USER/PASS` |
 
@@ -7079,7 +7078,7 @@ Tentativa de executar desafio comparativo **Simplicio (LLM local) × Hermes × S
 
 **Data:** 2026-06-08  
 **Plataforma:** macOS Apple Silicon M1  
-**Repositório:** `wesleysimplicio/simplicio-runtime`
+**Repositório:** `simpletibr/simplicio-runtime`
 
 ---
 

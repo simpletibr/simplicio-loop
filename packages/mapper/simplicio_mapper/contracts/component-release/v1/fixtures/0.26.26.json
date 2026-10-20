@@ -52,8 +52,8 @@
     "transport": "github.repository_dispatch",
     "event_type": "simplicio-component-release",
     "consumers": [
-      "wesleysimplicio/simplicio-dev-cli",
-      "wesleysimplicio/simplicio-loop"
+      "simpletibr/simplicio-dev-cli",
+      "simpletibr/simplicio-loop"
     ],
     "deduplication": "event_id",
     "authentication_secret": "RELEASE_TRAIN_DISPATCH_TOKEN",

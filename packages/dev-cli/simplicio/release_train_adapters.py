@@ -13,7 +13,7 @@ from typing import Any
 from .release_train import EVENT_SCHEMA, LOOP_REPOSITORY, PLAN_SCHEMA, ReleaseTrainDecision
 
 ADAPTER_SCHEMA = "simplicio.release-train-adapter/v1"
-DEV_CLI_REPOSITORY = "wesleysimplicio/simplicio-dev-cli"
+DEV_CLI_REPOSITORY = "simpletibr/simplicio-dev-cli"
 _SHA256_PREFIX = "sha256:"
 
 

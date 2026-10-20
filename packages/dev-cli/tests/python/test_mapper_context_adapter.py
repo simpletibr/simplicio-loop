@@ -136,7 +136,7 @@ def mapper_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         mapper_context,
         "_read_manifest",
-        lambda: MappingProxyType({"owner": "wesleysimplicio/simplicio-mapper"}),
+        lambda: MappingProxyType({"owner": "simpletibr/simplicio-mapper"}),
     )
 
     def validate(payload: Any, **_kwargs: Any) -> dict[str, Any]:
@@ -180,7 +180,7 @@ def test_context_handle_is_deterministic_and_binds_snapshot_and_pack(mapper_boun
     assert first.context_handle.source_digest == hashlib.sha256(_canonical_json(payload)).hexdigest()
     assert first.context_handle.pack_hash == "a" * 64
     assert first.context_handle.generation == "rev-2"
-    assert first.context_handle.repository == "wesleysimplicio/simplicio-mapper"
+    assert first.context_handle.repository == "simpletibr/simplicio-mapper"
     assert first.context_handle.commit
     assert first.context_handle.context_schema == MAPPER_CONTEXT_SNAPSHOT_SCHEMA
     assert (

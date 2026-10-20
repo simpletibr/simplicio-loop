@@ -1,7 +1,7 @@
 """Deterministic base manifest for the governed Mapper release train (issue #280).
 
-Parent (cross-repo release train epic): wesleysimplicio/simplicio-loop#558.
-Related: #236, #263, #279, wesleysimplicio/simplicio-dev-cli#231.
+Parent (cross-repo release train epic): simpletibr/simplicio-loop#558.
+Related: #236, #263, #279, simpletibr/simplicio-dev-cli#231.
 Design record: ``.specs/architecture/ADR-010-release-manifest-phase0.md``.
 
 This module builds the unsigned, deterministic ``simplicio.component-release/v1``
@@ -330,8 +330,8 @@ def build_release_manifest(root: str | None = None, dist_dir: str | None = None)
             "transport": "github.repository_dispatch",
             "event_type": "simplicio-component-release",
             "consumers": [
-                "wesleysimplicio/simplicio-dev-cli",
-                "wesleysimplicio/simplicio-loop",
+                "simpletibr/simplicio-dev-cli",
+                "simpletibr/simplicio-loop",
             ],
             "deduplication": "event_id",
             "authentication_secret": "RELEASE_TRAIN_DISPATCH_TOKEN",
@@ -340,7 +340,7 @@ def build_release_manifest(root: str | None = None, dist_dir: str | None = None)
                 "release event after registry verification. Downstream receiver "
                 "workflows and the dispatch secret remain consumer-owned; a "
                 "missing secret must skip delivery rather than publish a false "
-                "success. See ADR-010 and the parent epic wesleysimplicio/"
+                "success. See ADR-010 and the parent epic simpletibr/"
                 "simplicio-loop#558."
             ),
         },

@@ -305,7 +305,7 @@ def main(argv: list[str] | None = None) -> int:
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--input", type=Path, help="GitHub issues API JSON export.")
     source.add_argument("--fetch", action="store_true", help="Fetch all issue pages from the public GitHub API.")
-    parser.add_argument("--repository", default="wesleysimplicio/simplicio-mapper")
+    parser.add_argument("--repository", default="simpletibr/simplicio-mapper")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--timeout", type=float, default=20.0)
     parser.add_argument("--check", action="store_true", help="Fail if output differs; never write.")

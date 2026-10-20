@@ -53,7 +53,7 @@ def test_build_item_schema():
     assert item["goal"].startswith("[issue #612]")
     assert item["status"] == "blocked"
     assert len(item["acs"]) == 5
-    assert item["source_refs"][0]["path"] == "github:wesleysimplicio/simplicio-loop#612"
+    assert item["source_refs"][0]["path"] == "github:simpletibr/simplicio-loop#612"
 
 
 def test_ignores_stale_ledger_rows(tmp_path):

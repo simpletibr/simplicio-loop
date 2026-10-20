@@ -77,7 +77,7 @@ def mapper_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         mapper_context,
         "_read_manifest",
-        lambda: MappingProxyType({"owner": "wesleysimplicio/simplicio-mapper"}),
+        lambda: MappingProxyType({"owner": "simpletibr/simplicio-mapper"}),
     )
 
     def validate(payload: Any, **_kwargs: Any) -> dict[str, Any]:

@@ -355,8 +355,8 @@ def test_the_twelve_item_drain_with_three_workers_matches_the_backlog():
         {'worker': 'w3', 'items': ['t03', 't11'], 'state': 'expired', 'reclaimable': True}]
 
 
-GH_ISSUE = 'https://github.com/wesleysimplicio/simplicio-loop/issues/12'
-GH_PR = 'https://github.com/wesleysimplicio/simplicio-loop/pull/34'
+GH_ISSUE = 'https://github.com/simpletibr/simplicio-loop/issues/12'
+GH_PR = 'https://github.com/simpletibr/simplicio-loop/pull/34'
 
 
 # GitHub references -----------------------------------------------------------------------------------------------------

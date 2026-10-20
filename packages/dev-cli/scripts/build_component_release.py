@@ -24,7 +24,7 @@ from simplicio.component_manifest import (
     own_schema_versions,
 )
 
-REPOSITORY = "wesleysimplicio/simplicio-dev-cli"
+REPOSITORY = "simpletibr/simplicio-dev-cli"
 
 
 def _digest(path: Path) -> str:

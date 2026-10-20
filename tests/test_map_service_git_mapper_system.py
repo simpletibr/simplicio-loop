@@ -41,7 +41,7 @@ def test_real_git_and_mapper_artifacts_bind_to_protocol_identity() -> None:
     registry = MapServiceRegistry()
     identity_key = registry.register(
         RepositoryIdentity(
-            repository="wesleysimplicio/simplicio-loop",
+            repository="simpletibr/simplicio-loop",
             canonical_root=str(root),
             base_sha=head,
             dirty=bool(_run("git", "status", "--porcelain", cwd=root).stdout.strip()),

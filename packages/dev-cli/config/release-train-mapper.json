@@ -12,7 +12,7 @@
     "deduplication": "event_id",
     "downstream": {
       "dispatch": "after Dev CLI PyPI publication",
-      "repository": "wesleysimplicio/simplicio-loop",
+      "repository": "simpletibr/simplicio-loop",
       "transport": "authenticated external adapter"
     },
     "event_schema": "simplicio.component-release-event/v1",

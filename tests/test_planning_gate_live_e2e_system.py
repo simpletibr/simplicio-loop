@@ -4,7 +4,7 @@ fake transport for the GitHub half) -- the same live-e2e convention established 
 `tests/test_progress_comment_live_e2e.py` and `tests/test_merge_executor_live_e2e.py`.
 
 Gate: only runs when SIMPLICIO_LIVE_GH_E2E=1 is set AND `gh` is authenticated. Repo overridable
-via SIMPLICIO_LIVE_GH_REPO (defaults to wesleysimplicio/simplicio-loop). Skipped everywhere else
+via SIMPLICIO_LIVE_GH_REPO (defaults to simpletibr/simplicio-loop). Skipped everywhere else
 (default local runs, CI without a token) -- never touches the network unless explicitly opted
 into.
 
@@ -58,7 +58,7 @@ from simplicio_loop.source_snapshot import capture_github_issue_snapshot  # noqa
 
 from tests.test_runner_cli_integration import _arm_deterministic_preflight_fixture  # noqa: E402
 
-LIVE_REPO = os.environ.get("SIMPLICIO_LIVE_GH_REPO", "wesleysimplicio/simplicio-loop")
+LIVE_REPO = os.environ.get("SIMPLICIO_LIVE_GH_REPO", "simpletibr/simplicio-loop")
 
 
 def _live_gate_open():

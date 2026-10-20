@@ -449,7 +449,7 @@ html,body{width:__W__px;height:__H__px;overflow:hidden;background:#0B0E14;
   <div class="bg">__BGDOTS__</div>
 __CLIPS__
   <img class="logo" src="assets/logo.png" alt="simplicio-loop"/>
-  <div class="brand">github.com/wesleysimplicio/simplicio-loop</div>
+  <div class="brand">github.com/simpletibr/simplicio-loop</div>
   <div class="loopmark">&#8734;</div>
 </div>
 <script>

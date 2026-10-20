@@ -54,7 +54,7 @@ Usage:
         --shots-dir .simplicio-loop/orchestrator/tee/web --require-evidence --out .simplicio-loop/orchestrator/pr_body.md
     python3 scripts/pr_evidence.py comment --item 12 --pr 34
     python3 scripts/pr_evidence.py comment --item 12 --pr 34 --publish --issue 12 \\
-        --repo wesleysimplicio/simplicio-loop
+        --repo simpletibr/simplicio-loop
 """
 import json
 import os

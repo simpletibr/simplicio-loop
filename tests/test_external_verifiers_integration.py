@@ -3,7 +3,7 @@
 Covers the real SHA-256 digest helper, checksum-manifest parsing, and the three verifier
 dimensions (checksums/signatures/SBOM) failing closed with a stable reason code whenever the
 corresponding proof material is absent, unparseable, or mismatched — never a favorable default.
-A final integration test hits the real `wesleysimplicio/simplicio-loop` GitHub release with the
+A final integration test hits the real `simpletibr/simplicio-loop` GitHub release with the
 real `gh` CLI (skipped if `gh`/network is unavailable) to prove the download + digest path works
 against real bytes, not just mocks.
 """
@@ -190,12 +190,12 @@ def _gh_available():
 @pytest.mark.skipif(not _gh_available(), reason="gh CLI not installed")
 @pytest.mark.external_integration
 def test_download_release_assets_real_repo_computes_real_digest():
-    """MEASURED: downloads the real wesleysimplicio/simplicio-loop v3.34.1 release asset via
+    """MEASURED: downloads the real simpletibr/simplicio-loop v3.34.1 release asset via
     `gh release download` and recomputes its sha256 over the actual downloaded bytes — proving
     the download + digest path works end-to-end against real GitHub-hosted bytes, not a mock."""
     with tempfile.TemporaryDirectory(prefix="simplicio-loop-live-verify-") as workdir:
         result = ev.download_release_assets(
-            "wesleysimplicio/simplicio-loop", "v3.34.1", workdir,
+            "simpletibr/simplicio-loop", "v3.34.1", workdir,
             asset_names=["simplicio_loop-3.34.1-py3-none-any.whl"],
         )
         if not result["ok"]:

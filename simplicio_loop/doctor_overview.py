@@ -1,6 +1,6 @@
 """`simplicio-loop doctor` (no subcommand) and `doctor all|login`: the overview (#1575).
 
-Eight checks, each `ok`, `warn` or `fail` with the command that fixes it:
+Nine checks, each `ok`, `warn` or `fail` with the command that fixes it:
 
 * login          the shared login file: present, expired, entitlement, Runtime version, same file as the Runtime
 * update         offline by default (the cached answer of the last `update --check`, with its time); --online asks GitHub

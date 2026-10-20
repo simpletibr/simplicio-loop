@@ -263,7 +263,7 @@ def reconcile(root: Path, event_value: Any, *, lock_path: Path = DEFAULT_LOCK) -
             "status": "pending_gate",
         },
         "downstream": {
-            "repository": "wesleysimplicio/simplicio-loop",
+            "repository": "simpletibr/simplicio-loop",
             "event_type": EVENT_SCHEMA,
             "status": "pending_dev_cli_pypi_publication",
         },

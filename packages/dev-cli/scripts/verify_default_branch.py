@@ -82,7 +82,7 @@ def verify(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repository", default="wesleysimplicio/simplicio-dev-cli")
+    parser.add_argument("--repository", default="simpletibr/simplicio-dev-cli")
     parser.add_argument("--expected", default="main")
     parser.add_argument("--compatibility", default="master")
     parser.add_argument("--previous-default", default="master")

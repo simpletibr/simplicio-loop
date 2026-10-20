@@ -199,7 +199,7 @@ def render_markdown(report: Mapping[str, Any]) -> str:
              f"- Conformidade: **{summary['conforming']}/{summary['issues']} ({summary['conformance_percent']}%)**",
              f"- Coleta completa: **{summary['fetch_complete']}**", f"- Decisão final: **{'READY' if summary['ready'] else 'BLOCKED'}**", "",
              "## Reprodução", "",
-             "```bash", "python3 scripts/issue_meta_audit.py --repo wesleysimplicio/simplicio-loop", "```", "",
+             "```bash", "python3 scripts/issue_meta_audit.py --repo simpletibr/simplicio-loop", "```", "",
              "A coleta é somente leitura, pagina todos os registros acessíveis e falha fechada quando a paginação ou qualquer item não satisfaz a rubrica. O JSON associado contém a matriz de dependências, agrupamentos, checks, achados e decisão por item.", "",
              "## Inventário (ordem de criação)", "", "| # | Estado | Criada | Decisão | Falhas |", "|---:|---|---|---|---:|"]
     for item in report["issues"]:
@@ -210,7 +210,7 @@ def render_markdown(report: Mapping[str, Any]) -> str:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", default="wesleysimplicio/simplicio-loop")
+    parser.add_argument("--repo", default="simpletibr/simplicio-loop")
     parser.add_argument("--input", type=Path)
     parser.add_argument("--json-out", type=Path, default=Path("docs/audits/issues-meta-audit.json"))
     parser.add_argument("--markdown-out", type=Path, default=Path("docs/audits/issues-meta-audit.md"))

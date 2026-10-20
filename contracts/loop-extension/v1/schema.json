@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/wesleysimplicio/simplicio-loop/contracts/loop-extension/v1/schema.json",
+  "$id": "https://github.com/simpletibr/simplicio-loop/contracts/loop-extension/v1/schema.json",
   "title": "simplicio.loop-extension/v1",
   "description": "Versioned manifest schema for a domain extension of simplicio-loop (issue #557), e.g. loop-oss or loop-marketing. Implementation: simplicio_loop/extension_manifest.py::validate_manifest. Strict on unknown fields at every level -- an extension may only declare the surface listed here, never a second coordinator/scheduler/queue.",
   "type": "object",

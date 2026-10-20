@@ -27,7 +27,7 @@ import issue_cron_driver as drv  # reuse _is_infra_dependent
 
 INTAKE_DIR = os.path.join(REPO, ".simplicio-loop/orchestrator", "intake")
 ITEMS_DIR = os.path.join(REPO, ".simplicio-loop/orchestrator", "backlog", "items")
-GH_REPO = "wesleysimplicio/simplicio-loop"
+GH_REPO = "simpletibr/simplicio-loop"
 
 
 def _ts():

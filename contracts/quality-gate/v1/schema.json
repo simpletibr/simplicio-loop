@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/wesleysimplicio/simplicio-loop/contracts/quality-gate/v1/schema.json",
+  "$id": "https://github.com/simpletibr/simplicio-loop/contracts/quality-gate/v1/schema.json",
   "title": "simplicio.quality-matrix/v1 (aka the #283 Quality Gate receipt)",
   "description": "Fail-closed evidence receipt read by simplicio_loop/quality_matrix.py::evaluate_quality_matrix. Produced as <run_dir>/quality-matrix.json and consumed by the completion oracle (simplicio_loop/oracle.py) before any work item can be reported COMPLETE. A missing or malformed receipt NEVER evaluates to ready=true.",
   "type": "object",

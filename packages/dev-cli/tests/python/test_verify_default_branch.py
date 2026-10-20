@@ -153,7 +153,7 @@ def test_cli_system_path_reports_the_live_repository_state() -> None:
     stream = result.stdout if result.returncode == 0 else result.stderr
     receipt = json.loads(stream)
 
-    assert receipt["repository"] == "wesleysimplicio/simplicio-dev-cli"
+    assert receipt["repository"] == "simpletibr/simplicio-dev-cli"
     assert receipt["expected_default"] == "main"
     assert receipt["verified"] is (result.returncode == 0)
     if result.returncode == 0:

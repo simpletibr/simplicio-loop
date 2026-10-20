@@ -30,7 +30,7 @@ Verbs:
              (and optional --owner-repo), without recording anything. Standalone helper.
     resolve  IssueTargetResolver (#493, T2): map --component to its owning repo via a static
              ownership table. No match -> --fallback-repository (default
-             wesleysimplicio/simplicio-loop), tagged with an explicit reason_code, never a silent
+             simpletibr/simplicio-loop), tagged with an explicit reason_code, never a silent
              guess. 2+ candidates pointing to different repos -> a triage flag (repo=null), never
              an arbitrary pick.
     selftest Prove fingerprint stability + dedup/increment + resolve deterministically — no
@@ -69,19 +69,19 @@ STATES = frozenset(["suspected", "confirmed", "disproved", "accepted-risk", "res
 # substring match against the component string; ownership is never guessed — no match falls back
 # to FALLBACK_REPOSITORY, and 2+ distinct-repo matches raise a triage flag instead of picking one.
 DEFAULT_OWNERSHIP_MAP = {
-    "scripts/": "wesleysimplicio/simplicio-loop",
-    ".claude/skills/": "wesleysimplicio/simplicio-loop",
-    "simplicio_loop/": "wesleysimplicio/simplicio-loop",
+    "scripts/": "simpletibr/simplicio-loop",
+    ".claude/skills/": "simpletibr/simplicio-loop",
+    "simplicio_loop/": "simpletibr/simplicio-loop",
     # mapper/dev-cli are monorepo packages of this same repo now (#1298); route their
     # findings here instead of to their pre-monorepo standalone repos.
-    "packages/mapper/": "wesleysimplicio/simplicio-loop",
-    "packages/dev-cli/": "wesleysimplicio/simplicio-loop",
-    "simplicio-mapper": "wesleysimplicio/simplicio-loop",
-    "simplicio-dev-cli": "wesleysimplicio/simplicio-loop",
-    "simplicio-cli": "wesleysimplicio/simplicio-loop",
-    "simplicio-runtime": "wesleysimplicio/simplicio-runtime",
+    "packages/mapper/": "simpletibr/simplicio-loop",
+    "packages/dev-cli/": "simpletibr/simplicio-loop",
+    "simplicio-mapper": "simpletibr/simplicio-loop",
+    "simplicio-dev-cli": "simpletibr/simplicio-loop",
+    "simplicio-cli": "simpletibr/simplicio-loop",
+    "simplicio-runtime": "simpletibr/simplicio-runtime",
 }
-FALLBACK_REPOSITORY = "wesleysimplicio/simplicio-loop"
+FALLBACK_REPOSITORY = "simpletibr/simplicio-loop"
 
 _TIMESTAMP_RE = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?")
 _HEX_ID_RE = re.compile(r"\b[0-9a-fA-F]{7,40}\b")
@@ -321,7 +321,7 @@ def cmd_selftest(_opts):
     check("disproved_state_applied_on_repeat", disproved["state"], "disproved")
 
     exact = resolve_owner("scripts/coordinator.py")
-    check("resolve_exact_match_repo", exact["repo"], "wesleysimplicio/simplicio-loop")
+    check("resolve_exact_match_repo", exact["repo"], "simpletibr/simplicio-loop")
     check("resolve_exact_match_reason_code", exact["reason_code"], "exact_match")
 
     no_match = resolve_owner("totally-unrelated-thing.exe")

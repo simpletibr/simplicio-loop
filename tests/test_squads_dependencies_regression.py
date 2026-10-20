@@ -110,7 +110,7 @@ def test_issue_7552_7553_split_squads_subsequent_waves_and_contracts():
     "## Dependencies\n- #7552",
     "## Dependências\n* #7552",
     "## Blocked by\n1. #7552",
-    "depends on https://github.com/wesleysimplicio/simplicio-loop/issues/7552",
+    "depends on https://github.com/simpletibr/simplicio-loop/issues/7552",
 ])
 def test_dependency_parsing_various_body_formats(body):
     """Verify that multiple dependency formats in issue body are recognized."""

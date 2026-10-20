@@ -9,7 +9,7 @@
       "revision": "fixture-revision",
       "default_branch": "main",
       "default_revision": "fixture-revision",
-      "remote": "https://github.com/wesleysimplicio/simplicio-mapper.git",
+      "remote": "https://github.com/simpletibr/simplicio-mapper.git",
       "versions": {"python": "0.0.0-fixture"},
       "files_scanned": 2
     }

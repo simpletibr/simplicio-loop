@@ -466,8 +466,8 @@ def test_identical_model_does_no_dom_work():
 
 # GitHub chips ---------------------------------------------------------------------------------------------------------
 
-GH_ISSUE = 'https://github.com/wesleysimplicio/simplicio-loop/issues/12'
-GH_PR = 'https://github.com/wesleysimplicio/simplicio-loop/pull/34'
+GH_ISSUE = 'https://github.com/simpletibr/simplicio-loop/issues/12'
+GH_PR = 'https://github.com/simpletibr/simplicio-loop/pull/34'
 
 
 def _chips(card):

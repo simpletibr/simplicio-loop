@@ -8,8 +8,8 @@ nothing about publishing changed — only *where the source lives* changed. This
 is the maintainer checklist for archiving the now-obsolete standalone
 repositories:
 
-- `wesleysimplicio/simplicio-mapper`
-- `wesleysimplicio/simplicio-dev-cli`
+- `simpletibr/simplicio-mapper`
+- `simpletibr/simplicio-dev-cli`
 
 Do not archive a repo until every item under it is checked. Archiving is
 reversible (a maintainer can unarchive), but do the verification first so it
@@ -31,8 +31,8 @@ For **each** of these repositories:
       migrate it to a `simpletibr/simplicio-loop` issue/PR scoped to
       `packages/<pkg>/` (link back to the original for history), or close it
       with a comment pointing at the new location. `gh issue list --repo
-      wesleysimplicio/simplicio-<pkg> --state open` /
-      `gh pr list --repo wesleysimplicio/simplicio-<pkg> --state open` should
+      simpletibr/simplicio-<pkg> --state open` /
+      `gh pr list --repo simpletibr/simplicio-<pkg> --state open` should
       both return empty before archiving.
 - [ ] **The old repo's README has a banner pointing here.** Add (or verify)
       a top-of-file banner such as:
@@ -54,36 +54,39 @@ For **each** of these repositories:
       Re-run this check before archiving to catch anything added since:
 
       ```bash
-      grep -rn -E "wesleysimplicio/simplicio-(mapper|dev-cli)|simpletibr/simplicio-(mapper|dev-cli)" . \
+      grep -rn -E "wesleysimplicio/simplicio-(mapper|dev-cli)" . \
         --exclude=CHANGELOG.md --exclude-dir=.git | grep -v bench/llm_ab/results
       ```
 
-      A remaining hit inside `packages/*/simplicio*/release_train.py` or a
-      `contracts/*/fixtures/*` file is expected and intentional (see "Known
-      exception" below); anything else should be updated.
+      The legacy owner should have no hits except the deliberate `formerly
+      wesleysimplicio/...` provenance notes in `packages/dev-cli/bench/*.md`,
+      the verbatim CHANGELOG excerpts quoted by two mapper tests
+      (`test_changelog_parser.py`, `test_release_surfaces.py`), and the
+      reconciled receipt `packages/dev-cli/config/release-train-lock.json`
+      (see section 2). Anything else should be updated.
 
-## 2. Known exception: cross-repo release-authority literals
+## 2. Release-authority literals
 
-`packages/dev-cli/simplicio/release_train.py` and
-`packages/mapper/simplicio_mapper/release_manifest.py` still hard-code the old
-`wesleysimplicio/simplicio-{mapper,dev-cli,loop}` repository names as
-functional identifiers — dispatch targets for the cross-repo release train,
-required-repository sets, and authority-owner maps, all covered by their own
-tests (`test_cross_repo_conformance.py`, `test_verify_default_branch.py`,
-`test_release_surfaces.py`, etc.). These are not stale documentation links;
-they are the release automation's actual GitHub API targets, and changing
-them is a functional migration (repoint dispatch + update every asserting
-test), not a doc fix. Track that migration as its own follow-up issue once
-the repos above are archived and GitHub Actions on them can no longer receive
-a dispatch anyway; do not silently repoint these strings as part of a docs
-pass.
+`packages/dev-cli/simplicio/release_train.py`,
+`packages/mapper/simplicio_mapper/release_manifest.py` and the
+`packages/dev-cli/config/release-train-*.json` config name the canonical
+`simpletibr/simplicio-{mapper,dev-cli,loop}` repositories as functional
+identifiers: dispatch targets for the cross-repo release train,
+required-repository sets, and authority-owner maps. Their own tests
+(`test_cross_repo_conformance.py`, `test_verify_default_branch.py`, etc.) assert
+them. They are the release automation's live GitHub API targets, so a change to
+one is a functional migration: update the literal and every test that asserts
+it in the same change. The reconciled receipt
+`packages/dev-cli/config/release-train-lock.json` is the one exception. It is a
+historical record that keeps the owner it was reconciled with, and the next
+reconcile rewrites it.
 
 ## 3. Archive
 
 Once every box above is checked for a given repository:
 
 ```bash
-gh repo archive wesleysimplicio/simplicio-<pkg>
+gh repo archive simpletibr/simplicio-<pkg>
 ```
 
 Archiving makes the repo read-only (no new issues/PRs/pushes) but keeps it

@@ -1,6 +1,6 @@
 # Mapper Context contract governance — v1
 
-`wesleysimplicio/simplicio-mapper` is the sole producer owner of
+`simpletibr/simplicio-mapper` is the sole producer owner of
 `simplicio.context-snapshot/v1` and `simplicio.context-graph/v1`. A consumer
 may validate, store, and reference these payloads; it must not mint either ID
 with a divergent shape. The pinned `contract-manifest.json` is the portable

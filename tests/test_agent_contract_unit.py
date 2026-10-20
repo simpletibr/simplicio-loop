@@ -17,10 +17,10 @@ def test_context_pack_is_allow_listed_and_receipt_is_agent_bound():
     pack = build_context_pack(task_id="T1", goal="fix docs", identity=IDENTITY,
                               acs=["tests pass"], source_refs=["README.md", "secret.txt"],
                               allowed_paths=["README.md"],
-                              issue_ref="wesleysimplicio/simplicio-loop#183")
+                              issue_ref="simpletibr/simplicio-loop#183")
     assert pack["source_refs"] == ["README.md"]
-    assert pack["issue_ref"] == "wesleysimplicio/simplicio-loop#183"
-    assert pack["issue_url"] == "https://github.com/wesleysimplicio/simplicio-loop/issues/183"
+    assert pack["issue_ref"] == "simpletibr/simplicio-loop#183"
+    assert pack["issue_url"] == "https://github.com/simpletibr/simplicio-loop/issues/183"
     assert "prompt" not in pack and "transcript" not in pack
     receipt = bind_receipt({"status": "VERIFIED"}, IDENTITY, context_pack=pack)
     assert receipt["agent"] == validate_identity(IDENTITY)
@@ -40,11 +40,11 @@ def test_context_pack_rejects_non_allow_listed_fields_and_capability_drift():
 
 def test_context_pack_canonicalizes_issue_url_and_rejects_mismatched_issue_identity():
     pack = build_context_pack(task_id="T183", goal="ship distributed claims", identity=IDENTITY,
-                              issue_url="https://github.com/wesleysimplicio/simplicio-loop/issues/183")
-    assert pack["issue_ref"] == "wesleysimplicio/simplicio-loop#183"
-    assert pack["issue_url"] == "https://github.com/wesleysimplicio/simplicio-loop/issues/183"
+                              issue_url="https://github.com/simpletibr/simplicio-loop/issues/183")
+    assert pack["issue_ref"] == "simpletibr/simplicio-loop#183"
+    assert pack["issue_url"] == "https://github.com/simpletibr/simplicio-loop/issues/183"
     with pytest.raises(AgentContractError, match="different issues"):
-        validate_context_pack({**pack, "issue_ref": "wesleysimplicio/simplicio-loop#184"}, IDENTITY)
+        validate_context_pack({**pack, "issue_ref": "simpletibr/simplicio-loop#184"}, IDENTITY)
     with pytest.raises(AgentContractError, match="canonical owner/repo#123"):
         validate_context_pack({**pack, "issue_ref": "issue #183"}, IDENTITY)
 
