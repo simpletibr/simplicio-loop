@@ -133,8 +133,9 @@ def _apply_project_manifest(path: Path, version: str) -> bool:
 
 def _apply_source_fallback(path: Path, version: str) -> bool:
     text = path.read_text(encoding="utf-8")
+    # Also rewrites the literal behind `installed_version() or`; the group keeps that prefix intact.
     new_text, count = re.subn(
-        r'(__version__\s*=\s*)["\'][^"\']+["\']',
+        r'(__version__\s*=\s*(?:installed_version\(\)\s*or\s*)?)["\'][^"\']+["\']',
         lambda m: f'{m.group(1)}"{version}"',
         text,
     )
