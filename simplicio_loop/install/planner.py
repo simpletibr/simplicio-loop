@@ -21,9 +21,10 @@ from . import claude_hooks, entry
 SCHEMA = "simplicio.loop-install-plan/v1"
 OWNERSHIP_SCHEMA = "simplicio.loop-install-ownership/v2"
 RECEIPT = Path(".simplicio-loop") / "install-ownership.json"
-# The state folder ignores itself: `*` keeps the receipt and this file out of git, as pytest's .pytest_cache does.
+# The state folder ignores itself: `*` keeps the receipt and this file out of git; `!loop.toml` keeps the opt-in file
+# the user writes there visible, so the user can commit it (the repo's own .gitignore has the same exception).
 STATE_IGNORE = RECEIPT.parent / ".gitignore"
-STATE_IGNORE_BODY = b"*\n"
+STATE_IGNORE_BODY = b"*\n!loop.toml\n"
 CATALOG = Path(__file__).resolve().parents[1] / "_catalog" / "harnesses.json"
 # Hosts whose surface is `.claude/skills/` + an AGENTS.md marker block (catalog surface ".claude/skills/ + AGENTS.md").
 # One row per host: the layout below and the host's adapter (adapters/<host>/) follow from this list.
@@ -313,7 +314,8 @@ def _unwired(settings: claude_hooks.Unwiring | None) -> dict[str, int]:
 
 def _state_ignore(root: Path, previous: Mapping[str, Any], owned: list[str], released: set[str],
                   changes: dict[str, Any], dry_run: bool, made: set[str]) -> None:
-    """Write `.simplicio-loop/.gitignore` (`*`: git never lists the state folder, the receipt included) and own it.
+    """Write `.simplicio-loop/.gitignore` (`*` hides the state folder from git; `!loop.toml` keeps the opt-in file
+    visible) and own it.
 
     Install owns the file only when it creates it, or when the file it wrote is still there as written. Any other file
     there is the user's or another command's: it is left alone and not owned, so uninstall never removes it.

@@ -1,4 +1,6 @@
-"""The state folder `.simplicio-loop/` keeps itself out of git: install writes `.simplicio-loop/.gitignore` containing `*`.
+"""The state folder `.simplicio-loop/` keeps itself out of git, except `loop.toml`, the opt-in file the user commits.
+
+Install writes `.simplicio-loop/.gitignore` with `*` and `!loop.toml`.
 
 The file is owned by the ownership receipt, so uninstall removes it, and removes the folder when install created it.
 A file that is already there with other content (the user's, or another command's) is left alone and not owned. The
@@ -23,7 +25,8 @@ from simplicio_loop.install.planner import (
 
 IGNORE = Path(".simplicio-loop") / ".gitignore"
 RECEIPT = Path(".simplicio-loop") / "install-ownership.json"
-OTHER_CONTENT = b"# another command\n*\n!loop.toml\n"
+BODY = b"*\n!loop.toml\n"  # what install writes
+OTHER_CONTENT = b"# another command\n*\n"
 
 
 def make_bundle(root: Path) -> Path:
@@ -70,9 +73,9 @@ def repo(tmp_path: Path) -> Path:
     return folder
 
 
-def test_install_writes_a_state_folder_gitignore_that_ignores_everything_in_it(repo, bundle):
+def test_install_writes_a_state_folder_gitignore_that_hides_the_state_but_not_loop_toml(repo, bundle):
     install(repo, bundle)
-    assert (repo / IGNORE).read_bytes() == b"*\n"
+    assert (repo / IGNORE).read_bytes() == b"*\n!loop.toml\n"
     assert IGNORE.as_posix() in receipt_paths(repo), "install owns the file it writes, so uninstall removes it"
 
 
@@ -86,6 +89,30 @@ def test_after_install_git_status_lists_nothing_under_the_state_folder(repo, bun
     )
     assert ".claude/skills/simplicio-loop/SKILL.md" in done.stdout, "the install's own files are listed: not vacuous"
     assert [line for line in done.stdout.splitlines() if ".simplicio-loop" in line] == []
+
+
+def git_status(root: Path) -> list:
+    done = subprocess.run(
+        ["git", "-C", str(root), "status", "--porcelain", "--untracked-files=all"],
+        capture_output=True, text=True, check=True,
+    )
+    return done.stdout.splitlines()
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="needs git")
+@pytest.mark.parametrize("loop_toml_first", [True, False], ids=["loop-toml-before-install", "loop-toml-after-install"])
+def test_a_loop_toml_the_user_writes_is_untracked_and_the_receipt_is_not(repo, bundle, loop_toml_first):
+    """`loop.toml` is the opt-in file: the watcher reads it from the default branch, so git must offer it for commit."""
+    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
+    if loop_toml_first:
+        write(repo / ".simplicio-loop" / "loop.toml", "enabled = true\n")
+        install(repo, bundle)
+    else:
+        install(repo, bundle)
+        write(repo / ".simplicio-loop" / "loop.toml", "enabled = true\n")
+    lines = git_status(repo)
+    assert "?? .simplicio-loop/loop.toml" in lines
+    assert all("install-ownership.json" not in line and ".simplicio-loop/.gitignore" not in line for line in lines)
 
 
 def test_uninstall_removes_the_state_folder_gitignore_and_the_folder_install_created(repo, bundle):
@@ -116,22 +143,22 @@ def test_a_state_folder_gitignore_with_other_content_is_left_alone_and_not_owned
 
 
 def test_a_state_folder_gitignore_already_holding_the_rule_is_not_owned_either(repo, bundle):
-    write(repo / IGNORE, b"*\n")
+    write(repo / IGNORE, BODY)
     result = install(repo, bundle)
     assert IGNORE.as_posix() in result["changes"]["left_alone"]
     assert IGNORE.as_posix() not in receipt_paths(repo)
     uninstall(repo)
-    assert (repo / IGNORE).read_bytes() == b"*\n", "a file install did not create is never removed"
+    assert (repo / IGNORE).read_bytes() == BODY, "a file install did not create is never removed"
 
 
 def test_a_state_folder_gitignore_the_user_edits_is_no_longer_owned_by_the_next_install(repo, bundle):
     install(repo, bundle)
-    write(repo / IGNORE, b"*\n!loop.toml\n")
+    write(repo / IGNORE, b"*\n!loop.toml\n!dashboard.toml\n")
     result = install(repo, bundle)
     assert IGNORE.as_posix() in result["changes"]["left_alone"]
     assert IGNORE.as_posix() not in receipt_paths(repo)
     uninstall(repo)
-    assert (repo / IGNORE).read_bytes() == b"*\n!loop.toml\n"
+    assert (repo / IGNORE).read_bytes() == b"*\n!loop.toml\n!dashboard.toml\n"
 
 
 def test_a_second_install_creates_and_updates_nothing(repo, bundle):
