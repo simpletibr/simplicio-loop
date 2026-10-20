@@ -215,6 +215,31 @@ def test_cli_uninstall_dry_run_exits_0_and_removes_nothing(
     assert not (target / ".claude" / "skills" / "simplicio-loop").exists()
 
 
+@pytest.mark.parametrize("host", ["claude", "codex", "all"])
+def test_uninstall_with_an_explicit_host_is_refused_and_removes_nothing(tmp_path, capsys, monkeypatch, bundle, host):
+    """uninstall removes the whole project's receipt, so a --host would suggest one host only: the command refuses it."""
+    monkeypatch.setattr(cli_impl, "BUNDLE", bundle)
+    target = tmp_path / "proj"
+    target.mkdir()
+    run(capsys, "install", "--target", str(target))
+    before = sorted(target.rglob("*"))
+    rc, out = run(capsys, "install", "--uninstall", "--host", host, "--target", str(target))
+    assert rc == 2, out
+    assert "error: --uninstall removes everything Loop installed in this project; run it without --host" in out
+    assert sorted(target.rglob("*")) == before
+
+
+def test_uninstall_without_a_host_removes_what_every_host_installed(tmp_path, capsys, monkeypatch, bundle):
+    monkeypatch.setattr(cli_impl, "BUNDLE", bundle)
+    target = tmp_path / "proj"
+    target.mkdir()
+    run(capsys, "install", "--target", str(target))
+    run(capsys, "install", "--host", "codex", "--target", str(target))
+    rc, out = run(capsys, "install", "--uninstall", "--target", str(target))
+    assert rc == 0, out
+    assert sorted(target.rglob("*")) == []
+
+
 # --- audit follow-up: what the receipt may name, and which directories are Loop's ---------------------------------
 
 

@@ -87,7 +87,7 @@ def test_project_install_writes_the_surface_reruns_as_a_noop_and_uninstalls_clea
     assert payload["changes"]["created"] == [] and payload["changes"]["updated"] == []
     assert _tree(target) == before
 
-    removed = _run(["--host", host, "--target", str(target), "--uninstall"], home=home, cwd=target)
+    removed = _run(["--target", str(target), "--uninstall"], home=home, cwd=target)
     assert removed.returncode == 0, removed.stdout + removed.stderr
     assert list(target.iterdir()) == []
 
@@ -108,7 +108,7 @@ def test_global_install_writes_the_skills_surface_into_a_temporary_home(host: st
     assert second.returncode == 0, second.stdout + second.stderr
     assert _tree(home) == before
 
-    removed = _run(["--global", "--host", host, "--uninstall"], home=home, cwd=cwd)
+    removed = _run(["--global", "--uninstall"], home=home, cwd=cwd)
     assert removed.returncode == 0, removed.stdout + removed.stderr
     assert list(home.iterdir()) == []
 

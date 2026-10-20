@@ -151,5 +151,5 @@ def test_cli_global_install_then_uninstall_keeps_the_users_gemini_file_byte_for_
     assert text.startswith("my own rules\n") and text.count(entry.BEGIN) == 1
     assert not (home / "GEMINI.md").exists() and not (home / "AGENTS.md").exists()
 
-    assert cli.main(["install", "--global", "--host", "gemini", "--uninstall"]) == 0
+    assert cli.main(["install", "--global", "--uninstall"]) == 0
     assert user_file.read_bytes() == b"my own rules\n"

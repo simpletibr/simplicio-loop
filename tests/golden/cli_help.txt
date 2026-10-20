@@ -512,8 +512,8 @@ options:
                         pending
   --json                emit one machine-readable JSON document
   --verify              validate plan version/digest
-  --uninstall           remove only what install registered; with --dry-run, list it and remove
-                        nothing
+  --uninstall           remove every host's files that install registered; with --dry-run, list
+                        them and remove nothing
   --prune-project-copies
                         detect and remove stale project-scope copies when installing globally
 === learn rc=0

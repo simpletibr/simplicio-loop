@@ -132,7 +132,7 @@ def _entries(count: int) -> str:
     return f"{count} hook {'entry' if count == 1 else 'entries'}"
 
 
-def install(target: Path, globally: bool, host: str = "claude",
+def install(target: Path, globally: bool, host: str | None = None,
             dry_run: bool = False, uninstall: bool = False, verify: bool = False,
             check: bool = False, as_json: bool = False,
             prune_project_copies: bool = False) -> int:
@@ -143,6 +143,9 @@ def install(target: Path, globally: bool, host: str = "claude",
 
     root = Path.home() if globally else target
     if uninstall:
+        if host is not None:  # the receipt is one per project: uninstall removes every host's files, so no host can be named
+            print("error: --uninstall removes everything Loop installed in this project; run it without --host", flush=True)
+            return 2
         try:
             payload = remove_owned(root, dry_run=dry_run)
         except InstallError as exc:
@@ -163,6 +166,7 @@ def install(target: Path, globally: bool, host: str = "claude",
             print("  not removed (outside the ownership receipt): the simplicio-* skills and Loop rule files that "
                   "install --global refreshes in other hosts; remove them by hand")
         return 0
+    host = "claude" if host is None else host  # the default host of an install (argparse leaves it unset)
     try:
         plan = plan_install(root, host=host, globally=globally)
         if verify:
@@ -209,13 +213,13 @@ def add_install(sub):
     p_install.add_argument("--target", default=".", help="project directory to install into")
     p_install.add_argument("--global", dest="globally", action="store_true",
                            help="install into ~/.claude instead of the project")
-    p_install.add_argument("--host", default="claude", help="host id or 'all'")
+    p_install.add_argument("--host", default=None, help="host id or 'all'")
     p_install.add_argument("--dry-run", action="store_true", help="plan only; write nothing")
     p_install.add_argument("--check", action="store_true",
                            help="write nothing; exit 0 when the install is up to date, 10 when changes are pending")
     p_install.add_argument("--json", action="store_true", help="emit one machine-readable JSON document")
     p_install.add_argument("--verify", action="store_true", help="validate plan version/digest")
-    p_install.add_argument("--uninstall", action="store_true", help="remove only what install registered; with --dry-run, list it and remove nothing")
+    p_install.add_argument("--uninstall", action="store_true", help="remove every host's files that install registered; with --dry-run, list them and remove nothing")
     p_install.add_argument("--prune-project-copies", action="store_true",
                            help="detect and remove stale project-scope copies when installing globally")
 
