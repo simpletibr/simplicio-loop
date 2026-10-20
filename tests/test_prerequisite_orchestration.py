@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from simplicio_loop import cli_impl, provider_worker, runner
+from simplicio_loop import cli_impl, input_ceiling, provider_worker, runner
 from tests.runner_patch import patch_runner
 
 
@@ -51,6 +51,7 @@ def test_openrouter_worker_pins_model_for_real_request_and_keeps_usage_unknown_d
         env={
             "OPENROUTER_API_KEY": secret,
             "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
+            input_ceiling.ENV_NAME: str(input_ceiling.DEFAULT_CEILING),
         },
     )
 
@@ -76,7 +77,10 @@ def test_openrouter_worker_preserves_observed_zero_usage_as_measured():
         run_id="run-1",
         task_index=1,
         allowed_paths=("site/checkers.html",),
-        env={"OPENROUTER_API_KEY": "runtime-only-openrouter-secret"},
+        env={
+            "OPENROUTER_API_KEY": "runtime-only-openrouter-secret",
+            input_ceiling.ENV_NAME: str(input_ceiling.DEFAULT_CEILING),
+        },
     )
 
     assert result["usage"] == usage

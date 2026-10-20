@@ -16,7 +16,7 @@ import json
 
 import pytest
 
-from simplicio_loop import provider_worker
+from simplicio_loop import input_ceiling, provider_worker
 
 
 class _Response:
@@ -36,6 +36,8 @@ def _env(**extra):
     env = {
         "OPENROUTER_API_KEY": "runtime-only-openrouter-secret",
         "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
+        # The worker reads the ceiling from this mapping, not from os.environ; without the key it reads origin/HEAD.
+        input_ceiling.ENV_NAME: str(input_ceiling.DEFAULT_CEILING),
     }
     env.update(extra)
     return env

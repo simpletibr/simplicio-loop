@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from simplicio_loop import turbo_provider
+from simplicio_loop import input_ceiling, turbo_provider
 from simplicio_loop.cli_impl import main as cli_main
 from simplicio_loop.turbo import focus_paths, mapper_reading, run_turbo
 
@@ -33,6 +33,8 @@ def _reply(content="{}", provider="Together"):
 def mock_client(monkeypatch):
     """Route the provider's pooled client through an httpx.MockTransport."""
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
+    # complete() reads the input ceiling from the checkout it runs in unless the env var is set: pin the built-in value.
+    monkeypatch.setenv(input_ceiling.ENV_NAME, str(input_ceiling.DEFAULT_CEILING))
     state = {"handler": lambda request: httpx.Response(200, json=_reply()), "seen": []}
 
     async def handler(request):

@@ -9,10 +9,18 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from simplicio_loop import turbo_provider
+from simplicio_loop import input_ceiling, turbo_provider
 from simplicio_loop.turbo import run_turbo
 
 
+@pytest.fixture
+def pinned_ceiling(monkeypatch):
+    """complete() reads the input ceiling from the checkout it runs in unless the env var is set: pin the built-in value
+    so the outcome does not depend on the clone's origin/HEAD."""
+    monkeypatch.setenv(input_ceiling.ENV_NAME, str(input_ceiling.DEFAULT_CEILING))
+
+
+@pytest.mark.usefixtures("pinned_ceiling")
 @pytest.mark.parametrize("stuck, winner", [("s", "duplicate"), ("s-hedge", "primary")])
 def test_the_hedge_loser_is_cancelled(monkeypatch, stuck, winner):
     cancelled: list[str] = []
@@ -43,6 +51,7 @@ def test_the_hedge_loser_is_cancelled(monkeypatch, stuck, winner):
     assert leftover == []  # and no request task outlives the call
 
 
+@pytest.mark.usefixtures("pinned_ceiling")
 def test_a_hedged_call_starts_no_thread(monkeypatch):
     seen_threads: list[int] = []
 

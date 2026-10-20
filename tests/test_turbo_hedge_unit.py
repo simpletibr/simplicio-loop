@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from simplicio_loop import turbo_provider
+from simplicio_loop import input_ceiling, turbo_provider
 
 ROOT = Path(__file__).resolve().parents[1]
 # Measured on 12 CLI calls of 3.45.0/3.45.1 (deepseek-v4.1-flash on OpenRouter): the slowest normal call and the one real tail.
@@ -49,6 +49,8 @@ def _run_with_a_call_of(seconds: float, monkeypatch) -> tuple[dict, list[str]]:
 def default_hedge(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
     monkeypatch.delenv("SIMPLICIO_TURBO_HEDGE_AFTER", raising=False)
+    # complete() reads the input ceiling from the checkout it runs in unless the env var is set: pin the built-in value.
+    monkeypatch.setenv(input_ceiling.ENV_NAME, str(input_ceiling.DEFAULT_CEILING))
 
 
 def test_the_default_hedge_is_ten_seconds_between_the_slowest_normal_call_and_the_real_tail(default_hedge):
