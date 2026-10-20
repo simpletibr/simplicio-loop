@@ -417,8 +417,9 @@ def _map_gc_bases() -> None:
         map_gc_auto.maybe_gc(str(base))
 
 
-async def tick(dry_run: bool = False) -> None:
-    """One pass. dry_run reads GitHub and logs what it would do; it writes no baseline, claims, fixes or status (only the issues-disabled cache) and skips the subscription refresh."""
+async def tick(dry_run: bool = False) -> str | None:
+    """One pass. dry_run reads GitHub and logs what it would do; it writes no baseline, claims, fixes or status (only the issues-disabled cache) and skips the subscription refresh.
+    Returns the reason code when the tick stopped at a blocked state (phase `blocked`), else None: `watch247 --once` exits non-zero on it."""
     persist = not dry_run
 
     async def status(**extra) -> None:
@@ -434,9 +435,10 @@ async def tick(dry_run: bool = False) -> None:
         state.log(f"setup required: {missing}: run `{onboarding.COMMAND}`")
         return
     if blocked := sandbox.refusal():
-        await status(phase="blocked", reason_code=blocked)
-        state.log(f"blocked: {blocked}")
-        return
+        detail = sandbox.refusal_detail()
+        await status(phase="blocked", reason_code=blocked, detail=detail)
+        state.log(f"blocked: {blocked}: {detail}")
+        return blocked
     if persist:  # housekeeping, not work on issues: it runs at the daily cap too (#1671)
         await asyncio.to_thread(_map_gc_bases)
     if capped := await budget.reached():
@@ -447,17 +449,17 @@ async def tick(dry_run: bool = False) -> None:
     if invalid := author_executor.refusal():  # also checked at startup; an env changed under a running service stops here
         await status(phase="blocked", reason_code=author_executor.INVALID, detail=invalid)
         state.log(f"blocked: {invalid}")
-        return
+        return author_executor.INVALID
     executor = await host_mode.choose()  # exec by default; preflight of the CLI logins, openrouter only if asked
     if executor.mode != "exec" and not executor.blocked and author_executor.selected() == "author":
         detail = f"{author_executor.EXECUTOR_ENV}=author needs the exec executor (SIMPLICIO_EXECUTOR unset or exec); got {executor.mode}"
         await status(phase="blocked", reason_code=author_executor.NEEDS_EXEC, executor=executor.mode, detail=detail)
         state.log(f"blocked: {detail}")
-        return
+        return author_executor.NEEDS_EXEC
     if executor.blocked:
         await status(phase="blocked", reason_code=executor.blocked, executor=executor.mode, detail=executor.detail)
         state.log(f"blocked: {executor.blocked}")
-        return
+        return executor.blocked
     sub = None
     if dry_run:
         state.log("[dry-run] subscription check skipped")

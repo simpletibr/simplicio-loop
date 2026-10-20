@@ -70,6 +70,14 @@ def refusal(environ: Mapping[str, str] | None = None, platform: str | None = Non
     return None
 
 
+def refusal_detail(platform: str | None = None) -> str:
+    """What is missing and the command that fixes it, for the log and status. `setup` installs bwrap on Linux only."""
+    host = platform or sys.platform
+    if host != "linux":
+        return f"the watcher runs only on Linux, with bubblewrap (bwrap); this host is {host}"
+    return "bubblewrap (bwrap) is not installed; fix: simplicio-loop setup --yes"
+
+
 def _layout(clone: str | Path) -> tuple[Path, str] | None:
     """(shared .git dir of the base clone, issue) of an item's worktree `<WORK>/<owner>/<repo>.wt/<issue>`, from the path alone; None for anything else."""
     path = Path(clone)

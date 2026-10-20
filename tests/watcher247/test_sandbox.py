@@ -160,3 +160,14 @@ def test_refusal_reason_names_the_missing_sandbox(monkeypatch):
     monkeypatch.setattr(sandbox.shutil, "which", only(set()))
     assert sandbox.refusal(platform="linux", environ={}) == "sandbox_unavailable"
     assert sandbox.refusal(platform="linux", environ={"SIMPLICIO_247_ALLOW_UNSANDBOXED": "1"}) is None
+
+
+def test_refusal_detail_names_the_missing_bwrap_and_the_fix_on_linux():
+    assert sandbox.refusal_detail(platform="linux") == "bubblewrap (bwrap) is not installed; fix: simplicio-loop setup --yes"
+
+
+def test_refusal_detail_off_linux_says_where_the_watcher_runs_and_offers_no_setup_fix():
+    # `setup` installs bwrap only on Linux: anywhere else the line must not name a command that cannot fix it.
+    detail = sandbox.refusal_detail(platform="darwin")
+    assert "only on Linux" in detail and "darwin" in detail
+    assert "setup" not in detail

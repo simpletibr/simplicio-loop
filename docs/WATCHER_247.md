@@ -255,6 +255,8 @@ Todo subprocesso do watcher (planner, `turbo --apply`, git, testes do merge trai
 (`sandbox.wrap`) com o env filtrado por `scrubbed_env`. O `scrubbed_env` só limpa o env do **filho**; o env do **pai** é
 coberto pelo namespace de pid.
 
+Sem `bwrap` o tick para antes de qualquer subprocesso, com `phase=blocked` e `reason_code=sandbox_unavailable`, e a linha do log diz o conserto (`simplicio-loop setup --yes`). `watch247 --once` sai com 3 quando o tick para em qualquer estado bloqueado, como este.
+
 **Escondido do processo no sandbox**
 - O `EnvironmentFile` do serviço (`GH_TOKEN`, `OPENROUTER_API_KEY`, ...) vive em `/proc/<pid do watcher>/environ`, legível por
   qualquer processo do mesmo uid. `sandbox.wrap` passa `--unshare-pid` e remonta `/proc` (`--proc /proc`) para o novo

@@ -5,9 +5,11 @@ Each test drives tick.tick() end to end; only proc.run (gh, git, turbo) is faked
 import asyncio
 from datetime import timedelta
 
+import pytest
+
 from simplicio_loop.claim_lease import ClaimStore
 from simplicio_loop.github_lifecycle import render_lifecycle_comment
-from simplicio_loop.watcher247 import config, state
+from simplicio_loop.watcher247 import config, state, tick
 from simplicio_loop.watcher247.__main__ import main as watcher_main
 
 from .fakes import FIXED, PR_URL, FakeRun, baseline, issue, pr_row, read_json, run_tick, tasks, write_json
@@ -147,3 +149,25 @@ def test_epic_is_never_executed_directly(env):
     assert fake.turbo_argv == []
     assert fake.canonical_state(9) == "BLOCKED"
     assert "épica" in fake.marker_comments(9)[0]["body"]
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_watch247_once_exits_3_when_the_tick_is_blocked(env, monkeypatch, tmp_path, dry_run):
+    monkeypatch.delenv("SIMPLICIO_247_ALLOW_UNSANDBOXED", raising=False)  # no bwrap and no opt-out: the tick stops at the refusal
+    monkeypatch.setenv("SIMPLICIO_247_ENV_FILE", str(tmp_path / "no-such.env"))
+    fake = env(FakeRun({"simplicio-a": [issue(1)]}))
+    baseline()
+    assert asyncio.run(watcher_main(once=True, dry_run=dry_run)) == 3
+    assert fake.turbo_argv == []
+
+
+def test_blocked_tick_names_the_fix_in_the_log_and_in_the_status(env, monkeypatch, capsys):
+    monkeypatch.delenv("SIMPLICIO_247_ALLOW_UNSANDBOXED", raising=False)
+    fake = env(FakeRun({"simplicio-a": [issue(1)]}))
+    baseline()
+    assert asyncio.run(tick.tick()) == "sandbox_unavailable"
+    assert fake.turbo_argv == []
+    fix = "bubblewrap (bwrap) is not installed; fix: simplicio-loop setup --yes"
+    assert f"blocked: sandbox_unavailable: {fix}" in capsys.readouterr().out
+    status = read_json(config.STATUS)
+    assert (status["phase"], status["reason_code"], status["detail"]) == ("blocked", "sandbox_unavailable", fix)

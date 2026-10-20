@@ -8,6 +8,8 @@ from ..claim_lease import ClaimStore
 from ..error_truncation import truncate_error_with_cause
 from . import author_executor, config, env_guard, state, tick, worktrees
 
+BLOCKED_EXIT = 3  # `--once` when the tick stopped at a blocked state (docs/WATCHER_247.md); the log line names the fix
+
 
 async def main(once: bool = False, dry_run: bool = False) -> int:
     worktrees.cancel_on_sigterm()  # a stop cancels the tick, and every live item removes its own worktree first
@@ -40,14 +42,15 @@ async def _serve(once: bool, dry_run: bool) -> int:
         # Before any lease exists, every legacy running claim (no owner_token) is an orphan of the old watcher.
         await ClaimStore(config.CLAIMS).migrate_legacy(ttl_s=0)
     while True:
+        blocked: str | None = None
         try:
-            await tick.tick(dry_run=dry_run)
+            blocked = await tick.tick(dry_run=dry_run)
         except Exception as exc:
             state.log(f"tick error: {exc}")
             if not dry_run:
                 await state.write_status(phase="error", error=truncate_error_with_cause(str(exc)))
         if once:
-            return 0
+            return BLOCKED_EXIT if blocked else 0
         await asyncio.sleep(config.INTERVAL_S)  # STOP keeps the process alive and idle
 
 
