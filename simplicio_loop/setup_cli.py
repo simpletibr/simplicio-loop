@@ -511,7 +511,7 @@ def collect(options: Options, environ: Mapping[str, str], seams: Seams, director
         "default_host": choice.host,
         "default_login": choice.login or None,
         "default_family": next((h.family for h in host_detect.HOSTS if h.id == choice.host and h.family), None),  # for the watcher
-        "pending": pending,  # the same setup items `setup` prints: `doctor` names the first one's fix
+        "pending": pending + _evidence_pending(evidence),  # what `setup` prints: `doctor` and `install` name the first one's fix
     }
     stale = current is None or _stable(current) != summary
     report = {**summary, "github": {**github, **({"masked": cred.masked} if cred else {})},

@@ -601,6 +601,19 @@ def test_install_that_ends_ok_prints_no_next_line(home, monkeypatch, capsys):
     assert next_lines(capsys.readouterr().err) == []
 
 
+EVIDENCE_FIX = "install Node.js 22 or newer from https://nodejs.org (needed by the evidence tools)"
+
+
+def test_a_pending_evidence_tool_is_the_next_line_when_every_setup_item_is_done(home, monkeypatch, capsys):
+    fakes = Fakes()
+    fakes.evidence_checks = [check("evidence:node", "missing", fix=EVIDENCE_FIX), check("evidence:playwright")]
+    monkeypatch.setattr(setup_cli, "real_seams", fakes.seams)
+    out = io.StringIO()
+    assert setup_cli.after_install(out=out) == 0  # pending is not a failed install
+    assert "evidence:node: missing. Fix: " + EVIDENCE_FIX in out.getvalue()
+    assert next_lines(capsys.readouterr().err) == [f"next: {EVIDENCE_FIX}"]  # the first pending item of the run, not a generic command
+
+
 def test_the_real_parser_flags_match_the_options():
     import argparse
     parser = argparse.ArgumentParser()
