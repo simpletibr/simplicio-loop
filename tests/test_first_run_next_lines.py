@@ -147,6 +147,47 @@ def test_prepare_missing_mapper_survey_prints_the_orient_command(tmp_path, capsy
     assert lines[0].startswith("next: simplicio-loop orient --brief --repo ")
 
 
+MISSING_TARGETS_MESSAGE = ("mapper-derived plan failed validation: "
+                           "task[1] target_missing_without_to_create:calc/ops.py, "
+                           "task[1] target_missing_without_to_create:tests/test_ops.py")
+
+
+@pytest.mark.parametrize("blocker", [
+    MISSING_TARGETS_MESSAGE,
+    {"kind": "run_preflight", "reason_code": "no_authorized_target", "message": MISSING_TARGETS_MESSAGE},
+], ids=["text", "mapping"])
+def test_prepare_blocked_on_a_missing_target_names_the_paths_and_the_new_file_syntax(tmp_path, monkeypatch, capsys,
+                                                                                     blocker):
+    """A task that names files the repo lacks is blocked with target_missing_without_to_create. The one next
+    line names every missing path and the task-file lines that declare a new file, not a generic status command."""
+    from simplicio_loop import survey
+
+    monkeypatch.setattr(survey, "provenance", lambda repo: {"ok": True})  # past the mapper gate
+    monkeypatch.setattr(cli_impl, "arm_run", lambda *args, **kwargs: {
+        "manifest": {"run_id": "run-x"}, "run_dir": str(tmp_path / "run-x"),
+        "state": {"phase": "blocked", "blockers": [blocker]},
+    })
+    task = tmp_path / "task.md"
+    task.write_text("System: calc\nFeature: add mul\n", encoding="utf-8")
+
+    code = cli_impl.main(["prepare", "--repo", str(tmp_path), "--task", str(task)])
+    captured = capsys.readouterr()
+
+    assert code == 2
+    lines = _next_lines(captured.err)
+    assert len(lines) == 1
+    assert lines[0].startswith(f"next: calc/ops.py, tests/test_ops.py not found in {tmp_path}")
+    assert "'Type: Creation'" in lines[0] and "'Target: <path>'" in lines[0]
+
+
+def test_the_new_file_syntax_the_next_line_names_is_the_one_the_planner_reads(tmp_path):
+    from simplicio_loop import runner_plan
+
+    text = "System: calc\nFeature: add mul\nType: Creation\nTarget: calc/ops.py\n"
+    assert runner_plan._extract_declared_task_target(text, tmp_path) == ["calc/ops.py"]
+    assert runner_plan._is_creation_task_type("Creation")
+
+
 # --- observation 4: stale mapper context lists changed paths -------------------------------------------------------
 
 

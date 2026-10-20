@@ -7,6 +7,7 @@ level of a `wave` result instead of only inside its nested `state`.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any, Mapping, Optional
@@ -16,6 +17,7 @@ from .task_contract import contract_hints
 PLAN_SCHEMA = "simplicio.dev-cli.edit-plan/v1"
 PLAN_SCHEMA_PATH = "packages/dev-cli/contracts/dev-cli-edit/edit-plan.schema.json"
 MINIMAL_PLAN = '{"operations": [{"path": "<repo-relative file>", "find": "<exact text>", "replace": "<new text>"}]}'
+TARGET_MISSING_RE = re.compile(r"target_missing_without_to_create:([^,\s]+)")
 
 
 def emit(line: str) -> None:
@@ -93,6 +95,17 @@ def contract_problems(task_path: str, message: str) -> dict[str, Any]:
     return {"errors": errors, "hints": hints[:5]}
 
 
+def _missing_targets(blockers: Any) -> list[str]:
+    """The paths a blocked prepare lists as target_missing_without_to_create, in order and without repeats."""
+    paths: list[str] = []
+    for blocker in blockers or []:
+        text = str(blocker.get("message") or "") if isinstance(blocker, Mapping) else str(blocker)
+        for path in TARGET_MISSING_RE.findall(text):
+            if path not in paths:
+                paths.append(path)
+    return paths
+
+
 def prepare_next(repo: str, task_path: str, payload: Mapping[str, Any]) -> None:
     """The one `next:` line for a prepare that did not arm the run."""
     hints = (payload.get("task_contract") or {}).get("hints") or []
@@ -105,6 +118,12 @@ def prepare_next(repo: str, task_path: str, payload: Mapping[str, Any]) -> None:
         return
     if payload.get("reason_code") == "prepare_failed":
         emit(f"fix the error above in {task_path}; a valid task file: simplicio-loop prepare --example")
+        return
+    missing = _missing_targets(payload.get("blockers"))
+    if missing:
+        emit(f"{', '.join(missing)} not found in {repo}: name only existing files in {task_path}, or give each "
+             "new file its own task (a task starts with a 'System:' line) with the lines 'Type: Creation' and "
+             "'Target: <path>'")
         return
     run_id = str(payload.get("run_id") or "")
     if run_id:
