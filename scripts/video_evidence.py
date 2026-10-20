@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""simplicio-tasks / simplicio-loop — video_evidence worker (demo-video proof, two engines).
+"""simplicio-loop — video_evidence worker (demo-video proof, two engines).
 
 The runnable form of the `video_evidence` extension point documented in
-`.claude/skills/simplicio-tasks/references/video-evidence.md`. Produces a demo video of a
+`.claude/skills/simplicio-loop/references/video-evidence.md`. Produces a demo video of a
 screen/feature and records it as evidence a change works. Evidence is ALWAYS a file path + a boolean
 verdict — never the video bytes, frames, or HTML are fed back into the model context (token economy).
 
@@ -19,7 +19,7 @@ Either engine: a missing toolchain yields BLOCKED, never a fake pass.
 Verbs:
 
   detect    Cheap intent gate (no toolchain). Decide whether a goal/work-item is an explicit
-            video-creation request (e.g. `/simplicio-tasks make an explainer video of screen X`) —
+            video-creation request (e.g. `/simplicio-loop make an explainer video of screen X`) —
             those route to the hyperframes engine. Exit 0 + "video-task" / "skip"; --exit-code → 10.
   record    engine=playwright: drive --url with Playwright recording on → a real session video. The session
             runs on the installed Playwright of the loop's evidence tools (simplicio_loop/evidence_tools.py,
@@ -118,7 +118,8 @@ def _ffmpeg():
     libvpx is broken is found and does not run, so it is checked with `-version` before anything uses it."""
     exe = os.environ.get("HYPERFRAMES_FFMPEG_PATH") or shutil.which("ffmpeg")
     if exe is None:
-        return None, "FFmpeg not found: install it (`brew install ffmpeg`) or set HYPERFRAMES_FFMPEG_PATH to a working ffmpeg"
+        return None, ("FFmpeg not found: install it (`brew install ffmpeg` on macOS, `sudo apt-get install -y ffmpeg` on "
+                      "Debian or Ubuntu, or with your package manager) or set HYPERFRAMES_FFMPEG_PATH to a working ffmpeg")
     fix = "fix: `brew reinstall ffmpeg`, or set HYPERFRAMES_FFMPEG_PATH to a working ffmpeg"
     try:
         done = _run([exe, "-version"], timeout=FFMPEG_CHECK_S)

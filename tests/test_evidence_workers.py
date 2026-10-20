@@ -428,6 +428,7 @@ def test_no_ffmpeg_at_all_is_named_with_the_install_fix(monkeypatch):
     monkeypatch.setattr(video_evidence, "_run", lambda argv, **kw: pytest.fail("nothing to run without ffmpeg"))
     path, problem = video_evidence._ffmpeg()
     assert path is None and "not found" in problem and "brew install ffmpeg" in problem
+    assert "sudo apt-get install -y ffmpeg" in problem  # the Linux install, next to the macOS one
 
 
 # --- a consumer repository: a pip install has no checkout, so a run writes into the repo it is bound to (SIMPLICIO_REPO) --
