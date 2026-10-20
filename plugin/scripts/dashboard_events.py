@@ -42,6 +42,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import math
 import os
 import re
 import sys
@@ -148,9 +149,11 @@ def new_ulid(ts_ms=None, randomness=None):
     return "".join(reversed(chars))
 
 
-def format_ts(epoch_seconds):
-    """RFC 3339 UTC with milliseconds: ``2026-10-02T21:00:00.123Z``."""
-    ms = int(round(float(epoch_seconds) * 1000))
+def format_ts(epoch_seconds, floor=False):
+    """RFC 3339 UTC with milliseconds: ``2026-10-02T21:00:00.123Z``. Rounded to the nearest millisecond, or truncated
+    with ``floor``: a stamp taken from the clock must never be later than the clock it was taken from."""
+    scaled = float(epoch_seconds) * 1000
+    ms = math.floor(scaled) if floor else int(round(scaled))
     secs, ms = divmod(ms, 1000)
     return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(secs)) + ".%03dZ" % ms
 
@@ -242,7 +245,7 @@ def build_envelope(*, run_id, kind, source, seq, task_id=None, scope=None, phase
         ts_text = ts
     else:
         parsed = parse_ts(ts) if ts else None
-        ts_text = format_ts(parsed if parsed is not None else time.time())
+        ts_text = format_ts(parsed) if parsed is not None else format_ts(time.time(), floor=True)
     if event_id is None:
         event_id = new_ulid(int(parse_ts(ts_text) * 1000))
     if isinstance(iteration, bool) or not isinstance(iteration, int) or iteration < 0:

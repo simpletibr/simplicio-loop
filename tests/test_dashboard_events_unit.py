@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import time
 from pathlib import Path
 
 import pytest
@@ -95,6 +96,14 @@ def test_ts_format_and_parse_roundtrip():
     assert de.parse_ts("2026-10-02T21:00:00Z") == de.parse_ts("2026-10-02T21:00:00.000Z")
     assert de.parse_ts("2026-10-02T21:00:00+00:00") is not None
     assert de.parse_ts("garbage") is None
+
+
+def test_a_stamp_taken_from_the_clock_is_never_later_than_that_clock(tmp_path, monkeypatch):
+    # 0.6 ms past a whole millisecond: rounding to the nearest millisecond would stamp the next one, 0.4 ms in the future.
+    now = 1_800_000_000.0006
+    monkeypatch.setattr(time, "time", lambda: now)
+    (written,) = de.emit_batch(tmp_path, [{"kind": "phase_entered", "source": "runner", "phase": "mapping"}])
+    assert de.parse_ts(written["ts"]) <= now
 
 
 def test_scope_is_inferred_from_task_id():

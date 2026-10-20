@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import time
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -133,3 +134,19 @@ def test_the_panel_reducer_shows_the_verify_while_it_runs_and_clears_it_after(tm
     finished = lane_extras.extras(run.run_dir, dashboard_events.read_events(run.run_dir))["running_command"]
     assert finished["lanes"] == []
     assert finished["reason"] == lane_extras.IDLE_REASON
+
+
+def test_a_start_stamped_just_before_a_millisecond_is_running_not_in_the_future(tmp_path, monkeypatch):
+    # The start is stamped from the clock when it is written, and the reducer reads the clock again a moment later.
+    # A stamp rounded to the nearest millisecond can land up to 0.5 ms after that clock; the reducer then read the start
+    # as being in the future and reported UNVERIFIED for a command that is running. The clock is pinned, nothing sleeps.
+    now = 1_800_000_000.0006
+    monkeypatch.setattr(time, "time", lambda: now)
+    run = TurboRun(tmp_path, "host")
+
+    with run.command("pytest -q"):
+        running = lane_extras.extras(run.run_dir, dashboard_events.read_events(run.run_dir), now=now)["running_command"]
+
+    assert running["state"] == "PASS"
+    (row,) = running["lanes"]
+    assert row["state"] == "MEASURED" and row["age_s"] == 0
