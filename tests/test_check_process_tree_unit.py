@@ -1,6 +1,7 @@
 """Real child-process contracts for the hermetic core gate."""
 from __future__ import annotations
 
+import ctypes
 from io import StringIO
 import os
 import subprocess
@@ -601,3 +602,57 @@ def test_package_gate_step_reports_descendant_leak_reason(tmp_path) -> None:
     )
     assert fail is not None
     assert fail.reason_code == "pkg_pytest_failed_descendant_leak"
+
+
+def _child_subreaper_flag() -> int:
+    """This process's ``PR_GET_CHILD_SUBREAPER`` flag, read from the kernel."""
+    value = ctypes.c_int(-1)
+    assert ctypes.CDLL(None, use_errno=True).prctl(37, ctypes.byref(value), 0, 0, 0) == 0
+    return value.value
+
+
+def _set_child_subreaper(enabled: int) -> None:
+    assert ctypes.CDLL(None, use_errno=True).prctl(36, enabled, 0, 0, 0) == 0
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux subreaper contract")
+@pytest.mark.parametrize("capture_output", [True, False])
+def test_run_bounded_restores_the_subreaper_flag_it_enabled(capture_output) -> None:
+    """A finished phase must not leave this process adopting unrelated orphans."""
+    _set_child_subreaper(0)
+    try:
+        assert _child_subreaper_flag() == 0
+        result = check_runtime.run_bounded(
+            [sys.executable, "-c", "pass"], phase="stdlib_test", capture_output=capture_output,
+        )
+        assert result.returncode == 0
+        assert _child_subreaper_flag() == 0
+    finally:
+        _set_child_subreaper(0)
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux subreaper contract")
+def test_run_bounded_keeps_a_subreaper_its_caller_already_enabled() -> None:
+    """Only the flag that run_bounded itself turned on may be turned off again."""
+    _set_child_subreaper(1)
+    try:
+        result = check_runtime.run_bounded(
+            [sys.executable, "-c", "pass"], phase="stdlib_test", capture_output=True,
+        )
+        assert result.returncode == 0
+        assert _child_subreaper_flag() == 1
+    finally:
+        _set_child_subreaper(0)
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux subreaper contract")
+def test_subreaper_is_restored_only_when_the_last_holder_leaves() -> None:
+    _set_child_subreaper(0)
+    assert check_runtime._hold_linux_subreaper()  # a run_bounded call
+    try:
+        assert check_runtime._hold_linux_subreaper()  # a concurrent run_bounded call
+        check_runtime._drop_linux_subreaper()
+        assert _child_subreaper_flag() == 1  # the first call still needs the flag
+    finally:
+        check_runtime._drop_linux_subreaper()
+    assert _child_subreaper_flag() == 0

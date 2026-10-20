@@ -767,6 +767,58 @@ def _enable_linux_subreaper() -> bool:
         return False
 
 
+# Live run_bounded calls holding the Linux subreaper, and the flag's value before the
+# first of them enabled it.  The flag belongs to the whole process, so both are
+# guarded by _SUBREAPER_LOCK.
+_SUBREAPER_LOCK = threading.Lock()
+_subreaper_users = 0
+_subreaper_inherited = 0
+
+
+def _read_linux_subreaper() -> Optional[int]:
+    """Return this process's ``PR_GET_CHILD_SUBREAPER`` flag, or ``None`` if unreadable."""
+    if not (sys.platform.startswith("linux") and os.path.isdir("/proc")):
+        return None
+    try:
+        import ctypes
+        value = ctypes.c_int(0)
+        if ctypes.CDLL(None, use_errno=True).prctl(37, ctypes.byref(value), 0, 0, 0) != 0:
+            return None
+        return value.value
+    except (AttributeError, OSError):
+        return None
+
+
+def _hold_linux_subreaper() -> bool:
+    """Enable the subreaper for one ``run_bounded`` call; ``False`` if it cannot be enabled.
+
+    Left set after the call, the flag would make every later orphan of any unrelated
+    subprocess reparent to this process, which never waits on it: a zombie until exit.
+    The first concurrent holder records the prior flag so that ``_drop_linux_subreaper``
+    can restore it when the last holder leaves.
+    """
+    global _subreaper_users, _subreaper_inherited
+    with _SUBREAPER_LOCK:
+        if _subreaper_users == 0:
+            inherited = _read_linux_subreaper()
+            if inherited is None or not _enable_linux_subreaper():
+                return False
+            _subreaper_inherited = inherited
+        _subreaper_users += 1
+    return True
+
+
+def _drop_linux_subreaper() -> None:
+    """Release one ``_hold_linux_subreaper``; the last release restores the prior flag."""
+    global _subreaper_users
+    with _SUBREAPER_LOCK:
+        _subreaper_users -= 1
+        if _subreaper_users == 0 and _subreaper_inherited == 0:
+            import ctypes
+            # Setting the flag to 0 is always accepted by the kernel.
+            ctypes.CDLL(None, use_errno=True).prctl(36, 0, 0, 0, 0)
+
+
 class _CaptureBuffer:
     """Keep deterministic head and tail evidence within one stream budget."""
 
@@ -1060,16 +1112,19 @@ def run_bounded(
     proc = None
     windows_bootstrap_ready = None
     windows_bootstrap_started = None
+    subreaper_held = False
     try:
         discover = (
             os.name != "nt" and sys.platform.startswith("linux")
             and os.path.isdir("/proc")
         )
-        if discover and not _enable_linux_subreaper():
-            return CommandResult(
-                126, reason=CommandReason.CONTAINMENT_UNAVAILABLE,
-                stderr="CAPABILITY_UNAVAILABLE[process_containment]",
-            )
+        if discover:
+            subreaper_held = _hold_linux_subreaper()
+            if not subreaper_held:
+                return CommandResult(
+                    126, reason=CommandReason.CONTAINMENT_UNAVAILABLE,
+                    stderr="CAPABILITY_UNAVAILABLE[process_containment]",
+                )
         baseline: Set[int] = set()
         if discover:
             observed_baseline = _posix_descendants(os.getpid())
@@ -1206,6 +1261,8 @@ def run_bounded(
                 reason=CommandReason.TIMEOUT,
             )
     finally:
+        if subreaper_held:
+            _drop_linux_subreaper()
         if proc is not None and windows_bootstrap_ready and not os.path.exists(windows_bootstrap_ready):
             try:
                 _signal_windows_bootstrap(windows_bootstrap_ready)
