@@ -192,6 +192,8 @@ captioned slideshow of the `web_verify` screenshots
 `.claude/skills/simplicio-loop/references/video-evidence.md`. A missing toolchain BLOCKS, never a
 fake pass.
 
+From a pip install with no checkout, run the same workers as `simplicio-loop-tools video_evidence verify --url …` and `simplicio-loop-tools web_verify …`; they write under the current repo's `.simplicio-loop/`.
+
 ## PR evidence (prints + item-by-item AC check on every PR)
 
 The PR body is **assembled mechanically**, never hand-written, so it always shows the proof. Worker
@@ -204,6 +206,8 @@ rather than open a PR that has neither a checklist nor a print. It honors a disc
 below). The task anchor is the same worker that stops task deviation: every turn re-checks the
 frozen goal (`task_anchor.py check`) and the DoD gate (`task_anchor.py gate`) blocks "done" while
 any AC is unverified.
+
+From a pip install with no checkout, run it as `simplicio-loop-tools pr_evidence build --require-evidence`; it writes under the current repo's `.simplicio-loop/`.
 
 ## Progress feedback (real-time)
 

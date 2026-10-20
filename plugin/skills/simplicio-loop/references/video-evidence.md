@@ -110,7 +110,7 @@ python3 scripts/video_evidence.py lint     --name NAME
 ```
 `verify` defaults to the Playwright engine; `--engine hyperframes` selects the slideshow. A missing
 toolchain (Node 22+; Playwright for the default engine, FFmpeg/hyperframes for the explainer) yields
-**BLOCKED**, never a fake pass — identical discipline to `web_verify`.
+**BLOCKED**, never a fake pass — identical discipline to `web_verify`. From a pip install with no checkout, run the same workers as `simplicio-loop-tools video_evidence verify --url …` and `simplicio-loop-tools web_verify …`; they write under the current repo's `.simplicio-loop/`.
 
 ## Scope (don't over-engineer)
 Default flow = one Playwright recording of the screen running. Custom-explainer flow = one
