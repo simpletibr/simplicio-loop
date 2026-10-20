@@ -767,6 +767,59 @@ def _enable_linux_subreaper() -> bool:
         return False
 
 
+def _linux_subreaper_flag() -> Optional[int]:
+    """Read ``PR_GET_CHILD_SUBREAPER``; None where the flag cannot be read."""
+    if not (sys.platform.startswith("linux") and os.path.isdir("/proc")):
+        return None
+    try:
+        import ctypes
+        flag = ctypes.c_int()
+        if ctypes.CDLL(None, use_errno=True).prctl(37, ctypes.byref(flag), 0, 0, 0) != 0:
+            return None
+        return flag.value
+    except (AttributeError, OSError):
+        return None
+
+
+def _restore_linux_subreaper(flag: int) -> None:
+    """Put back the subreaper value the caller had before ``run_bounded`` enabled it."""
+    try:
+        import ctypes
+        ctypes.CDLL(None, use_errno=True).prctl(36, flag, 0, 0, 0)
+    except (AttributeError, OSError):
+        pass
+
+
+class _LinuxSubreaperHold:
+    """Hold the Linux child subreaper for overlapping ``run_bounded`` calls only.
+
+    The first holder records the caller's own flag and the last release restores it, so a process that outlives a
+    call does not keep adopting orphans as zombies. A flag that cannot be read is never restored.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._holders = 0
+        self._caller_flag: Optional[int] = None
+
+    def acquire(self) -> bool:
+        with self._lock:
+            self._holders += 1
+            if self._holders == 1:
+                self._caller_flag = _linux_subreaper_flag()
+        return _enable_linux_subreaper()
+
+    def release(self) -> None:
+        with self._lock:
+            self._holders -= 1
+            if self._holders == 0 and self._caller_flag is not None:
+                _restore_linux_subreaper(self._caller_flag)
+                self._caller_flag = None
+
+
+_SUBREAPER_HOLD = _LinuxSubreaperHold()
+
+
 class _CaptureBuffer:
     """Keep deterministic head and tail evidence within one stream budget."""
 
@@ -1060,12 +1113,12 @@ def run_bounded(
     proc = None
     windows_bootstrap_ready = None
     windows_bootstrap_started = None
+    discover = (
+        os.name != "nt" and sys.platform.startswith("linux")
+        and os.path.isdir("/proc")
+    )
     try:
-        discover = (
-            os.name != "nt" and sys.platform.startswith("linux")
-            and os.path.isdir("/proc")
-        )
-        if discover and not _enable_linux_subreaper():
+        if discover and not _SUBREAPER_HOLD.acquire():
             return CommandResult(
                 126, reason=CommandReason.CONTAINMENT_UNAVAILABLE,
                 stderr="CAPABILITY_UNAVAILABLE[process_containment]",
@@ -1206,6 +1259,8 @@ def run_bounded(
                 reason=CommandReason.TIMEOUT,
             )
     finally:
+        if discover:
+            _SUBREAPER_HOLD.release()
         if proc is not None and windows_bootstrap_ready and not os.path.exists(windows_bootstrap_ready):
             try:
                 _signal_windows_bootstrap(windows_bootstrap_ready)
