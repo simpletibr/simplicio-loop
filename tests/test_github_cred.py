@@ -239,7 +239,14 @@ def test_a_piped_token_is_final(tmp_path, api):
     result = resolve(tmp_path, server, {"GH_TOKEN": TWO}, provided=BAD, run=runner)
     assert result.credential is None and result.tried == (("provided", "rejected"),) and runner.calls == []
     result = resolve(tmp_path, server, provided="not a token", run=runner)
-    assert result.credential is None and result.tried == (("provided", "invalid"),)
+    assert result.credential is None and result.tried == (("provided", "malformed"),)
+
+
+def test_a_token_of_the_wrong_shape_is_malformed_and_the_walk_goes_on_to_a_good_source(tmp_path, api):
+    server = api({FINE: ok(login="from-gh")})
+    result = resolve(tmp_path, server, {"GH_TOKEN": "not a token!"}, run=Runner(gh=FINE))
+    assert result.credential.login == "from-gh"
+    assert result.tried == (("env:GH_TOKEN", "malformed"), ("env:GITHUB_TOKEN", "missing"), ("gh", "ok"))
 
 
 def test_nothing_found_lists_every_source_as_missing(tmp_path, api):

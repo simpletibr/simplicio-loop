@@ -302,6 +302,37 @@ def _prereq_step(options: Options, environ: Mapping[str, str], seams: Seams, nod
     return checks, actions, dict(vouched)
 
 
+_SOURCE_NAMES = {"provided": "stdin", "env:GH_TOKEN": "GH_TOKEN", "env:GITHUB_TOKEN": "GITHUB_TOKEN"}  # as the user knows them
+
+
+def _not_a_token(names: Sequence[str]) -> str:
+    """Why a token the user gave cannot be used: its shape is wrong, so it was not sent to GitHub."""
+    if names == ["stdin"]:
+        return "the token on stdin is not a GitHub token (wrong length or characters); it was not sent to GitHub"
+    shown = " and ".join(names)
+    if len(names) == 1:
+        return f"{shown} is set but is not a GitHub token (wrong length or characters); it was not sent to GitHub"
+    return f"{shown} are set but are not GitHub tokens (wrong length or characters); they were not sent to GitHub"
+
+
+def _malformed_fix(names: Sequence[str]) -> str:
+    if names == ["stdin"]:
+        return f"pipe a GitHub token from https://github.com/settings/tokens to `{COMMAND} --github-token-stdin`"
+    return (f"unset {' and '.join(names)} or set {'it' if len(names) == 1 else 'them'} to a GitHub token from "
+            f"https://github.com/settings/tokens, then run `{COMMAND}`")
+
+
+def _github_problem(github: Mapping[str, Any]) -> dict:
+    """Why the GitHub step keeps setup pending, and the one fix for it. Neither text ever holds a token."""
+    status, names = github["status"], list(github.get("malformed") or [])
+    if status == "invalid" and names:
+        return {"why": _not_a_token(names), "fix": _malformed_fix(names)}
+    if status == "unverified":
+        return {"why": "GitHub did not answer; the credential could not be checked", "fix": f"run `{COMMAND}` again"}
+    why = "GitHub rejected the token" if status == "rejected" else "no GitHub credential found"
+    return {"why": why, "fix": f"run `{COMMAND}` in a terminal and type a token, or pipe it: ... | {COMMAND} --github-token-stdin"}
+
+
 def _github_step(options: Options, environ: Mapping[str, str], seams: Seams, directory: Path,
                  vouched: Mapping[str, str]) -> tuple[dict, Optional[github_cred.GitHubCredential]]:
     from . import github_cred
@@ -311,10 +342,14 @@ def _github_step(options: Options, environ: Mapping[str, str], seams: Seams, dir
     resolution = seams.resolve(environ, state_dir=directory, provided=provided, ask=ask, trusted=_paths(environ, vouched),
                                run=_pinned(environ, vouched, github_cred.run_command))
     cred = resolution.credential
+    tried = [{"source": s, "outcome": o} for s, o in resolution.tried]
+    malformed = [_SOURCE_NAMES.get(s, s) for s, o in resolution.tried if o == "malformed"]  # names only, never a value
+    named = {"malformed": malformed} if malformed else {}
     if cred is None:
         outcomes = {outcome for _, outcome in resolution.tried}
-        status = "unverified" if "unreachable" in outcomes else "rejected" if "rejected" in outcomes else "missing"
-        return {"status": status, "tried": [{"source": s, "outcome": o} for s, o in resolution.tried]}, None
+        status = ("unverified" if "unreachable" in outcomes else "rejected" if "rejected" in outcomes
+                  else "invalid" if malformed else "missing")
+        return {"status": status, "tried": tried, **named}, None
     source = cred.source
     if source in ("provided", "prompt"):
         source = "stored"  # the next run finds it there, so the summary reads the same
@@ -322,7 +357,7 @@ def _github_step(options: Options, environ: Mapping[str, str], seams: Seams, dir
             seams.save_token(directory, cred.token, cred.login)
     scopes = None if cred.scopes is None else list(cred.scopes)
     return {"status": "ok", "source": source, "login": cred.login, "scopes": scopes,
-            "missing_scopes": list(cred.missing_scopes)}, cred
+            "missing_scopes": list(cred.missing_scopes), **named}, cred
 
 
 def _host_rows(statuses: Sequence[Any]) -> list[dict]:
@@ -349,11 +384,7 @@ def _pending(checks: Sequence[Any], github: Mapping[str, Any], choice: host_dete
     items = [{"item": c.name, "why": c.status, "fix": f"{COMMAND} --yes" if yes_installs and c.auto == "system" else c.fix}
              for c in checks if c.required and c.status != "ok"]
     if github["status"] != "ok":
-        why = {"unverified": "GitHub did not answer; the credential could not be checked",
-               "rejected": "GitHub rejected the token"}
-        fix = (f"run `{COMMAND}` again" if github["status"] == "unverified" else
-               f"run `{COMMAND}` in a terminal and type a token, or pipe it: ... | {COMMAND} --github-token-stdin")
-        items.append({"item": "github", "why": why.get(github["status"], "no GitHub credential found"), "fix": fix})
+        items.append({"item": "github", **_github_problem(github)})
     elif github["missing_scopes"]:
         items.append({"item": "github-scopes", "why": "the token lacks: " + ", ".join(github["missing_scopes"]),
                       "fix": f"create a token with the repo and workflow scopes, then run {COMMAND}"})
@@ -532,6 +563,8 @@ def render(report: Mapping[str, Any], summary_state: str) -> str:
     if github["status"] == "ok":
         scopes = "unknown (fine-grained token)" if github["scopes"] is None else ", ".join(github["scopes"]) or "none"
         lines.append(f"  login {github['login']}  source {github['source']}  token {github['masked']}  scopes {scopes}")
+        if github.get("malformed"):  # the login came from another source: say that the token the user set was not used
+            lines.append(f"  note: {_not_a_token(github['malformed'])}")
     else:
         lines.append(f"  {github['status']}")
     lines += ["", f"Default host: {report['default_host'] or 'none'}"]

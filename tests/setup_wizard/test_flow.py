@@ -144,6 +144,41 @@ def test_a_rejected_or_unreachable_credential_is_pending_not_ok(home):
     assert code == setup_cli.PENDING and json.loads(summary_file(home).read_text())["github"]["status"] == "unverified"
 
 
+MALFORMED_WHY = "GH_TOKEN is set but is not a GitHub token (wrong length or characters); it was not sent to GitHub"
+
+
+def test_a_token_of_the_wrong_shape_is_invalid_and_names_the_variable(home):
+    fakes = Fakes()
+    fakes.resolution = github_cred.Resolution(None, (("env:GH_TOKEN", "malformed"), ("env:GITHUB_TOKEN", "missing"),
+                                                     ("gh", "missing"), ("git-credential", "missing"), ("stored", "missing")))
+    code, text = run(fakes, home, json_out=True)
+    doc = json.loads(text)
+    assert code == setup_cli.PENDING and doc["github"]["status"] == "invalid"
+    item = next(p for p in doc["pending"] if p["item"] == "github")
+    assert item["why"] == MALFORMED_WHY
+    assert item["fix"] == "unset GH_TOKEN or set it to a GitHub token from https://github.com/settings/tokens, then run `simplicio-loop setup`"
+    assert json.loads(summary_file(home).read_text())["github"] == {"status": "invalid", "malformed": ["GH_TOKEN"]}
+    fakes.resolution = github_cred.Resolution(None, (("env:GH_TOKEN", "malformed"), ("gh", "unreachable")))
+    assert json.loads(run(fakes, home, json_out=True)[1])["github"]["status"] == "unverified"  # no answer beats a shape problem
+
+
+def test_a_piped_token_of_the_wrong_shape_is_invalid_and_names_the_pipe(home):
+    fakes = Fakes()
+    fakes.resolution = github_cred.Resolution(None, (("provided", "malformed"),))
+    code, text = run(fakes, home, token_stdin=True)
+    assert code == setup_cli.PENDING and "invalid" in text
+    assert "github: the token on stdin is not a GitHub token (wrong length or characters); it was not sent to GitHub. Fix: " in text
+    assert "pipe a GitHub token from https://github.com/settings/tokens to `simplicio-loop setup --github-token-stdin`" in text
+
+
+def test_a_malformed_environment_token_is_noted_when_another_source_gives_the_login(home):
+    fakes = Fakes()
+    fakes.resolution = github_cred.Resolution(credential("gh"), (("env:GH_TOKEN", "malformed"), ("gh", "ok")))
+    code, text = run(fakes, home)
+    assert code == 0 and f"note: {MALFORMED_WHY}" in text and "source gh" in text
+    assert json.loads(summary_file(home).read_text())["github"]["malformed"] == ["GH_TOKEN"]
+
+
 def test_missing_scopes_are_pending_with_the_names(home):
     fakes = Fakes()
     fakes.resolution = github_cred.Resolution(credential(scopes=("repo",), missing=("workflow",)), (("gh", "ok"),))

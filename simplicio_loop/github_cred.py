@@ -75,7 +75,9 @@ class GitHubCredential:
 @dataclass(frozen=True)
 class Resolution:
     credential: Optional[GitHubCredential]
-    tried: tuple[tuple[str, str], ...]  # (source, outcome): missing | invalid | rejected | unreachable | ok
+    # (source, outcome): missing | malformed | invalid | rejected | unreachable | ok. `malformed`: the shape check refused the
+    # token, so it was never sent; `invalid`: any other refusal before GitHub answered (a store error, a bad answer).
+    tried: tuple[tuple[str, str], ...]
 
 
 # --- the API --------------------------------------------------------------------------------------------------------
@@ -255,7 +257,10 @@ def resolve(environ: Optional[Mapping[str, str]] = None, *, state_dir: Path, pro
         try:
             login, scopes = validate(token, base_url=base_url, timeout=timeout)
         except CredError as exc:
-            outcome = exc.reason_code if exc.reason_code in ("rejected", "unreachable") else "invalid"
+            if exc.reason_code in ("rejected", "unreachable"):
+                outcome = exc.reason_code
+            else:
+                outcome = "malformed" if exc.reason_code == "invalid_token" else "invalid"
             tried.append((source, outcome))
             if outcome == "unreachable" or source == "provided":
                 return Resolution(None, tuple(tried))
