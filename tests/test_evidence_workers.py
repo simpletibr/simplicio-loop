@@ -6,8 +6,10 @@ The runner itself (where its folder is, its argv, its cleanup) is tested in test
 """
 from __future__ import annotations
 
+import contextlib
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -426,3 +428,63 @@ def test_no_ffmpeg_at_all_is_named_with_the_install_fix(monkeypatch):
     monkeypatch.setattr(video_evidence, "_run", lambda argv, **kw: pytest.fail("nothing to run without ffmpeg"))
     path, problem = video_evidence._ffmpeg()
     assert path is None and "not found" in problem and "brew install ffmpeg" in problem
+
+
+# --- a consumer repository: a pip install has no checkout, so a run writes into the repo it is bound to (SIMPLICIO_REPO) --
+
+
+@contextlib.contextmanager
+def _set_aside_modules(*names):
+    """Remove `names` from sys.modules while a worker loads, then put back what was there (and drop what the load added)."""
+    saved = {name: sys.modules.get(name) for name in names}
+    for name in names:
+        sys.modules.pop(name, None)
+    try:
+        yield
+    finally:
+        for name, module in saved.items():
+            if module is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = module
+
+
+def load_bound(name: str, monkeypatch, simplicio_repo=None):
+    """Load scripts/<name> as a fresh module, bound the way consumer_cli binds a run: SIMPLICIO_REPO, else the checkout."""
+    if simplicio_repo is None:
+        monkeypatch.delenv("SIMPLICIO_REPO", raising=False)
+    else:
+        monkeypatch.setenv("SIMPLICIO_REPO", str(simplicio_repo))
+    monkeypatch.delenv("SIMPLICIO_ANCHOR_FILE", raising=False)
+    monkeypatch.setattr(sys, "path", list(sys.path))  # a worker's sys.path insertions end with this test
+    path = REPO / "scripts" / name
+    spec = importlib.util.spec_from_file_location("evidence_worker_bound_" + path.stem, path)
+    module = importlib.util.module_from_spec(spec)
+    with _set_aside_modules("task_anchor", "task_backlog", "delivery_contract", "loop_progress", "toon_codec"):
+        spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize("name, defaults", [
+    ("web_verify.py", ["DEFAULT_OUT"]),
+    ("video_evidence.py", ["DEFAULT_OUT"]),
+    ("pr_evidence.py", ["DEFAULT_SHOTS", "DEFAULT_VIDEO_SHOTS", "ANCHOR_DEFAULT"]),
+])
+def test_a_consumer_run_writes_its_evidence_under_simplicio_repo(name, defaults, tmp_path, monkeypatch):
+    consumer = tmp_path / "consumer"
+    consumer.mkdir()
+    worker = load_bound(name, monkeypatch, simplicio_repo=consumer)
+    for attr in defaults:
+        assert getattr(worker, attr).startswith(str(consumer) + os.sep), (attr, getattr(worker, attr))
+
+
+def test_without_simplicio_repo_a_checkout_run_still_writes_into_its_own_checkout(monkeypatch):
+    worker = load_bound("web_verify.py", monkeypatch, simplicio_repo=None)
+    assert worker.DEFAULT_OUT == os.path.join(str(REPO), ".simplicio-loop/orchestrator", "tee", "web")
+
+
+def test_a_consumer_bound_pr_evidence_keeps_the_checkout_on_sys_path_not_the_consumer(tmp_path, monkeypatch):
+    consumer = tmp_path / "consumer"
+    consumer.mkdir()
+    load_bound("pr_evidence.py", monkeypatch, simplicio_repo=consumer)
+    assert str(consumer) not in sys.path  # `from simplicio_loop import ...` resolves from the source, never the consumer

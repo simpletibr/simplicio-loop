@@ -71,9 +71,10 @@ except Exception:
     pass
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.dirname(HERE)
-if REPO not in sys.path:  # so `from simplicio_loop import github_lifecycle` resolves (#285)
-    sys.path.insert(0, REPO)
+REPO = os.path.abspath(os.environ.get("SIMPLICIO_REPO") or os.path.dirname(HERE))  # the repo a run acts on
+SOURCE_ROOT = os.path.dirname(HERE)  # the checkout that holds the simplicio_loop package, never the consumer
+if SOURCE_ROOT not in sys.path:  # so `from simplicio_loop import github_lifecycle` resolves (#285)
+    sys.path.insert(0, SOURCE_ROOT)
 DEFAULT_SHOTS = os.path.join(REPO, ".simplicio-loop/orchestrator", "tee", "web")
 # video_evidence.py's REAL default output dir (see its DEFAULT_OUT) — a separate directory from
 # DEFAULT_SHOTS. #81 found this drift: docs claimed recordings land under tee/web too, but the

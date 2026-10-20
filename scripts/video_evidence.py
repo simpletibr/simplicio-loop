@@ -60,7 +60,7 @@ except Exception:
     pass
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.dirname(HERE)
+REPO = os.path.abspath(os.environ.get("SIMPLICIO_REPO") or os.path.dirname(HERE))  # the repo a run acts on
 DEFAULT_OUT = os.path.join(REPO, ".simplicio-loop/orchestrator", "tee", "video")
 # Multilingual intent matcher for "create a demonstration video of screen/feature X".
 # Matches a video noun near a make/show/demo verb (EN/PT/ES). Deliberately broad but anchored

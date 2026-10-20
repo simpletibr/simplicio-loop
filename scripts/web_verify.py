@@ -49,7 +49,7 @@ except Exception:
     pass
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.dirname(HERE)
+REPO = os.path.abspath(os.environ.get("SIMPLICIO_REPO") or os.path.dirname(HERE))  # the repo a run acts on
 DEFAULT_OUT = os.path.join(REPO, ".simplicio-loop/orchestrator", "tee", "web")
 # same matcher as web-evidence.md "When it fires"
 FE_RE = re.compile(r"\.(tsx|jsx|vue|svelte|css|scss|html)$|^(components|pages|app|public|src/ui)/", re.I)
