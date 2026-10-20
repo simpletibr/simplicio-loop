@@ -459,6 +459,14 @@ def render_evidence(images, videos, heading="Evidence — prints & recordings"):
     return "\n".join(lines)
 
 
+def _default_how():
+    """The verify line of a PR body: name the repo's own gate only where that repository has one."""
+    if os.path.isfile(os.path.join(REPO, "scripts", "check.py")):
+        return ("Run the project's test gate (`python3 scripts/check.py`) and the captured `web_verify` / "
+                "`video_evidence` flow above.")
+    return "Run the repository's tests and the captured `web_verify` / `video_evidence` flow above."
+
+
 def build_body(opts):
     """Assemble the PR body. Returns (markdown, has_evidence)."""
     anchor = _load_anchor(opts)
@@ -476,8 +484,7 @@ def build_body(opts):
         backlog_md = render_backlog_table(backlog_master, backlog_items, anchor=anchor)
     checklist_md = render_checklist(criteria)
     evidence_md = render_evidence(images, videos)
-    how = opts.get("how") or "Run the project's test gate (`python3 scripts/check.py`) and the " \
-                             "captured `web_verify` / `video_evidence` flow above."
+    how = opts.get("how") or _default_how()
 
     progress_md = render_progress_section()
 

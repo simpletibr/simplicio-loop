@@ -488,3 +488,16 @@ def test_a_consumer_bound_pr_evidence_keeps_the_checkout_on_sys_path_not_the_con
     consumer.mkdir()
     load_bound("pr_evidence.py", monkeypatch, simplicio_repo=consumer)
     assert str(consumer) not in sys.path  # `from simplicio_loop import ...` resolves from the source, never the consumer
+
+
+def test_how_to_verify_names_the_check_script_only_where_the_repository_has_it(tmp_path, monkeypatch):
+    bare = tmp_path / "bare"
+    bare.mkdir()
+    gated = tmp_path / "gated"
+    (gated / "scripts").mkdir(parents=True)
+    (gated / "scripts" / "check.py").write_text("print('gate')\n", encoding="utf-8")
+    plain_body, _ = load_bound("pr_evidence.py", monkeypatch, simplicio_repo=bare).build_body({"title": "t", "item": "7"})
+    gated_body, _ = load_bound("pr_evidence.py", monkeypatch, simplicio_repo=gated).build_body({"title": "t", "item": "7"})
+    assert "### How to verify" in plain_body and "Run the repository's tests" in plain_body
+    assert "scripts/check.py" not in plain_body
+    assert "python3 scripts/check.py" in gated_body
