@@ -7,7 +7,8 @@
 * gh and uv: the release pinned in `setup_pins.json` goes to ~/.local/bin after its SHA256 matched the pin and the release
   checksums (`release_fetch`); a tool or platform without a pin is not downloaded;
 * git and bwrap (system packages): only with `yes`, and only as root or when `sudo -n` works. Otherwise the exact
-  command of the package manager is returned and nothing runs. There is no `curl | sh` and no sudo prompt.
+  command of the package manager is returned and nothing runs. apt refreshes its package index before it installs.
+  There is no `curl | sh` and no sudo prompt.
 
 Nothing runs through a shell. A tool that is already there is never replaced.
 """
@@ -145,11 +146,26 @@ def system_command(manager: str, packages: Sequence[str]) -> list[str]:
             "winget": ["winget", "install", "-e", "--id"]}[manager] + (names[:1] if manager == "winget" else names)
 
 
-def _system_fix(manager: Optional[str], packages: Sequence[str]) -> str:
+def system_steps(manager: Optional[str], packages: Sequence[str]) -> list[list[str]]:
+    """The commands (no sudo), in order, that install `packages`; [] when the manager has none of them.
+
+    apt refreshes its package index first: on a fresh box the index is empty and `install` fails with
+    `Unable to locate package`."""
     command = system_command(manager, packages) if manager else []
     if not command:
-        return f"install {' and '.join(packages)} with your system package manager"
-    return " ".join((["sudo"] if manager in NEEDS_ROOT and not _is_root() else []) + command)
+        return []
+    return [["apt-get", "update"], command] if manager == "apt" else [command]
+
+
+def _shown(manager: Optional[str], steps: Sequence[Sequence[str]]) -> str:
+    """The exact shell line a user runs: every step, with `sudo` in front of each one when this user needs it."""
+    sudo = ["sudo"] if manager in NEEDS_ROOT and not _is_root() else []
+    return " && ".join(" ".join(sudo + list(step)) for step in steps)
+
+
+def _system_fix(manager: Optional[str], packages: Sequence[str]) -> str:
+    steps = system_steps(manager, packages)
+    return _shown(manager, steps) if steps else f"install {' and '.join(packages)} with your system package manager"
 
 
 def is_store_alias(path: Optional[str]) -> bool:
@@ -398,21 +414,25 @@ def _install_python(uv: Optional[Check], where: _Where, run: Run, dry_run: bool,
 
 def _install_system(names: Sequence[str], *, yes: bool, dry_run: bool, which: Which, run: Run, platform: str) -> list[Action]:
     manager = package_manager(which=which, platform=platform)
-    command = system_command(manager, names) if manager else []
-    if not command:
+    steps = system_steps(manager, names)
+    if not steps:
         return [Action(name, "skipped", f"install {name} with your system package manager") for name in names]
     sudo = manager in NEEDS_ROOT and not _is_root()
-    shown = " ".join((["sudo"] if sudo else []) + command)
+    shown = _shown(manager, steps)
     if not yes:
         return [Action(name, "skipped", shown) for name in names]  # the user runs it, or passes --yes
     if dry_run:
         return [Action(name, "would-install", shown) for name in names]
-    argv = command
+    prefix: list[str] = []
     if sudo:
         if run(["sudo", "-n", "true"], TIMEOUT_S)[0] != 0:  # sudo would ask for a password: never prompt
             return [Action(name, "skipped", shown) for name in names]
-        argv = ["sudo", "-n", *command]
-    code, _ = run(argv, INSTALL_TIMEOUT_S)
+        prefix = ["sudo", "-n"]
+    code: Optional[int] = None
+    for step in steps:  # in order: a failed index refresh stops the install, and says so
+        code, _ = run([*prefix, *step], INSTALL_TIMEOUT_S)
+        if code != 0:
+            break
     return [Action(name, "installed", shown) if code == 0 else Action(name, "failed", f"`{shown}` did not finish (exit {code})")
             for name in names]
 

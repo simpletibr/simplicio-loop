@@ -117,7 +117,8 @@ def test_pip_and_venv_missing_give_the_package_manager_command():
     world.exit[f"{PY} -c import venv, ensurepip"] = (1, "")
     checks = check(world)
     assert checks["pip"].status == checks["venv"].status == "missing"
-    assert checks["pip"].fix == "sudo apt-get install -y python3-pip" and checks["venv"].fix == "sudo apt-get install -y python3-venv"
+    assert checks["pip"].fix == "sudo apt-get update && sudo apt-get install -y python3-pip"
+    assert checks["venv"].fix == "sudo apt-get update && sudo apt-get install -y python3-venv"
     no_apt = World(**{"apt-get": None, "dnf": "x"})
     no_apt.exit.update(world.exit)
     assert check(no_apt)["venv"].fix == "install venv with your system package manager"  # Fedora ships venv with python3
@@ -156,10 +157,11 @@ def test_a_venv_without_uv_still_needs_pip(tmp_path):
 def test_missing_system_tools_name_the_exact_command_and_root_needs_no_sudo(monkeypatch):
     world = World(git=None, bwrap=None)
     checks = check(world)
-    assert checks["git"].fix == "sudo apt-get install -y git" and checks["bwrap"].fix == "sudo apt-get install -y bubblewrap"
+    assert checks["git"].fix == "sudo apt-get update && sudo apt-get install -y git"
+    assert checks["bwrap"].fix == "sudo apt-get update && sudo apt-get install -y bubblewrap"
     assert checks["git"].auto == "system" and checks["git"].status == "missing" and checks["git"].path is None
     monkeypatch.setattr(prereqs, "_is_root", lambda: True)
-    assert check(world)["git"].fix == "apt-get install -y git"
+    assert check(world)["git"].fix == "apt-get update && apt-get install -y git"
     nothing = World(git=None, **{"apt-get": None})
     assert check(nothing)["git"].fix == "install git with your system package manager"
 
@@ -197,6 +199,16 @@ def test_system_command(manager, packages, argv):
     assert prereqs.system_command(manager, packages) == argv
 
 
+@pytest.mark.parametrize("manager, packages, steps", [
+    ("apt", ["git", "bwrap"], [["apt-get", "update"], ["apt-get", "install", "-y", "git", "bubblewrap"]]),  # a fresh box has no index
+    ("dnf", ["git"], [["dnf", "install", "-y", "git"]]),
+    ("brew", ["git"], [["brew", "install", "git"]]),
+    ("brew", ["bwrap"], []),
+])
+def test_system_steps_refresh_the_apt_index_first_and_no_other_manager_does(manager, packages, steps):
+    assert prereqs.system_steps(manager, packages) == steps
+
+
 # --- ensure: system packages ----------------------------------------------------------------------------------------
 
 
@@ -213,7 +225,8 @@ def test_without_yes_a_system_package_is_only_named_and_nothing_runs():
     world = World(git=None, bwrap=None)
     actions = ensure(world)
     assert [(a.name, a.result, a.detail) for a in actions] == [
-        ("git", "skipped", "sudo apt-get install -y git bubblewrap"), ("bwrap", "skipped", "sudo apt-get install -y git bubblewrap")]
+        ("git", "skipped", "sudo apt-get update && sudo apt-get install -y git bubblewrap"),
+        ("bwrap", "skipped", "sudo apt-get update && sudo apt-get install -y git bubblewrap")]
     assert world.ran("sudo") == [] and world.ran("apt-get") == []
 
 
@@ -221,22 +234,31 @@ def test_yes_with_a_sudo_that_needs_a_password_still_runs_nothing():
     world = World(git=None)
     world.exit["sudo -n true"] = (1, "a password is required")
     actions = ensure(world, yes=True)
-    assert [(a.result, a.detail) for a in actions] == [("skipped", "sudo apt-get install -y git")]
+    assert [(a.result, a.detail) for a in actions] == [("skipped", "sudo apt-get update && sudo apt-get install -y git")]
     assert world.ran("sudo") == [["sudo", "-n", "true"]] and world.ran("apt-get") == [] and world.ran("sudo", "-n", "apt-get") == []
 
 
-def test_yes_with_sudo_n_installs_with_sudo_n_after_probing_it():
+def test_yes_with_sudo_n_refreshes_the_index_then_installs_with_sudo_n_after_probing_it():
     world = World(git=None)
     actions = ensure(world, yes=True)
-    assert [(a.result, a.detail) for a in actions] == [("installed", "sudo apt-get install -y git")]
-    assert world.ran("sudo") == [["sudo", "-n", "true"], ["sudo", "-n", "apt-get", "install", "-y", "git"]]
+    assert [(a.result, a.detail) for a in actions] == [("installed", "sudo apt-get update && sudo apt-get install -y git")]
+    assert world.ran("sudo") == [["sudo", "-n", "true"], ["sudo", "-n", "apt-get", "update"],
+                                 ["sudo", "-n", "apt-get", "install", "-y", "git"]]
+
+
+def test_a_failed_index_refresh_stops_the_apt_install_and_names_the_step(monkeypatch):
+    world = World(git=None)
+    world.exit["sudo -n apt-get update"] = (100, "E: could not get lock")
+    action = ensure(world, yes=True)[0]
+    assert action.result == "failed" and "exit 100" in action.detail and "E: could not get lock" not in action.detail
+    assert world.ran("sudo", "-n", "apt-get", "install") == []
 
 
 def test_yes_as_root_runs_the_manager_directly(monkeypatch):
     monkeypatch.setattr(prereqs, "_is_root", lambda: True)
     world = World(git=None)
     assert ensure(world, yes=True)[0].result == "installed"
-    assert world.ran("sudo") == [] and world.ran("apt-get") == [["apt-get", "install", "-y", "git"]]
+    assert world.ran("sudo") == [] and world.ran("apt-get") == [["apt-get", "update"], ["apt-get", "install", "-y", "git"]]
 
 
 @pytest.mark.parametrize("manager, argv_full, argv_display", [
