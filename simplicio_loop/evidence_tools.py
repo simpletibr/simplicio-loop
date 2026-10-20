@@ -26,11 +26,12 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import tempfile
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Optional
 
@@ -239,65 +240,103 @@ def hyperframes_block(state_dir: Path) -> Optional[str]:
 # --- installing ------------------------------------------------------------------------------------------------------
 
 
+# a TLS trust error, by the code npm and Node print or by its words: a proxy's private CA that the install does not trust
+_TRUST_ERROR = re.compile(
+    r"SELF_SIGNED_CERT_IN_CHAIN|UNABLE_TO_GET_ISSUER_CERT_LOCALLY|UNABLE_TO_VERIFY_LEAF_SIGNATURE|CERT_UNTRUSTED"
+    r"|self-signed certificate in certificate chain|unable to get local issuer certificate", re.IGNORECASE)
+
+
+def trust_fix(output: str, env: Mapping[str, str], command: str) -> str | None:
+    """The exact command that fixes a TLS trust error in an install's output, None when the output shows none. Node reads a
+    private CA only from NODE_EXTRA_CA_CERTS, so the command names the CA bundle that SSL_CERT_FILE or REQUESTS_CA_BUNDLE
+    points to (when that is a file), else a placeholder."""
+    if not _TRUST_ERROR.search(output):
+        return None
+    bundle = None
+    for name in ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE"):
+        if env.get(name) and os.path.isfile(env[name]):
+            bundle = os.path.abspath(env[name])
+            break
+    where = shlex.quote(bundle) if bundle else "<path to your CA bundle>"
+    return f"NODE_EXTRA_CA_CERTS={where} {command}"
+
+
 def _install_package(project: Path, *, name: str, description: str, dependencies: Mapping[str, str], npm: Optional[str],
-                     env: Mapping[str, str], run: Run, dry_run: bool) -> Action:
-    """npm installs the exact pins of `dependencies` into `project`, which gets its own package.json (its own npm project)."""
+                     env: Mapping[str, str], run: Run, dry_run: bool, command: str) -> tuple[Action, str | None]:
+    """npm installs the exact pins of `dependencies` into `project`, which gets its own package.json (its own npm project).
+    The second value is the exact fix when npm failed on a trust error; `command` is the setup command that fix runs."""
     pins = ", ".join(f"{package} {version}" for package, version in dependencies.items())
     if dry_run:
-        return Action(name, "would-install", f"{pins} in {project}")
+        return Action(name, "would-install", f"{pins} in {project}"), None
     if npm is None:
-        return Action(name, "failed", "npm is not on the PATH setup trusts (it comes with Node.js)")
+        return Action(name, "failed", "npm is not on the PATH setup trusts (it comes with Node.js)"), None
     manifest = {"name": f"simplicio-{project.name}", "private": True, "description": description, "dependencies": dict(dependencies)}
     try:
         project.mkdir(parents=True, exist_ok=True)
         (project / "package.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     except OSError as exc:
-        return Action(name, "failed", f"cannot write {project}: {exc.strerror or exc}")
+        return Action(name, "failed", f"cannot write {project}: {exc.strerror or exc}"), None
     code, text = run([npm, "install", "--no-audit", "--no-fund", "--loglevel=error"], INSTALL_S, cwd=project, env=env)
     if code != 0:
-        return Action(name, "failed", f"`npm install` in {project} did not finish ({_state(code)}): {excerpt(text)}")
-    return Action(name, "installed", f"{pins} in {project}")
+        return (Action(name, "failed", f"`npm install` in {project} did not finish ({_state(code)}): {excerpt(text)}"),
+                trust_fix(text, env, command))
+    return Action(name, "installed", f"{pins} in {project}"), None
 
 
-def _install_browser(project: Path, env: Mapping[str, str], run: Run, dry_run: bool) -> Action:
+def _install_browser(project: Path, env: Mapping[str, str], run: Run, dry_run: bool) -> tuple[Action, str | None]:
+    """The Chromium build. The second value is the exact fix when its download hit a trust error."""
     if dry_run:
-        return Action(CHROMIUM, "would-install", f"the Chromium build of @playwright/test {PLAYWRIGHT_VERSION}")
+        return Action(CHROMIUM, "would-install", f"the Chromium build of @playwright/test {PLAYWRIGHT_VERSION}"), None
     code, text = run([_bin(project), "install", "chromium"], INSTALL_S, cwd=project, env=env)
     if code != 0:
-        return Action(CHROMIUM, "failed", f"`playwright install chromium` did not finish ({_state(code)}): {excerpt(text)}")
-    return Action(CHROMIUM, "installed", f"the Chromium build of @playwright/test {PLAYWRIGHT_VERSION}")
+        return (Action(CHROMIUM, "failed", f"`playwright install chromium` did not finish ({_state(code)}): {excerpt(text)}"),
+                trust_fix(text, env, SETUP_FIX))
+    return Action(CHROMIUM, "installed", f"the Chromium build of @playwright/test {PLAYWRIGHT_VERSION}"), None
 
 
 def install_missing(state_dir: Path, checks: Sequence[Check], *, environ: Mapping[str, str], which: Which, run: Run,
-                    dry_run: bool, hyperframes: bool = False) -> list[Action]:
+                    dry_run: bool, hyperframes: bool = False) -> tuple[list[Action], dict[str, str]]:
     """Install what the checks found missing, in order: the pinned package, its browser, then the explainer's own project
-    when `hyperframes` asks for it (it is opt-in: ~370 MB). Node.js is never installed."""
+    when `hyperframes` asks for it (it is opt-in: ~370 MB). Node.js is never installed. The second value maps each tool whose
+    install hit a trust error to the exact command that fixes it."""
     by_name = {check.name: check for check in checks}
     node = by_name[NODE]
     wanted = (PLAYWRIGHT, CHROMIUM, HYPERFRAMES) if hyperframes else (PLAYWRIGHT, CHROMIUM)
     if node.status != "ok":
         return [Action(NODE, "skipped", NODE_FIX)] + [
             Action(name, "skipped", f"needs Node.js {MIN_NODE} or newer")
-            for name in wanted if by_name[name].status != "ok"]
+            for name in wanted if by_name[name].status != "ok"], {}
     project = folder(state_dir)
     env = _env(environ, node.path, install=True)
     actions: list[Action] = []
+    fixes: dict[str, str] = {}
     ready = True
     if by_name[PLAYWRIGHT].status != "ok":
-        actions.append(_install_package(project, name=PLAYWRIGHT, description=PLAYWRIGHT_DESCRIPTION,
-                                        dependencies={"@playwright/test": PLAYWRIGHT_VERSION}, npm=which("npm"), env=env,
-                                        run=run, dry_run=dry_run))
-        ready = actions[-1].result in ("installed", "would-install")
+        action, fix = _install_package(project, name=PLAYWRIGHT, description=PLAYWRIGHT_DESCRIPTION,
+                                       dependencies={"@playwright/test": PLAYWRIGHT_VERSION}, npm=which("npm"), env=env,
+                                       run=run, dry_run=dry_run, command=SETUP_FIX)
+        actions.append(action)
+        ready = action.result in ("installed", "would-install")
+        if fix:
+            fixes[PLAYWRIGHT] = fix
     if by_name[CHROMIUM].status != "ok":
         if ready:
-            actions.append(_install_browser(project, env, run, dry_run))
+            action, fix = _install_browser(project, env, run, dry_run)
+            actions.append(action)
+            if fix:
+                fixes[CHROMIUM] = fix
         else:
             actions.append(Action(CHROMIUM, "skipped", f"{PLAYWRIGHT} is not ready, so its browser is not installed"))
+            if PLAYWRIGHT in fixes:  # the same trust error stops the browser too
+                fixes[CHROMIUM] = fixes[PLAYWRIGHT]
     if hyperframes and by_name[HYPERFRAMES].status != "ok":  # not tied to the required tools: its own failure is the only one it reports
-        actions.append(_install_package(hyperframes_folder(state_dir), name=HYPERFRAMES, description=HYPERFRAMES_DESCRIPTION,
-                                        dependencies={"hyperframes": HYPERFRAMES_VERSION}, npm=which("npm"), env=env,
-                                        run=run, dry_run=dry_run))
-    return actions
+        action, fix = _install_package(hyperframes_folder(state_dir), name=HYPERFRAMES, description=HYPERFRAMES_DESCRIPTION,
+                                       dependencies={"hyperframes": HYPERFRAMES_VERSION}, npm=which("npm"), env=env,
+                                       run=run, dry_run=dry_run, command=HYPERFRAMES_FIX)
+        actions.append(action)
+        if fix:
+            fixes[HYPERFRAMES] = fix
+    return actions, fixes
 
 
 # --- running specs and proving ----------------------------------------------------------------------------------------
@@ -376,19 +415,26 @@ def prove(state_dir: Path, *, environ: Mapping[str, str], run: Run, node_path: O
 # --- the steps -------------------------------------------------------------------------------------------------------
 
 
+def _with_trust_fixes(checks: Sequence[Check], fixes: Mapping[str, str]) -> list[Check]:
+    """Each row whose install hit a trust error names the command that fixes it, in place of the plain setup."""
+    return [replace(check, fix=fixes[check.name]) if check.name in fixes and check.status != "ok" else check for check in checks]
+
+
 def step(state_dir: Path, *, environ: Mapping[str, str], which: Which, run: Run, dry_run: bool,
          validate: bool, hyperframes: bool = False) -> tuple[list[Check], list[Action]]:
     """Probe, install what is missing, and prove the tools when `validate` is set or something was installed.
 
     `dry_run` plans only: it installs nothing and starts no browser. `hyperframes` also installs the optional explainer.
     A tool that is still not ok is a required check that is not ok, so the caller reports it and does not call the install
-    complete."""
+    complete. A tool whose install hit a trust error names the exact command that fixes it (see `trust_fix`)."""
     checks = check_all(state_dir, environ=environ, which=which, run=run)
-    actions = install_missing(state_dir, checks, environ=environ, which=which, run=run, dry_run=dry_run, hyperframes=hyperframes)
+    actions, fixes = install_missing(state_dir, checks, environ=environ, which=which, run=run, dry_run=dry_run,
+                                     hyperframes=hyperframes)
     installed = any(action.result == "installed" for action in actions)
     if dry_run or not (validate or installed):
-        return checks, actions
-    checks = check_all(state_dir, environ=environ, which=which, run=run)  # what is on the machine after the installs
+        return _with_trust_fixes(checks, fixes), actions
+    # what is on the machine after the installs
+    checks = _with_trust_fixes(check_all(state_dir, environ=environ, which=which, run=run), fixes)
     if any(check.required and check.status != "ok" for check in checks):
         return checks, actions
     proof = prove(state_dir, environ=environ, run=run, node_path=checks[0].path)
