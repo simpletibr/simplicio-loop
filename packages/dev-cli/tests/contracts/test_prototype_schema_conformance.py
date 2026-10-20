@@ -19,14 +19,17 @@ one place they genuinely disagree (this repo's plan is missing the
 `level`/`work_item_id` fields Loop's gate requires). See
 `test_devcli_plan_lacks_loop_required_fields_KNOWN_GAP` below.
 
-**Environment dependency**: the sibling repos are read from fixed sibling
-checkouts (default `/home/user/simplicio-loop`, `/home/user/simplicio-
-runtime`, `/home/user/simplicio-agent`, overridable via env vars for a
-different layout). When a sibling checkout is not present — e.g. a bare
-clone of just this repo in CI — the tests that need it `skip` with an
-explicit reason rather than failing the whole suite or silently passing;
-that is a deliberate scope boundary of a *cross-repo* contract test, not a
-disguised rubber stamp of the parts that ARE checked.
+**Environment dependency**: the loop and the mapper are read from this
+monorepo (its root `simplicio_loop/` and `packages/mapper/`, located from
+this file's own path; overridable via `SIMPLICIO_LOOP_REPO` and
+`SIMPLICIO_MAPPER_REPO`). Only the runtime and the agent are separate
+repositories, read from fixed sibling checkouts (default
+`/home/user/simplicio-runtime` and `/home/user/simplicio-agent`, overridable
+via env vars for a different layout). When one of those two checkouts is not
+present — e.g. in CI, where only this monorepo is cloned — the tests that
+need it `skip` with an explicit reason rather than failing the whole suite or
+silently passing; that is a deliberate scope boundary of a *cross-repo*
+contract test, not a disguised rubber stamp of the parts that ARE checked.
 """
 
 from __future__ import annotations
@@ -50,10 +53,13 @@ def _sibling(env_var: str, default: str) -> Path | None:
     return candidate if candidate.is_dir() else None
 
 
-LOOP_REPO = _sibling("SIMPLICIO_LOOP_REPO", "/home/user/simplicio-loop")
+# tests/contracts/ -> tests/ -> dev-cli/ -> packages/ -> monorepo root.
+MONOREPO_ROOT = Path(__file__).resolve().parents[4]
+
+LOOP_REPO = _sibling("SIMPLICIO_LOOP_REPO", str(MONOREPO_ROOT))
 RUNTIME_REPO = _sibling("SIMPLICIO_RUNTIME_REPO", "/home/user/simplicio-runtime")
 AGENT_REPO = _sibling("SIMPLICIO_AGENT_REPO", "/home/user/simplicio-agent")
-MAPPER_REPO = _sibling("SIMPLICIO_MAPPER_REPO", "/home/user/simplicio-mapper")
+MAPPER_REPO = _sibling("SIMPLICIO_MAPPER_REPO", str(MONOREPO_ROOT / "packages" / "mapper"))
 
 
 def _import_loop_prototype_gate():
