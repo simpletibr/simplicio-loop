@@ -23,6 +23,9 @@ _SCRIPT_NAMES = (
     "task_anchor",
     "loop_journal",
     "worktree_cleanup",
+    "web_verify",
+    "video_evidence",
+    "pr_evidence",
 )
 _ALIASES = {name: name for name in _SCRIPT_NAMES}
 _ALIASES.update({f"{name}.py": name for name in _SCRIPT_NAMES})

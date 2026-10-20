@@ -11,6 +11,13 @@ def test_resolve_all_allowlisted_scripts():
     assert all(path.is_file() and path.is_absolute() for path in resolved)
 
 
+def test_evidence_workers_are_allowlisted_and_resolve_from_the_bundle():
+    # A pip customer has no scripts/ tree: the evidence workers the docs name must resolve from the wheel.
+    for name in ("web_verify", "video_evidence", "pr_evidence"):
+        path = consumer_cli.resolve_script(name)
+        assert path.name == name + ".py" and path.is_file()
+
+
 def test_unknown_script_is_rejected(capsys):
     assert consumer_cli.main(["not-a-loop-script"]) == 2
     assert "reason_code=unknown_script" in capsys.readouterr().err
