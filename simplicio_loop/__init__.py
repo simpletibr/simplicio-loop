@@ -17,8 +17,8 @@ def __getattr__(name: str) -> str:
     try:
         from .distribution import installed_version
 
-        __version__ = installed_version() or "3.50.0"
+        __version__ = installed_version() or "3.51.0"
     except Exception:  # pragma: no cover
-        __version__ = "3.50.0"
+        __version__ = "3.51.0"
     globals()["__version__"] = __version__
     return __version__

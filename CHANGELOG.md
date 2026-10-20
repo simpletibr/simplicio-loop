@@ -2,8 +2,85 @@
 
 ## [Unreleased]
 
-- **24/7 watcher serves the owners in `SIMPLICIO_247_OWNERS`**: the hardcoded `simpletibr` org and the `simplicio*` repo-name prefix are gone. Set the variable to the GitHub owners (orgs or users) to serve, comma separated; the service refuses to start without it. Claims, status and worktrees are keyed by `owner/repo`. Before upgrading a running service, delete its `baseline.json`, `claims.json` and `fixes.json` (see `docs/WATCHER_247.md`).
-- The standalone binary is removed (it was never published): install simplicio-loop with pip.
+## [3.51.0] - 2026-10-20
+
+- **Upgrade notes**:
+  - 24/7 watcher: set `SIMPLICIO_247_OWNERS` to the GitHub owners to watch (orgs or users, comma separated). The service refuses to start without it. Its claim, lease and status keys change from `repo#N` to `owner/repo#N`. Before upgrading a running service, stop it and delete `baseline.json`, `claims.json` and `fixes.json` from its state directory (see `docs/WATCHER_247.md`). Old work folders named `<repo>` without an owner are no longer used and can be removed.
+  - Standalone binary: removed (it was never published). Install with `pip install simplicio-loop` and update with `simplicio-loop update`. A git checkout uses `git pull` and `bash scripts/dev_install.sh`.
+- **Install & setup**:
+  - `simplicio-loop install` runs `setup` at the end, also without a terminal. A complete setup is not run again. A failed setup exits 2, and a required evidence tool that is not ok exits 1 (#1841).
+  - `setup` detects a usable Python. A Microsoft Store alias does not count. When none is found, it installs Python 3.11 with winget on Windows when winget runs, otherwise with `uv python install 3.11` (#1842).
+  - `setup` checks and installs the evidence tools: `@playwright/test` 1.64.1 with its Chromium. It only checks Node.js 22+. `doctor` lists one row per tool (#1843).
+  - `setup --with-hyperframes` installs the optional hyperframes explainer. Without the flag, `doctor` shows it as optional, not as a warning.
+  - `pip install simplicio-loop` and `simplicio-loop install` register the Stop and PreToolUse hooks in `.claude/settings.json` (`~/.claude/settings.json` with `--global`). The merge keeps every existing key and hook.
+  - In a `uv` venv, `setup` needs no pip, and `update` installs with `uv pip --python`. `update` exits 0 once the package is updated; only a failed package update fails it.
+  - `doctor` checks Python against `requires-python` (3.11) and prints the interpreter path.
+  - `login` without the Runtime names the public installer for your OS (`curl` on macOS and Linux, `irm` on Windows). Login is needed only for the 24/7 watcher.
+  - The root `dev` extra provides ruff, mypy and hypothesis, so `pip install -e .[dev]` runs the package gates. `scripts/dev_install.sh` no longer installs them separately.
+- **24/7 watcher**:
+  - `SIMPLICIO_247_OWNERS` replaces the hardcoded `simpletibr` org and the `simplicio*` repo-name prefix filter. A repo is watched when its own `.simplicio-loop/loop.toml` enables it.
+  - A repo is addressed as `owner/repo` everywhere: claims, leases, status, worktrees, `gh` calls, PR URLs and run folders.
+- **Hosts**:
+  - The 20 hosts on the `.claude/skills/` plus `AGENTS.md` surface are wired: adapter code, a host test and the `wired` catalog status.
+  - Eight more hosts are wired: GitHub Copilot, OpenCode, Simplicio Agent (Hermes), Continue, Qwen Code, Gemini, Aider and OpenClaw.
+  - The catalog has 34 wired adapters (six original, 20 AGENTS.md hosts and eight more) and 0 listed hosts.
+  - DeepSeek is a model provider (status `provider`), not a host.
+  - `simplicio-loop install` writes an AGENTS.md marker block for every host with an entry file, and uninstall removes it.
+  - Each host gets the skill root its docs name, for example `.pi/skills` or `.hermes/skills`. A host with no documented user-level file, such as Grok or Aider, is skipped by `--global`, and the CLI says so.
+  - `orca-dev` is opt-in by name and is never part of `--host all`.
+- **Evidence**:
+  - `web_verify` and `video_evidence` run their specs on the Playwright that `setup` installs. A failed check reports Playwright's own `Error:` line.
+  - The 24/7 watcher records front-end changes with Playwright. hyperframes runs only when a work item asks for an explainer video.
+  - Evidence runs inside the 24/7 sandbox. Each run uses a fresh temp folder, so the read-only state directory is never written.
+  - hyperframes is pinned to 0.7.111 in its own npm project. The explainer runs that binary, not `npx --yes`.
+  - `video_evidence` checks FFmpeg with `-version` before use. A broken FFmpeg is named with its fix, and the `.webm` is kept.
+  - A failed mp4 conversion keeps the `.webm` and puts the FFmpeg error tail in the verdict.
+  - The 24/7 sandbox environment keeps `HYPERFRAMES_FFMPEG_PATH` and `HYPERFRAMES_BROWSER_PATH`.
+- **Mapper**:
+  - `ask` writes its savings ledger to the query's state dir (`--out`, default `.simplicio-loop`), not to the mapped tree.
+  - `scan --sync` gives its worker an absolute `--wait-until` set at spawn, so interpreter start-up counts against the scan budget.
+  - Store migration, registry and health count a lock owner under another user (EPERM) as live. Only ESRCH marks it dead.
+- **Dev CLI**:
+  - The changeset transaction counts a lock owner under another user (EPERM) as live. Only ESRCH marks it dead.
+  - The JSON boundary checker classifies every file under a registry path that ends in `/`.
+- **Reliability & process**:
+  - The loop's kill paths share one process-group helper (`simplicio_loop/proc_group.py`). It signals the group by the leader's pid, so a kill works after the leader is reaped. A cancelled login check kills its group.
+  - A hung login check is bounded by its timeout, and its whole process group is killed. Measured with fake CLIs at a 2.0s timeout: count path 30.79s -> 2.02s.
+  - The liveness probe moves to `simplicio_mapper/process_liveness.py`, so importing it no longer loads `simplicio_mapper.mapper`.
+  - Liveness probes call `process_exists`, which is safe on Windows. The `ctypes` copies are removed.
+  - One install-record lookup (`distribution.install_record()`) serves the daemon and in-process runs. The stack manifest, stack lock, ecosystem doctor and extension handshake read simplicio-loop's metadata through the same record.
+  - The daemon's version drift reads the distribution that pip recorded, not an egg-info in the checkout.
+  - On macOS, a child that has exited but was not reaped counts as dead. A process's own start token is resolved once.
+  - `simplicio-loop dashboard` names the process that holds a taken port on macOS (via `lsof`).
+  - `simplicio-loop verify` on a repo with no runs reports `no_runs` instead of a traceback.
+  - Squads runs keep their state under `.simplicio-loop/squads-run/`, not in the `.simplicio/` folder.
+  - The descendant-leak diagnostic reads a process's command line with `ps` where there is no procfs (macOS). Secret masking still applies.
+  - The quality provider's receipt names the check script under the caller's repo path, not the symlink-resolved path (macOS `/var` to `/private/var`).
+- **Removed**:
+  - Standalone binary: the PyInstaller build in `packaging/binary/`, `simplicio_loop/frozen.py`, the build, smoke and publish scripts, and their tests. `simplicio-loop update` has no binary branch.
+  - `scripts/billing_aggregator.py`, which had no caller. Its docs, tests and manifest references are removed.
+  - The PyPI publish workflow (`.github/workflows/publish-pypi.yml`). This repo has no GitHub Actions; the maintainer publishes from a local machine.
+  - The 20 JSON boundary waivers dated 2026-09-30 are cleared: 12 entries with no writer are deleted, and 8 become permanent classifications. A dated or target key is now a configuration error.
+  - The legacy JSONL adapter and its migration method, with the policy exception that expired on 2026-09-30.
+  - The map-inspection waiver dated 2026-09-30 is removed, not renewed, because its migration target is not implemented.
+- **Docs & claims**:
+  - `PRICING.md` states the offer sold today: the engine is free under MIT, the Simplicio MCP + Loop subscription is the only paid product, and Hosted Pro, Team and Enterprise are not offered.
+  - The README quickstart leads with `prepare --example`, and INSTALL.md leads with pip.
+  - `docs/SQUADS_RUN.md` names the run folder under `.simplicio-loop/squads-run/`.
+  - The 14 translated READMEs name the 34 wired hosts. `docs/GUIDE.md` no longer says listed hosts get an installer target, because none are listed.
+  - The adapter READMEs point Windows installs at the public installer. They named `packaging/windows/install.ps1`, which does not exist.
+  - Owner URLs point at `simpletibr/simplicio-loop` and `simpletibr/simplicio`. The Homebrew sections are removed: the `wesleysimplicio/tap` tap has no `simpletibr` counterpart.
+  - `doctor all` runs nine sections, not seven.
+  - The version in `simplicio-loop.project.json` is owned by `version_sync`, which checks it and writes it.
+- **Tests**:
+  - Tests no longer depend on the host's git default branch, `/bin/true`, procfs, GNU `stat`, host load, first-exec timing, or the macOS `/var` symlink.
+  - The `--help` golden holds on Python 3.11 to 3.14. The dashboard declares its four mode flags next to each other.
+  - Tests never write into the source tree or committed fixtures. Autouse and session guards fail a run that does, and the cli_dispatch tests use `tmp_path`.
+  - The status test runs with its own root.
+  - The mapper scaling test compares best-of-nine process CPU time.
+  - Contract goldens are regenerated for the changes from #1395, #1631, #1639 and #1654, and the regen check no longer leaves files in the tree.
+  - `ruff` passes for dev-cli and mapper.
+  - The installed-wheel test copies only tracked files, not the `.venv`.
 
 ## [3.50.0] - 2026-10-14
 

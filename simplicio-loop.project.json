@@ -9,7 +9,7 @@
     "display_name": "simplicio-loop — Universal Looping AI Orchestrator",
     "tagline": "The Universal Looping AI Orchestrator",
     "one_liner": "Super-plugin runtime-agnóstico (6 skills) que drena qualquer fila de trabalho de ponta a ponta em QUALQUER LLM/runtime — discover → implement → verify → merge → close → watch 24/7 — atrás de safety gates e evidence checks, sem prometer percentual de economia (só valores medidos, ver bench/llm_ab). Não é um chatbot. É um trabalhador (a worker).",
-    "version": "3.50.0",
+    "version": "3.51.0",
     "version_sources_in_lockstep": ["pyproject.toml", ".claude-plugin/plugin.json", "simplicio_loop/__init__ (fallback literals)", "simplicio-loop.project.json (project.version)"],
     "version_note": "O bloco 'Official capability record (v3.4.0)' no README está desatualizado; a versão canônica do pacote é a de pyproject.toml, e scripts/version_sync.py a grava em project.version.",
     "license": "MIT",
