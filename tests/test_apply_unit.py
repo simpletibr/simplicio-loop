@@ -226,7 +226,7 @@ def test_run_without_ops_path_still_blocks_on_real_drift(tmp_path):
 
 
 def test_check_isolation_env_contains_expected_keys():
-    env = apply_mod._isolated_check_env(base_env={"PATH": "/bin"}, run_id="r1", task_id="t1")
+    env = apply_mod.isolated_check_env(base_env={"PATH": "/bin"}, run_id="r1", task_id="t1")
     assert env["PYTHONDONTWRITEBYTECODE"] == "1"
     assert "no:cacheprovider" in env["PYTEST_ADDOPTS"]
     assert "r1" in env["COVERAGE_FILE"] and "t1" in env["COVERAGE_FILE"]

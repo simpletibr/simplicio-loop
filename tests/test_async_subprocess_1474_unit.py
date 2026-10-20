@@ -9,8 +9,10 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shlex
 import stat
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -168,3 +170,31 @@ def test_a_verify_timeout_kills_the_whole_process_group(tmp_path, monkeypatch):
                       "output_tail": "verify timed out after 0.5s"}
     assert output == ""
     assert asyncio.run(_wait_gone(child)), "the grandchild survived the timeout"
+
+
+def test_the_verify_runs_with_the_isolated_check_environment_of_apply(tmp_path, monkeypatch):
+    """The verify runs in the customer's repo, so it gets the same check environment as ``apply``."""
+    monkeypatch.delenv("PYTHONDONTWRITEBYTECODE", raising=False)
+    monkeypatch.delenv("PYTEST_ADDOPTS", raising=False)
+
+    (report, _output), _ticks = asyncio.run(_ticks_during(_verify(tmp_path, 'echo "$PYTHONDONTWRITEBYTECODE|$PYTEST_ADDOPTS"')))
+
+    flag, addopts = report["output_tail"].split("|", 1)
+    assert flag == "1"
+    assert "no:cacheprovider" in addopts
+
+
+def test_the_verify_leaves_no_bytecode_or_pytest_cache_in_the_repo(tmp_path, monkeypatch):
+    """turbo --apply --verify "python -m pytest -q" left __pycache__ and .pytest_cache in the customer's tree."""
+    monkeypatch.delenv("PYTHONDONTWRITEBYTECODE", raising=False)
+    monkeypatch.delenv("PYTEST_ADDOPTS", raising=False)
+    (tmp_path / "mod.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (tmp_path / "test_mod.py").write_text(
+        "from mod import VALUE\n\n\ndef test_value():\n    assert VALUE == 1\n", encoding="utf-8")
+
+    (report, _output), _ticks = asyncio.run(_ticks_during(_verify(tmp_path, f"{shlex.quote(sys.executable)} -m pytest -q")))
+
+    assert report["passed"] is True, report["output_tail"]
+    leftovers = sorted(path.relative_to(tmp_path).as_posix() for path in tmp_path.rglob("*")
+                       if "__pycache__" in path.parts or ".pytest_cache" in path.parts or path.suffix == ".pyc")
+    assert leftovers == []

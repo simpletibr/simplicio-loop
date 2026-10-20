@@ -20,6 +20,7 @@ import asyncio
 import difflib
 import functools
 import json
+import os
 import re
 import shlex
 import shutil
@@ -123,7 +124,9 @@ async def _run_verify(root: Path, command: str, run_: TurboRun) -> tuple[dict[st
     The shell runs in its own process group under ``asyncio.wait_for``: the event loop stays free while it
     runs, and on timeout the whole group (the shell and what it started) is killed. The run's dashboard events
     bracket the command (``command_started`` / ``command_finished``) so the panel can show it while it runs.
+    It runs with apply's isolated check environment (no bytecode or pytest cache written into the customer's tree).
     """
+    from .apply import isolated_check_env
     from .exec_planner import _kill_process_tree
 
     sh_bin = shutil.which("sh") or "/bin/sh"
@@ -131,6 +134,7 @@ async def _run_verify(root: Path, command: str, run_: TurboRun) -> tuple[dict[st
         proc = await asyncio.create_subprocess_exec(
             sh_bin, "-c", command, cwd=root, stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, start_new_session=True,
+            env=isolated_check_env(base_env=os.environ, run_id=run_.run_id, task_id="verify"),
         )
         try:
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=VERIFY_TIMEOUT_S)

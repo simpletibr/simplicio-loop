@@ -225,9 +225,9 @@ def validate_ops(root: Path, tasks: Sequence[Mapping[str, Any]], chains: Sequenc
     return problems
 
 
-def _isolated_check_env(*, base_env: Mapping[str, str] | None, run_id: str, task_id: str) -> dict[str, str]:
-    """Environment for a task's check subprocess, isolated from siblings so
-    concurrent checks never collide on cache byproducts."""
+def isolated_check_env(*, base_env: Mapping[str, str] | None, run_id: str, task_id: str) -> dict[str, str]:
+    """Environment for a check subprocess (an apply task's check, or the turbo verify), isolated from
+    siblings so concurrent checks never collide on cache byproducts or leave them in the repo."""
     env = dict(base_env if base_env is not None else os.environ)
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     existing_addopts = env.get("PYTEST_ADDOPTS", "")
@@ -280,7 +280,7 @@ def _apply_task_devcli(root: Path, task: Mapping[str, Any], run_dir: Path) -> di
 
 
 async def _run_check(root: Path, check: str, *, run_id: str, task_id: str) -> dict[str, Any]:
-    env = _isolated_check_env(base_env=os.environ, run_id=run_id, task_id=task_id)
+    env = isolated_check_env(base_env=os.environ, run_id=run_id, task_id=task_id)
     started = time.monotonic()
     sh_bin = shutil.which("sh") or "/bin/sh"
     try:
