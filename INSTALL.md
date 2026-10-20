@@ -97,7 +97,7 @@ A git checkout must use `git pull` and `bash scripts/dev_install.sh`. Loop is in
 
 ## 3.2. Setup (after install)
 
-`simplicio-loop install` ends with `simplicio-loop setup`. You can run it again at any time. The second run says `unchanged`.
+`simplicio-loop install` ends with `simplicio-loop setup`. You can run it again at any time. The second run says `unchanged`. If setup ends pending, `install` still exits 0, lists the pending items and prints one `next:` line with the fix of the first one, and `simplicio-loop doctor` shows that same fix.
 
 ```bash
 simplicio-loop setup            # look at the machine, find your agent CLIs, find your GitHub login

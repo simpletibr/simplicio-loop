@@ -629,9 +629,17 @@ def after_install(*, out: Optional[TextIO] = None) -> int:
     return 1 if missing else 0
 
 
+def _next_pending_fix() -> None:
+    """The one `next:` line of a setup that ended pending: the first pending item's own fix, read from the summary `run` wrote."""
+    from . import next_step
+    pending = (read_summary() or {}).get("pending") or []
+    next_step.emit(next((p["fix"] for p in pending if isinstance(p, dict) and p.get("fix")), COMMAND))
+
+
 def _setup_at_the_end(out: TextIO) -> int:
-    """The setup that ends `install` (#1841): 0 when it is complete or ran, 2 when it failed. A failure keeps the installed
-    files: its error goes to stderr, then one `next:` line."""
+    """The setup that ends `install` (#1841): 0 when it is complete, ran, or is pending, 2 when it failed. A failure keeps the
+    installed files: its error goes to stderr, then one `next:` line. A pending setup keeps exit 0 and also gets one `next:`
+    line on stderr, with the first pending item's own fix (its items are listed on `out`)."""
     try:
         if doctor_row()["status"] == "ok":
             return 0
@@ -640,7 +648,10 @@ def _setup_at_the_end(out: TextIO) -> int:
     except Exception as exc:  # noqa: BLE001 - the install is done: report the failure instead of crashing after it
         print(f"setup failed ({type(exc).__name__}): {exc}", file=sys.stderr)
         code = 2
-    if code != 2:  # 0, or PENDING: the report on `out` says what is still missing; the install itself succeeded
+    if code == PENDING:
+        _next_pending_fix()
+        return 0
+    if code != 2:  # 0: the install itself succeeded
         return 0
     print(f"next: fix the error above, then run `{COMMAND}`; it is safe to run again", file=sys.stderr)
     return 2

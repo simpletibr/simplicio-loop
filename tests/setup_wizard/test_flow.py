@@ -528,6 +528,44 @@ def test_after_install_is_quiet_once_the_setup_has_run(home, monkeypatch):
     assert out.getvalue() == ""
 
 
+def pending_setup(monkeypatch):
+    """A setup whose git stays missing: it ends pending, with git's fix first."""
+    fakes = Fakes()
+    fakes.checks = [check("python"), check("git", "missing", fix=GIT_FIX), check("gh")]
+    monkeypatch.setattr(setup_cli, "real_seams", fakes.seams)
+    return fakes
+
+
+def next_lines(err):
+    return [line for line in err.splitlines() if line.startswith("next:")]
+
+
+def test_after_install_that_ends_pending_prints_one_next_line_with_the_first_pending_fix(home, monkeypatch, capsys):
+    pending_setup(monkeypatch)
+    out = io.StringIO()
+    assert setup_cli.after_install(out=out) == 0  # pending is not a failed install
+    assert "Pending" in out.getvalue() and "git: missing. Fix: " + GIT_FIX in out.getvalue()
+    assert next_lines(capsys.readouterr().err) == [f"next: {GIT_FIX}"]
+
+
+def test_install_ends_pending_with_exit_0_and_the_same_one_next_line(home, monkeypatch, capsys):
+    from simplicio_loop import cli_impl
+    pending_setup(monkeypatch)
+    target = home / "project"
+    target.mkdir()
+    assert cli_impl.main(["install", "--target", str(target)]) == 0  # pending is not a failed install
+    assert next_lines(capsys.readouterr().err) == [f"next: {GIT_FIX}"]
+
+
+def test_install_that_ends_ok_prints_no_next_line(home, monkeypatch, capsys):
+    from simplicio_loop import cli_impl
+    monkeypatch.setattr(setup_cli, "real_seams", Fakes().seams)
+    target = home / "project"
+    target.mkdir()
+    assert cli_impl.main(["install", "--target", str(target)]) == 0
+    assert next_lines(capsys.readouterr().err) == []
+
+
 def test_the_real_parser_flags_match_the_options():
     import argparse
     parser = argparse.ArgumentParser()
