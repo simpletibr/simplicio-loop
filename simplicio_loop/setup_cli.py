@@ -156,7 +156,8 @@ def doctor_row(directory: Optional[Path] = None) -> dict:
              if p.get("name") == "python" and p.get("status") == "ok"]
     ok = "; ".join(found + [f"GitHub {github.get('login')} (via {github.get('source')})", f"default agent CLI {host}",
                             f"setup of {summary.get('updated_at')}"])
-    return {"name": "setup", "status": "warn" if problems else "ok", "fix": COMMAND if problems else None,
+    first_fix = next((p["fix"] for p in summary.get("pending") or [] if isinstance(p, dict) and p.get("fix")), COMMAND)
+    return {"name": "setup", "status": "warn" if problems else "ok", "fix": first_fix if problems else None,
             "summary": "; ".join(problems) if problems else ok, "detail": {"default_host": host, "github": github.get("status")}}
 
 
@@ -329,9 +330,24 @@ def _host_rows(statuses: Sequence[Any]) -> list[dict]:
             for s in statuses if s.installed]
 
 
+def _is_root() -> bool:
+    return hasattr(os, "geteuid") and os.geteuid() == 0
+
+
+def _yes_installs(environ: Mapping[str, str]) -> bool:
+    """True when `setup --yes` would install a missing system package here: this is root and a package manager is found."""
+    from . import prereqs, setup_hardening
+    return _is_root() and prereqs.package_manager(which=setup_hardening.safe_which(environ)) is not None
+
+
 def _pending(checks: Sequence[Any], github: Mapping[str, Any], choice: host_detect.Choice,
-             statuses: Sequence[Any], stale: bool, ignored: Sequence[Mapping[str, str]] = ()) -> list[dict]:
-    items = [{"item": c.name, "why": c.status, "fix": c.fix} for c in checks if c.required and c.status != "ok"]
+             statuses: Sequence[Any], ignored: Sequence[Mapping[str, str]] = (), yes_installs: bool = False) -> list[dict]:
+    """The items that keep setup pending, in the order they are checked, each with its one fix.
+
+    A missing system package is fixed by `setup --yes` only when that command would install it (`yes_installs`); otherwise
+    the fix is the exact package-manager command, which works by hand with the same privileges."""
+    items = [{"item": c.name, "why": c.status, "fix": f"{COMMAND} --yes" if yes_installs and c.auto == "system" else c.fix}
+             for c in checks if c.required and c.status != "ok"]
     if github["status"] != "ok":
         why = {"unverified": "GitHub did not answer; the credential could not be checked",
                "rejected": "GitHub rejected the token"}
@@ -347,8 +363,6 @@ def _pending(checks: Sequence[Any], github: Mapping[str, Any], choice: host_dete
                f"{ignored[0]['host']} is in an ignored PATH entry: see Agent CLIs above" if ignored else
                f"install one agent CLI (see `{COMMAND} --json`, hosts_detected[].install)")
         items.append({"item": "host", "why": choice.reason, "fix": fix})
-    if stale:
-        items.append({"item": "summary", "why": f"{SETUP_FILE} is missing or out of date", "fix": COMMAND})
     return items
 
 
@@ -454,6 +468,7 @@ def collect(options: Options, environ: Mapping[str, str], seams: Seams, director
     planning = options.check or options.dry_run
     evidence, evidence_actions = seams.evidence(environ, state_dir=directory, dry_run=planning, validate=not planning,
                                                 hyperframes=options.with_hyperframes)
+    pending = _pending(checks, github, choice, statuses, ignored, _yes_installs(environ))
     summary = {
         "schema": SCHEMA,
         "platform": _platform(),
@@ -465,6 +480,7 @@ def collect(options: Options, environ: Mapping[str, str], seams: Seams, director
         "default_host": choice.host,
         "default_login": choice.login or None,
         "default_family": next((h.family for h in host_detect.HOSTS if h.id == choice.host and h.family), None),  # for the watcher
+        "pending": pending,  # the same setup items `setup` prints: `doctor` names the first one's fix
     }
     stale = current is None or _stable(current) != summary
     report = {**summary, "github": {**github, **({"masked": cred.masked} if cred else {})},
@@ -474,7 +490,8 @@ def collect(options: Options, environ: Mapping[str, str], seams: Seams, director
                                 setup_hardening.path_warnings(environ.get("PATH", os.defpath), _home(environ))],
               "actions": [a.as_dict() for a in [*actions, *evidence_actions]], "checks": [c.as_dict() for c in checks],
               "evidence": [c.as_dict() for c in evidence],
-              "pending": _pending(checks, github, choice, statuses, stale and options.check, ignored) + _evidence_pending(evidence)}
+              "pending": pending + ([{"item": "summary", "why": f"{SETUP_FILE} is missing or out of date", "fix": COMMAND}]
+                                    if stale and options.check else []) + _evidence_pending(evidence)}
     return summary, report
 
 

@@ -562,9 +562,47 @@ def test_doctor_row_reads_the_summary(home):
     assert (row["name"], row["status"], row["fix"]) == ("setup", "ok", None)
     assert "octocat" in row["summary"] and "claude-code" in row["summary"] and TOKEN not in json.dumps(row)
     fakes.resolution = github_cred.Resolution(None, ())
-    fakes.checks = [check("python"), check("git", "missing", fix="x")]
+    fakes.checks = [check("python"), check("git", "missing", fix=GIT_FIX)]
     fakes.hosts = [host("claude-code", installed=False)]
     run(fakes, home)
     row = setup_cli.doctor_row(directory)
-    assert row["status"] == "warn" and row["fix"] == "simplicio-loop setup"
+    assert row["status"] == "warn" and row["fix"] == GIT_FIX  # the first pending item's own fix, not a generic command
     assert "git missing" in row["summary"] and "GitHub missing" in row["summary"] and "no default agent CLI" in row["summary"]
+
+
+GIT_FIX = "sudo apt-get update && sudo apt-get install -y git"
+APT_BWRAP_FIX = "sudo apt-get update && sudo apt-get install -y bubblewrap"
+
+
+def system_check(name, fix):
+    """A required system package that is missing, as `prereqs.check_all` reports it."""
+    return prereqs.Check(name=name, status="missing", required=True, path=None, version=None, minimum=None, fix=fix,
+                         auto="system")
+
+
+def test_the_doctor_fix_of_a_missing_system_package_is_the_exact_command_when_setup_is_not_root(home, monkeypatch):
+    monkeypatch.setattr(setup_cli, "_is_root", lambda: False)
+    fakes = Fakes()
+    fakes.checks = [check("python"), system_check("bwrap", APT_BWRAP_FIX), check("gh")]
+    run(fakes, home)  # no --yes: nothing is installed, so the fix has to work by hand
+    row = setup_cli.doctor_row(home / ".simplicio-loop")
+    assert (row["status"], row["fix"]) == ("warn", APT_BWRAP_FIX) and "bwrap missing" in row["summary"]
+    assert json.loads(summary_file(home).read_text())["pending"][0] == {"item": "bwrap", "why": "missing", "fix": APT_BWRAP_FIX}
+
+
+def test_as_root_with_a_package_manager_the_doctor_fix_of_a_missing_system_package_is_setup_yes(home, monkeypatch):
+    monkeypatch.setattr(setup_cli, "_is_root", lambda: True)
+    monkeypatch.setattr(prereqs, "package_manager", lambda **_: "apt")
+    fakes = Fakes()
+    fakes.checks = [check("python"), system_check("bwrap", APT_BWRAP_FIX)]
+    run(fakes, home)
+    assert setup_cli.doctor_row(home / ".simplicio-loop")["fix"] == "simplicio-loop setup --yes"
+
+
+def test_as_root_without_a_package_manager_setup_yes_would_install_nothing_so_the_fix_stays_the_exact_text(home, monkeypatch):
+    monkeypatch.setattr(setup_cli, "_is_root", lambda: True)
+    monkeypatch.setattr(prereqs, "package_manager", lambda **_: None)
+    fakes = Fakes()
+    fakes.checks = [check("python"), system_check("bwrap", "install bwrap with your system package manager")]
+    run(fakes, home)
+    assert setup_cli.doctor_row(home / ".simplicio-loop")["fix"] == "install bwrap with your system package manager"
