@@ -111,7 +111,7 @@ Add (paths relative to the repo root, or absolute):
 }
 ```
 
-`orient_rewrite` is opt-in (the `PreToolUse` block). Omit it to keep clamping manual via
+`orient_rewrite` is the `PreToolUse` `Bash` block. The project installer wires it, and it acts only inside an active loop project (`SIMPLICIO_LOOP` or `SIMPLICIO_ORCHESTRATOR` set, or a `.simplicio-loop/orchestrator/` folder in the working directory or above it); elsewhere it does nothing. Omit the block to keep clamping manual via
 `orient_clamp.py`. Claude has no `afterAgentResponse`; `loop_stop.py` folds capture in by
 reading the transcript, so `loop_capture.py` isn't needed there.
 
