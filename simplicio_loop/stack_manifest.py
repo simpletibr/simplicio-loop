@@ -30,7 +30,7 @@ _COMPONENT_ROLES = (
 
 # Fallback floors when pyproject cannot be read (offline wheel / missing checkout).
 _FALLBACK_FLOORS = {
-    "simplicio-loop": "3.50.0",
+    "simplicio-loop": "3.51.0",
 }
 
 # Operator identities, not distribution names: both entrypoints are exported by

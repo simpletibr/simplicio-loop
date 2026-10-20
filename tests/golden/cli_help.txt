@@ -1308,4 +1308,4 @@ options:
 === daemon rc=2
 usage: simplicio-loop daemon serve|status|stop
 === (version) rc=0
-simplicio-loop 3.50.0
+simplicio-loop 3.51.0

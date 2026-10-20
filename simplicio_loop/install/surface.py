@@ -17,7 +17,7 @@ from typing import Any
 from .planner import HOST_LAYOUT, runtime_for
 
 SCHEMA = "simplicio.host-adapter/v1"
-ADAPTER_VERSION = "3.50.0"
+ADAPTER_VERSION = "3.51.0"
 SELF_PACED_STAGES = ("SessionStart", "UserPromptSubmit", "PostToolUse", "Stop")
 
 
