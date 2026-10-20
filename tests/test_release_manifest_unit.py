@@ -62,6 +62,45 @@ def test_build_manifest_fallback_versions(tmp_path: Path):
     assert vs == ["9.9.9"]
 
 
+def test_build_manifest_flags_a_stale_literal_behind_installed_version(tmp_path: Path):
+    # simplicio_loop/__init__.py carries two literal fallbacks; the one behind `installed_version() or`
+    # is a fallback too, so a stale copy must block the release instead of hiding behind the bare literal.
+    (tmp_path / ".cursor-plugin").mkdir()
+    (tmp_path / "simplicio_loop").mkdir()
+    (tmp_path / "pyproject.toml").write_text('version = "1.1.0"\n')
+    (tmp_path / ".cursor-plugin" / "plugin.json").write_text(json.dumps({"version": "1.1.0"}))
+    (tmp_path / "simplicio_loop" / "__init__.py").write_text(
+        "def __getattr__(name):\n"
+        "    try:\n"
+        "        from .distribution import installed_version\n"
+        '        __version__ = installed_version() or "1.0.0"\n'
+        "    except Exception:  # pragma: no cover\n"
+        '        __version__ = "1.1.0"\n'
+        "    return __version__\n")
+    report = release_manifest.build_manifest(tmp_path)
+    assert "source_fallback" in report["mismatches"]
+    assert report["ready"] is False
+    fallback = next(row for row in report["sources"] if row["name"] == "source_fallback")
+    assert fallback["versions"] == ["1.0.0", "1.1.0"]
+
+
+@pytest.mark.parametrize("line", [
+    '__version__ = installed_version() or "1.0.0"',
+    '__version__=installed_version()or"1.0.0"',
+    "__version__ =  installed_version()   or   '1.0.0'",
+])
+def test_fallback_versions_reads_the_literal_behind_installed_version(tmp_path: Path, line: str):
+    init = tmp_path / "__init__.py"
+    init.write_text(line + "\n")
+    assert release_manifest._fallback_versions(init) == ["1.0.0"]
+
+
+def test_the_real_source_fallback_lists_both_literals():
+    literals = release_manifest._fallback_versions(REPO / "simplicio_loop" / "__init__.py")
+    assert len(literals) == 2
+    assert len(set(literals)) == 1
+
+
 def test_pyproject_version_oserror(tmp_path: Path):
     missing = tmp_path / "nope.toml"
     with pytest.raises(OSError):

@@ -41,7 +41,8 @@ def _project_manifest_version(path: Path) -> str:
 
 
 def _fallback_versions(path: Path) -> List[str]:
-    return re.findall(r"__version__\s*=\s*[\"']([^\"']+)[\"']", path.read_text())
+    # Also reads the literal behind `installed_version() or`, the shape version_sync rewrites.
+    return re.findall(r"__version__\s*=\s*(?:installed_version\(\)\s*or\s*)?[\"']([^\"']+)[\"']", path.read_text())
 
 
 def build_manifest(repo: Path, *, tag: Optional[str] = None) -> Dict[str, Any]:

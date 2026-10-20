@@ -163,6 +163,43 @@ def test_apply_rejects_partial_semver(tmp_path):
         apply_version(repo, "1.2")
 
 
+def test_apply_rewrites_both_fallback_literals_of_the_real_init_shape(tmp_path):
+    # Both literals of simplicio_loop/__init__.py must move together: a bare-literal-only rewrite leaves
+    # `installed_version() or "<old>"` behind while `check` still reports READY.
+    repo = _make_repo(tmp_path)
+    (repo / "simplicio_loop" / "__init__.py").write_text(
+        "def __getattr__(name):\n"
+        "    try:\n"
+        "        from .distribution import installed_version\n"
+        '        __version__ = installed_version() or "1.2.3"\n'
+        "    except Exception:  # pragma: no cover\n"
+        '        __version__ = "1.2.3"\n'
+        "    return __version__\n",
+        encoding="utf-8",
+    )
+    result = apply_version(repo, "2.0.0")
+    assert result["ok"] is True
+    text = (repo / "simplicio_loop" / "__init__.py").read_text(encoding="utf-8")
+    assert '__version__ = installed_version() or "2.0.0"' in text
+    assert text.count('__version__ = "2.0.0"') == 1
+    assert "1.2.3" not in text
+    assert check_version(repo)["ok"] is True
+
+
+@pytest.mark.parametrize("line", [
+    '__version__ = installed_version() or "1.2.3"',
+    '__version__=installed_version()or"1.2.3"',
+    "__version__ =  installed_version()   or   '1.2.3'",
+])
+def test_apply_rewrites_a_literal_behind_installed_version_whatever_the_spacing(tmp_path, line):
+    repo = _make_repo(tmp_path)
+    (repo / "simplicio_loop" / "__init__.py").write_text(line + '\n__version__ = "1.2.3"\n', encoding="utf-8")
+    assert apply_version(repo, "2.0.0")["ok"] is True
+    text = (repo / "simplicio_loop" / "__init__.py").read_text(encoding="utf-8")
+    assert text.count('"2.0.0"') == 2
+    assert text.count("installed_version()") == 1
+
+
 # ---------------------------------------------------------------------------
 # real repo — exercise the actual committed surfaces, not just a synthetic fixture
 # ---------------------------------------------------------------------------
