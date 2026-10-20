@@ -232,3 +232,55 @@ def test_the_real_project_manifest_carries_the_package_version():
     package = _pyproject_version(REPO_ROOT / "pyproject.toml")
     project = json.loads((REPO_ROOT / PROJECT_FILE).read_text(encoding="utf-8"))["project"]
     assert project["version"] == package
+
+
+# ---------------------------------------------------------------------------
+# simplicio_loop/__init__.py: the lazy `__getattr__` holds TWO literals, the
+# `installed_version() or "<x>"` lookup default and the `except` fallback. Both must be
+# rewritten by `apply` and both must be seen by `check`.
+# ---------------------------------------------------------------------------
+
+_LAZY_INIT = (
+    "def __getattr__(name):\n"
+    "    try:\n"
+    "        from .distribution import installed_version\n"
+    "\n"
+    '        __version__ = installed_version() or "{lookup}"\n'
+    "    except Exception:  # pragma: no cover\n"
+    '        __version__ = "{except_}"\n'
+    '    globals()["__version__"] = __version__\n'
+    "    return __version__\n"
+)
+
+
+def _make_lazy_init_repo(tmp_path, lookup, except_, version="1.2.3"):
+    repo = _make_repo(tmp_path, version=version, plugin_version=version, fallback_version=version)
+    (repo / "simplicio_loop" / "__init__.py").write_text(
+        _LAZY_INIT.format(lookup=lookup, except_=except_), encoding="utf-8"
+    )
+    return repo
+
+
+def test_apply_rewrites_the_installed_version_or_literal_too(tmp_path):
+    repo = _make_lazy_init_repo(tmp_path, lookup="1.2.3", except_="1.2.3")
+    result = apply_version(repo, "9.9.9")
+    text = (repo / "simplicio_loop" / "__init__.py").read_text(encoding="utf-8")
+    assert 'installed_version() or "9.9.9"' in text
+    assert '__version__ = "9.9.9"' in text
+    assert "1.2.3" not in text
+    assert result["ok"] is True
+
+
+def test_check_reports_drift_when_only_the_installed_version_or_literal_is_stale(tmp_path):
+    repo = _make_lazy_init_repo(tmp_path, lookup="1.2.2", except_="1.2.3")
+    result = check_version(repo)
+    assert result["ok"] is False
+    assert "source_fallback" in result["manifest"]["mismatches"]
+
+
+def test_check_is_ready_when_both_installed_version_and_except_literals_agree(tmp_path):
+    repo = _make_lazy_init_repo(tmp_path, lookup="1.2.3", except_="1.2.3")
+    result = check_version(repo)
+    assert result["ok"] is True
+    rows = {row["name"]: row for row in result["manifest"]["sources"]}
+    assert rows["source_fallback"]["versions"] == ["1.2.3", "1.2.3"]
