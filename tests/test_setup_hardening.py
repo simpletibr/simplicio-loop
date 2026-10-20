@@ -382,6 +382,8 @@ INSTALL_KEYS = (
     "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "all_proxy", "no_proxy",
     "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "UV_CA_CERT", "UV_NATIVE_TLS",
     "UV_HTTP_TIMEOUT", "UV_PYTHON_INSTALL_MIRROR", "UV_PYTHON_INSTALL_DIR",
+    "NODE_EXTRA_CA_CERTS", "npm_config_cafile", "NPM_CONFIG_CAFILE", "npm_config_proxy", "NPM_CONFIG_PROXY",
+    "npm_config_https_proxy", "NPM_CONFIG_HTTPS_PROXY", "npm_config_noproxy", "NPM_CONFIG_NOPROXY",
 )
 
 

@@ -62,6 +62,15 @@ INSTALL_ENV_KEYS = (
     "UV_HTTP_TIMEOUT",
     "UV_PYTHON_INSTALL_MIRROR",
     "UV_PYTHON_INSTALL_DIR",
+    "NODE_EXTRA_CA_CERTS",  # Node's CA bundle: npm and the Playwright downloads are Node, and Node ignores SSL_CERT_FILE
+    "npm_config_cafile",  # npm's own CA file and proxy settings, in both spellings (npm reads them case-insensitively)
+    "NPM_CONFIG_CAFILE",
+    "npm_config_proxy",
+    "NPM_CONFIG_PROXY",
+    "npm_config_https_proxy",
+    "NPM_CONFIG_HTTPS_PROXY",
+    "npm_config_noproxy",
+    "NPM_CONFIG_NOPROXY",
     "npm_config_cache",  # where npm keeps its cache; without it npm uses ~/.npm
     "NPM_CONFIG_CACHE",
 )

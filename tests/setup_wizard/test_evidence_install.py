@@ -3,8 +3,9 @@ required evidence tool is ok, and the exit code is 1 while one is not (2 when th
 from __future__ import annotations
 
 import io
+from pathlib import Path
 
-from simplicio_loop import cli_impl, prereqs, setup_cli
+from simplicio_loop import cli_impl, evidence_tools, prereqs, setup_cli
 
 from .fakes import Fakes, check, summary_file
 
@@ -64,3 +65,19 @@ def test_every_install_checks_the_evidence_tools_before_the_setup(home, monkeypa
     monkeypatch.setattr(setup_cli, "_setup_at_the_end", lambda out: order.append("setup") or 0)
     assert setup_cli.after_install(out=io.StringIO()) == 0
     assert seen and order == ["setup"]
+
+
+def test_the_npm_install_gets_the_node_ca_setting_it_is_given(tmp_path):
+    """Node and npm read a private CA only from NODE_EXTRA_CA_CERTS (SSL_CERT_FILE is ignored): the install passes it on."""
+    seen = {}
+
+    def run(argv, timeout, cwd=None, env=None):
+        if Path(argv[0]).name == "node":
+            return 0, "v26.0.0\n"
+        seen[Path(argv[0]).name] = dict(env or {})
+        return 1, "npm ERR! network request failed"  # the install stops here: only the environment it ran with matters
+
+    environ = {"HOME": str(tmp_path), "PATH": "/opt/fake/bin", "NODE_EXTRA_CA_CERTS": "/opt/corp/ca.pem"}
+    evidence_tools.step(tmp_path / "state", environ=environ, which=lambda name: f"/opt/fake/bin/{name}", run=run,
+                        dry_run=False, validate=False)
+    assert seen["npm"]["NODE_EXTRA_CA_CERTS"] == "/opt/corp/ca.pem"
