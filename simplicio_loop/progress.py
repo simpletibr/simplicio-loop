@@ -32,6 +32,9 @@ PHASE_META = {
     "cancelled": ("🛑", "Cancelado"),
     "awaiting_decision": ("⏸️", "Aguardando decisão"),
 }
+# A ``done`` phase without a ready oracle receipt is finished but not certified: its delivery is
+# pending. It is kept out of PHASE_META, which must match the generated dashboard phase-meta module.
+UNCERTIFIED_DONE_META = ("📦", "Finalizado, entrega pendente")
 SPINNER = ("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
 EVENT_KINDS = frozenset((
     "contract_frozen", "mapper_fresh", "plan_ready", "worker_claimed",
@@ -199,6 +202,8 @@ def build_progress(state: Mapping[str, Any], *, run_dir: str | Path | None = Non
     else:
         percent = 100 if ready else phase_percent
     icon, label = PHASE_META.get(phase, ("•", phase.replace("_", " ").title()))
+    if phase == "done" and not ready:
+        icon, label = UNCERTIFIED_DONE_META
     total = int(state.get("task_count") or 0)
     coverage = state.get("coverage") or {}
     verified = 0
@@ -209,9 +214,12 @@ def build_progress(state: Mapping[str, Any], *, run_dir: str | Path | None = Non
                                run_id=str(state.get("run_id") or ""))
     blockers = _normalise_blockers(state, events, terminal_verified=ready and phase == "done")
     technical_debts = _normalise_technical_debts(state)
+    # A closed run (finished_at) that the oracle has not certified is PENDING, never RUNNING:
+    # PENDING is a status the live board already labels and styles.
     status = "COMPLETE" if ready else ("BLOCKED" if phase == "blocked" else
                                         "CANCELLED" if phase == "cancelled" else
-                                        "DEGRADED" if technical_debts else "RUNNING")
+                                        "DEGRADED" if technical_debts else
+                                        "PENDING" if state.get("finished_at") else "RUNNING")
     return {
         "schema": SCHEMA,
         "run_id": str(state.get("run_id") or ""),

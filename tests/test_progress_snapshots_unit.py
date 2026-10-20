@@ -1,8 +1,12 @@
 import json
 from pathlib import Path
 
-from simplicio_loop.progress import build_progress, render_markdown, render_text
-
+from simplicio_loop.progress import (
+    PHASE_META,
+    build_progress,
+    render_markdown,
+    render_text,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "contracts" / "progress" / "v1" / "snapshots.json"
@@ -46,3 +50,32 @@ def test_unverified_percent_100_is_clamped_until_oracle_receipt():
     assert event["percent"] == 99
     assert event["status"] == "RUNNING"
     assert event["gates"]["oracle"] is False
+
+
+def test_finished_run_without_oracle_receipt_is_neither_running_nor_oracle_done():
+    # Shape of a turbo run closed with status ok (phase done, finished_at stamped) whose
+    # oracle receipt does not certify it: every gate stays false.
+    state = {"run_id": "turbo-finished", "phase": "done", "task_count": 1,
+             "current_action": "close", "next_action": "none", "finished_at": "2026-10-20T12:00:00Z",
+             "evidence": {"ready": False, "status": "UNVERIFIED"},
+             "completion": {"ready": False, "verdict": "DELIVERY_PENDING", "reason_code": "oracle_incomplete"}}
+    event = build_progress(state)
+    assert event["percent"] == 99
+    assert event["status"] == "PENDING"
+    assert event["label"] == "Finalizado, entrega pendente"
+    assert event["icon"] == "📦"
+    assert event["gates"] == {"evidence": False, "watcher": False, "oracle": False}
+    assert event["completion"] == {"ready": False, "verdict": "DELIVERY_PENDING", "reason_code": "oracle_incomplete"}
+
+
+def test_fully_gated_done_run_keeps_the_oracle_label_and_complete_status():
+    state = {"run_id": "turbo-gated", "phase": "done", "task_count": 1,
+             "current_action": "close", "next_action": "none", "finished_at": "2026-10-20T12:00:00Z",
+             "evidence": {"ready": True, "status": "VERIFIED"},
+             "watcher": {"status": "VERIFIED"},
+             "completion": {"ready": True, "verdict": "COMPLETE"}}
+    event = build_progress(state)
+    assert event["percent"] == 100
+    assert event["status"] == "COMPLETE"
+    assert (event["icon"], event["label"]) == PHASE_META["done"]
+    assert event["gates"] == {"evidence": True, "watcher": True, "oracle": True}
