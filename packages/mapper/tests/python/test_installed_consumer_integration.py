@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import sysconfig
 import tempfile
 import textwrap
 import unittest
@@ -64,14 +65,12 @@ class InstalledWheelConsumerIntegrationTest(unittest.TestCase):
         wheels = sorted(dist_dir.glob("*.whl"))
         self.assertEqual(len(wheels), 1, [str(path) for path in wheels])
 
-        # `--system-site-packages` lets the throwaway venv resolve the wheel's
-        # runtime dependencies (diskcache, orjson, tiktoken) from the calling
-        # interpreter's already-installed packages, and installing the wheel
-        # itself with `--no-deps --no-index` never touches PyPI. This keeps
-        # the test hermetic (no network dependency-resolution round-trip)
-        # while still proving the *built wheel* -- not the source checkout --
-        # is what a consumer imports: the wheel install writes into the
-        # venv's own site-packages, which shadows the inherited system one.
+        # `--system-site-packages` makes the throwaway venv inherit the BASE
+        # interpreter's site dirs. The wheel is installed with `--no-deps
+        # --no-index`, so nothing touches PyPI and the test stays hermetic (no
+        # network dependency-resolution round-trip). The install writes into the
+        # throwaway venv's own site-packages, so the *built wheel* -- not the
+        # source checkout -- is what a consumer imports.
         venv_dir = tmp / "venv"
         create_venv = self._run(
             [sys.executable, "-m", "venv", "--system-site-packages", str(venv_dir)], cwd=tmp
@@ -83,6 +82,26 @@ class InstalledWheelConsumerIntegrationTest(unittest.TestCase):
             [str(py), "-m", "pip", "install", "--no-deps", "--no-index", str(wheels[0])], cwd=tmp
         )
         self.assertEqual(install.returncode, 0, install.stdout + install.stderr)
+
+        # The wheel's runtime dependencies (diskcache, orjson, tiktoken) live in
+        # the calling interpreter's site dirs. `--system-site-packages` only
+        # inherits the BASE interpreter's site dirs, so when the calling
+        # interpreter is a venv, its purelib and platlib are added to the
+        # throwaway venv as plain path lines in a .pth file. Those lines are
+        # appended to sys.path after the throwaway venv's own site-packages, and
+        # the calling venv's .pth files are not processed, so its editable finder
+        # (which maps simplicio_mapper to the source checkout) is never installed.
+        # The .pth is written after pip runs, so pip never sees the calling
+        # venv's distributions.
+        if sys.prefix != sys.base_prefix:
+            venv_purelib = self._run(
+                [str(py), "-c", "import sysconfig; print(sysconfig.get_paths()['purelib'])"], cwd=tmp
+            )
+            self.assertEqual(venv_purelib.returncode, 0, venv_purelib.stdout + venv_purelib.stderr)
+            paths = sysconfig.get_paths()
+            calling_dirs = sorted({paths["purelib"], paths["platlib"]})
+            pth = Path(venv_purelib.stdout.strip()) / "calling-venv.pth"
+            pth.write_text("".join(f"{path}\n" for path in calling_dirs), encoding="utf-8")
         return py
 
     def _run_installed_script(self, py: Path, script: str, *, cwd: Path) -> dict:
