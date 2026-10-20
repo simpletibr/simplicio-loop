@@ -29,7 +29,7 @@
   "mutations": [
     {
       "consent_required": "no (default-mode effect)",
-      "effect": "copies the 7 skills into `<target>/.claude/skills/<skill>`; for OpenClaw also into `<target>/.agents/skills/<skill>` (the root OpenClaw scans)",
+      "effect": "copies the core skills (the `SKILLS` list) into `<target>/.claude/skills/<skill>`; for OpenClaw also into `<target>/.agents/skills/<skill>` (the root OpenClaw scans)",
       "function": "copy_skills()",
       "reversible": "yes (delete dir)",
       "scope": "project/user",

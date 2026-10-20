@@ -1,7 +1,7 @@
 # Install — simplicio-loop
 
 simplicio-loop is a **super-plugin** made of skills (markdown) + cross-platform Python hooks.
-There is nothing to compile. One installer copies the 7 skills into your runtime, wires the
+There is nothing to compile. One installer copies the core skills into your runtime, wires the
 loop where supported, and prints the optional native-bind line.
 
 ## 1. Get it
@@ -41,7 +41,7 @@ The only requirement is **python3** on PATH (the skills, hooks, and installer ar
 cross-platform Python). For GitHub sources you also want `git` + an authenticated `gh`.
 
 What the installer does (all reversible — copies + a config edit):
-- copies `.claude/skills/simplicio-*` (7 skills) into the runtime's skills location,
+- copies the core skills (the `SKILLS` list in `scripts/install_lib.py`) into the runtime's skills location,
 - copies `hooks/` so hook paths resolve,
 - for Claude Code, registers the loop's `Stop` hook and the `PreToolUse` safety gate in `.claude/settings.json`
   (existing keys and hooks are kept; `install --uninstall` removes only the entries it added); the loop is wired
@@ -97,7 +97,7 @@ A git checkout must use `git pull` and `bash scripts/dev_install.sh`. Loop is in
 
 ## 3.2. Setup (after install)
 
-`simplicio-loop install` ends with `simplicio-loop setup`. You can run it again at any time. The second run says `unchanged`. If setup ends pending, `install` still exits 0, lists the pending items and prints one `next:` line with the fix of the first one, and `simplicio-loop doctor` shows that same fix.
+`simplicio-loop install` copies every skill folder bundled in the package (the `simplicio-*` skills, `asd-ste100` and `frontend-design`) and ends with `simplicio-loop setup`. You can run it again at any time. The second run says `unchanged`. If setup ends pending, `install` still exits 0, lists the pending items and prints one `next:` line with the fix of the first one, and `simplicio-loop doctor` shows that same fix.
 
 ```bash
 simplicio-loop setup            # look at the machine, find your agent CLIs, find your GitHub login

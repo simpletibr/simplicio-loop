@@ -44,7 +44,7 @@ JSON_SCHEMA = "simplicio.install-mutations/v1"
 # (source, function, effect, scope, reversible, consent_required)
 MUTATIONS = [
     ("install_lib.py", "copy_skills()",
-     "copies the 7 skills into `<target>/.claude/skills/<skill>`; for OpenClaw also into "
+     "copies the core skills (the `SKILLS` list) into `<target>/.claude/skills/<skill>`; for OpenClaw also into "
      "`<target>/.agents/skills/<skill>` (the root OpenClaw scans)",
      "project/user", "yes (delete dir)", "no (default-mode effect)"),
     ("install_lib.py", "sync_global_vscode_copilot()",
