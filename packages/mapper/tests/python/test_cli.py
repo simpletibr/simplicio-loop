@@ -1109,8 +1109,9 @@ def load(api):
         argv = popen.call_args.args[0]
         self.assertNotIn("--timeout", argv)
         wait_until = float(argv[argv.index("--wait-until") + 1])
-        self.assertGreaterEqual(wait_until, before + 2)
-        self.assertLessEqual(wait_until, after + 2)
+        # The argv carries the deadline in milliseconds, so the bounds are rounded the same way.
+        self.assertGreaterEqual(wait_until, float(f"{before + 2:.3f}"))
+        self.assertLessEqual(wait_until, float(f"{after + 2:.3f}"))
 
     def test_background_index_reports_pid_and_log(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "background-host"}))
