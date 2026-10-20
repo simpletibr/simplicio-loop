@@ -18,6 +18,8 @@ import pytest
 from simplicio_loop import cli_impl, map_service_mapper as msm, turbo_cli
 from simplicio_loop.turbo_run import TurboRun
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
 
 def _verify(root, command):
     """The verify runs inside a run, so its command events have a run directory to land in."""
@@ -78,11 +80,16 @@ def _git_repo(tmp_path: Path) -> Path:
 
 
 def _slow_index_mapper(tmp_path: Path, monkeypatch, sleep_s: float) -> Path:
-    """A real ``simplicio-mapper`` on PATH whose ``index`` sleeps, then writes a project map."""
+    """A real ``simplicio-mapper`` on PATH whose ``index`` sleeps, then writes a project map.
+
+    The product first asks ``canonical overlay <root>``; only ``index <root>`` writes here. Taking ``$2``
+    as the root for every verb would create ``./overlay`` in the process cwd, the real checkout under pytest.
+    """
     bin_dir = tmp_path / "fakebin"
     bin_dir.mkdir()
     _script(bin_dir / "simplicio-mapper", (
         f"sleep {sleep_s}\n"
+        "if [ \"$1\" != index ]; then echo \"unknown command: $1\" >&2; exit 2; fi\n"
         "mkdir -p \"$2/.simplicio-loop\"\n"
         "echo '{\"files\": []}' > \"$2/.simplicio-loop/project-map.json\"\n"
         "echo '{\"status\": \"ok\"}'\n"
@@ -119,6 +126,7 @@ def test_the_bounded_index_keeps_the_event_loop_running(tmp_path, monkeypatch):
     _slow_index_mapper(tmp_path, monkeypatch, 0.5)
     repo = _git_repo(tmp_path)
     _none, ticks = asyncio.run(_ticks_during(cli_impl._ensure_project_map(repo, budget=10.0)))
+    assert not (REPO_ROOT / "overlay").exists(), "a mapper call wrote into the real checkout (cwd-relative root)"
     assert ticks >= 10, ticks
     assert (repo / ".simplicio-loop" / "project-map.json").is_file()
     assert json.loads((repo / ".simplicio-loop" / "mapper-index-state.json").read_text())["tree_state"]
