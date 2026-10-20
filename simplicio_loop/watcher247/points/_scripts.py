@@ -12,6 +12,7 @@ from .registry import PointContext
 
 SCRIPTS = Path(__file__).resolve().parents[3] / "scripts"  # not shipped in the wheel: absent there
 _TAIL = 300
+TOOL_ENV = ("SIMPLICIO_HOME", "PLAYWRIGHT_BROWSERS_PATH")  # where the evidence tools and their browser live; locations, not secrets
 
 
 def script_path(name: str) -> Path | None:
@@ -32,11 +33,11 @@ def load_script(name: str):
 
 
 async def sandboxed(argv: list[str], *, clone: Path, state_dir: Path, timeout: float) -> proc.Result:
-    """Run argv in the clone under the sandbox with the scrubbed env.
+    """Run argv in the clone under the sandbox with the scrubbed env, plus the evidence tools' locations (TOOL_ENV).
 
     `state_dir` is bound read-only: the script writes only its clone (a run dir inside the clone is writable for that reason)."""
     wrapped = sandbox.wrap(argv, clone=clone, state_dir=state_dir)
-    env = sandbox.scrubbed_env(os.environ, home=Path.home())
+    env = sandbox.scrubbed_env(os.environ, home=Path.home(), keep=TOOL_ENV)
     return await proc.run(wrapped, timeout=timeout, cwd=clone, env=env)
 
 
