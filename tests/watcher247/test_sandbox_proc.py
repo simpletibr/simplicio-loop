@@ -174,7 +174,7 @@ def test_stdin_reaches_the_sandboxed_command(rig):
 @needs_visible_interpreter
 def test_git_and_python_work_in_the_clone(rig):
     clone, _ = rig
-    script = ("git init -q . && git -c user.email=a@b -c user.name=n commit -q --allow-empty -m x "
+    script = ("git init -q . && git -c user.email=a@b -c user.name=n -c commit.gpgsign=false commit -q --allow-empty -m x "
               f"&& git log --oneline | wc -l && {sys.executable} -c 'print(6 * 7)'")
     done = sandboxed(["sh", "-c", script], rig)
     assert done.returncode == 0, done.stderr
