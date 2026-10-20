@@ -79,11 +79,12 @@ def _normalize_tasks(ops: Mapping[str, Any]) -> list[dict[str, Any]]:
             raise ApplyValidationError(f"task {task_id!r} requires a non-empty operations list")
         normalized_ops = []
         for op in operations:
-            if not isinstance(op, Mapping) or not all(k in op for k in ("path", "find", "replace")):
+            # ``find`` may be absent (a create, as in a turbo plan): present, it must be a string.
+            if not isinstance(op, Mapping) or "path" not in op or "replace" not in op or not isinstance(op.get("find", ""), str):
                 raise ApplyValidationError(f"task {task_id!r} has a malformed operation")
             if reason := plan_paths.refusal(str(op["path"])) or plan_paths.protected_refusal(str(op["path"])):  # before any task writes
                 raise ApplyValidationError(f"task {task_id!r}: {reason}")
-            normalized_ops.append({"path": str(op["path"]), "find": str(op["find"]), "replace": str(op["replace"])})
+            normalized_ops.append({"path": str(op["path"]), "find": op.get("find") or "", "replace": str(op["replace"])})
         out.append({
             "id": task_id,
             "operations": normalized_ops,
@@ -201,8 +202,8 @@ def validate_ops(root: Path, tasks: Sequence[Mapping[str, Any]], chains: Sequenc
                     problems.append({"task": task_id, "path": path, "op_index": idx, "reason": "protected_path"})
                     continue
                 current = read(path)
-                if find_text == "":
-                    if (root / path).exists() and current:
+                if find_text == "":  # a create: dev-cli refuses any existing path, so it is blocked here too
+                    if (root / path).exists():
                         problems.append({"task": task_id, "path": path, "op_index": idx,
                                           "reason": "create_target_exists"})
                         continue

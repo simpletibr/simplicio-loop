@@ -29,7 +29,13 @@ SCHEMA = "simplicio.dev-cli.capabilities/v1"
 # a help string) so the manifest states it as structured data a caller can
 # consume without parsing prose.
 MINIMAL_HOST_PLAN_EXAMPLE: dict[str, Any] = {
-    "operations": [{"path": "<repo-relative path>", "find": "<exact unique text>", "replace": "<new text>"}]
+    "operations": [
+        {
+            "path": "<repo-relative path>",
+            "find": '<exact unique text; omit it or "" to create a new file>',
+            "replace": "<new text>",
+        }
+    ]
 }
 COMPILED_EDIT_PLAN_SCHEMA = "simplicio.dev-cli.edit-plan/v1"
 

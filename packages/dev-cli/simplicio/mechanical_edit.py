@@ -444,7 +444,8 @@ def execute_plan(
         return _refused([exc.to_dict()], root=root_path, schema=result_schema, plan=plan)
 
     diff = _build_diff(before, after)
-    noop = diff == ""
+    # A no-op is no byte changed; an empty new file has no line in the text diff but is still a change.
+    noop = all(before.get(rel) == after.get(rel) for rel in set(before) | set(after))
     result = _base_result(root_path, schema=result_schema)
     result.update(
         {

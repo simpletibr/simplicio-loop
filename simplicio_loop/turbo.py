@@ -225,8 +225,8 @@ def _parse_operations(content: str, scope: plan_scope.TaskScope | None = None, r
 def load_operations(text: str) -> list[dict]:
     """Parse the plan a host model wrote: ``{"operations":[{"path","find","replace"}]}``.
 
-    ``find`` may be absent or empty (create the file). Anything else that is not a string is refused here,
-    so a malformed plan is reported before dev-cli is called.
+    ``find`` may be absent or empty: that operation creates the file, ``replace`` being its whole text. Anything else
+    that is not a string is refused here, so a malformed plan is reported before dev-cli is called.
     """
     operations = _parse_operations(text)
     for number, operation in enumerate(operations, start=1):
@@ -235,8 +235,12 @@ def load_operations(text: str) -> list[dict]:
         path = operation.get("path")
         if not isinstance(path, str) or not path.strip():
             raise ValueError(f"operation {number} needs a string path")
-        if not isinstance(operation.get("find", ""), str) or not isinstance(operation.get("replace"), str):
-            raise ValueError(f"operation {number} needs a string find and a string replace")
+        if "find" in operation and not isinstance(operation["find"], str):
+            raise ValueError(f'operation {number}: find must be a string (absent or "" creates the file)')
+        if not isinstance(operation.get("replace"), str):
+            raise ValueError(
+                f'operation {number} needs a string replace: a new file is {{"path", "replace"}} with its whole text'
+            )
     return operations
 
 

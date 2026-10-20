@@ -660,6 +660,16 @@ def _print_edit_result(result: dict[str, Any], a: argparse.Namespace) -> int:
     return 0 if result["status"] == "ok" else 1
 
 
+def _file_in_the_way(root: Path, rel: str) -> str | None:
+    """The nearest parent of ``rel`` that exists as a file: a create cannot be made under it, or None."""
+    for parent in Path(rel).parents:
+        if str(parent) == ".":
+            return None
+        if (root / parent).exists() and not (root / parent).is_dir():
+            return str(parent)
+    return None
+
+
 def compile_host_plan(root: str, plan: Any) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
     """Freeze a host's minimal ``{"operations": [{path, find, replace}]}`` plan.
 
@@ -667,13 +677,11 @@ def compile_host_plan(root: str, plan: Any) -> tuple[dict[str, Any] | None, list
     and source tree into the mapper binding and fills every digest, so a later
     ``edit --apply`` refuses the plan if the files drifted in between.
 
-    issue #1331: an operation with ``find: ""`` against a path that does not
-    yet exist creates that file (same semantics ``simplicio-loop apply``'s
-    in-memory ``validate_ops`` already promises via SKILL.md) instead of
-    being rejected outright as "non-empty find" was previously required
-    unconditionally. An empty ``find`` against a path that already exists
-    with non-empty content is still refused (``create_target_exists``) --
-    creation semantics never silently overwrite a real file.
+    A create leaves ``find`` out or sets it to ``""``: ``replace`` is the whole new text. The path must not
+    exist (any existing path, empty or not, is ``create_target_exists``: a create never overwrites), its
+    parent directories are made, and a parent that is a file refuses the create
+    (``create_parent_not_directory``). An anchored operation is one whose ``find`` matches exactly once.
+    Refusals are all or nothing.
     """
     import hashlib
 
@@ -695,13 +703,19 @@ def compile_host_plan(root: str, plan: Any) -> tuple[dict[str, Any] | None, list
     create_ops: list[dict[str, Any]] = []
     hashes: dict[str, str] = {}
     for index, op in enumerate(operations):
-        required_keys = ("path", "find", "replace")
-        if not isinstance(op, dict) or not all(isinstance(op.get(key), str) for key in required_keys):
+        find = op.get("find", "") if isinstance(op, dict) else None
+        if (
+            not isinstance(op, dict)
+            or not isinstance(op.get("path"), str)
+            or not isinstance(op.get("replace"), str)
+            or not isinstance(find, str)
+        ):
             errors.append(
                 {
                     "code": "invalid_operation",
                     "index": index,
-                    "message": "each operation needs string path, non-empty find, replace",
+                    "message": "each operation needs a string path and a string replace; find, when present, "
+                    'is a string (absent or "" creates a new file)',
                 }
             )
             continue
@@ -712,11 +726,15 @@ def compile_host_plan(root: str, plan: Any) -> tuple[dict[str, Any] | None, list
             errors.append({**exc.to_dict(), "index": index})
             continue
         target = Path(root) / path
-        if op["find"] == "":
-            if target.is_file() and target.read_bytes():
-                errors.append(
-                    {"code": "create_target_exists", "path": path, "message": f"{path} already exists"}
-                )
+        if find == "":
+            if target.exists() or target.is_symlink():
+                message = f"{path} already exists"
+                errors.append({"code": "create_target_exists", "path": path, "message": message})
+                continue
+            blocked = _file_in_the_way(Path(root), path)
+            if blocked is not None:
+                message = f"{blocked} is a file, not a directory"
+                errors.append({"code": "create_parent_not_directory", "path": path, "message": message})
                 continue
             create_ops.append({"op": "create_file", "path": path, "text": op["replace"]})
             continue
@@ -725,7 +743,7 @@ def compile_host_plan(root: str, plan: Any) -> tuple[dict[str, Any] | None, list
         except OSError as exc:
             errors.append({"code": "file_unreadable", "path": path, "message": str(exc)})
             continue
-        count = data.decode("utf-8", "surrogateescape").count(op["find"])
+        count = data.decode("utf-8", "surrogateescape").count(find)
         if count != 1:
             code = "missing_anchor" if count == 0 else "ambiguous_anchor"
             errors.append(
@@ -733,7 +751,7 @@ def compile_host_plan(root: str, plan: Any) -> tuple[dict[str, Any] | None, list
             )
             continue
         hashes[path] = hashlib.sha256(data).hexdigest()
-        edits.append(TextEdit(path, op["find"], op["replace"]))
+        edits.append(TextEdit(path, find, op["replace"]))
     if errors:
         return None, errors
     tree = subprocess.run(

@@ -41,6 +41,7 @@
   - `scan --sync` gives its worker an absolute `--wait-until` set at spawn, so interpreter start-up counts against the scan budget.
   - Store migration, registry and health count a lock owner under another user (EPERM) as live. Only ESRCH marks it dead.
 - **Dev CLI**:
+  - A host plan can create a new file: an operation with no `find` (or `find: ""`) creates the file, with its missing parent directories, and `replace` as its whole text (an empty `replace` makes an empty file). A path that exists, a path outside the repository and a parent that is a file refuse the whole plan. Before, a `find` left out was refused as `invalid_operation`, and an empty new file was reported `no_apply_receipt` without being written. The needs_plan request says how to create a file.
   - The changeset transaction counts a lock owner under another user (EPERM) as live. Only ESRCH marks it dead.
   - The JSON boundary checker classifies every file under a registry path that ends in `/`.
 - **Reliability & process**:

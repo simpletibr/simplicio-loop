@@ -83,6 +83,18 @@ def test_in_scope_file_and_dir_prefix_pass():
     assert ps.check_response(plan, _scope("a.py", dirs=("pkg/",)), Path(".")).ok
 
 
+def test_a_create_leaves_find_out_and_is_in_scope_like_an_empty_find(tmp_path):
+    omitted = ps.check_response(_plan({"path": "new.py", "replace": "x\n"}), _scope("new.py"), tmp_path)
+    explicit = ps.check_response(_plan({"path": "new.py", "find": "", "replace": "x\n"}), _scope("new.py"), tmp_path)
+    assert omitted.ok and explicit.ok
+    assert omitted.operations == [{"path": "new.py", "replace": "x\n"}]
+
+
+def test_find_that_is_present_must_be_a_string(tmp_path):
+    result = ps.check_response(_plan({"path": "new.py", "find": None, "replace": "x\n"}), _scope("new.py"), tmp_path)
+    assert not result.ok and result.violations[0].startswith("wrong_type:/operations/0/find")
+
+
 def test_the_model_cannot_widen_the_scope():
     scope = _scope("a.py")
     ps.check_response(_plan({"path": "z.py", "find": "", "replace": "x"}), scope, Path("."))

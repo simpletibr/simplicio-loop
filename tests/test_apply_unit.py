@@ -159,6 +159,31 @@ def test_validate_ops_create_new_file_with_empty_find(tmp_path):
     assert problems == []
 
 
+def test_an_operation_without_find_is_a_create_like_an_empty_find(tmp_path):
+    tasks = apply_mod._normalize_tasks({"tasks": [
+        {"id": "t1", "operations": [{"path": "new.html", "replace": "<html></html>"}]},
+    ]})
+    assert tasks[0]["operations"][0]["find"] == ""
+    assert apply_mod.validate_ops(tmp_path, tasks, apply_mod.build_chains(tasks)) == []
+
+
+def test_a_find_that_is_not_a_string_is_malformed():
+    with pytest.raises(apply_mod.ApplyValidationError, match="malformed operation"):
+        apply_mod._normalize_tasks({"tasks": [
+            {"id": "t1", "operations": [{"path": "new.html", "find": None, "replace": "<html></html>"}]},
+        ]})
+
+
+def test_a_create_over_an_existing_empty_file_is_blocked_before_any_write(tmp_path):
+    _write(tmp_path, "empty.html", "")
+    tasks = apply_mod._normalize_tasks({"tasks": [
+        {"id": "t1", "operations": [{"path": "empty.html", "find": "", "replace": "<html></html>"}]},
+    ]})
+    problems = apply_mod.validate_ops(tmp_path, tasks, apply_mod.build_chains(tasks))
+    assert problems and problems[0]["reason"] == "create_target_exists"
+    assert (tmp_path / "empty.html").read_text(encoding="utf-8") == ""
+
+
 def test_run_blocked_validation_writes_nothing(tmp_path, monkeypatch):
     _write(tmp_path, "a.txt", "hello")
     ops = {"tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "NOPE", "replace": "y"}]}]}

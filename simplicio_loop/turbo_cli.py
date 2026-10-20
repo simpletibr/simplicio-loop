@@ -36,12 +36,13 @@ if TYPE_CHECKING:
 SCHEMA = "simplicio.turbo-run/v1"
 REQUEST_SCHEMA = "simplicio.turbo-request/v1"
 PLAN_FORMAT = {"operations": [{"path": "<repo-relative>",
-                               "find": "<exact text that occurs once; empty creates the file>",
+                               "find": "<exact text that occurs once; omit it or \"\" to create a new file>",
                                "replace": "<new text>"}]}
 RULES = ("Write the plan from the file contents above; do not open, list or read other files "
          '(a file shown in windows has more lines in `omitted`: answer {"operations": [], "need": [{"path", "start", "end"}]} '
          'to see them, e.g. {"operations": [], "need": [{"path": "tests/test_x.py", "start": 147, "end": 190}]}; '
          "the same lines come with `--window tests/test_x.py:147-190` on the turbo command); "
+         "to create a file, leave find out (or \"\") and put its whole text in replace, the path must not exist yet; "
          "do not run tests yourself; run the command below once.")
 STDIN_HINT = ("pipe the JSON plan on stdin: `simplicio-loop turbo --repo <path> --apply - <<'PLAN'`, the plan, "
               "then `PLAN`")

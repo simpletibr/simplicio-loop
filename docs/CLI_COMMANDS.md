@@ -37,7 +37,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `prepare` / `arm` | Arm and preflight a run without executing tasks or calling a provider; returns a `run_id` for `tick`, `batch`, `wave`, or `prism`. `--example` prints a valid markdown task file to stdout and needs no `--task`; a test parses it, so the example cannot rot. A BLOCKED prepare prints one `next:` line: the `orient` command when the Mapper survey is missing, or the task file line (with its number) that breaks the contract shape. `--task <file>` is required otherwise. |
 | `run` | Arm, execute, and independently verify a task. |
 | `orient` | Build bounded context through the Mapper survey and emit `simplicio.llm-max-speed-orientation/v1` plus a hash-bound `simplicio.loop-orient-receipt/v1` (Mapper-only). `--brief` (repeatable `--task`, issue #1310) renders the compact form: route first (its one next step is the `turbo` command carrying every task and `--verify`), deduped target file content, plan groups, suggested checks, Mapper generation + a `repo_state_chain` fingerprint, and the ops format of `apply`. |
-| `apply` | Apply one host-written `ops.json` (issue #1310; `turbo` is the default path, this is for a plan you already have) (`{"tasks":[{"id","operations":[{path,find,replace}],"check","depends_on"}]}`). Validates every `find` in memory before any write (BLOCKED + hint, nothing written, on a miss/non-unique/chained mismatch); mutates through `simplicio-dev-cli` (compile then apply); runs independent file-disjoint chains concurrently via asyncio with an isolated check environment (`PYTHONDONTWRITEBYTECODE`, `PYTEST_ADDOPTS=-p no:cacheprovider`, a per-task `COVERAGE_FILE`); fails closed on a stale `repo_state_chain` (the same generation-identity fingerprint `orient --brief` recorded); writes a receipt under `.simplicio-loop/apply/<run_id>/receipt.json`. Exit 0 only on PASS, 2 on BLOCKED, 1 on FAIL. |
+| `apply` | Apply one host-written `ops.json` (issue #1310; `turbo` is the default path, this is for a plan you already have) (`{"tasks":[{"id","operations":[{path,find,replace}],"check","depends_on"}]}`; a `find` left out creates the file, as in a turbo plan). Validates every `find` in memory before any write (BLOCKED + hint, nothing written, on a miss/non-unique/chained mismatch); mutates through `simplicio-dev-cli` (compile then apply); runs independent file-disjoint chains concurrently via asyncio with an isolated check environment (`PYTHONDONTWRITEBYTECODE`, `PYTEST_ADDOPTS=-p no:cacheprovider`, a per-task `COVERAGE_FILE`); fails closed on a stale `repo_state_chain` (the same generation-identity fingerprint `orient --brief` recorded); writes a receipt under `.simplicio-loop/apply/<run_id>/receipt.json`. Exit 0 only on PASS, 2 on BLOCKED, 1 on FAIL. |
 | `retrieve` | Retrieve and verify a tee-cache result. |
 | `extensions doctor` | Inspect an exact extension-provider/runtime handshake. |
 | `oracle` | Evaluate completion and cross-runtime parity. |
@@ -85,7 +85,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 # Default: any task, one or many. Exactly two commands, no provider and no API key.
 # 1. Mapper surveys and the command prints a needs_plan request (tasks, map, files, format, rules, apply):
 simplicio-loop "Create pricing.py with order_total" --verify "python -m pytest -q"
-# 2. Run the printed apply command once, with {"operations":[{"path","find","replace"}]} as its heredoc body:
+# 2. Run the printed apply command once, with {"operations":[{"path","find","replace"}]} as its heredoc body (a new file: leave find out, or "", and replace is its whole text):
 simplicio-loop turbo --repo . --apply - --verify "python -m pytest -q" <<'PLAN'
 {"operations":[{"path":"pricing.py","find":"","replace":"def order_total(items):\n    ...\n"}]}
 PLAN
@@ -117,6 +117,8 @@ not JSON or not `{"operations":[...]}` is `failed` with `turbo_plan_malformed`. 
 document also carries `model_calls`, `retries`, `tokens`, `cache_hit_pct`, `cost_usd` and `calls`.
 Done is `status: "ok"` and, when `--verify` was given, `verify.passed: true`. Name every file to change
 in the task text.
+
+A create is an operation with no `find` (or `find: ""`): it makes the file, and its missing parent directories, with `replace` as its whole text, and an empty `replace` makes an empty file. It never overwrites: a path that exists (`create_target_exists`), a path outside the repository (`unsafe_path`) and a parent that is a file (`create_parent_not_directory`) refuse the whole plan, as does any `find` that does not match once. Each created file is receipted with its SHA-256, like an edited one.
 
 Every `turbo` call first registers `.simplicio-loop/` (the local run state) with git, through
 `state_dir.ensure_state_dir`: a line in `<git-dir>/info/exclude`, and `.simplicio-loop/` appended to the

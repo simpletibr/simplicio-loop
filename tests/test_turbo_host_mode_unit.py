@@ -25,8 +25,10 @@ RULES = ("Write the plan from the file contents above; do not open, list or read
          '(a file shown in windows has more lines in `omitted`: answer {"operations": [], "need": [{"path", "start", "end"}]} '
          'to see them, e.g. {"operations": [], "need": [{"path": "tests/test_x.py", "start": 147, "end": 190}]}; '
          "the same lines come with `--window tests/test_x.py:147-190` on the turbo command); "
+         "to create a file, leave find out (or \"\") and put its whole text in replace, the path must not exist yet; "
          "do not run tests yourself; run the command below once.")
-FORMAT = {"operations": [{"path": "<repo-relative>", "find": "<exact text that occurs once; empty creates the file>",
+FORMAT = {"operations": [{"path": "<repo-relative>",
+                          "find": "<exact text that occurs once; omit it or \"\" to create a new file>",
                           "replace": "<new text>"}]}
 
 
@@ -265,6 +267,65 @@ def test_a_failing_verify_reports_failed_with_its_output(tmp_path, host, capsys,
     assert rc == 1 and out["status"] == "failed" and out["applied"] == ["notes.txt"]
     assert out["verify"]["passed"] is False and out["verify"]["returncode"] == 3
     assert (repo / "notes.txt").read_text(encoding="utf-8") == "hello\n"
+
+
+def test_a_new_file_has_no_find_and_its_whole_text_is_replace(tmp_path, host, capsys, monkeypatch):
+    repo = _seed(tmp_path)
+    text = "def line_total(line):\n    return 0\n"
+    rc, out = _apply_stdin(repo, capsys, monkeypatch, json.dumps({"operations": [{"path": "shop/money.py", "replace": text}]}))
+    assert rc == 0 and out["status"] == "ok" and out["applied"] == ["shop/money.py"], out
+    assert (repo / "shop" / "money.py").read_text(encoding="utf-8") == text
+
+
+def test_an_empty_new_file_is_created_and_reported_applied(tmp_path, host, capsys, monkeypatch):
+    repo = _seed(tmp_path)
+    rc, out = _apply_stdin(repo, capsys, monkeypatch, json.dumps({"operations": [{"path": "pkg/__init__.py", "replace": ""}]}))
+    assert rc == 0 and out["status"] == "ok" and out["applied"] == ["pkg/__init__.py"], out
+    assert out["receipts"] and (repo / "pkg" / "__init__.py").read_bytes() == b""
+
+
+def test_a_create_over_an_existing_file_is_refused_and_writes_nothing(tmp_path, host, capsys, monkeypatch):
+    repo = _seed(tmp_path)
+    before = (repo / "inventory.py").read_text(encoding="utf-8")
+    rc, out = _apply_stdin(repo, capsys, monkeypatch, json.dumps({"operations": [{"path": "inventory.py", "replace": "x = 1\n"}]}))
+    assert rc == 1 and out["status"] == "failed" and out["applied"] == []
+    assert "create_target_exists" in out["failed"][0]["reason"]
+    assert (repo / "inventory.py").read_text(encoding="utf-8") == before
+
+
+def test_a_create_next_to_a_missed_anchor_creates_nothing(tmp_path, host, capsys, monkeypatch):
+    repo = _seed(tmp_path)
+    rc, request = _request(repo, capsys, "--task", "Create shop/money.py and fix inventory.py")
+    plan = json.dumps({"operations": [
+        {"path": "shop/money.py", "replace": "x = 1\n"},
+        {"path": "inventory.py", "find": "not in the file\n", "replace": "y\n"},
+    ]})
+    rc, out = _apply_stdin(repo, capsys, monkeypatch, plan, "--run-id", request["run_id"])
+    assert rc == 1 and out["status"] == "failed" and out["applied"] == []
+    assert not (repo / "shop" / "money.py").exists()
+
+
+def test_a_create_outside_the_repository_is_refused(tmp_path, host, capsys, monkeypatch):
+    repo = _seed(tmp_path)
+    plan = json.dumps({"operations": [{"path": "../escape.txt", "replace": "x\n"}]})
+    rc, out = _apply_stdin(repo, capsys, monkeypatch, plan)
+    assert rc == 1 and out["status"] == "failed" and out["reason_code"] == "turbo_plan_malformed"
+    assert "inside the repository" in out["detail"], out["detail"]
+    assert not (repo.parent / "escape.txt").exists()
+
+
+def test_the_canonical_create_file_operation_is_refused_and_the_host_form_is_named(tmp_path, host, capsys, monkeypatch):
+    rc, out = _apply_stdin(_seed(tmp_path), capsys, monkeypatch,
+                           '{"operations": [{"op": "create_file", "path": "notes.txt", "text": "hi\\n"}]}')
+    assert rc == 1 and out["status"] == "failed" and out["reason_code"] == "turbo_plan_malformed"
+    assert "whole text" in out["detail"] and "replace" in out["detail"], out["detail"]
+
+
+def test_the_request_tells_the_planner_how_a_new_file_is_written(tmp_path, host, capsys):
+    rc, out = _request(_seed(tmp_path), capsys, "--task", "Create notes.txt")
+    assert rc == 0
+    assert "omit" in out["format"]["operations"][0]["find"]
+    assert "to create a file, leave find out" in out["rules"] and "whole text in replace" in out["rules"], out["rules"]
 
 
 MALFORMED = [

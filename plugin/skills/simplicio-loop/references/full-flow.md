@@ -30,7 +30,8 @@ below is the full elaboration, read only when the task needs it).
   `rules` is one line: write the plan from the file contents above, do not open, list or read other files,
   do not run tests yourself, run the command below once. `apply` is the one next command, with the same
   `--verify`: `simplicio-loop turbo --repo <path> --apply - [--verify <cmd>] <<'PLAN'`, then `<JSON plan>`,
-  then `PLAN`. The heredoc delimiter is quoted, so the plan reaches stdin byte for byte.
+  then `PLAN`. The heredoc delimiter is quoted, so the plan reaches stdin byte for byte. A new file is an
+  operation with no `find` (or `find: ""`): its whole text is `replace`, and the path must not exist yet.
 - Command 2 is that `apply` command. It reads the plan from stdin as UTF-8 (`--apply <file>` reads a file
   instead: the same code path), `simplicio-dev-cli` compiles and applies it, and `--verify` runs. It prints
   `simplicio.turbo-run/v1` with `mode: "host"`, `status` (`ok` or `failed`), `applied`, `failed` (each entry

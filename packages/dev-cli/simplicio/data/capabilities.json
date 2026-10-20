@@ -885,7 +885,7 @@
     "minimal_host_plan": {
       "operations": [
         {
-          "find": "<exact unique text>",
+          "find": "<exact unique text; omit it or \"\" to create a new file>",
           "path": "<repo-relative path>",
           "replace": "<new text>"
         }
