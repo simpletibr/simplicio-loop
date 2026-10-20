@@ -3,7 +3,8 @@
 `simplicio-loop install` (planner.py) and the git-clone installer (scripts/install_lib.py) both use this module, so the
 wiring has one implementation. `wire` adds only the entries that are missing and keeps everything the user has.
 `unwire` removes exactly the entries the ownership receipt recorded, and the containers install created that are empty
-by then. A file that cannot be parsed is never overwritten.
+by then. When the user has not changed the file since install, uninstall writes back the exact bytes install found.
+A file that cannot be parsed is never overwritten.
 """
 
 from __future__ import annotations
@@ -42,6 +43,7 @@ class Wiring:
     created_events: list[str]  # hook events whose list this merge created
     created_hooks: bool  # whether this merge created the "hooks" object
     created_file: bool  # whether the file did not exist before this merge
+    original: str | None = None  # the file's text before this merge, as it is on disk; None when there was no file
 
 
 @dataclass(frozen=True)
@@ -49,6 +51,7 @@ class Unwiring:
     data: dict[str, Any] | None  # what the file should hold, or None when there is no file
     removed: int  # hook entries removed
     delete: bool  # install created the file and nothing else is left in it
+    restore: str | None = None  # the text install found, when the user has not changed the file since: written back as is
 
 
 def entries(hooks_dir: Path, *, is_global: bool, available: Callable[[str], bool]) -> list[Entry]:
@@ -72,33 +75,46 @@ def entries(hooks_dir: Path, *, is_global: bool, available: Callable[[str], bool
 
 def read(path: Path) -> dict[str, Any] | None:
     """The settings object, or None when the file does not exist. An empty file counts as an empty object."""
+    text = read_raw(path)
+    return None if text is None else parse(text, str(path))
+
+
+def read_raw(path: Path) -> str | None:
+    """The file's text exactly as it is on disk, or None when there is no file. Nothing is translated, because uninstall
+    may have to write these bytes back."""
     if not path.exists():
         return None
     try:
-        text = path.read_text(encoding="utf-8")
+        return path.read_bytes().decode("utf-8")
     except (OSError, ValueError) as exc:
         raise SettingsError(f"{path} cannot be read: {exc}") from exc
+
+
+def parse(text: str, where: str) -> dict[str, Any]:
+    """The settings object that `text` holds. Blank text counts as an empty object; `where` names the file in errors."""
     if not text.strip():
         return {}
     try:
         data = json.loads(text)
     except ValueError as exc:
-        raise SettingsError(f"{path} is not valid JSON ({exc}); fix it, then run the command again") from exc
+        raise SettingsError(f"{where} is not valid JSON ({exc}); fix it, then run the command again") from exc
     if not isinstance(data, dict):
-        raise SettingsError(f"{path} must hold a JSON object")
+        raise SettingsError(f"{where} must hold a JSON object")
     return data
 
 
-def wire(current: Mapping[str, Any] | None, wanted: Sequence[Entry]) -> Wiring:
+def wire(current: Mapping[str, Any] | None, wanted: Sequence[Entry], original: str | None = None) -> Wiring:
     """Merge the entries that are missing into `current`. An entry counts as present when a hook of the same event
-    already runs a command that names its file, whoever wrote it. Nothing already in the object changes."""
+    already runs a command that names its file, whoever wrote it. Nothing already in the object changes. `original` is
+    the file's text as it was before the merge (`read_raw`), which the receipt keeps when this is the first install."""
     base = dict(current) if current is not None else {}
     hooks = base.get("hooks", {})
     if not isinstance(hooks, dict):
         raise SettingsError(f'{_WHERE}: "hooks" must be an object')
     missing = [entry for entry in wanted if not _has(hooks, entry)]
     if not missing:
-        return Wiring(data=base, added=[], created_events=[], created_hooks=False, created_file=False)
+        return Wiring(data=base, added=[], created_events=[], created_hooks=False, created_file=False,
+                      original=original)
     data = copy.deepcopy(base)
     created_hooks = "hooks" not in data
     target = data.setdefault("hooks", {})
@@ -114,7 +130,7 @@ def wire(current: Mapping[str, Any] | None, wanted: Sequence[Entry]) -> Wiring:
             group = {"matcher": entry.matcher, **group}
         target[entry.event].append(group)
     return Wiring(data=data, added=missing, created_events=created_events,
-                  created_hooks=created_hooks, created_file=current is None)
+                  created_hooks=created_hooks, created_file=current is None, original=original)
 
 
 def unwire(data: Mapping[str, Any], record: Mapping[str, Any]) -> tuple[dict[str, Any], int]:
@@ -144,12 +160,23 @@ def unwire_file(path: Path, record: Mapping[str, Any]) -> Unwiring:
         return Unwiring(data=None, removed=0, delete=False)
     data, removed = unwire(current, record)
     delete = bool(record["file_created"]) and data == {} and not path.is_symlink()
-    return Unwiring(data=data, removed=removed, delete=delete)
+    return Unwiring(data=data, removed=removed, delete=delete, restore=_as_found(record.get("original"), data))
+
+
+def _as_found(original: str | None, data: Mapping[str, Any]) -> str | None:
+    """The stored text when it holds exactly `data`, which means the user has not changed the file since install. Any
+    other change returns None, and uninstall keeps the user's change by writing `data` as it renders."""
+    if original is None:
+        return None
+    try:
+        return original if parse(original, _WHERE) == data else None
+    except SettingsError:
+        return None
 
 
 def record_of(previous: Mapping[str, Any] | None, wiring: Wiring) -> dict[str, Any] | None:
-    """What the ownership receipt records about the file: every entry Loop added, including in earlier installs, and
-    what Loop created. None when Loop has never added an entry here."""
+    """What the ownership receipt records about the file: every entry Loop added, including in earlier installs, what
+    Loop created, and the text the file had before Loop first wired it. None when Loop has never added an entry here."""
     prior = dict(previous or {})
     recorded = [dict(item) for item in prior.get("entries", [])]
     for entry in wiring.added:
@@ -159,12 +186,20 @@ def record_of(previous: Mapping[str, Any] | None, wiring: Wiring) -> dict[str, A
         return None
     created_events = list(prior.get("created_events", []))
     created_events += [event for event in wiring.created_events if event not in created_events]
-    return {
+    record: dict[str, Any] = {
         "entries": recorded,
         "created_events": created_events,
         "created_hooks": bool(prior.get("created_hooks")) or wiring.created_hooks,
         "file_created": bool(prior.get("file_created")) or wiring.created_file,
     }
+    # The first install that wires an existing file keeps its text; a re-install keeps that text, never the wired one.
+    if previous is None:
+        original = None if wiring.created_file else wiring.original
+    else:
+        original = prior.get("original")
+    if original is not None:
+        record["original"] = original
+    return record
 
 
 def valid_record(value: Any) -> bool:
@@ -180,6 +215,8 @@ def valid_record(value: Any) -> bool:
         return False
     if not isinstance(value.get("created_hooks"), bool) or not isinstance(value.get("file_created"), bool):
         return False
+    if "original" in value and not isinstance(value["original"], str):
+        return False
     return all(_valid_entry(item) for item in entries_)
 
 
@@ -187,9 +224,10 @@ def render(data: Mapping[str, Any]) -> bytes:
     return (json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
 
 
-def write(path: Path, data: Mapping[str, Any]) -> None:
+def write(path: Path, data: Mapping[str, Any], text: str | None = None) -> None:
+    """Write the settings object `data` as JSON, or `text` exactly as it is when given (uninstall's restore)."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(render(data))
+    path.write_bytes(render(data) if text is None else text.encode("utf-8"))
 
 
 def _has(hooks: Mapping[str, Any], entry: Entry) -> bool:

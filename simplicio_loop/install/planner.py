@@ -10,9 +10,10 @@ import hashlib
 import json
 import os
 import shutil
+from collections.abc import Iterator, Mapping
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Iterator, Mapping
+from typing import Any
 
 from .. import __version__, distribution
 from . import claude_hooks, entry
@@ -278,8 +279,11 @@ def _claude_wiring(plan: Mapping[str, Any], root: Path, hooks_src: Any) -> claud
         is_global=plan.get("scope") == "global",
         available=lambda name: hooks_src.joinpath(name).is_file(),
     )
+    path = root / claude_hooks.SETTINGS
     try:
-        return claude_hooks.wire(claude_hooks.read(root / claude_hooks.SETTINGS), wanted)
+        text = claude_hooks.read_raw(path)  # read once: the parsed object and the bytes install found are the same file
+        current = None if text is None else claude_hooks.parse(text, str(path))
+        return claude_hooks.wire(current, wanted, original=text)
     except claude_hooks.SettingsError as exc:
         raise InstallError(str(exc)) from exc
 
@@ -302,6 +306,15 @@ def _unwired(settings: claude_hooks.Unwiring | None) -> dict[str, int]:
     if settings is None or not settings.removed:
         return {}
     return {claude_hooks.SETTINGS.as_posix(): settings.removed}
+
+
+def _public(ownership: dict[str, Any]) -> dict[str, Any]:
+    """The receipt as the command reports it. The settings text the receipt keeps (`original`) stays in the file: output
+    never prints the user's settings, which may hold secrets."""
+    record = ownership.get("claude_settings")
+    if not record or "original" not in record:
+        return ownership
+    return {**ownership, "claude_settings": {key: value for key, value in record.items() if key != "original"}}
 
 
 def apply_plan(
@@ -398,6 +411,8 @@ def apply_plan(
     ownership["digest"] = _digest(ownership)
     body = (json.dumps(ownership, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     _put(root / RECEIPT, body, None, changes, root, dry_run, made)
+    if not dry_run and "original" in (settings_record or {}):  # the receipt holds the user's settings text: owner only
+        (root / RECEIPT).chmod(0o600)
     pending = len(changes["created"]) + len(changes["updated"])
     return {
         "schema": SCHEMA,
@@ -406,7 +421,7 @@ def apply_plan(
         "up_to_date": pending == 0,
         "changes": changes,
         "owned": sorted(set(owned) | set(block_files)),
-        "ownership": ownership,
+        "ownership": _public(ownership),
         "digest": plan["digest"],
         "global_skipped": list(plan.get("global_skipped") or []),
     }
@@ -510,7 +525,7 @@ def uninstall(target: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
         for rel in removed:
             _receipt_path(root, rel).unlink()
         if settings is not None and settings.removed and not settings.delete:
-            claude_hooks.write(root / claude_hooks.SETTINGS, settings.data or {})
+            claude_hooks.write(root / claude_hooks.SETTINGS, settings.data or {}, settings.restore)
         for rel in removed_dirs:
             _receipt_path(root, rel).rmdir()
     return {
@@ -651,7 +666,7 @@ def prune_project_copies(target: str | Path, *, dry_run: bool = False) -> dict[s
                 except OSError:
                     pass
         elif settings.removed and not dry_run:
-            claude_hooks.write(root / claude_hooks.SETTINGS, settings.data or {})
+            claude_hooks.write(root / claude_hooks.SETTINGS, settings.data or {}, settings.restore)
 
     all_dirs: set[Path] = set()
     for d in dirs_to_check:

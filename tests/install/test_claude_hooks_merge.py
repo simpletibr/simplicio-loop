@@ -8,6 +8,8 @@ The merge keeps every key and hook the user already has, is idempotent, and is r
 from __future__ import annotations
 
 import json
+import os
+import stat
 from pathlib import Path
 
 import pytest
@@ -143,6 +145,70 @@ def test_uninstall_keeps_an_empty_event_list_the_user_already_had(repo, bundle):
     install(repo, bundle)
     uninstall(repo)
     assert settings_of(repo) == {"hooks": {"Stop": []}}
+
+
+# --- the user's own bytes come back: uninstall restores them when the user has not changed the file since install ---
+
+COMPACT_BYTES = (
+    b'{"permissions":{"allow":["Bash(ls:*)"]},"hooks":{"PreToolUse":[{"matcher":"Write",'
+    b'"hooks":[{"type":"command","command":"echo user-hook"}]}]}}\n'
+)
+
+
+@pytest.mark.parametrize(
+    "original",
+    [COMPACT_BYTES, b'{\r\n  "model": "sonnet"\r\n}\r\n', b'{"model":"sonnet"}', b""],
+    ids=["compact-one-line", "crlf-indent-2", "no-final-newline", "empty-file"],
+)
+def test_uninstall_puts_back_the_exact_settings_bytes_the_user_had(repo, bundle, original):
+    settings_path(repo).parent.mkdir(parents=True)
+    settings_path(repo).write_bytes(original)
+    install(repo, bundle)
+    uninstall(repo)
+    assert settings_path(repo).read_bytes() == original
+
+
+def test_a_second_install_keeps_the_settings_bytes_the_user_had(repo, bundle):
+    settings_path(repo).parent.mkdir(parents=True)
+    settings_path(repo).write_bytes(COMPACT_BYTES)
+    install(repo, bundle)
+    install(repo, bundle)
+    uninstall(repo)
+    assert settings_path(repo).read_bytes() == COMPACT_BYTES
+
+
+def test_an_edit_the_user_makes_after_install_is_kept_by_uninstall(repo, bundle):
+    settings_path(repo).parent.mkdir(parents=True)
+    settings_path(repo).write_bytes(COMPACT_BYTES)
+    install(repo, bundle)
+    write_settings(repo, {**settings_of(repo), "model": "opus"})
+    uninstall(repo)
+    assert settings_of(repo) == {**json.loads(COMPACT_BYTES), "model": "opus"}
+
+
+def test_prune_puts_the_settings_bytes_the_user_had_back(repo, bundle):
+    settings_path(repo).parent.mkdir(parents=True)
+    settings_path(repo).write_bytes(COMPACT_BYTES)
+    install(repo, bundle)
+    prune_project_copies(repo)
+    assert settings_path(repo).read_bytes() == COMPACT_BYTES
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
+def test_the_receipt_that_holds_the_settings_copy_is_owner_only(repo, bundle):
+    settings_path(repo).parent.mkdir(parents=True)
+    settings_path(repo).write_bytes(COMPACT_BYTES)
+    install(repo, bundle)
+    receipt = repo / ".simplicio-loop" / "install-ownership.json"
+    assert json.loads(receipt.read_text(encoding="utf-8"))["claude_settings"]["original"] == COMPACT_BYTES.decode()
+    assert stat.S_IMODE(receipt.stat().st_mode) == 0o600
+
+
+def test_the_settings_text_never_appears_in_the_install_result(repo, bundle):
+    settings_path(repo).parent.mkdir(parents=True)
+    settings_path(repo).write_bytes(b'{"env":{"DEMO_TOKEN":"canary-settings-value"}}\n')
+    result = install(repo, bundle)
+    assert "canary-settings-value" not in json.dumps(result)
 
 
 def test_a_loop_entry_the_user_wired_by_hand_is_not_claimed_by_uninstall(repo, bundle):

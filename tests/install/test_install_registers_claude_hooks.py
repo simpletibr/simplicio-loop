@@ -109,6 +109,17 @@ def test_uninstall_returns_the_project_settings_to_what_the_user_had(capsys, bun
     assert "unwired: .claude/settings.json" in out
 
 
+def test_no_install_or_uninstall_output_prints_the_settings_text_the_user_had(capsys, bundle, project):
+    (project / ".claude").mkdir()
+    (project / ".claude" / "settings.json").write_text('{"env":{"DEMO_TOKEN":"canary-settings-value"}}', encoding="utf-8")
+    outputs = [
+        run(capsys, "install", "--target", str(project))[1],
+        run(capsys, "install", "--json", "--target", str(project))[1],
+        run(capsys, "install", "--uninstall", "--target", str(project))[1],
+    ]
+    assert not any("canary-settings-value" in out for out in outputs)
+
+
 def test_global_install_registers_absolute_hook_paths_in_the_home_settings(capsys, bundle, isolated_home):
     rc, out = run(capsys, "install", "--global")
     assert rc == 0, out
